@@ -1,0 +1,11 @@
+[Unit]
+Description=Lahijan
+
+[Service]
+Type=simple
+User=lahijan
+ExecStart=lahijan serve
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

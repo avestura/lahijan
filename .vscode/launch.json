@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Lahijan",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "cwd": "${workspaceFolder}",
+      "program": "${workspaceFolder}\\cmd\\lahijan\\main.go",
+      "args": [
+        "--debug",
+        "--http.server.cors.enabled"
+      ]
+    }
+  ]
+}

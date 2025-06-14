@@ -1,0 +1,11 @@
+{
+    "recommendations": [
+        "ms-ossdata.vscode-postgresql",
+        "mikestead.dotenv",
+        "eamodio.gitlens",
+        "golang.go",
+        "jinliming2.vscode-go-template",
+        "timonwong.shellcheck",
+        "dbaeumer.vscode-eslint",
+    ]
+}

@@ -1,0 +1,44 @@
+http:
+  server:
+    # server port to listen
+    port: 3000
+    # server host to listen
+    host: "0.0.0.0"
+    # server concurrency
+    concurrency: "$go-computed"
+    # max body size accepted by server
+    bodylimit: "$go-computed"
+    # spawn multiple go processes listening on the same port
+    prefork: false
+
+    cors:
+      # toggles cross-origin resource sharing headers
+      enabled: false
+      # allowed cors headers
+      allowHeaders: [] # !!str
+      # allowed cors methods
+      allowMethods: [] # !!str
+      # allowed cors origins
+      allowOrigins: [] # !!str
+      # cors max age
+      maxAge: 0
+
+    logger:
+      # toggles logging requests
+      enabled: true
+      # toggles colors for logging requests
+      colors: true
+
+    healthcheck:
+      # toggles readiness and liveness endpoints
+      enabled: true
+      # readiness endpoint
+      readinessEndpoint: "/healthcheck/readiness"
+      # liveness endpoint
+      livenessEndpoint: "/healthcheck/liveness"
+
+# application environment e.g. dev, stg, prd
+environment: dev
+
+# activates more logs and debugging behavior
+debug: false
