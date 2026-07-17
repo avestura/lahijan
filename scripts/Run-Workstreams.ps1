@@ -232,7 +232,8 @@ function Invoke-Ws {
     if (-not (Invoke-Git 'reset','--hard','HEAD')) { throw "couldn't reset main" }
 
     # Delete the branch if it somehow exists from a prior failed run.
-    Invoke-Git 'branch','-D',$branchName   # exits non-zero if branch absent; that's fine
+    # (exits non-zero if branch absent; that's fine — capture to suppress leak)
+    $null = Invoke-Git 'branch','-D',$branchName
     if (-not (Invoke-Git 'checkout','-b',$branchName)) {
         Write-Fail "couldn't create branch $branchName"
         return [pscustomobject]@{ WS = $WsId; Result = 'branch-failed'; Branch = $branchName; Log = $logFile }
@@ -253,34 +254,60 @@ function Invoke-Ws {
     $prompt | Out-File -FilePath "$logFile.prompt" -Encoding utf8
 
     # -----------------------------------------------------------------------
-    # Invoke opencode. Pipe output to host AND to the log file.
+    # Invoke opencode via Start-Process (NOT Start-Job).
+    # Start-Job + Tee-Object does NOT reliably capture native-command output
+    # in Windows PowerShell — the log file ends up empty even when opencode
+    # is producing lots of output. Start-Process redirects at the OS level,
+    # which is reliable.
     # -----------------------------------------------------------------------
     $opencodeArgs = @('run','--agent','ws-implementer','--auto','--print-logs')
     if ($Model) { $opencodeArgs += @('-m', $Model) }
     $opencodeArgs += $prompt
 
     Write-Step "opencode run --agent ws-implementer (timeout ${TimeoutMinutes}m)"
+    Write-Info "log: $logFile"
+    Write-Info "stderr -> $logFile.err"
 
-    # Run opencode in a background job with a hard timeout. Capture stdout+stderr
-    # to the log file. We relax ErrorActionPreference so native-stderr output
-    # doesn't trip Stop-mode.
-    $job = Start-Job -ScriptBlock {
-        param($Exe, $ArgArray, $Log)
-        $ErrorActionPreference = 'Continue'
-        & $Exe @ArgArray 2>&1 | Tee-Object -FilePath $Log
-    } -ArgumentList 'opencode', $opencodeArgs, $logFile
-
-    $finished = $job | Wait-Job -Timeout ($TimeoutMinutes * 60)
-    if (-not $finished) {
-        $job | Stop-Job
-        Write-Fail "WS $WsId exceeded ${TimeoutMinutes}m timeout"
-        Receive-Job $job 2>&1 | Out-Host
-        $job | Remove-Job
-        if (-not (Invoke-Git 'checkout','main')) { Write-Warning "couldn't return to main" }
-        return [pscustomobject]@{ WS = $WsId; Result = 'timeout'; Branch = $branchName; Log = $logFile }
+    # Start opencode with stdout+stderr redirected to files. PassThru gives us
+    # the Process object so we can WaitForExit with a timeout.
+    $startProcessArgs = @{
+        FilePath               = 'opencode'
+        ArgumentList           = $opencodeArgs
+        RedirectStandardOutput = $logFile
+        RedirectStandardError  = "$logFile.err"
+        NoNewWindow            = $true
+        PassThru               = $true
     }
-    Receive-Job $job 2>&1 | Out-Host
-    $job | Remove-Job
+
+    $prev = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+    try {
+        $proc = Start-Process @startProcessArgs
+    } catch {
+        $ErrorActionPreference = $prev
+        Write-Fail "couldn't start opencode: $($_.Exception.Message)"
+        if (-not (Invoke-Git 'checkout','main')) { Write-Warning "couldn't return to main" }
+        return [pscustomobject]@{ WS = $WsId; Result = 'spawn-failed'; Branch = $branchName; Log = $logFile }
+    }
+
+    # WaitForExit returns $true if the process exited before the timeout (ms).
+    $exited = $proc.WaitForExit($TimeoutMinutes * 60 * 1000)
+    $exitCode = if ($exited) { $proc.ExitCode } else { -1 }
+    $ErrorActionPreference = $prev
+
+    if (-not $exited) {
+        try { $proc.Kill() } catch { Write-Warning "couldn't kill opencode process" }
+        Write-Fail "WS $WsId exceeded ${TimeoutMinutes}m timeout"
+    } else {
+        Write-OK "opencode exited (code $exitCode)"
+    }
+
+    # Stream the captured stdout to console so the user can see what happened.
+    # (Tee-Object live monitoring would have been nicer but Start-Process
+    # writes the file directly; we cat it after.)
+    if (Test-Path $logFile) {
+        Write-Host "--- opencode output (tail) ---" -ForegroundColor DarkGray
+        Get-Content $logFile -Tail 30 | ForEach-Object { Write-Host $_ -ForegroundColor DarkGray }
+    }
 
     # -----------------------------------------------------------------------
     # Verify with make lint test
@@ -291,8 +318,11 @@ function Invoke-Ws {
     $verifyExit = $LASTEXITCODE
     $ErrorActionPreference = $prev
 
-    # Check whether the agent printed the completion marker.
-    $logContent = if (Test-Path $logFile) { Get-Content $logFile -Raw } else { '' }
+    # Check whether the agent printed the completion marker. Look in both
+    # stdout and stderr captures.
+    $logContent = ''
+    if (Test-Path $logFile)        { $logContent += Get-Content $logFile -Raw }
+    if (Test-Path "$logFile.err")  { $logContent += "`n" + (Get-Content "$logFile.err" -Raw) }
     $marker = if ($logContent -match "WS_IMPLEMENTATION_COMPLETE:\s*$WsId") {
         'complete'
     } elseif ($logContent -match "WS_IMPLEMENTATION_BLOCKED:\s*$WsId") {
