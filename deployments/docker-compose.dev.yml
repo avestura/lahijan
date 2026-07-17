@@ -1,0 +1,53 @@
+# Lahijan — development Docker Compose stack.
+#
+# Brings up the shared Postgres instance described in ADR-0007 (one container,
+# three logical databases: lahijan, pdns, seaweed). This file is the dev
+# topology; WS-11/12/13 will append Incus-client, PowerDNS, SeaweedFS and the
+# OTel collector services here as they land. WS-03 stands up only Postgres.
+#
+# Usage:
+#   make dev-up        # docker compose -f deployments/docker-compose.dev.yml up -d
+#   make dev-down
+#   make db-up         # apply migrations (after dev-up)
+#
+# Copy deployments/.env.example to deployments/.env (or repository-root .env)
+# before running. .env is gitignored.
+
+name: lahijan-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: lahijan-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_SUPERUSER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:-postgres}
+      # The default DB that the superuser lands in; Lahijan/PDNS/SeaweedFS
+      # each get their own DB + role via the init script below.
+      POSTGRES_DB: ${POSTGRES_SUPERUSER_DB:-postgres}
+      LAHIJAN_DB_NAME: ${LAHIJAN_DATABASE_NAME:-lahijan}
+      LAHIJAN_DB_USER: ${LAHIJAN_DATABASE_USER:-lahijan}
+      LAHIJAN_DB_PASSWORD: ${LAHIJAN_DATABASE_PASSWORD:-lahijan}
+      PDNS_DB_NAME: ${PDNS_DATABASE_NAME:-pdns}
+      PDNS_DB_USER: ${PDNS_DATABASE_USER:-pdns}
+      PDNS_DB_PASSWORD: ${PDNS_DATABASE_PASSWORD:-pdns}
+      SEAWEED_DB_NAME: ${SEAWEED_DATABASE_NAME:-seaweed}
+      SEAWEED_DB_USER: ${SEAWEED_DATABASE_USER:-seaweed}
+      SEAWEED_DB_PASSWORD: ${SEAWEED_DATABASE_PASSWORD:-seaweed}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sh:/docker-entrypoint-initdb.d/01-init.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    shm_size: 256m
+
+volumes:
+  postgres_data:
+    name: lahijan-postgres-data-dev
