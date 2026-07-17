@@ -76,7 +76,7 @@ $ProgressPreference    = "SilentlyContinue"   # opencode emits progress chars
 # Default MVP sequence in dependency order.
 if (-not $Workstreams) {
     $Workstreams = @(
-        'WS-03','WS-04','WS-05',
+        'WS-04','WS-05',
         'WS-06','WS-08',
         'WS-07a','WS-07b','WS-07c',
         'WS-09',
