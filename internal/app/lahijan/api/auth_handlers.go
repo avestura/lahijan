@@ -119,6 +119,8 @@ func (s *Server) Refresh(c *fiber.Ctx) error {
 		clearSessionCookie(c, s.cookies)
 		return s.mapAuthError(c, err)
 	}
+	// On refresh the session cookie stays the same (CookieValue == ""); only
+	// the refresh-token cookie rotates.
 	setSessionCookie(c, s.cookies, sess.CookieValue, sess.Refresh.Raw)
 	user, err := s.users.GetByID(c.UserContext(), sess.UserID)
 	if err != nil {

@@ -262,6 +262,30 @@ func TestRefresh_RotationAndReuseViaHTTP(t *testing.T) {
 	}
 }
 
+// TestRefresh_KeepsSessionCookieValid proves the session cookie stays valid
+// after a successful refresh — the security-critical rotation happens on the
+// refresh token, and the session cookie is intentionally left stable.
+func TestRefresh_KeepsSessionCookieValid(t *testing.T) {
+	t.Parallel()
+	ta := newTestApp(t)
+	addr := "keep+" + unique() + "@example.test"
+	_, _, sc := doJSON(t, ta, "POST", "/api/v1/auth/register",
+		map[string]any{"email": addr, "password": strongPw}, "")
+	sessionCookie := "lahijan_session=" + extractCookie(sc, "lahijan_session")
+	refreshCookie := "lahijan_refresh=" + extractCookie(sc, "lahijan_refresh")
+
+	// Rotate using the refresh cookie while still holding the session cookie.
+	if status, _, _ := doJSON(t, ta, "POST", "/api/v1/auth/refresh", nil, refreshCookie); status != 200 {
+		t.Fatalf("refresh: want 200, got %d", status)
+	}
+
+	// The original session cookie must still authenticate /me.
+	status, _, _ := doJSON(t, ta, "GET", "/api/v1/auth/me", nil, sessionCookie)
+	if status != 200 {
+		t.Fatalf("session cookie after refresh: want 200, got %d", status)
+	}
+}
+
 func TestLogout_ClearsCookies(t *testing.T) {
 	t.Parallel()
 	ta := newTestApp(t)

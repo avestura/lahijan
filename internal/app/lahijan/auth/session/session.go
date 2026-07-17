@@ -323,8 +323,15 @@ func (s *Service) openSession(
 	}, nil
 }
 
-// continueSession reuses an existing session for a refresh rotation: it slides
-// the session expiry, then issues a new refresh token in the existing family.
+// continueSession reuses the existing session for a refresh rotation: it issues
+// a new refresh token in the same family and leaves the session cookie alone.
+//
+// We deliberately do NOT rotate sessions.token_hash here. Rotating it would
+// require persisting the new hash via a dedicated repo method; until that lands
+// the security-critical rotation already happens on the refresh token (the
+// credential /refresh actually consumes), and reuse detection revokes the whole
+// family + the owning session regardless. Leaving the session cookie stable
+// means the browser keeps sending a cookie that still validates.
 func (s *Service) continueSession(
 	ctx context.Context,
 	rt database.RefreshToken,
@@ -335,13 +342,6 @@ func (s *Service) continueSession(
 	if err != nil {
 		return Session{}, fmt.Errorf("auth/session: load session on refresh: %w", err)
 	}
-	// Re-issue the session cookie too so a compromised-tab window shrinks. This
-	// rotates token_hash; the old cookie stops validating.
-	rawCookie, cookieHash, err := s.signer.Issue(s.cfg.TokenByteLen)
-	if err != nil {
-		return Session{}, fmt.Errorf("auth/session: rotate session token: %w", err)
-	}
-	_ = cookieHash // cookie rotation would persist via a Touch+Rotate query; kept for future wiring
 	refresh, err := s.issueRefresh(ctx, rt.UserID, rt.SessionID, rt.FamilyID, ua, ip)
 	if err != nil {
 		return Session{}, err
@@ -350,7 +350,7 @@ func (s *Service) continueSession(
 		UserID:      rt.UserID,
 		SessionID:   sessRow.ID,
 		ExpiresAt:   sessRow.ExpiresAt,
-		CookieValue: rawCookie,
+		CookieValue: "", // unchanged; the browser keeps the existing valid cookie
 		Refresh:     refresh,
 	}, nil
 }
