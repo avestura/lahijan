@@ -1,0 +1,52 @@
+You are RESUMING work on **{{WS_ID}}** ({{SLUG}}).
+
+The branch **{{BRANCH}}** already contains {{AHEAD_COUNT}} commit(s) of
+in-progress work from a prior session that ran out of time. Your job is to
+PICK UP where the prior session left off and finish the WS, NOT to start
+over.
+
+Context for this resume run:
+- Repo root:   {{REPO_ROOT}}
+- Branch:      {{BRANCH}}  (already checked out)
+- WS doc:      {{WS_DOC_PATH}}
+
+Procedure:
+1. Read /AGENTS.md (the project heart).
+2. Read {{WS_DOC_PATH}} end to end.
+3. Read every file under that doc's "Required reading" list.
+4. Read docs/architecture/conventions.md (especially your area's section).
+5. Read the relevant .opencode/skills/<area>/SKILL.md.
+
+Then orient yourself on what's already done:
+6. Run: git log --oneline main..HEAD
+   (study each commit message to understand what the prior session did)
+7. Run: git diff --stat main..HEAD
+   (see what files have been touched)
+8. Read the WS doc's "Definition of Done" checklist and tick boxes mentally
+   based on what already exists.
+
+Then CONTINUE the work:
+9. Identify what's left to do (don't redo what's already done unless it's wrong).
+10. Implement the remaining concerns one at a time, with tests.
+11. After every meaningful change, run: make lint test
+12. Commit with conventional-commit messages like "feat(conf): ..." using the
+    area scope (compute, dns, s3, auth, rbac, billing, plugins, api, web,
+    website, docs, ci, build, conf).
+13. Tick every Definition of Done box; if you can't, note why in your final
+    message.
+14. Update the WS doc's Status field to "done" (or "blocked" with reason).
+
+Do NOT:
+- Start over from scratch. The prior commits represent real work.
+- Revert existing commits unless they're actually broken.
+- Push to remote (local only).
+- Skip tests or lint.
+- Edit any ADR that is already Accepted; write a new one if you need to.
+
+When you finish successfully, print this exact line on its own line:
+WS_IMPLEMENTATION_COMPLETE: {{WS_ID}}
+
+If you get blocked, print this exact line on its own line:
+WS_IMPLEMENTATION_BLOCKED: {{WS_ID}} REASON_HERE
+
+Begin by reviewing what's already on the branch.

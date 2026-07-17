@@ -28,6 +28,10 @@
 
 .PARAMETER TimeoutMinutes
     Per-WS hard timeout. If exceeded, the WS is marked 'timeout' and skipped.
+    Default is 500 minutes (~8.3 hours) — generous, because a complex WS can
+    legitimately take a couple of hours of agent work plus compose stack
+    bring-up + integration tests. Set lower with -TimeoutMinutes 120 if you
+    want to fail-fast.
 
 .PARAMETER DryRun
     Skip the actual opencode invocation; just print what would happen.
@@ -63,7 +67,7 @@ param(
     [string[]]$Workstreams,
     [string]$Model,
     [string]$LogDir = "logs/ws-runner",
-    [int]$TimeoutMinutes = 90,
+    [int]$TimeoutMinutes = 500,
     [switch]$DryRun,
     [switch]$SkipPreflight,
     [switch]$LiveStream = $true,

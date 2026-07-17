@@ -140,12 +140,48 @@ For one-off WS work during the day, use the slash command inside opencode:
 This invokes the `ws-implementer` agent interactively; you can answer
 questions and review changes live.
 
+## Resuming a timed-out WS
+
+If a WS timed out or failed mid-implementation but left real committed work on
+its branch (check with `git log --oneline main..feat/ws-XX-...`), don't throw
+it away. Use `Resume-Workstream.ps1`:
+
+```powershell
+# Resume WS-04 on its existing branch (picks up where it left off)
+powershell -ExecutionPolicy Bypass -File scripts\Resume-Workstream.ps1 WS-04
+```
+
+What it does:
+
+1. Verifies `feat/ws-XX-<slug>` exists and is ahead of main.
+2. Checks it out (does NOT reset, does NOT delete).
+3. Commits any uncommitted leftover from the prior session (so the agent
+   starts in a clean tree and sees the prior work).
+4. Invokes `opencode run --agent ws-implementer` with a **resume-specific
+   prompt** that tells the agent: read the prior commits, identify what's
+   left, pick up where it left off (don't start over).
+5. Live-streams output (same streaming code as the runner).
+6. Verifies with `make lint test`. On green + completion marker, commits any
+   final leftovers and merges to main.
+
+Useful flags:
+
+```powershell
+# Shorter timeout for a quick finish
+.\scripts\Resume-Workstream.ps1 WS-04 -TimeoutMinutes 120
+
+# Use a specific model
+.\scripts\Resume-Workstream.ps1 WS-04 -Model 'anthropic/claude-sonnet-4-6'
+```
+
 ## Files
 
 | Path | Purpose |
 |------|---------|
 | `scripts/Run-Workstreams.ps1` | The runner itself. |
-| `scripts/_ws-prompt.template` | The prompt template sent to each WS agent. |
+| `scripts/Resume-Workstream.ps1` | Resume a timed-out WS on its existing branch. |
+| `scripts/_ws-prompt.template` | Fresh-start prompt template. |
+| `scripts/_ws-resume-prompt.template` | Resume prompt template. |
 | `.opencode/agent/ws-implementer.md` | The agent's system prompt (9-step checklist). |
 | `.opencode/command/ws.md` | The `/ws` interactive slash command. |
 | `logs/ws-runner/` | Per-WS logs + summary.json (gitignored). |
