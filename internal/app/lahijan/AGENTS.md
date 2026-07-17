@@ -12,7 +12,7 @@
 | `conf/computeddefault/` | Registry for Go-computed defaults (YAML sentinel `$go-computed`). | ✅ done |
 | `version/` | Build-time version stamp via `-ldflags`. | ✅ done |
 | `database/` | sqlc queries, golang-migrate migrations, repository types. | ✅ WS-03 |
-| `api/` | HTTP handlers, Fiber routers, middleware, error envelope, OpenAPI. | WS-05 |
+| `api/` | HTTP handlers, Fiber routers, middleware, error envelope, OpenAPI. | ✅ WS-05 |
 | `domain/<area>/` | Per-area domain logic (compute, dns, storage, billing, plugins, ...). | WS-14..17 |
 | `auth/` | Sessions, tokens, OAuth/OIDC/SAML, MFA, RBAC, audit. | WS-06..08 |
 | `providers/incus/`, `providers/powerdns/`, `providers/seaweedfs/` | Backend drivers. | WS-11..13 |
