@@ -42,18 +42,18 @@ const (
 	PermAuthPatManage     = "auth.pat.manage"     // create/revoke own PATs
 
 	// --- tenant management ---
-	PermTenantRead        = "tenant.read"
-	PermTenantUpdate      = "tenant.update"
-	PermTenantDelete      = "tenant.delete"
-	PermTenantMemberList  = "tenant.member.list"
-	PermTenantMemberInvite = "tenant.member.invite"
-	PermTenantMemberRemove = "tenant.member.remove"
+	PermTenantRead             = "tenant.read"
+	PermTenantUpdate           = "tenant.update"
+	PermTenantDelete           = "tenant.delete"
+	PermTenantMemberList       = "tenant.member.list"
+	PermTenantMemberInvite     = "tenant.member.invite"
+	PermTenantMemberRemove     = "tenant.member.remove"
 	PermTenantMemberRoleUpdate = "tenant.member.role.update"
 
 	// --- audit ---
-	PermAuditRead        = "audit.read"        // read own tenant's audit
-	PermAuditReadGlobal  = "audit.read_global" // read across tenants (superuser)
-	PermAuditExport      = "audit.export"
+	PermAuditRead       = "audit.read"        // read own tenant's audit
+	PermAuditReadGlobal = "audit.read_global" // read across tenants (superuser)
+	PermAuditExport     = "audit.export"
 
 	// --- rbac management ---
 	PermRBACRoleCreate = "rbac.role.create"
@@ -97,12 +97,12 @@ const (
 	PermS3CredentialsRevoke = "s3.credentials.revoke"
 
 	// --- billing & metering (WS-17) ---
-	PermBillingBalanceRead   = "billing.balance.read"
-	PermBillingBalanceAdjust = "billing.balance.adjust" // admin top-up / debit
-	PermBillingLedgerRead    = "billing.ledger.read"
-	PermBillingReceiptRead   = "billing.receipt.read"
-	PermBillingReceiptCreate = "billing.receipt.create"
-	PermBillingPriceCatalogRead = "billing.price_catalog.read"
+	PermBillingBalanceRead        = "billing.balance.read"
+	PermBillingBalanceAdjust      = "billing.balance.adjust" // admin top-up / debit
+	PermBillingLedgerRead         = "billing.ledger.read"
+	PermBillingReceiptRead        = "billing.receipt.read"
+	PermBillingReceiptCreate      = "billing.receipt.create"
+	PermBillingPriceCatalogRead   = "billing.price_catalog.read"
 	PermBillingPriceCatalogUpdate = "billing.price_catalog.update"
 
 	// --- plugins (WS-10) ---
@@ -112,7 +112,7 @@ const (
 	PermPluginsPermissionApprove = "plugins.permission.approve"
 
 	// --- platform-level (superuser only) ---
-	PermPlatformUserList   = "platform.user.list"
+	PermPlatformUserList     = "platform.user.list"
 	PermPlatformTenantCreate = "platform.tenant.create"
 	PermPlatformTenantDelete = "platform.tenant.delete"
 )

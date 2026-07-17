@@ -26,7 +26,8 @@ func TestAllPermissions_AreUnique(t *testing.T) {
 func TestAllPermissions_FollowScopeActionFormat(t *testing.T) {
 	t.Parallel()
 	for _, p := range allPermissions {
-		assert.Truef(t,
+		assert.Truef(
+			t,
 			strings.Count(p.Slug, ".") >= 1,
 			"permission %q must be at least 'scope.action', got no dot", p.Slug,
 		)

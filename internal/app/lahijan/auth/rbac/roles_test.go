@@ -53,7 +53,8 @@ func TestDefaultRoles_ViewerIsStrictSubsetOfMember(t *testing.T) {
 	// write permission, the policy intent is broken.
 	viewer := roleBySlug(t, RoleTenantViewer)
 	for _, p := range viewer.Permissions {
-		assert.Falsef(t,
+		assert.Falsef(
+			t,
 			endsWithAny(p, ".create", ".update", ".delete", ".adjust",
 				".revoke", ".invite", ".remove", ".install", ".uninstall",
 				".approve", ".apply", ".restart", ".start", ".stop"),

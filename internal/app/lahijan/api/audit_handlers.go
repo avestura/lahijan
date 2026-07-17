@@ -206,8 +206,7 @@ func parseAuditFilter(
 ) database.AuditLogFilter {
 	f := database.AuditLogFilter{}
 	if actorUserID != nil && *actorUserID != (openapi_types.UUID{}) {
-		id := uuid.UUID(*actorUserID)
-		f.ActorUserID = &id
+		f.ActorUserID = actorUserID
 	}
 	if action != nil && *action != "" {
 		s := *action
@@ -255,7 +254,7 @@ func pageParams(limit, offset *int) (int32, int32) {
 // when at least one outcome exists, otherwise the row's initial status.
 func toAuditEventDTO(row database.AuditLog, outcomes []database.AuditLogOutcome) apigen.AuditEvent {
 	out := apigen.AuditEvent{
-		Id:           openapi_types.UUID(row.ID),
+		Id:           row.ID,
 		Action:       row.Action,
 		ResourceType: row.ResourceType,
 		Status:       apigen.AuditEventStatus(row.Status),
@@ -263,16 +262,13 @@ func toAuditEventDTO(row database.AuditLog, outcomes []database.AuditLogOutcome)
 		CreatedAt:    row.CreatedAt,
 	}
 	if row.TenantID != nil {
-		t := openapi_types.UUID(*row.TenantID)
-		out.TenantId = &t
+		out.TenantId = row.TenantID
 	}
 	if row.ActorUserID != nil {
-		u := openapi_types.UUID(*row.ActorUserID)
-		out.ActorUserId = &u
+		out.ActorUserId = row.ActorUserID
 	}
 	if row.ResourceID != nil {
-		r := openapi_types.UUID(*row.ResourceID)
-		out.ResourceId = &r
+		out.ResourceId = row.ResourceID
 	}
 	out.RequestId = row.RequestID
 	// Default actorType to "user" when NULL/empty in the DB (defensive).
@@ -285,7 +281,7 @@ func toAuditEventDTO(row database.AuditLog, outcomes []database.AuditLogOutcome)
 	outcomeDTOs := make([]apigen.AuditOutcome, 0, len(outcomes))
 	for _, o := range outcomes {
 		outcomeDTOs = append(outcomeDTOs, apigen.AuditOutcome{
-			Id:        openapi_types.UUID(o.ID),
+			Id:        o.ID,
 			Status:    apigen.AuditOutcomeStatus(o.Status),
 			Details:   metadataToDTO(o.Details),
 			CreatedAt: o.CreatedAt,
