@@ -1,0 +1,54 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "AGENTS.md",
+    "docs/architecture/conventions.md",
+    "docs/glossary.md"
+  ],
+  "skills": {
+    "paths": [
+      ".opencode/skills"
+    ]
+  },
+  "agent": {
+    "ws-implementer": {
+      "description": "Implements a Lahijan workstream end-to-end. Reads AGENTS.md, the WS doc, its 'Required reading' list, and the relevant skill; then implements with tests. Use proactively when the user asks to 'implement WS-XX' or 'work on WS-XX'.",
+      "mode": "subagent",
+      "permission": {
+        "edit": "allow",
+        "bash": "allow"
+      }
+    },
+    "architect": {
+      "description": "Drafts and revises ADRs and workstream docs for Lahijan. Use when the user asks to write an ADR, refine a decision, or revise a workstream brief.",
+      "mode": "subagent",
+      "permission": {
+        "edit": "allow",
+        "bash": "ask"
+      }
+    }
+  },
+  "permission": {
+    "edit": "ask",
+    "bash": {
+      "make *": "allow",
+      "go test*": "allow",
+      "go build*": "allow",
+      "go vet*": "allow",
+      "go mod *": "allow",
+      "git status*": "allow",
+      "git diff*": "allow",
+      "git log*": "allow",
+      "git show*": "allow",
+      "npm *": "allow",
+      "*": "ask"
+    },
+    "external_directory": {
+      "C:\\Users\\me\\AppData\\Local\\Temp\\opencode/**": "allow"
+    }
+  },
+  "compaction": {
+    "auto": true,
+    "tail_turns": 20
+  }
+}
