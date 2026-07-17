@@ -1,0 +1,88 @@
+# OTel Collector configuration for the Lahijan dev stack (ADR-0016).
+#
+# Topology:
+#   Lahijan (host, make run)
+#     │  OTLP gRPC :4317 (traces + logs)
+#     ▼
+#   otel-collector
+#     ├─ traces  → Jaeger  (otlp exporter, jaeger:4317)
+#     ├─ logs    → Loki    (otlphttp exporter, http://loki:3100/otlp/v1/logs)
+#     └─ metrics → Prometheus
+#                   collector scrapes Lahijan /metrics (prometheusreceiver),
+#                   re-exposes them on :8889 (prometheusexporter), and a
+#                   separate Prometheus instance scrapes :8889.
+#
+# The collector reaches the host Lahijan via host.docker.internal, which is
+# injected through `extra_hosts: host.docker.internal:host-gateway` in the
+# compose service definition.
+#
+# All three backends (Jaeger, Loki, Prometheus) are then wired into a single
+# Grafana instance as datasources so the operator has one pane of glass.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+  # Pull Lahijan's Prometheus exposition. The collector is the fan-out hub for
+  # all three signals, so metrics also pass through it rather than Prometheus
+  # scraping Lahijan directly.
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: lahijan
+          scrape_interval: 15s
+          static_configs:
+            - targets: ["host.docker.internal:3000"]
+              labels:
+                service.name: lahijan
+
+processors:
+  batch:
+    send_batch_size: 1024
+    timeout: 5s
+  # resource: ensure service.name is set on spans/logs that arrive without it.
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: dev
+        action: upsert
+
+exporters:
+  # Traces → Jaeger (Jaeger 1.35+ accepts OTLP gRPC natively).
+  otlp/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+  # Logs → Loki (Loki 3.x accepts OTLP/HTTP on /otlp/v1/logs).
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
+    tls:
+      insecure: true
+  # Metrics → Prometheus (collector re-exposes; Prometheus instance scrapes :8889).
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    resource_to_telemetry_conversion:
+      enabled: true
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [resource, batch]
+      exporters: [otlp/jaeger]
+    logs:
+      receivers: [otlp]
+      processors: [resource, batch]
+      exporters: [otlphttp/loki]
+    metrics:
+      receivers: [otlp, prometheus]
+      processors: [resource, batch]
+      exporters: [prometheus]
