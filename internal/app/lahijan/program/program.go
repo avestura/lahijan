@@ -1,6 +1,11 @@
+// Package program is Lahijan's bootstrap layer: it sets up config, builds the
+// GoFiber app, wires middleware, registers routes, and calls app.Listen.
+// All other backend code is invoked from here; nothing should call into
+// program/ from outside.
 package program
 
 import (
+	"errors"
 	"log"
 	"strings"
 
@@ -22,6 +27,8 @@ func init() {
 	computeddefault.RegisterIntDefault("http.server.bodylimit", fiber.DefaultBodyLimit)
 }
 
+// Start builds and runs the Lahijan HTTP server. It returns when the server
+// stops (cleanly or with error).
 func Start() error {
 	info, err := conf.SetupConfig()
 	if err != nil {
@@ -46,33 +53,33 @@ func Start() error {
 		ServerHeader: "Fiber",
 		AppName:      "Lahijan",
 		BodyLimit:    conf.GetServerBodyLimit(),
-		Concurrency:  conf.GetHttpServerConcurrency(),
-		Prefork:      conf.GetHttpServerPreforkEnabled(),
+		Concurrency:  conf.GetHTTPServerConcurrency(),
+		Prefork:      conf.GetHTTPServerPreforkEnabled(),
 	})
 
-	if conf.GetHttpServerLoggerEnabled() {
+	if conf.GetHTTPServerLoggerEnabled() {
 		fiberlog.Debug("logging middleware is enabled.")
 		app.Use(logger.New())
 	}
 
-	if conf.GetHttpServerCorsEnabled() {
+	if conf.GetHTTPServerCORSEnabled() {
 		fiberlog.Debug("cors middleware is enabled.")
 		corsConfig := cors.Config{
-			AllowMethods: strings.Join(conf.GetHttpServerCorsAllowedMethods(), ","),
-			AllowHeaders: strings.Join(conf.GetHttpServerCorsAllowedHeaders(), ","),
-			AllowOrigins: strings.Join(conf.GetHttpServerCorsAllowedOrigins(), ","),
-			MaxAge:       conf.GetHttpServerCorsMaxAge(),
+			AllowMethods: strings.Join(conf.GetHTTPServerCORSAllowedMethods(), ","),
+			AllowHeaders: strings.Join(conf.GetHTTPServerCORSAllowedHeaders(), ","),
+			AllowOrigins: strings.Join(conf.GetHTTPServerCORSAllowedOrigins(), ","),
+			MaxAge:       conf.GetHTTPServerCORSMaxAge(),
 		}
 		app.Use(cors.New(corsConfig))
 	}
 
-	if conf.GetHttpServerHealthcheckEnabled() {
+	if conf.GetHTTPServerHealthcheckEnabled() {
 		fiberlog.Debug("healthcheck middleware is enabled.")
 		healthcheckConfig := healthcheck.Config{
 			LivenessProbe:     func(c *fiber.Ctx) bool { return true },
 			ReadinessProbe:    func(c *fiber.Ctx) bool { return true },
-			ReadinessEndpoint: conf.GetHttpServerHealthcheckReadinessEndpoint(),
-			LivenessEndpoint:  conf.GetHttpServerHealthcheckLivenessEndpoint(),
+			ReadinessEndpoint: conf.GetHTTPServerHealthcheckReadinessEndpoint(),
+			LivenessEndpoint:  conf.GetHTTPServerHealthcheckLivenessEndpoint(),
 		}
 		app.Use(healthcheck.New(healthcheckConfig))
 	}
@@ -84,9 +91,8 @@ func Start() error {
 		return c.SendString("ok")
 	})
 
-	if err := app.Listen(conf.GetHttpServerAddress()); err != nil {
-		fiberlog.Errorf("failed to start server: %w", err.Error())
-		return err
+	if err := app.Listen(conf.GetHTTPServerAddress()); err != nil {
+		return errors.Join(errors.New("fiber server stopped"), err)
 	}
 	return nil
 }

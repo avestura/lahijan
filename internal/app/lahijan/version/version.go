@@ -1,4 +1,7 @@
+// Package version exposes the build-time version stamp for Lahijan.
+// The value is injected via `go build -ldflags "-X ...version.LahijanVersion=..."`.
 package version
 
-// Value of this variable gets replaced via -ldflags of `go build`
-var LahijanVersion string = "dev"
+// LahijanVersion holds the build-time version string ("dev" by default;
+// replaced via -ldflags of `go build`).
+var LahijanVersion = "dev"

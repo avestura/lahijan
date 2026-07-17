@@ -1,8 +1,11 @@
+// Package conf: setup.go wires Viper to the embedded default YAML and the
+// standard on-disk/env/flag override layers.
 package conf
 
 import (
 	"bytes"
 	_ "embed"
+	"errors"
 
 	"github.com/spf13/viper"
 )
@@ -34,7 +37,8 @@ func SetupConfig() (*configSetupInfo, error) {
 
 	info.FoundConfigFile = true
 	if err := viper.MergeInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+		var notFound viper.ConfigFileNotFoundError
+		if errors.As(err, &notFound) {
 			info.FoundConfigFile = false
 		} else {
 			return info, err

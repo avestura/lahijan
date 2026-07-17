@@ -12,11 +12,10 @@ output:
 run:
   timeout: 10m
   modules-download-mode: "mod"
-  tests: false
-  issues-exit-code: 0
+  tests: true
+  issues-exit-code: 1
 
 severity:
-  # Use severity from: https://docs.codeclimate.com/docs/issues#issue-severity
   default: minor
   rules:
     - linters:
@@ -25,17 +24,16 @@ severity:
         - govet
         - ineffassign
         - staticcheck
-        - gofumpt
       severity: critical
 
 linters:
+  default: none
   enable:
     - errcheck
-    - gosimple
     - govet
     - ineffassign
     - staticcheck
-    - gofumpt
+    - unused
     - lll
     - prealloc
     - predeclared
@@ -58,15 +56,11 @@ linters:
     - rowserrcheck
     - unconvert
     - wastedassign
-  disable:
-    - "unused"
-
-
   settings:
     staticcheck:
-      checks: ["all"]            # Enable all staticcheck rules
+      checks: ["all"]
     errcheck:
-      check-type-assertions: true # Enable type assertion checks
+      check-type-assertions: true
       check-blank: false
     govet:
       enable:
@@ -103,13 +97,25 @@ linters:
       skip-any-generated: true
     lll:
       line-length: 150
-    wsl:
-      strict-append: true
-      allow-assign-and-anything: false
-      allow-multiline-assign: true
-      force-case-trailing-whitespace: 0
-      allow-trailing-comment: false
-      allow-separated-leading-comment: false
-      force-err-cuddling: true
-      error-variable-names: ['err']
-      force-short-decl-cuddling: false
+  exclusions:
+    presets:
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - "vendor$"
+      - "_test\\.go$"
+      - "third_party$"
+      - "testdata$"
+      - "examples$"
+    rules:
+      - linters: [lll]
+        path: ".*\\.md$"
+
+formatters:
+  enable:
+    - gofumpt
+  settings:
+    gofumpt:
+      module-path: github.com/avestura/lahijan
+      extra-rules: true

@@ -1,6 +1,10 @@
+// Package conf loads Lahijan's configuration using Viper, layered with an
+// embedded default YAML, on-disk overrides, environment variables prefixed
+// LAHIJAN_, and CLI pflags auto-generated from the default YAML structure.
 package conf
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -28,7 +32,9 @@ func InitConfigBindFlags() {
 
 	declareFlagsFromYAMLRecursive(configFlagSet, &node, "")
 
-	configFlagSet.Parse(os.Args[1:])
+	if err := configFlagSet.Parse(os.Args[1:]); err != nil {
+		log.Fatalf("failed to parse CLI flags: %v", err)
+	}
 
 	if err := viper.BindPFlags(configFlagSet); err != nil {
 		log.Fatalf("error binding flags to configuration: %v", err)
@@ -58,6 +64,9 @@ func declareFlagsFromYAMLRecursive(flags *pflag.FlagSet, node *yaml.Node, path s
 		usage := strings.TrimPrefix(keyNode.HeadComment, "#")
 		usage = strings.TrimSpace(usage)
 		switch valueNode.Kind {
+		case yaml.DocumentNode, yaml.AliasNode:
+			// Should not occur inside a mapping; skip silently.
+			continue
 		case yaml.MappingNode:
 			declareFlagsFromYAMLRecursive(flags, valueNode, fullPath)
 		case yaml.SequenceNode:
@@ -86,12 +95,16 @@ func declareFlagsFromYAMLRecursive(flags *pflag.FlagSet, node *yaml.Node, path s
 
 			switch valueNode.Tag {
 			case "!!int":
-				var intVal int
-				fmt.Sscanf(defVal, "%d", &intVal)
+				intVal, err := strconv.Atoi(defVal)
+				if err != nil {
+					log.Printf("ignoring unparseable int default for %s: %v", fullPath, err)
+				}
 				flags.Int(fullPath, intVal, usage)
 			case "!!bool":
-				var boolVal bool
-				fmt.Sscanf(defVal, "%t", &boolVal)
+				boolVal, err := strconv.ParseBool(defVal)
+				if err != nil {
+					log.Printf("ignoring unparseable bool default for %s: %v", fullPath, err)
+				}
 				flags.Bool(fullPath, boolVal, usage)
 
 			case "!!str":
@@ -117,7 +130,10 @@ func declareFlagsFromYAMLRecursive(flags *pflag.FlagSet, node *yaml.Node, path s
 			case "!!float":
 				f, err := strconv.ParseFloat(defVal, 64)
 				if err != nil {
-					log.Printf("configuration was tagged as yaml float, but couldn't be parsed as golang float. conf: %s, value: %s, err: %s", fullPath, defVal, err.Error())
+					log.Printf(
+						"yaml float default unparseable: conf=%s value=%q err=%s",
+						fullPath, defVal, err.Error(),
+					)
 				} else {
 					flags.Float64(fullPath, f, usage)
 				}
@@ -148,14 +164,14 @@ func declareFlagsFromYAMLRecursive(flags *pflag.FlagSet, node *yaml.Node, path s
 
 func detectSequenceNodeTypes(node *yaml.Node) (string, error) {
 	if node.Kind != yaml.SequenceNode {
-		return "", fmt.Errorf("not a valid sequence node")
+		return "", errors.New("not a valid sequence node")
 	}
 	if len(node.Content) == 0 {
 		lc := node.LineComment
 		lc = strings.TrimPrefix(lc, "#")
 		lc = strings.TrimSpace(lc)
 		if lc == "" {
-			return "", fmt.Errorf("node had no content, and no type hint was provided. can't detect type.")
+			return "", errors.New("node had no content, and no type hint was provided; can't detect type")
 		}
 		if isValidSequanceScalerTypes(lc) {
 			return lc, nil
@@ -169,7 +185,7 @@ func detectSequenceNodeTypes(node *yaml.Node) (string, error) {
 	}
 	for _, c := range node.Content {
 		if tag != c.Tag {
-			return "", fmt.Errorf("failed to detect sequence type. values of array have different types.")
+			return "", errors.New("failed to detect sequence type: array values have different types")
 		}
 	}
 	return tag, nil

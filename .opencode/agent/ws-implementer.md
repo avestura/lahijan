@@ -1,6 +1,6 @@
 ---
 description: Implements a Lahijan workstream end-to-end. Use proactively when the user says "implement WS-XX" or "work on WS-XX". Loads required context, then writes code + tests + docs following the project's 9-step checklist.
-mode: subagent
+mode: all
 model: build
 permission:
   edit: allow

@@ -13,11 +13,7 @@
   "agent": {
     "ws-implementer": {
       "description": "Implements a Lahijan workstream end-to-end. Reads AGENTS.md, the WS doc, its 'Required reading' list, and the relevant skill; then implements with tests. Use proactively when the user asks to 'implement WS-XX' or 'work on WS-XX'.",
-      "mode": "subagent",
-      "permission": {
-        "edit": "allow",
-        "bash": "allow"
-      }
+      "mode": "all"
     },
     "architect": {
       "description": "Drafts and revises ADRs and workstream docs for Lahijan. Use when the user asks to write an ADR, refine a decision, or revise a workstream brief.",
