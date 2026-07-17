@@ -25,6 +25,7 @@ Accepted; corrections land as new ADRs that supersede prior ones.
 | [0015](./0015-rest-openapi.md) | REST + OpenAPI as source of truth | Accepted | 2026-07-17 |
 | [0016](./0016-full-otel.md) | Full OpenTelemetry from day 1 | Accepted | 2026-07-17 |
 | [0017](./0017-i18n-from-day-one.md) | Full i18n from day 1 (en + fa, RTL) | Accepted | 2026-07-17 |
+| [0018](./0018-ws-06-auth-dependencies.md) | WS-06 auth dependency choices | Accepted | 2026-07-17 |
 
 ## How to write a new ADR
 
