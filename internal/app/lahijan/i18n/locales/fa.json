@@ -54,5 +54,67 @@
   "auth.msg_email_changed": { "other": "رایانشانی شما به‌روزرسانی شد." },
   "auth.msg_password_changed": { "other": "گذرواژهٔ شما تغییر کرد." },
   "auth.msg_profile_updated": { "other": "نمایهٔ شما به‌روز شد." },
-  "auth.msg_pat_revoked": { "other": "نشانهٔ دسترسی شخصی باطل شد." }
+  "auth.msg_pat_revoked": { "other": "نشانهٔ دسترسی شخصی باطل شد." },
+
+  "rbac.err_tenant_scope_required": {
+    "description": "هنگامی که یک پایانهٔ ممتاز بدون سرتیتر X-Tenant-Id فراخوانی شود.",
+    "other": "برای این کنش، یک حوزهٔ مستأجر لازم است. سرتیتر X-Tenant-Id را تنظیم کنید."
+  },
+  "rbac.err_permission_denied": {
+    "description": "پیام عمومی رد برای فراخوان‌های غیر HTTP (کارها، وب‌سوکت).",
+    "other": "اجازه داده نشد."
+  },
+
+  "audit.err_not_found": { "other": "رویداد ممیزی یافت نشد." },
+  "audit.err_forbidden": { "other": "شما اجازهٔ خواندن گزارش ممیزی را ندارید." },
+  "audit.err_internal": { "other": "خواندن گزارش ممیزی ممکن نشد. لطفاً دوباره تلاش کنید." },
+
+  "audit.action_auth_user_register": { "other": "کاربر ثبت شد" },
+  "audit.action_auth_user_login": { "other": "کاربر وارد شد" },
+  "audit.action_auth_user_logout": { "other": "کاربر بیرون آمد" },
+  "audit.action_auth_user_profile_update": { "other": "نمایه به‌روز شد" },
+  "audit.action_auth_session_refresh": { "other": "نشست نوسازی شد" },
+  "audit.action_auth_session_refresh_reuse": { "other": "استفادهٔ مجدد نشانهٔ نوسازی شناسایی شد" },
+  "audit.action_auth_email_verify": { "other": "رایانشانی تأیید شد" },
+  "audit.action_auth_email_resend_verification": { "other": "رایانشانی تأیید دوباره فرستاده شد" },
+  "audit.action_auth_email_change_request": { "other": "درخواست تغییر رایانشانی" },
+  "audit.action_auth_email_change_confirm": { "other": "تغییر رایانشانی تأیید شد" },
+  "audit.action_auth_password_reset_request": { "other": "درخواست بازنشانی گذرواژه" },
+  "audit.action_auth_password_reset_confirm": { "other": "بازنشانی گذرواژه" },
+  "audit.action_auth_password_change": { "other": "گذرواژه تغییر کرد" },
+  "audit.action_auth_pat_create": { "other": "نشانهٔ دسترسی شخصی ساخته شد" },
+  "audit.action_auth_pat_revoke": { "other": "نشانهٔ دسترسی شخصی باطل شد" },
+  "audit.action_auth_pat_use": { "other": "نشانهٔ دسترسی شخصی به‌کار رفت" },
+
+  "audit.action_audit_export": { "other": "گزارش ممیزی برون‌برداری شد" },
+  "audit.action_rbac_role_update": { "other": "نقاب به‌روز شد" },
+
+  "audit.action_compute_instance_create": { "other": "نمونهٔ محاسباتی ساخته شد" },
+  "audit.action_compute_instance_delete": { "other": "نمونهٔ محاسباتی پاک شد" },
+  "audit.action_compute_instance_start": { "other": "نمونهٔ محاسباتی آغاز شد" },
+  "audit.action_compute_instance_stop": { "other": "نمونهٔ محاسباتی متوقف شد" },
+  "audit.action_compute_instance_restart": { "other": "نمونهٔ محاسباتی دوباره آغاز شد" },
+
+  "audit.action_dns_zone_create": { "other": "ناحیهٔ DNS ساخته شد" },
+  "audit.action_dns_zone_delete": { "other": "ناحیهٔ DNS پاک شد" },
+  "audit.action_dns_record_create": { "other": "رکورد DNS ساخته شد" },
+  "audit.action_dns_record_delete": { "other": "رکورد DNS پاک شد" },
+
+  "audit.action_s3_bucket_create": { "other": "سطل ذخیره‌سازی اشیاء ساخته شد" },
+  "audit.action_s3_bucket_delete": { "other": "سطل ذخیره‌سازی اشیاء پاک شد" },
+  "audit.action_s3_credentials_create": { "other": "اعتبارنامهٔ ذخیره‌سازی اشیاء صادر شد" },
+  "audit.action_s3_credentials_revoke": { "other": "اعتبارنامهٔ ذخیره‌سازی اشیاء باطل شد" },
+
+  "audit.action_billing_balance_adjust": { "other": "مانده تعدیل شد" },
+  "audit.action_billing_receipt_create": { "other": "رسید ساخته شد" },
+
+  "audit.action_plugins_install": { "other": "افزونه نصب شد" },
+  "audit.action_plugins_uninstall": { "other": "افزونه حذف شد" },
+  "audit.action_plugins_permission_approve": { "other": "اجازه‌های افزونه تأیید شد" },
+
+  "rbac.role_platform_admin": { "other": "مدیر پلتفرم" },
+  "rbac.role_tenant_owner": { "other": "مالک مستأجر" },
+  "rbac.role_tenant_admin": { "other": "مدیر مستأجر" },
+  "rbac.role_tenant_member": { "other": "عضو مستأجر" },
+  "rbac.role_tenant_viewer": { "other": "بینندهٔ مستأجر" }
 }
