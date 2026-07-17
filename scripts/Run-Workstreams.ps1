@@ -332,6 +332,9 @@ Write-Info "log dir:    $LogDir"
 Write-Info "dry run:    $DryRun"
 Write-Info "timeout:    ${TimeoutMinutes}m per WS"
 
+# Make sure the log dir exists even if the first WS fails before creating it.
+New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
+
 $results = @()
 $startTime = Get-Date
 
