@@ -103,7 +103,7 @@ function Get-WsSlug {
 # Pre-flight
 # ---------------------------------------------------------------------------
 
-Write-Header "Resume $WsId — pre-flight"
+Write-Header "Resume $WsId - pre-flight"
 
 if (-not (Get-Command opencode -ErrorAction SilentlyContinue)) {
     throw "opencode is not on PATH."

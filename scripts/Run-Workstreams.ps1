@@ -28,7 +28,7 @@
 
 .PARAMETER TimeoutMinutes
     Per-WS hard timeout. If exceeded, the WS is marked 'timeout' and skipped.
-    Default is 500 minutes (~8.3 hours) — generous, because a complex WS can
+    Default is 500 minutes (~8.3 hours) - generous, because a complex WS can
     legitimately take a couple of hours of agent work plus compose stack
     bring-up + integration tests. Set lower with -TimeoutMinutes 120 if you
     want to fail-fast.
@@ -248,7 +248,7 @@ function Invoke-Ws {
     if (-not (Invoke-Git 'reset','--hard','HEAD')) { throw "couldn't reset main" }
 
     # Delete the branch if it somehow exists from a prior failed run.
-    # (exits non-zero if branch absent; that's fine — capture to suppress leak)
+    # (exits non-zero if branch absent; that's fine - capture to suppress leak)
     $null = Invoke-Git 'branch','-D',$branchName
     if (-not (Invoke-Git 'checkout','-b',$branchName)) {
         Write-Fail "couldn't create branch $branchName"
@@ -272,7 +272,7 @@ function Invoke-Ws {
     # -----------------------------------------------------------------------
     # Invoke opencode via Start-Process (NOT Start-Job).
     # Start-Job + Tee-Object does NOT reliably capture native-command output
-    # in Windows PowerShell — the log file ends up empty even when opencode
+    # in Windows PowerShell - the log file ends up empty even when opencode
     # is producing lots of output. Start-Process redirects at the OS level,
     # which is reliable.
     # -----------------------------------------------------------------------

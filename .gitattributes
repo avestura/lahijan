@@ -1,1 +1,26 @@
-* -text
+# Default: treat as text, preserve whatever line endings are in the file.
+* text=auto
+
+# PowerShell scripts MUST be CRLF on disk for Windows PowerShell 5.x to parse
+# them correctly (LF-only causes "Unexpected token" errors in some contexts).
+*.ps1     text eol=crlf
+*.psm1    text eol=crlf
+*.psd1    text eol=crlf
+
+# Go, YAML, JSON, MD: keep LF (Unix convention; works everywhere).
+*.go      text eol=lf
+*.sql     text eol=lf
+*.yaml    text eol=lf
+*.yml     text eol=lf
+*.json    text eol=lf
+*.md      text eol=lf
+*.tsx     text eol=lf
+*.ts      text eol=lf
+
+# Binaries.
+*.png     binary
+*.jpg     binary
+*.pdf     binary
+*.ico     binary
+*.woff    binary
+*.woff2   binary
