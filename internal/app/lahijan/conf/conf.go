@@ -151,3 +151,154 @@ func GetDatabaseMaxConnIdleSeconds() int {
 func GetDatabaseStatementTimeoutMs() int {
 	return viper.GetInt("database.statementTimeoutMs")
 }
+
+// ---------------------------------------------------------------------------
+// Auth subsystem (WS-06). Every getter reads a key under auth.* or smtp.*.
+// ---------------------------------------------------------------------------
+
+// Argon2Params carries the argon2id parameters read from config.
+type Argon2Params struct {
+	Memory      uint32
+	Iterations  uint32
+	Parallelism uint8
+	SaltLength  uint32
+	KeyLength   uint32
+}
+
+// GetAuthPasswordArgon2 returns the argon2id hashing parameters.
+func GetAuthPasswordArgon2() Argon2Params {
+	return Argon2Params{
+		Memory:      uint32(viper.GetInt("auth.password.argon2.memory")),
+		Iterations:  uint32(viper.GetInt("auth.password.argon2.iterations")),
+		Parallelism: uint8(viper.GetInt("auth.password.argon2.parallelism")),
+		SaltLength:  uint32(viper.GetInt("auth.password.argon2.saltLength")),
+		KeyLength:   uint32(viper.GetInt("auth.password.argon2.keyLength")),
+	}
+}
+
+// GetAuthPasswordMinLength returns the minimum password length.
+func GetAuthPasswordMinLength() int {
+	return viper.GetInt("auth.password.minLength")
+}
+
+// GetAuthPasswordBreachCheckEnabled reports whether the HIBP k-anonymity breach
+// check is enabled.
+func GetAuthPasswordBreachCheckEnabled() bool {
+	return viper.GetBool("auth.password.breachCheck.enabled")
+}
+
+// GetAuthSessionCookieName returns the session cookie name.
+func GetAuthSessionCookieName() string {
+	return viper.GetString("auth.session.cookieName")
+}
+
+// GetAuthRefreshCookieName returns the refresh-token cookie name.
+func GetAuthRefreshCookieName() string {
+	return viper.GetString("auth.session.refreshCookieName")
+}
+
+// GetAuthSessionCookieDomain returns the cookie domain ("" = request host).
+func GetAuthSessionCookieDomain() string {
+	return viper.GetString("auth.session.domain")
+}
+
+// GetAuthSessionCookieSecure reports whether cookies are marked Secure.
+func GetAuthSessionCookieSecure() bool {
+	return viper.GetBool("auth.session.secure")
+}
+
+// GetAuthSessionCookieSameSite returns the SameSite attribute ("strict|lax|none").
+func GetAuthSessionCookieSameSite() string {
+	return viper.GetString("auth.session.sameSite")
+}
+
+// GetAuthSessionCookiePath returns the cookie path.
+func GetAuthSessionCookiePath() string {
+	return viper.GetString("auth.session.path")
+}
+
+// GetAuthSessionLifetimeSeconds returns the session lifetime in seconds.
+func GetAuthSessionLifetimeSeconds() int {
+	return viper.GetInt("auth.session.lifetimeSeconds")
+}
+
+// GetAuthRefreshLifetimeSeconds returns the refresh-token lifetime in seconds.
+func GetAuthRefreshLifetimeSeconds() int {
+	return viper.GetInt("auth.session.refreshLifetimeSeconds")
+}
+
+// GetAuthPATPrefix returns the human-readable prefix prepended to raw PATs.
+func GetAuthPATPrefix() string {
+	return viper.GetString("auth.pat.prefix")
+}
+
+// GetAuthPATByteLength returns the raw PAT entropy length in bytes.
+func GetAuthPATByteLength() int {
+	return viper.GetInt("auth.pat.byteLength")
+}
+
+// GetAuthEmailVerificationTTLSeconds returns the verify-email link TTL in seconds.
+func GetAuthEmailVerificationTTLSeconds() int {
+	return viper.GetInt("auth.email.verificationTTLSeconds")
+}
+
+// GetAuthEmailPasswordResetTTLSeconds returns the password-reset link TTL in seconds.
+func GetAuthEmailPasswordResetTTLSeconds() int {
+	return viper.GetInt("auth.email.passwordResetTTLSeconds")
+}
+
+// GetAuthEmailEmailChangeTTLSeconds returns the email-change link TTL in seconds.
+func GetAuthEmailEmailChangeTTLSeconds() int {
+	return viper.GetInt("auth.email.emailChangeTTLSeconds")
+}
+
+// GetAuthEmailByteLength returns the raw email-link token entropy length in bytes.
+func GetAuthEmailByteLength() int {
+	return viper.GetInt("auth.email.byteLength")
+}
+
+// GetAuthSigningKey returns the HMAC signing key for session cookies and
+// email-link tokens. Empty in dev; must be set in prod.
+func GetAuthSigningKey() string {
+	return viper.GetString("auth.signing.key")
+}
+
+// GetSMTPEnabled reports whether outbound email delivery is enabled.
+func GetSMTPEnabled() bool {
+	return viper.GetBool("smtp.enabled")
+}
+
+// GetSMTPHost returns the SMTP host.
+func GetSMTPHost() string {
+	return viper.GetString("smtp.host")
+}
+
+// GetSMTPPort returns the SMTP port.
+func GetSMTPPort() int {
+	return viper.GetInt("smtp.port")
+}
+
+// GetSMTPUser returns the SMTP username.
+func GetSMTPUser() string {
+	return viper.GetString("smtp.user")
+}
+
+// GetSMTPPassword returns the SMTP password.
+func GetSMTPPassword() string {
+	return viper.GetString("smtp.password")
+}
+
+// GetSMTPFrom returns the From: email address.
+func GetSMTPFrom() string {
+	return viper.GetString("smtp.from")
+}
+
+// GetSMTPFromName returns the From: display name.
+func GetSMTPFromName() string {
+	return viper.GetString("smtp.fromName")
+}
+
+// GetSMTPAppBaseURL returns the public dashboard origin used to build email links.
+func GetSMTPAppBaseURL() string {
+	return viper.GetString("smtp.appBaseURL")
+}

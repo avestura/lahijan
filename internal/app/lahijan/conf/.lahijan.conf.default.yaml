@@ -66,3 +66,91 @@ database:
   maxConnIdleSeconds: 300
   # statement timeout applied per connection in milliseconds
   statementTimeoutMs: 5000
+
+# Authentication subsystem (WS-06). Every key is overridable via env
+# LAHIJAN_AUTH_<PATH> or a config file. The signing key MUST be set in any
+# non-dev environment; an empty key falls back to a derived dev value (see
+# conf/computeddefault) and is rejected when environment != dev.
+auth:
+  # argon2id password hashing parameters (OWASP-recommended baseline).
+  password:
+    argon2:
+      # memory in KiB (65536 = 64 MB)
+      memory: 65536
+      # iterations (time cost)
+      iterations: 3
+      # parallelism (threads)
+      parallelism: 2
+      # salt length in bytes
+      saltLength: 16
+      # derived key length in bytes
+      keyLength: 32
+    # minimum password length; enforced by auth/password strength check
+    minLength: 12
+    # opt-in HaveIBeenPwned k-anonymity breach check (off by default for privacy)
+    breachCheck:
+      enabled: false
+
+  # browser session cookies (opaque, signed, HttpOnly)
+  session:
+    # cookie name for the access session id
+    cookieName: "lahijan_session"
+    # cookie name for the rotating refresh token
+    refreshCookieName: "lahijan_refresh"
+    # cookie domain; empty = the request's host
+    domain: ""
+    # mark cookies Secure (HTTPS-only). false for local dev, true in prod
+    secure: false
+    # SameSite attribute: strict | lax | none
+    sameSite: "lax"
+    # path the cookies apply to
+    path: "/"
+    # session lifetime in seconds (sliding window)
+    lifetimeSeconds: 86400
+    # refresh token lifetime in seconds
+    refreshLifetimeSeconds: 2592000
+
+  # personal access tokens
+  pat:
+    # human-readable prefix on every raw PAT (helps users identify them)
+    prefix: "lah_pat_"
+    # raw token random byte length (before base64 encoding + prefix + checksum)
+    byteLength: 32
+
+  # single-use email-link tokens (verify-email, password-reset, email-change)
+  email:
+    # verify-email link TTL in seconds
+    verificationTTLSeconds: 86400
+    # password-reset link TTL in seconds
+    passwordResetTTLSeconds: 3600
+    # email-change link TTL in seconds
+    emailChangeTTLSeconds: 86400
+    # raw email-token random byte length
+    byteLength: 32
+
+  # HMAC key used to sign session cookies and email-link tokens. Leave empty in
+  # dev to use a derived value; MUST be set to a high-entropy secret in prod.
+  signing:
+    key: ""
+
+# SMTP for outgoing auth emails (WS-06). In dev, point this at MailHog
+# (see deployments/docker-compose.dev.yml). Disable to drop emails silently
+# (useful in tests).
+smtp:
+  # toggles outbound email delivery. When false, emails are not sent.
+  enabled: false
+  # SMTP host
+  host: "localhost"
+  # SMTP port (587 for STARTTLS, 1025 for MailHog)
+  port: 1025
+  # SMTP username (empty for unauthenticated MailHog)
+  user: ""
+  # SMTP password (use env LAHIJAN_SMTP_PASSWORD in any real env)
+  password: ""
+  # From: address on every outgoing email
+  from: "noreply@localhost"
+  # human-friendly From: name
+  fromName: "Lahijan"
+  # base URL prepended to email links (verify-email, password-reset). Should be
+  # the public dashboard origin, e.g. https://app.example.com
+  appBaseURL: "http://localhost:3000"
