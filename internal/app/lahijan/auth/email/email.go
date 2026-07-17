@@ -224,6 +224,9 @@ func (s *Service) issueAndSend(
 	if kind == database.EmailTokenEmailChange && (tokenNewEmail == nil || *tokenNewEmail == "") {
 		return errors.New("auth/email: email-change token requires a new email")
 	}
+	// Revoke any previously-outstanding token of this kind BEFORE persisting the
+	// new one; otherwise RevokeForUser would consume the token we just issued.
+	_ = s.tokens.RevokeForUser(ctx, user.ID, kind)
 	if _, err := s.tokens.Create(ctx, database.CreateEmailTokenParams{
 		UserID:    user.ID,
 		TokenHash: hash,
@@ -233,7 +236,6 @@ func (s *Service) issueAndSend(
 	}); err != nil {
 		return fmt.Errorf("auth/email: persist token: %w", err)
 	}
-	_ = s.tokens.RevokeForUser(ctx, user.ID, kind) // best-effort; current token already persisted
 
 	recipient := user.Email
 	if tokenNewEmail != nil {
