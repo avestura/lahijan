@@ -1,7 +1,14 @@
 # Migration check
 #
-# Asserts that every up migration has a matching down migration, and that
-# migrations follow the sequential naming convention used by golang-migrate.
+# Two jobs:
+#   1. sanity    — every up migration has a matching down migration, and the
+#                  files follow golang-migrate's sequential naming.
+#   2. reversible — start a real Postgres 16 service container, apply all
+#                  migrations UP, roll them fully DOWN, then UP again. This is
+#                  the runtime guarantee behind the structural pairing check and
+#                  directly ticks the WS-03 Definition of Done item "migrations
+#                  up + down both apply cleanly".
+#
 # Runs only when migrations/ exists (WS-03 onwards).
 
 name: Migrations
@@ -11,10 +18,14 @@ on:
     branches: [main]
     paths:
       - internal/app/lahijan/database/migrations/**
+      - internal/app/lahijan/database/queries/**
+      - internal/app/lahijan/database/sqlc.yaml
       - .github/workflows/migrations.yml
   pull_request:
     paths:
       - internal/app/lahijan/database/migrations/**
+      - internal/app/lahijan/database/queries/**
+      - internal/app/lahijan/database/sqlc.yaml
       - .github/workflows/migrations.yml
 
 jobs:
@@ -55,3 +66,52 @@ jobs:
             fi
           done
           exit $rc
+
+  reversible:
+    name: Migrations up → down → up
+    needs: verify
+    runs-on: ubuntu-latest
+    # Postgres service container; the migrate CLI talks to it over localhost.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: lahijan
+          POSTGRES_PASSWORD: lahijan
+          POSTGRES_DB: lahijan
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U lahijan -d lahijan"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      MIGRATIONS_DIR: internal/app/lahijan/database/migrations
+      DB_URL: postgres://lahijan:lahijan@localhost:5432/lahijan?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install golang-migrate
+        run: |
+          version=v4.19.1
+          curl -sSL "https://github.com/golang-migrate/migrate/releases/download/${version}/migrate.linux-amd64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin migrate
+          migrate -version
+      - name: Apply UP
+        run: migrate -path "$MIGRATIONS_DIR" -database "$DB_URL" up
+      - name: Show version after UP
+        run: migrate -path "$MIGRATIONS_DIR" -database "$DB_URL" version
+      - name: Roll fully DOWN
+        # golang-migrate prompts when `down` is given no count; pass the exact
+        # number of up migrations so the step is non-interactive and rolls all
+        # the way to version 0.
+        run: |
+          set -euo pipefail
+          N=$(find "$MIGRATIONS_DIR" -maxdepth 1 -name '*.up.sql' | wc -l)
+          echo "rolling back $N migrations"
+          migrate -path "$MIGRATIONS_DIR" -database "$DB_URL" down "$N"
+      - name: Apply UP again (reversibility)
+        run: migrate -path "$MIGRATIONS_DIR" -database "$DB_URL" up
+      - name: Final version
+        run: migrate -path "$MIGRATIONS_DIR" -database "$DB_URL" version
