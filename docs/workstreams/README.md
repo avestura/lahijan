@@ -40,7 +40,7 @@ The ws-implementer subagent (`.opencode/agent/ws-implementer.md`) and the
 
 | WS | Title | Status | Depends on |
 |----|-------|--------|------------|
-| [WS-06](./WS-06-core-auth.md) | Core Auth (password + tokens + sessions) | pending | WS-05 |
+| [WS-06](./WS-06-core-auth.md) | Core Auth (password + tokens + sessions) | done | WS-05 |
 | [WS-07a](./WS-07a-external-idps-oauth-oidc.md) | External IdPs: OAuth + OIDC | pending | WS-06 |
 | [WS-07b](./WS-07b-external-idps-saml.md) | External IdPs: SAML 2.0 | pending | WS-06 |
 | [WS-07c](./WS-07c-mfa.md) | Multi-Factor Auth | pending | WS-06 |

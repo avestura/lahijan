@@ -12,13 +12,14 @@
 | `conf/computeddefault/` | Registry for Go-computed defaults (YAML sentinel `$go-computed`). | ✅ done |
 | `version/` | Build-time version stamp via `-ldflags`. | ✅ done |
 | `database/` | sqlc queries, golang-migrate migrations, repository types. | ✅ WS-03 |
-| `api/` | HTTP handlers, Fiber routers, middleware, error envelope, OpenAPI. | ✅ WS-05 |
+| `api/` | HTTP handlers, Fiber routers, middleware, error envelope, OpenAPI. | ✅ WS-05 + WS-06 |
 | `domain/<area>/` | Per-area domain logic (compute, dns, storage, billing, plugins, ...). | WS-14..17 |
-| `auth/` | Sessions, tokens, OAuth/OIDC/SAML, MFA, RBAC, audit. | WS-06..08 |
+| `auth/` | Sessions, tokens, OAuth/OIDC/SAML, MFA, RBAC, audit. | ✅ WS-06 core (password + session + PAT + email); WS-07a/b/c, WS-08 next |
 | `providers/incus/`, `providers/powerdns/`, `providers/seaweedfs/` | Backend drivers. | WS-11..13 |
 | `jobs/` | River integration; job registry; worker supervisor. | WS-09 |
 | `wasm/` | wazero runtime, permission manifests, host functions, plugin loading. | WS-10a..c |
-| `i18n/` | go-i18n message bundles (`en.json`, `fa.json`). | WS-06 (init), all user-facing WSs |
+| `i18n/` | go-i18n message bundles (`en.json`, `fa.json`). | ✅ WS-06 init |
+| `notify/email/` | SMTP client wrapper + HTML templates + in-process test server. | ✅ WS-06 |
 | `observability/` | slog handlers, OTel setup, redact middleware. | WS-04 |
 
 ## Layered architecture (target)
