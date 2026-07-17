@@ -1,0 +1,25 @@
+# oapi-codegen configuration - Lahijan Go CLIENT SDK.
+#
+# Source of truth: api/openapi.yaml (see ADR-0015).
+# Output is committed under pkg/lahijan-client/ and is NEVER hand-edited.
+# This is the public, self-contained Go client SDK for third-party Go code.
+# Regenerate with: make openapi-gen
+#
+# NOTE: oapi-codegen v2.4.1 resolves `output` relative to this config file
+# (api/), and the spec path is passed on the command line (see Makefile).
+#
+# yaml-language-server: $schema=https://raw.githubusercontent.com/oapi-codegen/oapi-codegen/HEAD/configuration-schema.json
+
+package: lahijanclient
+
+generate:
+  models: true
+  client: true
+
+output: pkg/lahijan-client/client_gen.go
+
+output-options:
+  skip-prune: false
+
+compatibility:
+  always-prefix-enum-values: true
