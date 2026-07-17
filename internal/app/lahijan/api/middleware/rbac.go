@@ -45,21 +45,21 @@ func RBAC() fiber.Handler {
 // *rbac.Evaluator here; tests can pass a fake.
 type PolicyResolver interface {
 	HasPermission(
-		ctx fiber.Ctx,
+		c *fiber.Ctx,
 		userID, tenantID uuid.UUID,
 		permissionSlug string,
 	) (bool, error)
 }
 
 // adapterCtx shims the rbac.PolicyEvaluator signature (which takes
-// context.Context) into the PolicyResolver signature (which takes fiber.Ctx)
+// context.Context) into the PolicyResolver signature (which takes *fiber.Ctx)
 // so the api package can wire a *rbac.Evaluator without the rbac package
 // importing Fiber.
 type adapterCtx struct{ inner rbac.PolicyEvaluator }
 
 // HasPermission implements PolicyResolver by delegating to the wrapped
 // rbac.PolicyEvaluator with the request's user context.
-func (a *adapterCtx) HasPermission(c fiber.Ctx, userID, tenantID uuid.UUID, slug string) (bool, error) {
+func (a *adapterCtx) HasPermission(c *fiber.Ctx, userID, tenantID uuid.UUID, slug string) (bool, error) {
 	return a.inner.HasPermission(c.UserContext(), userID, tenantID, slug)
 }
 
@@ -100,7 +100,7 @@ func RequirePerm(policy PolicyResolver, permissionSlug string) fiber.Handler {
 			// evaluator. Fail closed rather than silently allowing.
 			return sendInternal(c)
 		}
-		allowed, err := policy.HasPermission(*c, uid, tenantID, permissionSlug)
+		allowed, err := policy.HasPermission(c, uid, tenantID, permissionSlug)
 		if err != nil {
 			// DB error or evaluator fault: fail closed and surface 500.
 			return sendInternal(c)

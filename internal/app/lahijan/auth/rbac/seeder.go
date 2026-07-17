@@ -42,7 +42,10 @@ func SeedOnce(ctx context.Context, repos *database.Repos) error {
 }
 
 // seedPermissions inserts every permission in the registry. Idempotent: a
-// permission that already exists is left alone (slug is unique).
+// permission that already exists is left alone (slug is unique). The race
+// window between lookup and create (when two seeders run in parallel against
+// the same DB) is closed by treating a unique-violation on create as "another
+// seeder won; look it up again".
 func seedPermissions(ctx context.Context, rbac *database.RBACRepository) error {
 	for _, p := range allPermissions {
 		// Lookup-then-create so a re-run does not clobber a hand-edited row.
@@ -52,13 +55,22 @@ func seedPermissions(ctx context.Context, rbac *database.RBACRepository) error {
 			return fmt.Errorf("lookup permission %s: %w", p.Slug, err)
 		}
 		if _, err := rbac.CreatePermission(ctx, p.Slug, strPtr(p.Description)); err != nil {
+			if isUniqueViolation(err) {
+				// Lost the race against a parallel seeder. Re-fetch so the
+				// caller gets the existing row's id below.
+				if _, err2 := rbac.GetPermissionBySlug(ctx, p.Slug); err2 != nil {
+					return fmt.Errorf("lookup permission %s after race loss: %w", p.Slug, err2)
+				}
+				continue
+			}
 			return fmt.Errorf("create permission %s: %w", p.Slug, err)
 		}
 	}
 	return nil
 }
 
-// seedRoles inserts every default role and its permission grants. Idempotent.
+// seedRoles inserts every default role and its permission grants. Idempotent
+// and race-safe (same lookup-then-create-with-unique-recovery pattern).
 func seedRoles(ctx context.Context, rbac *database.RBACRepository) error {
 	for _, r := range defaultRoles {
 		// Find or create the role row.
@@ -74,7 +86,15 @@ func seedRoles(ctx context.Context, rbac *database.RBACRepository) error {
 				IsSystem:    &r.IsSystem,
 			})
 			if err != nil {
-				return fmt.Errorf("create role %s: %w", r.Slug, err)
+				if isUniqueViolation(err) {
+					// Lost the race; re-fetch.
+					role, err = rbac.GetRoleBySlug(ctx, r.Slug)
+					if err != nil {
+						return fmt.Errorf("lookup role %s after race loss: %w", r.Slug, err)
+					}
+				} else {
+					return fmt.Errorf("create role %s: %w", r.Slug, err)
+				}
 			}
 		}
 		// Grant every permission. GrantPermissionToRole is idempotent
@@ -100,3 +120,28 @@ func strPtr(s string) *string { return &s }
 // database.IsNoRows so the rbac package picks up pgx.ErrNoRows via errors.Is
 // (the same way every other package does).
 func isNoRows(err error) bool { return database.IsNoRows(err) }
+
+// isUniqueViolation reports whether err is the Postgres unique-constraint
+// violation (SQLSTATE 23505). Used to recover from the parallel-seeder race
+// without forcing callers to import pgconn.
+func isUniqueViolation(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return contains(msg, "23505") || contains(msg, "duplicate key")
+}
+
+// contains is a local replacement for strings.Contains so this file keeps the
+// same import profile as the others in the package.
+func contains(s, sub string) bool {
+	if len(sub) == 0 {
+		return true
+	}
+	for i := 0; i+len(sub) <= len(s); i++ {
+		if s[i:i+len(sub)] == sub {
+			return true
+		}
+	}
+	return false
+}

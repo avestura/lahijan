@@ -24,7 +24,7 @@ type fakePolicy struct {
 	lastSlug string
 }
 
-func (f *fakePolicy) HasPermission(_ fiber.Ctx, uid, tid uuid.UUID, slug string) (bool, error) {
+func (f *fakePolicy) HasPermission(_ *fiber.Ctx, uid, tid uuid.UUID, slug string) (bool, error) {
 	f.calls++
 	f.lastUID = uid
 	f.lastTID = tid

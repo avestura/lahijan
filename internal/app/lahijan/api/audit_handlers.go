@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"reflect"
 	"time"
 
 	"github.com/avestura/lahijan/api/gen/go"
@@ -156,10 +157,10 @@ func (s *Server) recordAuditExport(c *fiber.Ctx, rowCount int) {
 // enumStr coerces an oapi-codegen enum pointer (any of the *ParamsStatus /
 // *ParamsActorType types, which are all "string under the hood") into its
 // underlying string. Returns "" when the pointer is nil or the value is empty.
-// Using reflection via fmt avoids a fan-out of type switches every time we
-// add a new enum-typed filter.
+// The reflection-based nil check is required because Go interface comparisons
+// (v == nil) are FALSE for typed nil pointers like (*ListAuditParamsStatus)(nil).
 func enumStr(v any) string {
-	if v == nil {
+	if v == nil || isNilPointer(v) {
 		return ""
 	}
 	switch t := v.(type) {
@@ -176,6 +177,19 @@ func enumStr(v any) string {
 	// Fallback: fmt.Sprintf handles anything that has a String() method via
 	// the Stringer interface; the verb %v on a Stringer calls String().
 	return fmt.Sprintf("%v", v)
+}
+
+// isNilPointer reports whether v is a typed nil pointer (e.g.
+// (*ListAuditParamsStatus)(nil)). The plain v == nil check misses this case
+// because the interface itself is non-nil; it just holds a nil pointer.
+func isNilPointer(v any) bool {
+	// reflection-based check; cheap enough for the audit path which runs at
+	// most once per request.
+	rv := reflect.ValueOf(v)
+	if !rv.IsValid() {
+		return true
+	}
+	return rv.Kind() == reflect.Ptr && rv.IsNil()
 }
 
 // parseAuditFilter translates the OpenAPI query params into the nullable
