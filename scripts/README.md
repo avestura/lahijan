@@ -72,6 +72,29 @@ powershell -ExecutionPolicy Bypass -File scripts\Run-Workstreams.ps1 -Model 'ant
 
 Omit `-Model` to use whatever opencode is configured to use.
 
+### Live streaming (default ON)
+
+By default, every line opencode writes to stdout is streamed live to your
+console while the agent works. You see what it's reading, editing, and
+running — no more staring at a blank `(timeout 90m)` line for an hour.
+
+```powershell
+# default: stdout streamed live
+powershell -ExecutionPolicy Bypass -File scripts\Run-Workstreams.ps1
+
+# also stream stderr (noisy; useful for debugging the agent itself)
+powershell -ExecutionPolicy Bypass -File scripts\Run-Workstreams.ps1 -StreamStderr
+
+# disable live streaming (fall back to tail-after-exit)
+powershell -ExecutionPolicy Bypass -File scripts\Run-Workstreams.ps1 -LiveStream:$false
+```
+
+Implementation: opencode's stdout/stderr are redirected to log files via
+`Start-Process -RedirectStandardOutput`. The runner then opens those files
+with `FileShare.ReadWrite` and reads new lines as they appear in a polling
+loop (100ms cadence). The timeout deadline is checked in the same loop, so
+a hung agent still gets killed on schedule.
+
 ### Per-WS timeout
 
 ```powershell

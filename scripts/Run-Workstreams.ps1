@@ -35,9 +35,19 @@
 .PARAMETER SkipPreflight
     Skip the pre-flight checks (opencode on PATH, clean tree, etc.).
 
+.PARAMETER LiveStream
+    Live-stream opencode's stdout to the console while it runs (default: ON).
+    Lets you watch what the agent is doing instead of staring at a blank
+    'opencode run --agent ws-implementer (timeout 90m)' line for an hour.
+    Pass -LiveStream:$false to disable (falls back to tail-after-exit).
+
+.PARAMETER StreamStderr
+    Also live-stream opencode's stderr to the console (in yellow). Default OFF
+    because opencode's --print-logs is noisy; turn on if you want the firehose.
+
 .EXAMPLE
     .\scripts\Run-Workstreams.ps1
-    # Run the full MVP sequence.
+    # Run the full MVP sequence with live streaming.
 
 .EXAMPLE
     .\scripts\Run-Workstreams.ps1 -Workstreams WS-03,WS-04,WS-05
@@ -55,7 +65,9 @@ param(
     [string]$LogDir = "logs/ws-runner",
     [int]$TimeoutMinutes = 90,
     [switch]$DryRun,
-    [switch]$SkipPreflight
+    [switch]$SkipPreflight,
+    [switch]$LiveStream = $true,
+    [switch]$StreamStderr = $false
 )
 
 $ErrorActionPreference = "Stop"
@@ -289,24 +301,121 @@ function Invoke-Ws {
         return [pscustomobject]@{ WS = $WsId; Result = 'spawn-failed'; Branch = $branchName; Log = $logFile }
     }
 
-    # WaitForExit returns $true if the process exited before the timeout (ms).
-    $exited = $proc.WaitForExit($TimeoutMinutes * 60 * 1000)
-    $exitCode = if ($exited) { $proc.ExitCode } else { -1 }
-    $ErrorActionPreference = $prev
+    # ---------------------------------------------------------------------
+    # Wait for opencode to finish, with two modes:
+    #   - LiveStream (default): live-stream stdout (and optionally stderr)
+    #     to the console while we wait. Uses a shared-read FileStream so we
+    #     can read what opencode is writing in real time.
+    #   - No LiveStream: plain WaitForExit with timeout; print tail after.
+    # In both modes the timeout is enforced.
+    # ---------------------------------------------------------------------
+    $exitCode  = -1
+    $timedOut  = $false
+    $deadline  = (Get-Date).AddMinutes($TimeoutMinutes)
 
-    if (-not $exited) {
-        try { $proc.Kill() } catch { Write-Warning "couldn't kill opencode process" }
-        Write-Fail "WS $WsId exceeded ${TimeoutMinutes}m timeout"
+    if ($LiveStream) {
+        Write-Step "streaming live output (timeout at $($deadline.ToString('HH:mm:ss')))"
+        Write-Host "--- opencode output (live) ---" -ForegroundColor DarkGray
+
+        # Wait briefly for the log file to appear (Start-Process redirect
+        # creates it lazily on first write).
+        $fileWaitEnd = (Get-Date).AddSeconds(30)
+        while (-not $proc.HasExited -and -not (Test-Path $logFile) -and (Get-Date) -lt $fileWaitEnd) {
+            Start-Sleep -Milliseconds 200
+        }
+
+        # Open one reader for stdout (and optionally stderr) with shared read
+        # access so opencode can keep appending.
+        $outReader = $null
+        $outStream = $null
+        $errReader = $null
+        $errStream = $null
+        if (Test-Path $logFile) {
+            try {
+                $outStream = [System.IO.File]::Open(
+                    $logFile,
+                    [System.IO.FileMode]::Open,
+                    [System.IO.FileAccess]::Read,
+                    [System.IO.FileShare]::ReadWrite
+                )
+                $outReader = New-Object System.IO.StreamReader($outStream)
+            } catch {
+                Write-Warning "couldn't open $logFile for streaming: $($_.Exception.Message)"
+            }
+        }
+        if ($StreamStderr -and (Test-Path "$logFile.err")) {
+            try {
+                $errStream = [System.IO.File]::Open(
+                    "$logFile.err",
+                    [System.IO.FileMode]::Open,
+                    [System.IO.FileAccess]::Read,
+                    [System.IO.FileShare]::ReadWrite
+                )
+                $errReader = New-Object System.IO.StreamReader($errStream)
+            } catch { }
+        }
+
+        # Polling loop: drain new lines from the file, check timeout.
+        while (-not $proc.HasExited) {
+            if ($outReader) {
+                while (-not $outReader.EndOfStream) {
+                    $line = $outReader.ReadLine()
+                    if ($null -ne $line) { Write-Host $line -ForegroundColor DarkGray }
+                }
+            }
+            if ($errReader) {
+                while (-not $errReader.EndOfStream) {
+                    $line = $errReader.ReadLine()
+                    if ($null -ne $line) { Write-Host $line -ForegroundColor DarkYellow }
+                }
+            }
+            if ((Get-Date) -gt $deadline) {
+                try { $proc.Kill() } catch { Write-Warning "couldn't kill opencode: $($_.Exception.Message)" }
+                $timedOut = $true
+                Write-Fail "WS $WsId exceeded ${TimeoutMinutes}m timeout"
+                break
+            }
+            Start-Sleep -Milliseconds 100
+        }
+
+        # Final drain (anything written between last poll and process exit).
+        if ($outReader) {
+            while (-not $outReader.EndOfStream) {
+                $line = $outReader.ReadLine()
+                if ($null -ne $line) { Write-Host $line -ForegroundColor DarkGray }
+            }
+            $outReader.Dispose()
+            $outStream.Dispose()
+        }
+        if ($errReader) {
+            while (-not $errReader.EndOfStream) {
+                $line = $errReader.ReadLine()
+                if ($null -ne $line) { Write-Host $line -ForegroundColor DarkYellow }
+            }
+            $errReader.Dispose()
+            $errStream.Dispose()
+        }
+
+        Write-Host "--- end of opencode output ---" -ForegroundColor DarkGray
     } else {
-        Write-OK "opencode exited (code $exitCode)"
+        # Plain wait mode: block until exit or timeout, then print tail.
+        $exited = $proc.WaitForExit($TimeoutMinutes * 60 * 1000)
+        if (-not $exited) {
+            try { $proc.Kill() } catch { Write-Warning "couldn't kill opencode process" }
+            $timedOut = $true
+            Write-Fail "WS $WsId exceeded ${TimeoutMinutes}m timeout"
+        }
+        if (Test-Path $logFile) {
+            Write-Host "--- opencode output (tail) ---" -ForegroundColor DarkGray
+            Get-Content $logFile -Tail 30 | ForEach-Object { Write-Host $_ -ForegroundColor DarkGray }
+        }
     }
 
-    # Stream the captured stdout to console so the user can see what happened.
-    # (Tee-Object live monitoring would have been nicer but Start-Process
-    # writes the file directly; we cat it after.)
-    if (Test-Path $logFile) {
-        Write-Host "--- opencode output (tail) ---" -ForegroundColor DarkGray
-        Get-Content $logFile -Tail 30 | ForEach-Object { Write-Host $_ -ForegroundColor DarkGray }
+    $ErrorActionPreference = $prev
+
+    if (-not $timedOut -and $proc.HasExited) {
+        $exitCode = $proc.ExitCode
+        Write-OK "opencode exited (code $exitCode)"
     }
 
     # -----------------------------------------------------------------------
