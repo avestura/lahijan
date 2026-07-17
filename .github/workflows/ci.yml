@@ -93,3 +93,18 @@ jobs:
           echo "::error::some files are not gofumpt-formatted:"
           gofumpt -l .
           exit 1
+
+  integration:
+    name: Integration tests (testcontainers)
+    runs-on: ubuntu-latest
+    # Integration tests light up real Postgres via testcontainers-go (Docker is
+    # available on GitHub-hosted ubuntu runners). Gated to changes that touch
+    # the database layer so the rest of the backend stays fast.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Run integration tests
+        run: go test -tags integration -timeout 600s ./internal/app/lahijan/database/...

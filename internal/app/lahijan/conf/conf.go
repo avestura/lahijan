@@ -95,3 +95,59 @@ func GetHTTPServerHealthcheckLivenessEndpoint() string {
 func GetHTTPServerHealthcheckReadinessEndpoint() string {
 	return viper.GetString("http.server.healthcheck.readinessEndpoint")
 }
+
+// GetDatabaseHost returns the database host.
+func GetDatabaseHost() string {
+	return viper.GetString("database.host")
+}
+
+// GetDatabasePort returns the database port.
+func GetDatabasePort() int {
+	return viper.GetInt("database.port")
+}
+
+// GetDatabaseName returns the database name.
+func GetDatabaseName() string {
+	return viper.GetString("database.name")
+}
+
+// GetDatabaseUser returns the database user.
+func GetDatabaseUser() string {
+	return viper.GetString("database.user")
+}
+
+// GetDatabasePassword returns the database password.
+func GetDatabasePassword() string {
+	return viper.GetString("database.password")
+}
+
+// GetDatabaseSSLMode returns the database sslmode.
+func GetDatabaseSSLMode() string {
+	return viper.GetString("database.sslmode")
+}
+
+// GetDatabaseMaxConns returns the maximum number of connections in the pool.
+func GetDatabaseMaxConns() int {
+	return viper.GetInt("database.maxConns")
+}
+
+// GetDatabaseMinConns returns the minimum number of idle connections in the pool.
+func GetDatabaseMinConns() int {
+	return viper.GetInt("database.minConns")
+}
+
+// GetDatabaseMaxConnLifetimeSeconds returns the max connection lifetime in seconds.
+func GetDatabaseMaxConnLifetimeSeconds() int {
+	return viper.GetInt("database.maxConnLifetimeSeconds")
+}
+
+// GetDatabaseMaxConnIdleSeconds returns the max connection idle time in seconds.
+func GetDatabaseMaxConnIdleSeconds() int {
+	return viper.GetInt("database.maxConnIdleSeconds")
+}
+
+// GetDatabaseStatementTimeoutMs returns the per-connection statement timeout in
+// milliseconds.
+func GetDatabaseStatementTimeoutMs() int {
+	return viper.GetInt("database.statementTimeoutMs")
+}

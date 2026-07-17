@@ -41,12 +41,13 @@ help: ## Show this help
 	@echo "Frontend (no-op until WS-18):"
 	@echo "  make web-install web-build web-lint web-test"
 	@echo ""
-	@echo "Database (no-op until WS-03):"
+	@echo "Database (WS-03+):"
 	@echo "  make db-up         Apply all pending migrations"
 	@echo "  make db-down       Roll back the last migration"
 	@echo "  make db-new NAME=create_foo    Create a new migration"
 	@echo "  make db-version    Show current migration version"
-	@echo "  make sqlc          Regenerate sqlc code"
+	@echo "  make sqlc          Regenerate sqlc code (needs sqlc on PATH)"
+	@echo "  make sqlc-docker   Regenerate sqlc code via the docker image"
 	@echo ""
 	@echo "Docker / Compose:"
 	@echo "  make dev-up        Start dev deps (Postgres etc.) via compose"
@@ -135,6 +136,7 @@ web-test: ## Test frontend (web/)
 
 MIGRATE_BIN := migrate
 MIGRATIONS_DIR := internal/app/lahijan/database/migrations
+SQLC_DIR := internal/app/lahijan/database
 
 .PHONY: db-up db-down db-new db-force db-version
 db-up: ## Apply all pending migrations up
@@ -153,8 +155,12 @@ db-version: ## Show current migration version
 	$(MIGRATE_BIN) -path $(MIGRATIONS_DIR) -database "$(DB_URL)" version
 
 .PHONY: sqlc
-sqlc: ## Regenerate sqlc code
-	sqlc generate
+sqlc: ## Regenerate sqlc code (sqlc must be on PATH, or run via docker — see docs)
+	cd $(SQLC_DIR) && sqlc generate
+
+.PHONY: sqlc-docker
+sqlc-docker: ## Regenerate sqlc code via the official docker image (no local install needed)
+	docker run --rm -v "$(CURDIR)/$(SQLC_DIR):/src" -w /src sqlc/sqlc:1.27.0 generate
 
 # ---------------------------------------------------------------------------
 # Docker / Compose
