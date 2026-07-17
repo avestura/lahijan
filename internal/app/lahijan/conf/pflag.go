@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	computeddefault "github.com/avestura/lahijan/internal/app/lahijan/conf/computedDefault"
+	"github.com/avestura/lahijan/internal/app/lahijan/conf/computeddefault"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v3"

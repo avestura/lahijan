@@ -7,7 +7,7 @@ import (
 	_ "go.uber.org/automaxprocs"
 
 	"github.com/avestura/lahijan/internal/app/lahijan/conf"
-	computeddefault "github.com/avestura/lahijan/internal/app/lahijan/conf/computedDefault"
+	"github.com/avestura/lahijan/internal/app/lahijan/conf/computeddefault"
 	"github.com/gofiber/fiber/v2"
 	fiberlog "github.com/gofiber/fiber/v2/log"
 	"github.com/gofiber/fiber/v2/middleware/cors"

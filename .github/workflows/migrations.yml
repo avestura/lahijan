@@ -1,0 +1,57 @@
+# Migration check
+#
+# Asserts that every up migration has a matching down migration, and that
+# migrations follow the sequential naming convention used by golang-migrate.
+# Runs only when migrations/ exists (WS-03 onwards).
+
+name: Migrations
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - internal/app/lahijan/database/migrations/**
+      - .github/workflows/migrations.yml
+  pull_request:
+    paths:
+      - internal/app/lahijan/database/migrations/**
+      - .github/workflows/migrations.yml
+
+jobs:
+  verify:
+    name: Migration sanity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check directory exists
+        id: exists
+        run: |
+          if [ -d internal/app/lahijan/database/migrations ]; then
+            echo "present=true" >> $GITHUB_OUTPUT
+          else
+            echo "present=false" >> $GITHUB_OUTPUT
+            echo "no migrations/ yet; skipping"
+          fi
+      - name: Every up has a down
+        if: steps.exists.outputs.present == 'true'
+        run: |
+          cd internal/app/lahijan/database/migrations
+          rc=0
+          for f in *.up.sql; do
+            [ -e "$f" ] || continue
+            down="${f%.up.sql}.down.sql"
+            if [ ! -e "$down" ]; then
+              echo "::error file=$f::missing down migration: $down"
+              rc=1
+            fi
+          done
+          # Every down must have an up too
+          for f in *.down.sql; do
+            [ -e "$f" ] || continue
+            up="${f%.down.sql}.up.sql"
+            if [ ! -e "$up" ]; then
+              echo "::error file=$f::missing up migration: $up"
+              rc=1
+            fi
+          done
+          exit $rc

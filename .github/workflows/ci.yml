@@ -1,0 +1,95 @@
+# Lahijan CI - Go backend
+#
+# Runs on every push to main and on every PR. Installs golangci-lint via the
+# official installer so we don't need a separate lint workflow.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint (golangci-lint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v2.0.2
+          args: --timeout=10m
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build
+        run: go build -ldflags "-X 'github.com/avestura/lahijan/internal/app/lahijan/version.LahijanVersion=ci'" ./cmd/lahijan
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Test
+        run: go test -race -timeout 120s ./...
+
+  mod-tidy:
+    name: go mod tidy (check)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: go mod tidy
+        run: go mod tidy
+      - name: check for diff
+        run: |
+          if ! git diff --exit-code go.mod go.sum; then
+            echo "::error::go.mod/go.sum not tidy. Run 'go mod tidy' and commit."
+            exit 1
+          fi
+
+  fmt:
+    name: gofumpt (check)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: install gofumpt
+        run: go install mvdan.cc/gofumpt@latest
+      - name: check formatting
+        run: |
+          if ! gofumpt -l . | grep -E '.'; then
+            echo "all files formatted correctly"
+            exit 0
+          fi
+          echo "::error::some files are not gofumpt-formatted:"
+          gofumpt -l .
+          exit 1

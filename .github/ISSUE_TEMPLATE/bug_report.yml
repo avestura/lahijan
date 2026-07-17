@@ -1,0 +1,71 @@
+name: Bug report
+description: Report something that's broken or behaves unexpectedly
+title: "bug: <short summary>"
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug! Before submitting, please:
+        - Search existing issues to avoid duplicates.
+        - Upgrade to the latest `main` to confirm the bug still reproduces.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the unexpected behaviour. Include the smallest reproduction you can.
+      placeholder: "When I ... I expected ... but got ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Numbered list. The more concrete, the faster we can fix it.
+      placeholder: "1. ...\n2. ...\n3. ..."
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Lahijan version
+      description: Run `lahijan --version` or check the binary's build stamp.
+      placeholder: "dev / v0.1.0 / commit SHA"
+    validations:
+      required: true
+
+  - type: input
+    id: incus-version
+    attributes:
+      label: Incus version (if compute-related)
+      placeholder: "incus 6.x"
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - compute (Incus)
+        - dns (PowerDNS)
+        - object-storage (SeaweedFS)
+        - auth / RBAC
+        - billing / metering
+        - plugins (WASM)
+        - api / openapi
+        - web (dashboard)
+        - website (marketing)
+        - docs
+        - ci / build
+        - other
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / error output
+      description: Paste relevant logs. Use code blocks (```).
+      render: shell
