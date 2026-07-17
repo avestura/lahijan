@@ -17,6 +17,10 @@ type Querier interface {
 	ConsumeEmailToken(ctx context.Context, tokenHash string) (int64, error)
 	//: tenant-scoped
 	CountAuditLogForTenant(ctx context.Context, tenantID *uuid.UUID) (int64, error)
+	//: tenant-scoped; same filters as ListAuditLogForTenantFiltered, for pagination.
+	CountAuditLogForTenantFiltered(ctx context.Context, arg CountAuditLogForTenantFilteredParams) (int64, error)
+	//: admin-only; pagination counterpart to ListAuditLogGlobalFiltered.
+	CountAuditLogGlobalFiltered(ctx context.Context, arg CountAuditLogGlobalFilteredParams) (int64, error)
 	//: tenant-scoped
 	CountMembershipsForTenant(ctx context.Context, tenantID uuid.UUID) (int64, error)
 	CountTenants(ctx context.Context) (int64, error)
@@ -26,6 +30,12 @@ type Querier interface {
 	// so this query file intentionally exposes only INSERT and SELECT.
 	// Optional fields use explicit params; the repository wrapper supplies defaults.
 	CreateAuditLog(ctx context.Context, arg CreateAuditLogParams) (AuditLog, error)
+	// ===========================================================================
+	// audit_log_outcomes: append-only outcome trail (WS-08 MarkOutcome pattern).
+	// Same append-only contract as audit_log; the trigger on this table rejects
+	// UPDATE and DELETE.
+	// ===========================================================================
+	CreateAuditLogOutcome(ctx context.Context, arg CreateAuditLogOutcomeParams) (AuditLogOutcome, error)
 	// Email tokens: single-use, expiring tokens for email verification, password
 	// reset, and email change (WS-06). Global; only the SHA-256 hash is stored.
 	CreateEmailToken(ctx context.Context, arg CreateEmailTokenParams) (EmailToken, error)
@@ -62,11 +72,21 @@ type Querier interface {
 	// Optional fields use explicit params; the repository wrapper supplies defaults.
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	GetAuditLog(ctx context.Context, id uuid.UUID) (AuditLog, error)
+	//: tenant-scoped; single-row read for the GET /audit/{id} handler. Returns the
+	//: row if it belongs to the tenant in ctx, OR is a system-level event (NULL
+	//: tenant). System events are visible from any tenant so operators can trace
+	//: auth flows even when scoped.
+	GetAuditLogForTenant(ctx context.Context, arg GetAuditLogForTenantParams) (AuditLog, error)
 	GetEmailTokenByHash(ctx context.Context, tokenHash string) (EmailToken, error)
 	//: tenant-scoped
 	GetMembership(ctx context.Context, arg GetMembershipParams) (Membership, error)
 	//: tenant-scoped
 	GetMembershipByUser(ctx context.Context, arg GetMembershipByUserParams) (Membership, error)
+	//: user-scoped (cross-tenant check by user + tenant; used by the tenant
+	//: middleware to verify the caller is a member of the requested tenant). The
+	//: tenant id comes from the caller, NOT from ctx, because this is the lookup
+	//: that PROVES the user can adopt that tenant for the request.
+	GetMembershipByUserAndTenant(ctx context.Context, arg GetMembershipByUserAndTenantParams) (Membership, error)
 	GetPermissionBySlug(ctx context.Context, slug string) (Permission, error)
 	GetPersonalAccessTokenByHash(ctx context.Context, tokenHash string) (PersonalAccessToken, error)
 	GetPersonalAccessTokenByID(ctx context.Context, id uuid.UUID) (PersonalAccessToken, error)
@@ -82,14 +102,28 @@ type Querier interface {
 	GrantPermissionToRole(ctx context.Context, arg GrantPermissionToRoleParams) error
 	//: tenant-scoped
 	ListAuditLogForTenant(ctx context.Context, arg ListAuditLogForTenantParams) ([]AuditLog, error)
+	//: tenant-scoped; filtered + paginated read for GET /audit.
+	// Each filter is NULL-able: a NULL means "do not filter on this column".
+	// sqlc.narg declares a nullable parameter; the ::type cast tells sqlc the
+	// concrete Go type to emit (*uuid.UUID, *string, *time.Time).
+	ListAuditLogForTenantFiltered(ctx context.Context, arg ListAuditLogForTenantFilteredParams) ([]AuditLog, error)
 	//: admin-only; system-wide query, not tenant-scoped
 	ListAuditLogGlobal(ctx context.Context, arg ListAuditLogGlobalParams) ([]AuditLog, error)
+	//: admin-only; same shape as ListAuditLogForTenantFiltered but unscoped. Used
+	//: by the global audit export endpoint behind RequirePerm("audit.read_global").
+	ListAuditLogGlobalFiltered(ctx context.Context, arg ListAuditLogGlobalFilteredParams) ([]AuditLog, error)
+	//: newest-first so the caller can pick the latest as the current status.
+	ListAuditLogOutcomes(ctx context.Context, auditID uuid.UUID) ([]AuditLogOutcome, error)
 	//: tenant-scoped
 	ListMembershipsForTenant(ctx context.Context, arg ListMembershipsForTenantParams) ([]Membership, error)
 	//: user-scoped (cross-tenant; used to list the tenants a user belongs to)
 	ListMembershipsForUser(ctx context.Context, userID uuid.UUID) ([]Membership, error)
 	ListPermissions(ctx context.Context) ([]Permission, error)
 	ListPermissionsForRole(ctx context.Context, roleID uuid.UUID) ([]Permission, error)
+	//: user-scoped (cross-tenant; the policy evaluator calls this for RequirePerm).
+	// Returns every permission granted to the user via the role on their membership
+	// in the given tenant. Used by RBAC policy enforcement (WS-08).
+	ListPermissionsForUser(ctx context.Context, arg ListPermissionsForUserParams) ([]Permission, error)
 	ListPersonalAccessTokensForUser(ctx context.Context, userID uuid.UUID) ([]PersonalAccessToken, error)
 	ListRoles(ctx context.Context) ([]Role, error)
 	ListSessionsForUser(ctx context.Context, userID uuid.UUID) ([]Session, error)

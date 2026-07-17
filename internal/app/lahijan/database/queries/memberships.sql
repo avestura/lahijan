@@ -36,6 +36,27 @@ SELECT * FROM memberships
 WHERE user_id = $1 AND deleted_at IS NULL
 ORDER BY created_at DESC;
 
+-- name: GetMembershipByUserAndTenant :one
+--: user-scoped (cross-tenant check by user + tenant; used by the tenant
+--: middleware to verify the caller is a member of the requested tenant). The
+--: tenant id comes from the caller, NOT from ctx, because this is the lookup
+--: that PROVES the user can adopt that tenant for the request.
+SELECT * FROM memberships
+WHERE user_id = $1 AND tenant_id = $2 AND deleted_at IS NULL;
+
+-- name: ListPermissionsForUser :many
+--: user-scoped (cross-tenant; the policy evaluator calls this for RequirePerm).
+-- Returns every permission granted to the user via the role on their membership
+-- in the given tenant. Used by RBAC policy enforcement (WS-08).
+SELECT p.* FROM permissions p
+JOIN role_permissions rp ON rp.permission_id = p.id
+JOIN memberships m ON m.role_id = rp.role_id
+WHERE m.user_id = $1
+  AND m.tenant_id = $2
+  AND m.deleted_at IS NULL
+ORDER BY p.slug;
+
+
 -- name: SetMembershipRole :exec
 --: tenant-scoped
 UPDATE memberships
