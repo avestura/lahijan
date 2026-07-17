@@ -14,9 +14,9 @@ import (
 )
 
 const createPersonalAccessToken = `-- name: CreatePersonalAccessToken :one
-INSERT INTO personal_access_tokens (user_id, name, token_hash, expires_at)
-VALUES ($1, $2, $3, $4)
-RETURNING id, user_id, name, token_hash, expires_at, revoked_at, last_used_at, created_at
+INSERT INTO personal_access_tokens (user_id, name, token_hash, expires_at, scopes)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, user_id, name, token_hash, expires_at, revoked_at, last_used_at, created_at, scopes
 `
 
 type CreatePersonalAccessTokenParams struct {
@@ -24,6 +24,7 @@ type CreatePersonalAccessTokenParams struct {
 	Name      string     `json:"name"`
 	TokenHash string     `json:"token_hash"`
 	ExpiresAt *time.Time `json:"expires_at"`
+	Scopes    []string   `json:"scopes"`
 }
 
 func (q *Queries) CreatePersonalAccessToken(ctx context.Context, arg CreatePersonalAccessTokenParams) (PersonalAccessToken, error) {
@@ -32,6 +33,7 @@ func (q *Queries) CreatePersonalAccessToken(ctx context.Context, arg CreatePerso
 		arg.Name,
 		arg.TokenHash,
 		arg.ExpiresAt,
+		arg.Scopes,
 	)
 	var i PersonalAccessToken
 	err := row.Scan(
@@ -43,19 +45,22 @@ func (q *Queries) CreatePersonalAccessToken(ctx context.Context, arg CreatePerso
 		&i.RevokedAt,
 		&i.LastUsedAt,
 		&i.CreatedAt,
+		&i.Scopes,
 	)
 	return i, err
 }
 
 const createRefreshToken = `-- name: CreateRefreshToken :one
 
-INSERT INTO refresh_tokens (user_id, token_hash, expires_at, user_agent, ip_address)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, user_id, token_hash, expires_at, revoked_at, created_at, user_agent, ip_address
+INSERT INTO refresh_tokens (user_id, session_id, family_id, token_hash, expires_at, user_agent, ip_address)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, user_id, token_hash, expires_at, revoked_at, created_at, user_agent, ip_address, session_id, family_id
 `
 
 type CreateRefreshTokenParams struct {
 	UserID    uuid.UUID   `json:"user_id"`
+	SessionID uuid.UUID   `json:"session_id"`
+	FamilyID  uuid.UUID   `json:"family_id"`
 	TokenHash string      `json:"token_hash"`
 	ExpiresAt time.Time   `json:"expires_at"`
 	UserAgent *string     `json:"user_agent"`
@@ -63,10 +68,18 @@ type CreateRefreshTokenParams struct {
 }
 
 // Tokens: refresh_tokens and personal_access_tokens. Both global.
-// Auth issuance/rotation lands in WS-06; this WS persists storage only.
+//
+// refresh_tokens belong to a session (session_id, added in WS-06 migration 0009)
+// and are grouped into a rotation family (family_id). Reusing a rotated token
+// revokes the whole family + the owning session (reuse detection).
+//
+// PATs carry a scopes array (WS-06 migration 0009) listing the permission slugs
+// the token grants; enforcement lands in WS-08 (RequirePerm).
 func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (RefreshToken, error) {
 	row := q.db.QueryRow(ctx, createRefreshToken,
 		arg.UserID,
+		arg.SessionID,
+		arg.FamilyID,
 		arg.TokenHash,
 		arg.ExpiresAt,
 		arg.UserAgent,
@@ -82,12 +95,14 @@ func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshToken
 		&i.CreatedAt,
 		&i.UserAgent,
 		&i.IpAddress,
+		&i.SessionID,
+		&i.FamilyID,
 	)
 	return i, err
 }
 
 const getPersonalAccessTokenByHash = `-- name: GetPersonalAccessTokenByHash :one
-SELECT id, user_id, name, token_hash, expires_at, revoked_at, last_used_at, created_at FROM personal_access_tokens WHERE token_hash = $1
+SELECT id, user_id, name, token_hash, expires_at, revoked_at, last_used_at, created_at, scopes FROM personal_access_tokens WHERE token_hash = $1
 `
 
 func (q *Queries) GetPersonalAccessTokenByHash(ctx context.Context, tokenHash string) (PersonalAccessToken, error) {
@@ -102,12 +117,34 @@ func (q *Queries) GetPersonalAccessTokenByHash(ctx context.Context, tokenHash st
 		&i.RevokedAt,
 		&i.LastUsedAt,
 		&i.CreatedAt,
+		&i.Scopes,
+	)
+	return i, err
+}
+
+const getPersonalAccessTokenByID = `-- name: GetPersonalAccessTokenByID :one
+SELECT id, user_id, name, token_hash, expires_at, revoked_at, last_used_at, created_at, scopes FROM personal_access_tokens WHERE id = $1
+`
+
+func (q *Queries) GetPersonalAccessTokenByID(ctx context.Context, id uuid.UUID) (PersonalAccessToken, error) {
+	row := q.db.QueryRow(ctx, getPersonalAccessTokenByID, id)
+	var i PersonalAccessToken
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.TokenHash,
+		&i.ExpiresAt,
+		&i.RevokedAt,
+		&i.LastUsedAt,
+		&i.CreatedAt,
+		&i.Scopes,
 	)
 	return i, err
 }
 
 const getRefreshTokenByHash = `-- name: GetRefreshTokenByHash :one
-SELECT id, user_id, token_hash, expires_at, revoked_at, created_at, user_agent, ip_address FROM refresh_tokens WHERE token_hash = $1
+SELECT id, user_id, token_hash, expires_at, revoked_at, created_at, user_agent, ip_address, session_id, family_id FROM refresh_tokens WHERE token_hash = $1
 `
 
 func (q *Queries) GetRefreshTokenByHash(ctx context.Context, tokenHash string) (RefreshToken, error) {
@@ -122,8 +159,46 @@ func (q *Queries) GetRefreshTokenByHash(ctx context.Context, tokenHash string) (
 		&i.CreatedAt,
 		&i.UserAgent,
 		&i.IpAddress,
+		&i.SessionID,
+		&i.FamilyID,
 	)
 	return i, err
+}
+
+const listPersonalAccessTokensForUser = `-- name: ListPersonalAccessTokensForUser :many
+SELECT id, user_id, name, token_hash, expires_at, revoked_at, last_used_at, created_at, scopes FROM personal_access_tokens
+WHERE user_id = $1 AND revoked_at IS NULL
+ORDER BY created_at DESC
+`
+
+func (q *Queries) ListPersonalAccessTokensForUser(ctx context.Context, userID uuid.UUID) ([]PersonalAccessToken, error) {
+	rows, err := q.db.Query(ctx, listPersonalAccessTokensForUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PersonalAccessToken{}
+	for rows.Next() {
+		var i PersonalAccessToken
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Name,
+			&i.TokenHash,
+			&i.ExpiresAt,
+			&i.RevokedAt,
+			&i.LastUsedAt,
+			&i.CreatedAt,
+			&i.Scopes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const revokeAllRefreshTokensForUser = `-- name: RevokeAllRefreshTokensForUser :exec
@@ -148,6 +223,22 @@ func (q *Queries) RevokePersonalAccessToken(ctx context.Context, tokenHash strin
 	return err
 }
 
+const revokePersonalAccessTokenByID = `-- name: RevokePersonalAccessTokenByID :exec
+UPDATE personal_access_tokens
+SET revoked_at = now()
+WHERE id = $1 AND user_id = $2 AND revoked_at IS NULL
+`
+
+type RevokePersonalAccessTokenByIDParams struct {
+	ID     uuid.UUID `json:"id"`
+	UserID uuid.UUID `json:"user_id"`
+}
+
+func (q *Queries) RevokePersonalAccessTokenByID(ctx context.Context, arg RevokePersonalAccessTokenByIDParams) error {
+	_, err := q.db.Exec(ctx, revokePersonalAccessTokenByID, arg.ID, arg.UserID)
+	return err
+}
+
 const revokeRefreshToken = `-- name: RevokeRefreshToken :exec
 UPDATE refresh_tokens
 SET revoked_at = now()
@@ -156,6 +247,29 @@ WHERE token_hash = $1 AND revoked_at IS NULL
 
 func (q *Queries) RevokeRefreshToken(ctx context.Context, tokenHash string) error {
 	_, err := q.db.Exec(ctx, revokeRefreshToken, tokenHash)
+	return err
+}
+
+const revokeRefreshTokenFamily = `-- name: RevokeRefreshTokenFamily :exec
+UPDATE refresh_tokens
+SET revoked_at = now()
+WHERE family_id = $1 AND revoked_at IS NULL
+`
+
+// Reuse detection: revoke every token in the family, regardless of state.
+func (q *Queries) RevokeRefreshTokenFamily(ctx context.Context, familyID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, revokeRefreshTokenFamily, familyID)
+	return err
+}
+
+const revokeRefreshTokensForSession = `-- name: RevokeRefreshTokensForSession :exec
+UPDATE refresh_tokens
+SET revoked_at = now()
+WHERE session_id = $1 AND revoked_at IS NULL
+`
+
+func (q *Queries) RevokeRefreshTokensForSession(ctx context.Context, sessionID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, revokeRefreshTokensForSession, sessionID)
 	return err
 }
 

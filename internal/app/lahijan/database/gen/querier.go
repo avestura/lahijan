@@ -11,6 +11,10 @@ import (
 )
 
 type Querier interface {
+	// Single-use: stamp used_at. The app layer checks used_at IS NULL before
+	// consuming, then runs this UPDATE and uses the returned row count to detect
+	// a race (0 affected = already consumed or did not exist).
+	ConsumeEmailToken(ctx context.Context, tokenHash string) (int64, error)
 	//: tenant-scoped
 	CountAuditLogForTenant(ctx context.Context, tenantID *uuid.UUID) (int64, error)
 	//: tenant-scoped
@@ -22,6 +26,9 @@ type Querier interface {
 	// so this query file intentionally exposes only INSERT and SELECT.
 	// Optional fields use explicit params; the repository wrapper supplies defaults.
 	CreateAuditLog(ctx context.Context, arg CreateAuditLogParams) (AuditLog, error)
+	// Email tokens: single-use, expiring tokens for email verification, password
+	// reset, and email change (WS-06). Global; only the SHA-256 hash is stored.
+	CreateEmailToken(ctx context.Context, arg CreateEmailTokenParams) (EmailToken, error)
 	// Memberships: tenant-scoped. This is the canonical example of tenant scoping.
 	// Every tenant-scoped query takes tenant_id as its first parameter so the
 	// repository layer can bake it in from the request context (ADR-0002).
@@ -30,30 +37,44 @@ type Querier interface {
 	CreatePermission(ctx context.Context, arg CreatePermissionParams) (Permission, error)
 	CreatePersonalAccessToken(ctx context.Context, arg CreatePersonalAccessTokenParams) (PersonalAccessToken, error)
 	// Tokens: refresh_tokens and personal_access_tokens. Both global.
-	// Auth issuance/rotation lands in WS-06; this WS persists storage only.
+	//
+	// refresh_tokens belong to a session (session_id, added in WS-06 migration 0009)
+	// and are grouped into a rotation family (family_id). Reusing a rotated token
+	// revokes the whole family + the owning session (reuse detection).
+	//
+	// PATs carry a scopes array (WS-06 migration 0009) listing the permission slugs
+	// the token grants; enforcement lands in WS-08 (RequirePerm).
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (RefreshToken, error)
 	// RBAC base tables: roles, permissions, role_permissions.
 	// All global. Policy enforcement ships in WS-08; this WS only persists data.
 	// Optional fields use explicit params; the repository wrapper supplies defaults.
 	CreateRole(ctx context.Context, arg CreateRoleParams) (Role, error)
+	// Sessions: a logical login session (WS-06). Global, backed by an opaque
+	// signed cookie whose SHA-256 hash matches sessions.token_hash.
+	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	// Tenants: global table, the top-level isolation boundary.
 	// Per ADR-0002, every tenant-scoped table references tenants(id).
 	// Optional fields use explicit params (not COALESCE) so sqlc emits concrete
 	// types; the repository wrapper supplies defaults for omitted values.
 	CreateTenant(ctx context.Context, arg CreateTenantParams) (Tenant, error)
 	// Users: global table. password_hash is nullable for OAuth/SSO-only users.
+	// WS-06 adds display_name, email_verified_at, and locale.
 	// Optional fields use explicit params; the repository wrapper supplies defaults.
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	GetAuditLog(ctx context.Context, id uuid.UUID) (AuditLog, error)
+	GetEmailTokenByHash(ctx context.Context, tokenHash string) (EmailToken, error)
 	//: tenant-scoped
 	GetMembership(ctx context.Context, arg GetMembershipParams) (Membership, error)
 	//: tenant-scoped
 	GetMembershipByUser(ctx context.Context, arg GetMembershipByUserParams) (Membership, error)
 	GetPermissionBySlug(ctx context.Context, slug string) (Permission, error)
 	GetPersonalAccessTokenByHash(ctx context.Context, tokenHash string) (PersonalAccessToken, error)
+	GetPersonalAccessTokenByID(ctx context.Context, id uuid.UUID) (PersonalAccessToken, error)
 	GetRefreshTokenByHash(ctx context.Context, tokenHash string) (RefreshToken, error)
 	GetRoleByID(ctx context.Context, id uuid.UUID) (Role, error)
 	GetRoleBySlug(ctx context.Context, slug string) (Role, error)
+	GetSession(ctx context.Context, id uuid.UUID) (Session, error)
+	GetSessionByTokenHash(ctx context.Context, tokenHash string) (Session, error)
 	GetTenantByID(ctx context.Context, id uuid.UUID) (Tenant, error)
 	GetTenantBySlug(ctx context.Context, slug string) (Tenant, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
@@ -69,12 +90,23 @@ type Querier interface {
 	ListMembershipsForUser(ctx context.Context, userID uuid.UUID) ([]Membership, error)
 	ListPermissions(ctx context.Context) ([]Permission, error)
 	ListPermissionsForRole(ctx context.Context, roleID uuid.UUID) ([]Permission, error)
+	ListPersonalAccessTokensForUser(ctx context.Context, userID uuid.UUID) ([]PersonalAccessToken, error)
 	ListRoles(ctx context.Context) ([]Role, error)
+	ListSessionsForUser(ctx context.Context, userID uuid.UUID) ([]Session, error)
 	ListTenants(ctx context.Context, arg ListTenantsParams) ([]Tenant, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
 	RevokeAllRefreshTokensForUser(ctx context.Context, userID uuid.UUID) error
+	RevokeAllSessionsForUser(ctx context.Context, userID uuid.UUID) error
+	// Invalidate every outstanding email token of a kind for a user (e.g. when
+	// re-issuing a verification token, revoke the previous one).
+	RevokeEmailTokensForUser(ctx context.Context, arg RevokeEmailTokensForUserParams) error
 	RevokePersonalAccessToken(ctx context.Context, tokenHash string) error
+	RevokePersonalAccessTokenByID(ctx context.Context, arg RevokePersonalAccessTokenByIDParams) error
 	RevokeRefreshToken(ctx context.Context, tokenHash string) error
+	// Reuse detection: revoke every token in the family, regardless of state.
+	RevokeRefreshTokenFamily(ctx context.Context, familyID uuid.UUID) error
+	RevokeRefreshTokensForSession(ctx context.Context, sessionID uuid.UUID) error
+	RevokeSession(ctx context.Context, id uuid.UUID) error
 	//: tenant-scoped
 	SetMembershipRole(ctx context.Context, arg SetMembershipRoleParams) error
 	SetTenantActive(ctx context.Context, arg SetTenantActiveParams) error
@@ -83,7 +115,12 @@ type Querier interface {
 	SoftDeleteTenant(ctx context.Context, id uuid.UUID) error
 	SoftDeleteUser(ctx context.Context, id uuid.UUID) error
 	TouchPersonalAccessToken(ctx context.Context, tokenHash string) error
+	TouchSession(ctx context.Context, id uuid.UUID) error
+	UpdateUserEmail(ctx context.Context, arg UpdateUserEmailParams) error
+	UpdateUserLocale(ctx context.Context, arg UpdateUserLocaleParams) error
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
+	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) error
+	VerifyUserEmail(ctx context.Context, id uuid.UUID) error
 }
 
 var _ Querier = (*Queries)(nil)
