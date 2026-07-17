@@ -110,3 +110,18 @@ func TestMe_ReturnsEnvelopeError(t *testing.T) {
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&env))
 	require.Equal(t, CodeNotImplemented, env.Error.Code)
 }
+
+func TestUnknownRoute_ReturnsEnvelopeNotFound(t *testing.T) {
+	t.Parallel()
+	app := newTestApp(t)
+
+	// A request to an undefined path must come back as the standard error
+	// envelope (not Fiber's default "Cannot GET /x" body).
+	resp, err := app.Test(httptest.NewRequest("GET", "/api/v1/does-not-exist", nil), -1)
+	require.NoError(t, err)
+	require.Equal(t, fiber.StatusNotFound, resp.StatusCode)
+
+	var env ErrorEnvelope
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&env))
+	require.Equal(t, CodeNotFound, env.Error.Code)
+}

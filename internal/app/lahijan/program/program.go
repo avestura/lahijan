@@ -53,6 +53,7 @@ func Start() error {
 		BodyLimit:    conf.GetServerBodyLimit(),
 		Concurrency:  conf.GetHTTPServerConcurrency(),
 		Prefork:      conf.GetHTTPServerPreforkEnabled(),
+		ErrorHandler: api.ErrorHandler(),
 	})
 
 	// Healthcheck middleware is infrastructure-only (probes for orchestrators)

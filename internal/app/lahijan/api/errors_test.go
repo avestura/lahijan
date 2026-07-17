@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http/httptest"
 	"testing"
@@ -90,5 +91,62 @@ func TestConvenienceHelpers_MapToCorrectStatus(t *testing.T) {
 			require.Equal(t, tc.wantCode, env.Error.Code)
 			require.Equal(t, "x", env.Error.Message)
 		})
+	}
+}
+
+func TestErrorHandler_MapsFiberErrorToEnvelope(t *testing.T) {
+	t.Parallel()
+
+	app := fiber.New(fiber.Config{ErrorHandler: ErrorHandler()})
+	app.Get("/denied", func(c *fiber.Ctx) error {
+		return fiber.NewError(fiber.StatusForbidden, "membership required")
+	})
+
+	body, err := app.Test(httptest.NewRequest("GET", "/denied", nil), -1)
+	require.NoError(t, err)
+	require.Equal(t, fiber.StatusForbidden, body.StatusCode)
+
+	var env ErrorEnvelope
+	require.NoError(t, json.NewDecoder(body.Body).Decode(&env))
+	require.Equal(t, CodeForbidden, env.Error.Code)
+	require.Equal(t, "membership required", env.Error.Message)
+}
+
+func TestErrorHandler_MapsUnknownErrorToInternalEnvelope(t *testing.T) {
+	t.Parallel()
+
+	app := fiber.New(fiber.Config{ErrorHandler: ErrorHandler()})
+	app.Get("/boom", func(c *fiber.Ctx) error {
+		return errors.New("kaboom")
+	})
+
+	body, err := app.Test(httptest.NewRequest("GET", "/boom", nil), -1)
+	require.NoError(t, err)
+	require.Equal(t, fiber.StatusInternalServerError, body.StatusCode)
+
+	var env ErrorEnvelope
+	require.NoError(t, json.NewDecoder(body.Body).Decode(&env))
+	require.Equal(t, CodeInternal, env.Error.Code)
+}
+
+func TestCodeForStatus_CoversCommonCodes(t *testing.T) {
+	t.Parallel()
+
+	cases := map[int]string{
+		fiber.StatusBadRequest:            CodeBadRequest,
+		fiber.StatusUnauthorized:          CodeUnauthorized,
+		fiber.StatusForbidden:             CodeForbidden,
+		fiber.StatusNotFound:              CodeNotFound,
+		fiber.StatusConflict:              CodeConflict,
+		fiber.StatusNotImplemented:        CodeNotImplemented,
+		fiber.StatusInternalServerError:   CodeInternal,
+		fiber.StatusBadGateway:            CodeInternal, // any 5xx -> internal
+		fiber.StatusRequestEntityTooLarge: CodePayloadTooLarge,
+	}
+	for status, want := range cases {
+		got := codeForStatus(status)
+		if got != want {
+			t.Errorf("codeForStatus(%d) = %q, want %q", status, got, want)
+		}
 	}
 }

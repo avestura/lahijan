@@ -7,7 +7,12 @@
 // docs/architecture/conventions.md#http-api.
 package api
 
-import "github.com/gofiber/fiber/v2"
+import (
+	"errors"
+	"net/http"
+
+	"github.com/gofiber/fiber/v2"
+)
 
 // Machine-readable error codes used across the API. These are stable, snake_case
 // strings that clients can switch on. Keep them in sync with the examples in
@@ -89,4 +94,66 @@ func SendInternal(c *fiber.Ctx, message string) error {
 // SendNotImplemented is a convenience wrapper for a 501 not_implemented response.
 func SendNotImplemented(c *fiber.Ctx, message string) error {
 	return SendError(c, fiber.StatusNotImplemented, CodeNotImplemented, message, nil)
+}
+
+// codeForStatus maps an HTTP status code to the canonical snake_case error code
+// used in the envelope. Used by the Fiber ErrorHandler so that errors raised by
+// the framework (or by handlers returning *fiber.Error) still come back in the
+// standard envelope shape.
+func codeForStatus(status int) string {
+	switch {
+	case status == fiber.StatusBadRequest:
+		return CodeBadRequest
+	case status == fiber.StatusUnauthorized:
+		return CodeUnauthorized
+	case status == fiber.StatusForbidden:
+		return CodeForbidden
+	case status == fiber.StatusNotFound:
+		return CodeNotFound
+	case status == fiber.StatusConflict:
+		return CodeConflict
+	case status == fiber.StatusRequestEntityTooLarge:
+		return CodePayloadTooLarge
+	case status == fiber.StatusNotImplemented:
+		return CodeNotImplemented
+	case status >= 500:
+		return CodeInternal
+	default:
+		return CodeInternal
+	}
+}
+
+// ErrorHandler is the Fiber-level error handler that funnels every
+// handler-raised error through the standard envelope. Set it on the Fiber app
+// config (fiber.Config{ErrorHandler: api.ErrorHandler()}) so that returning an
+// error from any handler — including fiber.NewError(...) — produces an
+// envelope-shaped response instead of Fiber's default plain-text body.
+//
+// Unmatched-route 404s are handled separately by the fallback registered in
+// router.go (RegisterRoutes), since Fiber does not route them through the
+// ErrorHandler.
+func ErrorHandler() fiber.ErrorHandler {
+	return func(c *fiber.Ctx, err error) error {
+		code := fiber.StatusInternalServerError
+		message := "internal server error"
+
+		var fe *fiber.Error
+		if ok := errors.As(err, &fe); ok {
+			code = fe.Code
+			if fe.Message != "" {
+				message = fe.Message
+			} else {
+				message = http.StatusText(code)
+			}
+		}
+
+		return SendError(c, code, codeForStatus(code), message, nil)
+	}
+}
+
+// NotFound is the catch-all handler registered after all real routes so that
+// requests to undefined paths come back as a standard envelope 404 instead of
+// Fiber's default "Cannot GET /x" body.
+func NotFound(c *fiber.Ctx) error {
+	return SendNotFound(c, "route not found")
 }
