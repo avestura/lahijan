@@ -23,6 +23,7 @@ type Querier interface {
 	CountAuditLogGlobalFiltered(ctx context.Context, arg CountAuditLogGlobalFilteredParams) (int64, error)
 	//: tenant-scoped
 	CountMembershipsForTenant(ctx context.Context, tenantID uuid.UUID) (int64, error)
+	CountOAuthIdentitiesForUser(ctx context.Context, userID uuid.UUID) (int64, error)
 	CountTenants(ctx context.Context) (int64, error)
 	CountUsers(ctx context.Context) (int64, error)
 	// Audit log: append-only. tenant_id is nullable for system-level events.
@@ -44,6 +45,11 @@ type Querier interface {
 	// repository layer can bake it in from the request context (ADR-0002).
 	//: tenant-scoped
 	CreateMembership(ctx context.Context, arg CreateMembershipParams) (Membership, error)
+	// user_oauth_identities: links between users and external identity providers.
+	// Global table. Tokens (access_token, refresh_token) are stored AES-GCM
+	// encrypted at the application layer; this query file treats them as opaque
+	// TEXT and never inspects their contents.
+	CreateOAuthIdentity(ctx context.Context, arg CreateOAuthIdentityParams) (UserOauthIdentity, error)
 	CreatePermission(ctx context.Context, arg CreatePermissionParams) (Permission, error)
 	CreatePersonalAccessToken(ctx context.Context, arg CreatePersonalAccessTokenParams) (PersonalAccessToken, error)
 	// Tokens: refresh_tokens and personal_access_tokens. Both global.
@@ -71,6 +77,10 @@ type Querier interface {
 	// WS-06 adds display_name, email_verified_at, and locale.
 	// Optional fields use explicit params; the repository wrapper supplies defaults.
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	// Unlink: removes the (user, provider) link entirely. Enforced "at least one
+	// auth method remaining" check happens in the service layer (it counts
+	// password_hash + other identities + SAML links before calling this).
+	DeleteOAuthIdentity(ctx context.Context, arg DeleteOAuthIdentityParams) error
 	GetAuditLog(ctx context.Context, id uuid.UUID) (AuditLog, error)
 	//: tenant-scoped; single-row read for the GET /audit/{id} handler. Returns the
 	//: row if it belongs to the tenant in ctx, OR is a system-level event (NULL
@@ -87,6 +97,13 @@ type Querier interface {
 	//: tenant id comes from the caller, NOT from ctx, because this is the lookup
 	//: that PROVES the user can adopt that tenant for the request.
 	GetMembershipByUserAndTenant(ctx context.Context, arg GetMembershipByUserAndTenantParams) (Membership, error)
+	GetOAuthIdentity(ctx context.Context, id uuid.UUID) (UserOauthIdentity, error)
+	// Lookup by (provider, subject): the path the callback handler takes after
+	// the IdP redirects back with a code (the code is exchanged for tokens +
+	// profile, and the profile's subject is used to find an existing identity).
+	GetOAuthIdentityByProviderSubject(ctx context.Context, arg GetOAuthIdentityByProviderSubjectParams) (UserOauthIdentity, error)
+	// Lookup by (user_id, provider): the path the link/unlink endpoints take.
+	GetOAuthIdentityForUser(ctx context.Context, arg GetOAuthIdentityForUserParams) (UserOauthIdentity, error)
 	GetPermissionBySlug(ctx context.Context, slug string) (Permission, error)
 	GetPersonalAccessTokenByHash(ctx context.Context, tokenHash string) (PersonalAccessToken, error)
 	GetPersonalAccessTokenByID(ctx context.Context, id uuid.UUID) (PersonalAccessToken, error)
@@ -118,6 +135,7 @@ type Querier interface {
 	ListMembershipsForTenant(ctx context.Context, arg ListMembershipsForTenantParams) ([]Membership, error)
 	//: user-scoped (cross-tenant; used to list the tenants a user belongs to)
 	ListMembershipsForUser(ctx context.Context, userID uuid.UUID) ([]Membership, error)
+	ListOAuthIdentitiesForUser(ctx context.Context, userID uuid.UUID) ([]UserOauthIdentity, error)
 	ListPermissions(ctx context.Context) ([]Permission, error)
 	ListPermissionsForRole(ctx context.Context, roleID uuid.UUID) ([]Permission, error)
 	//: user-scoped (cross-tenant; the policy evaluator calls this for RequirePerm).
@@ -150,6 +168,9 @@ type Querier interface {
 	SoftDeleteUser(ctx context.Context, id uuid.UUID) error
 	TouchPersonalAccessToken(ctx context.Context, tokenHash string) error
 	TouchSession(ctx context.Context, id uuid.UUID) error
+	// Rotates the stored tokens (and scopes + expiry) on every login or refresh.
+	// Called by the IdP service when the IdP hands back a fresh access_token.
+	UpdateOAuthIdentityTokens(ctx context.Context, arg UpdateOAuthIdentityTokensParams) error
 	UpdateUserEmail(ctx context.Context, arg UpdateUserEmailParams) error
 	UpdateUserLocale(ctx context.Context, arg UpdateUserLocaleParams) error
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error

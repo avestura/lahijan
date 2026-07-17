@@ -24,6 +24,7 @@ sql:
       - "queries/tokens.sql"
       - "queries/sessions.sql"
       - "queries/email_tokens.sql"
+      - "queries/oauth_identities.sql"
     schema:
       - "migrations/*.up.sql"
     gen:
