@@ -1,0 +1,265 @@
+# Lahijan Cloud Platform - OpenAPI 3.1 specification
+#
+# This file is the SINGLE SOURCE OF TRUTH for Lahijan's public HTTP API.
+# Generated code (Go server types, Go client SDK, TypeScript schema + client)
+# is produced from it by `make openapi-gen`. CI fails if the spec drifts from
+# the committed generated code (see .github/workflows/openapi.yml).
+#
+# Rules (see ADR-0015 and docs/architecture/conventions.md#http-api):
+#   - All public routes live under /api/v1/.
+#   - Every error response uses the standard Error envelope.
+#   - Backend infrastructure names (Incus, PowerDNS, SeaweedFS) NEVER appear
+#     here; use the user-facing terms (compute / dns / object storage).
+
+openapi: 3.1.0
+info:
+  title: Lahijan Cloud Platform API
+  version: 0.1.0
+  description: |
+    Self-service API for compute, DNS, and object storage. Lahijan wraps the
+    operator's infrastructure and exposes a single, tenant-scoped surface.
+
+    All timestamps are RFC 3339 UTC strings. All ids are UUIDs.
+  contact:
+    name: Lahijan Maintainers
+    url: https://github.com/avestura/lahijan
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+
+servers:
+  - url: /
+    description: Same-origin (served behind the dashboard).
+
+# ---------------------------------------------------------------------------
+# Conventions for tags: one per user-facing module. Infrastructure-level
+# endpoints (health, ping) use the "platform" tag.
+# ---------------------------------------------------------------------------
+tags:
+  - name: platform
+    description: Infrastructure endpoints (health, liveness, ping).
+  - name: auth
+    description: Authentication and the current user.
+
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
+paths:
+  /health:
+    get:
+      tags: [platform]
+      operationId: getHealth
+      summary: Service health probe
+      description: |
+        Returns the service health. Intended for orchestrators and load
+        balancers; not a privileged endpoint.
+      security: []
+      responses:
+        "200":
+          description: Service is healthy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+        "503":
+          description: Service is degraded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/ping:
+    get:
+      tags: [platform]
+      operationId: ping
+      summary: Round-trip probe for the API pipeline
+      description: |
+        Returns a pong with the current server timestamp. Proves the OpenAPI
+        -> oapi-codegen -> Fiber pipeline is wired end to end. Emits an
+        OpenTelemetry trace span.
+      security: []
+      responses:
+        "200":
+          description: Pong.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pong"
+
+  /api/v1/me:
+    get:
+      tags: [auth]
+      operationId: getCurrentUser
+      summary: Current authenticated user
+      description: |
+        Returns the currently authenticated user and their tenant memberships.
+        This endpoint is a SEED for the future auth module (WS-06); until then
+        it is unauthenticated and returns a placeholder.
+      security: []
+      responses:
+        "200":
+          description: The current user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "501":
+          $ref: "#/components/responses/NotImplemented"
+
+# ---------------------------------------------------------------------------
+# Components
+# ---------------------------------------------------------------------------
+components:
+  # Standard error responses reused across the API.
+  responses:
+    BadRequest:
+      description: The request was malformed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              code: bad_request
+              message: "request body failed validation"
+              details:
+                field: email
+    Unauthorized:
+      description: Authentication is required or has failed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              code: unauthorized
+              message: "authentication required"
+    Forbidden:
+      description: The caller is not permitted to perform this action.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              code: forbidden
+              message: "permission denied"
+    NotFound:
+      description: The requested resource does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              code: not_found
+              message: "resource not found"
+    NotImplemented:
+      description: The endpoint exists but is not implemented yet.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              code: not_implemented
+              message: "not implemented yet"
+    InternalError:
+      description: An unexpected error occurred.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              code: internal
+              message: "internal server error"
+
+  schemas:
+    # The standard error envelope. Every error response in the API is shaped
+    # exactly like this: { error: { code, message, details? } }.
+    Error:
+      type: object
+      required: [error]
+      additionalProperties: false
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          additionalProperties: false
+          properties:
+            code:
+              type: string
+              description: Machine-readable error code (snake_case).
+              examples: [bad_request, unauthorized, forbidden, not_found, internal]
+            message:
+              type: string
+              description: Human-readable error message, safe to show users.
+            details:
+              description: |
+                Optional structured details about the error (e.g. per-field
+                validation errors). Free-form object; consumers must not assume
+                a fixed schema.
+              type: object
+              additionalProperties: true
+
+    Health:
+      type: object
+      required: [status, version]
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+          description: Coarse service health.
+        version:
+          type: string
+          description: Build version of the running binary.
+
+    Pong:
+      type: object
+      required: [pong]
+      additionalProperties: false
+      properties:
+        pong:
+          type: string
+          description: RFC 3339 timestamp at which the server handled the request.
+          format: date-time
+          examples: ["2026-07-17T12:00:00Z"]
+
+    User:
+      type: object
+      required: [id, email]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique user id.
+        email:
+          type: string
+          format: email
+          description: Unique user email.
+        displayName:
+          type: string
+          description: Optional human-friendly display name.
+          nullable: true
+        memberships:
+          type: array
+          description: Tenant memberships held by this user.
+          items:
+            $ref: "#/components/schemas/Membership"
+
+    Membership:
+      type: object
+      required: [tenantId, role]
+      additionalProperties: false
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        role:
+          type: string
+          description: Role held within the tenant (e.g. owner, admin, member).

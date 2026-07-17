@@ -20,6 +20,11 @@ GO         := go
 GOFLAGS    :=
 DB_URL     ?= postgres://lahijan:lahijan@localhost:5432/lahijan?sslmode=disable
 
+# OpenAPI codegen tool versions (pinned for reproducibility; bump together).
+OAPI_CODEGEN_VERSION := v2.4.1
+OPENAPI_TS_VERSION   := 7.13.0
+SPEC                 := api/openapi.yaml
+
 # Skip powershellisms; this Makefile targets GNU Make on both Linux and Windows
 # (via WSL/Git-Bash). PowerShell wrappers live in scripts/.
 
@@ -48,6 +53,10 @@ help: ## Show this help
 	@echo "  make db-version    Show current migration version"
 	@echo "  make sqlc          Regenerate sqlc code (needs sqlc on PATH)"
 	@echo "  make sqlc-docker   Regenerate sqlc code via the docker image"
+	@echo ""
+	@echo "OpenAPI (WS-05+):"
+	@echo "  make openapi-gen    Regenerate Go + TS code from api/openapi.yaml"
+	@echo "  make openapi-verify Fail if generated code has drifted from the spec"
 	@echo ""
 	@echo "Docker / Compose:"
 	@echo "  make dev-up        Start dev deps (Postgres etc.) via compose"
@@ -112,6 +121,34 @@ lint: ## Run golangci-lint (use LINT_FLAGS=--fast for fast mode)
 .PHONY: tidy
 tidy: ## Run go mod tidy
 	$(GO) mod tidy
+
+# ---------------------------------------------------------------------------
+# OpenAPI codegen (WS-05)
+#
+# `api/openapi.yaml` is the source of truth (ADR-0015). We generate:
+#   - Go server types + Fiber interface  -> api/gen/go/         (oapi-codegen)
+#   - Go client SDK                      -> pkg/lahijan-client/ (oapi-codegen)
+#   - TypeScript schema types            -> api/gen/ts/         (openapi-typescript)
+# The openapi-fetch client wrapper under api/gen/ts-client/ is hand-written and
+# consumes the generated TS schema; regenerate it only if the wrapper API changes.
+#
+# CI runs `make openapi-verify` and fails if the committed generated code drifts
+# from the spec.
+# ---------------------------------------------------------------------------
+
+.PHONY: openapi-gen
+openapi-gen: ## Regenerate Go + TypeScript code from api/openapi.yaml
+	$(GO) run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@$(OAPI_CODEGEN_VERSION) \
+		--config api/oapi-codegen.server.yaml $(SPEC)
+	$(GO) run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@$(OAPI_CODEGEN_VERSION) \
+		--config api/oapi-codegen.client.yaml $(SPEC)
+	npx -y openapi-typescript@$(OPENAPI_TS_VERSION) $(SPEC) -o api/gen/ts/schema.d.ts
+	@echo "openapi: regenerated Go server, Go client SDK, and TS schema"
+
+.PHONY: openapi-verify
+openapi-verify: openapi-gen ## Fail if committed generated code has drifted from the spec
+	@git --no-pager diff --exit-code -- api/gen pkg/lahijan-client
+	@echo "openapi: generated code is up to date"
 
 # ---------------------------------------------------------------------------
 # Frontend (no-ops until WS-18; defined so CI is stable)
@@ -194,7 +231,7 @@ hooks: ## Install git hooks locally
 	@echo "git hooks installed"
 
 .PHONY: ci-check
-ci-check: lint test ## Run everything CI runs locally (lint + test)
+ci-check: lint test openapi-verify ## Run everything CI runs locally (lint + test + openapi drift)
 	@echo "ci-check passed"
 
 .PHONY: clean

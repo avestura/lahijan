@@ -34,7 +34,7 @@ The ws-implementer subagent (`.opencode/agent/ws-implementer.md`) and the
 | [WS-02](./WS-02-ai-context-layer.md) | AI Context Layer & Docs Framework | in-progress | WS-01 |
 | [WS-03](./WS-03-database-persistence-core.md) | Database & Persistence Core | pending | WS-02 |
 | [WS-04](./WS-04-config-observability-foundation.md) | Config Expansion + Observability Foundation | pending | WS-03 |
-| [WS-05](./WS-05-rest-openapi-pipeline.md) | REST API Framework + OpenAPI Pipeline | pending | WS-04 |
+| [WS-05](./WS-05-rest-openapi-pipeline.md) | REST API Framework + OpenAPI Pipeline | done | WS-04 |
 
 ## Phase 1 — Security & Identity
 

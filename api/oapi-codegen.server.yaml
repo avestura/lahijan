@@ -1,0 +1,27 @@
+# oapi-codegen configuration - Lahijan Go SERVER types + Fiber interface.
+#
+# Source of truth: api/openapi.yaml (see ADR-0015).
+# Output is committed under api/gen/go/ and is NEVER hand-edited.
+# Regenerate with: make openapi-gen
+#
+# NOTE: oapi-codegen v2.4.1 resolves `output` relative to this config file
+# (api/), and the spec path is passed on the command line (see Makefile).
+#
+# yaml-language-server: $schema=https://raw.githubusercontent.com/oapi-codegen/oapi-codegen/HEAD/configuration-schema.json
+
+package: apigen
+
+# Generate the Fiber server interface + the request/response models. We embed
+# the spec too so the request-validator middleware can validate at runtime.
+generate:
+  models: true
+  fiber-server: true
+  embedded-spec: true
+
+output: api/gen/go/gen.go
+
+output-options:
+  skip-prune: false
+
+compatibility:
+  always-prefix-enum-values: true

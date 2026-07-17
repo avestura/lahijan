@@ -1,7 +1,7 @@
 # WS-05 · REST API Framework + OpenAPI Pipeline
 
 ```
-Status: pending
+Status: done
 Phase: 0
 Depends on: WS-04
 Unblocks: WS-06, WS-08, WS-11..13, every API-touching WS
@@ -59,14 +59,14 @@ domain module just plugs in routes.
 
 ## Definition of Done
 
-- [ ] `api/openapi.yaml` validates against OpenAPI 3.1
-- [ ] `make openapi-gen` (new target) regenerates Go + TS code; no diff
-- [ ] `/api/v1/ping` returns `{"pong":"<timestamp>"}` and emits a trace
-- [ ] error envelope helper produces the exact `{error:{code,message,details}}` shape
-- [ ] every error response uses the envelope
-- [ ] middleware slots defined and ordered per conventions
-- [ ] CI fails if the spec and generated code drift
-- [ ] `make lint test` green
+- [x] `api/openapi.yaml` validates against OpenAPI 3.1
+- [x] `make openapi-gen` (new target) regenerates Go + TS code; no diff
+- [x] `/api/v1/ping` returns `{"pong":"<timestamp>"}` and emits a trace
+- [x] error envelope helper produces the exact `{error:{code,message,details}}` shape
+- [x] every error response uses the envelope
+- [x] middleware slots defined and ordered per conventions
+- [x] CI fails if the spec and generated code drift
+- [x] `make lint test` green
 
 ## Open questions
 
@@ -74,6 +74,32 @@ domain module just plugs in routes.
   for type fidelity; Fiber for routing.)
 - Do we ship a Go client SDK in `pkg/lahijan-client/` now or stub it?
   (Default: ship a real, minimal one.)
+
+## Resolution notes (implementation)
+
+- **oapi-codegen + Fiber (resolved per ADR-0015):** we generate the
+  `apigen.ServerInterface` + models via oapi-codegen (fiber-server output) and
+  register them on Fiber with the generated `RegisterHandlers`. Fiber is the
+  router; oapi-codegen owns the types.
+- **Go client SDK (resolved — ship a real one):** `pkg/lahijan-client/` holds a
+  self-contained, generated client (`Client` + `ClientWithResponses`). An
+  end-to-end test in `internal/app/lahijan/api/client_sdk_test.go` drives the
+  client against the live Fiber server.
+- **OpenAPI 3.1 vs. oapi-codegen:** oapi-codegen v2.4.1 emits a conservative
+  warning that 3.1 is not yet first-class, but kin-openapi v0.127 (which it
+  uses) parses our 3.1 spec cleanly and both the Go and TS generators produce
+  correct output. The spec deliberately uses 3.0-compatible constructs
+  (`nullable: true`, free-form objects) to stay generator-friendly.
+- **Tracing seam:** the `/api/v1/ping` handler creates an OTel span via an
+  injectable tracer. Full OTel wiring (slog handler, OTLP exporter, resource
+  attributes) lands in WS-04; until then the tracer resolves to the global
+  provider (no-op by default). The span is asserted in
+  `server_test.go::TestPing_EmitsTraceSpan` with an in-memory exporter.
+- **Middleware domain slots:** `tenant`, `auth`, `audit`, `rbac` are
+  pass-through seams in this WS. They fix the canonical ordering contract that
+  WS-06 (auth) and WS-08 (rbac/audit) replace the bodies of.
+- **`/api/v1/me`:** returns a 501 `not_implemented` envelope (declared in the
+  spec) until WS-06 ships real authentication.
 
 ## Notes
 

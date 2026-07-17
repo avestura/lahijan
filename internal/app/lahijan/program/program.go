@@ -11,15 +11,13 @@ import (
 
 	_ "go.uber.org/automaxprocs"
 
+	"github.com/avestura/lahijan/internal/app/lahijan/api"
+	"github.com/avestura/lahijan/internal/app/lahijan/api/middleware"
 	"github.com/avestura/lahijan/internal/app/lahijan/conf"
 	"github.com/avestura/lahijan/internal/app/lahijan/conf/computeddefault"
 	"github.com/gofiber/fiber/v2"
 	fiberlog "github.com/gofiber/fiber/v2/log"
-	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/healthcheck"
-	"github.com/gofiber/fiber/v2/middleware/logger"
-	"github.com/gofiber/fiber/v2/middleware/recover"
-	"github.com/gofiber/fiber/v2/middleware/requestid"
 )
 
 func init() {
@@ -50,49 +48,55 @@ func Start() error {
 	}
 
 	app := fiber.New(fiber.Config{
-		ServerHeader: "Fiber",
+		ServerHeader: "Lahijan",
 		AppName:      "Lahijan",
 		BodyLimit:    conf.GetServerBodyLimit(),
 		Concurrency:  conf.GetHTTPServerConcurrency(),
 		Prefork:      conf.GetHTTPServerPreforkEnabled(),
+		ErrorHandler: api.ErrorHandler(),
 	})
 
-	if conf.GetHTTPServerLoggerEnabled() {
-		fiberlog.Debug("logging middleware is enabled.")
-		app.Use(logger.New())
-	}
-
-	if conf.GetHTTPServerCORSEnabled() {
-		fiberlog.Debug("cors middleware is enabled.")
-		corsConfig := cors.Config{
-			AllowMethods: strings.Join(conf.GetHTTPServerCORSAllowedMethods(), ","),
-			AllowHeaders: strings.Join(conf.GetHTTPServerCORSAllowedHeaders(), ","),
-			AllowOrigins: strings.Join(conf.GetHTTPServerCORSAllowedOrigins(), ","),
-			MaxAge:       conf.GetHTTPServerCORSMaxAge(),
-		}
-		app.Use(cors.New(corsConfig))
-	}
-
+	// Healthcheck middleware is infrastructure-only (probes for orchestrators)
+	// and registers its own /healthcheck/* endpoints; it runs before the API
+	// middleware stack so it stays out of the audit/rbac path.
 	if conf.GetHTTPServerHealthcheckEnabled() {
 		fiberlog.Debug("healthcheck middleware is enabled.")
-		healthcheckConfig := healthcheck.Config{
+		app.Use(healthcheck.New(healthcheck.Config{
 			LivenessProbe:     func(c *fiber.Ctx) bool { return true },
 			ReadinessProbe:    func(c *fiber.Ctx) bool { return true },
 			ReadinessEndpoint: conf.GetHTTPServerHealthcheckReadinessEndpoint(),
 			LivenessEndpoint:  conf.GetHTTPServerHealthcheckLivenessEndpoint(),
-		}
-		app.Use(healthcheck.New(healthcheckConfig))
+		}))
 	}
 
-	app.Use(recover.New())
-	app.Use(requestid.New())
-
-	app.Get("/health", func(c *fiber.Ctx) error {
-		return c.SendString("ok")
+	// Full middleware stack in the canonical order
+	// (requestid -> recover -> cors -> logger -> tenant -> auth -> audit -> rbac).
+	// See docs/architecture/conventions.md#http-api and api/middleware.
+	middleware.Apply(app, middleware.Options{
+		CORS:          corsOptions(),
+		RequestLogger: conf.GetHTTPServerLoggerEnabled(),
 	})
+
+	// Register the OpenAPI-derived routes (/health, /api/v1/ping, /api/v1/me, ...).
+	api.RegisterRoutes(app)
 
 	if err := app.Listen(conf.GetHTTPServerAddress()); err != nil {
 		return errors.Join(errors.New("fiber server stopped"), err)
 	}
 	return nil
+}
+
+// corsOptions builds the middleware CORS config from config when CORS is
+// enabled, returning nil (CORS disabled) otherwise.
+func corsOptions() *middleware.CORSConfig {
+	if !conf.GetHTTPServerCORSEnabled() {
+		return nil
+	}
+	fiberlog.Debug("cors middleware is enabled.")
+	return &middleware.CORSConfig{
+		AllowMethods: strings.Join(conf.GetHTTPServerCORSAllowedMethods(), ","),
+		AllowHeaders: strings.Join(conf.GetHTTPServerCORSAllowedHeaders(), ","),
+		AllowOrigins: strings.Join(conf.GetHTTPServerCORSAllowedOrigins(), ","),
+		MaxAge:       conf.GetHTTPServerCORSMaxAge(),
+	}
 }

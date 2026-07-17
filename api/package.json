@@ -1,0 +1,17 @@
+{
+  "name": "@lahijan/openapi-tooling",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OpenAPI codegen toolchain for Lahijan. Regenerate via `make openapi-gen`. This package only exists to pin the TS codegen/runtime deps; it is not published.",
+  "type": "module",
+  "scripts": {
+    "gen:ts": "openapi-typescript openapi.yaml -o gen/ts/schema.d.ts",
+    "gen": "npm run gen:ts"
+  },
+  "dependencies": {
+    "openapi-fetch": "0.17.0"
+  },
+  "devDependencies": {
+    "openapi-typescript": "7.13.0"
+  }
+}
