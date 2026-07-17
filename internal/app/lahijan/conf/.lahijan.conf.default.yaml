@@ -42,3 +42,27 @@ environment: dev
 
 # activates more logs and debugging behavior
 debug: false
+
+database:
+  # database host
+  host: "localhost"
+  # database port
+  port: 5432
+  # database name
+  name: "lahijan"
+  # database user
+  user: "lahijan"
+  # database password (use env LAHIJAN_DATABASE_PASSWORD in any real env)
+  password: ""
+  # sslmode: disable, require, verify-ca, verify-full
+  sslmode: "disable"
+  # maximum number of connections in the pool
+  maxConns: 20
+  # minimum number of idle connections in the pool
+  minConns: 2
+  # max lifetime of a connection in seconds
+  maxConnLifetimeSeconds: 3600
+  # max idle duration of a connection in seconds
+  maxConnIdleSeconds: 300
+  # statement timeout applied per connection in milliseconds
+  statementTimeoutMs: 5000
