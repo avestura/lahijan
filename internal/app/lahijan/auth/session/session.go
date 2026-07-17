@@ -139,7 +139,8 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (Session, erro
 	// Best-effort verification email; a failure here must not block registration.
 	_ = s.mailer.SendVerification(ctx, user.ID)
 
-	_ = s.audit.Emit(ctx, audit.Event{
+	// Best-effort: audit failure is logged but does not block the auth flow.
+	_, _ = s.audit.Emit(ctx, audit.Event{
 		ActorUserID:  &user.ID,
 		Action:       audit.ActionRegister,
 		ResourceType: audit.ResourceUser,
@@ -195,7 +196,8 @@ func (s *Service) Login(ctx context.Context, in LoginInput) (Session, error) {
 	if err != nil {
 		return Session{}, err
 	}
-	_ = s.audit.Emit(ctx, audit.Event{
+	// Best-effort: audit failure is logged but does not block the auth flow.
+	_, _ = s.audit.Emit(ctx, audit.Event{
 		ActorUserID:  &user.ID,
 		Action:       audit.ActionLogin,
 		ResourceType: audit.ResourceSession,
@@ -229,7 +231,8 @@ func (s *Service) Logout(ctx context.Context, rawRefresh string) error {
 	}
 	_ = s.tokens.RevokeRefreshTokenFamily(ctx, rt.FamilyID)
 	_ = s.sessions.Revoke(ctx, rt.SessionID)
-	_ = s.audit.Emit(ctx, audit.Event{
+	// Best-effort: audit failure is logged but does not block the auth flow.
+	_, _ = s.audit.Emit(ctx, audit.Event{
 		ActorUserID:  &rt.UserID,
 		Action:       audit.ActionLogout,
 		ResourceType: audit.ResourceSession,
@@ -255,7 +258,8 @@ func (s *Service) Refresh(ctx context.Context, rawRefresh string, ua *string, ip
 		// Reuse of a revoked token: the family is compromised. Burn it all down.
 		_ = s.tokens.RevokeRefreshTokenFamily(ctx, rt.FamilyID)
 		_ = s.sessions.Revoke(ctx, rt.SessionID)
-		_ = s.audit.Emit(ctx, audit.Event{
+		// Best-effort: audit failure is logged but does not block the auth flow.
+		_, _ = s.audit.Emit(ctx, audit.Event{
 			ActorUserID:  &rt.UserID,
 			Action:       audit.ActionRefreshReuse,
 			ResourceType: audit.ResourceSession,
@@ -275,7 +279,8 @@ func (s *Service) Refresh(ctx context.Context, rawRefresh string, ua *string, ip
 	if err != nil {
 		return Session{}, err
 	}
-	_ = s.audit.Emit(ctx, audit.Event{
+	// Best-effort: audit failure is logged but does not block the auth flow.
+	_, _ = s.audit.Emit(ctx, audit.Event{
 		ActorUserID:  &rt.UserID,
 		Action:       audit.ActionRefresh,
 		ResourceType: audit.ResourceSession,
@@ -383,7 +388,8 @@ func (s *Service) issueRefresh(
 
 // auditFail records a failed privileged auth action without blocking the return.
 func (s *Service) auditFail(ctx context.Context, action string, userID *uuid.UUID) {
-	_ = s.audit.Emit(ctx, audit.Event{
+	// Best-effort: audit failure is logged but does not block the auth flow.
+	_, _ = s.audit.Emit(ctx, audit.Event{
 		ActorUserID:  userID,
 		Action:       action,
 		ResourceType: audit.ResourceUser,
@@ -417,7 +423,8 @@ func (s *Service) ChangePassword(ctx context.Context, userID uuid.UUID, currentP
 	if err := s.users.UpdatePassword(ctx, userID, hash); err != nil {
 		return fmt.Errorf("auth/session: set password: %w", err)
 	}
-	_ = s.audit.Emit(ctx, audit.Event{
+	// Best-effort: audit failure is logged but does not block the auth flow.
+	_, _ = s.audit.Emit(ctx, audit.Event{
 		ActorUserID:  &userID,
 		Action:       audit.ActionPasswordChange,
 		ResourceType: audit.ResourceUser,
