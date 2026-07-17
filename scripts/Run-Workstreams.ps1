@@ -87,13 +87,38 @@ function Write-Skip    { param($Text) Write-Host "[SKIP] $Text" -ForegroundColor
 function Write-Fail    { param($Text) Write-Host "[FAIL] $Text" -ForegroundColor Red }
 function Write-Info    { param($Text) Write-Host "       $Text" -ForegroundColor DarkGray }
 
-function Invoke-Git    { param([string[]]$ArgList) & git @ArgList 2>&1 | Out-Null; $LASTEXITCODE -eq 0 }
-function Get-GitOutput { param([string[]]$ArgList)
-    $prev = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
-    $out = & git @ArgList 2>&1
-    $ErrorActionPreference = $prev
-    return $out
+# Invoke-Git runs git with stderr suppressed and returns $true on exit 0.
+# Crucially, it temporarily relaxes $ErrorActionPreference so that native-command
+# stderr output (like git's "Already on 'main'" or warnings) doesn't get
+# promoted to a terminating error under Stop mode.
+function Invoke-Git {
+    param([string[]]$ArgList)
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        & git @ArgList 2>&1 | Out-Null
+        return ($LASTEXITCODE -eq 0)
+    } finally {
+        $ErrorActionPreference = $prev
+    }
 }
+
+# Invoke-GitCapture runs git, captures combined stdout+stderr, and returns
+# the output as a single string. Exit code is in $LASTEXITCODE.
+function Invoke-GitCapture {
+    param([string[]]$ArgList)
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $out = & git @ArgList 2>&1 | Out-String
+        return $out
+    } finally {
+        $ErrorActionPreference = $prev
+    }
+}
+
+# Kept as an alias for backward-compat with anything that calls Get-GitOutput.
+function Get-GitOutput { param([string[]]$ArgList) Invoke-GitCapture -ArgList $ArgList }
 
 function Get-WsSlug {
     param([string]$WsId)
@@ -207,7 +232,7 @@ function Invoke-Ws {
     if (-not (Invoke-Git 'reset','--hard','HEAD')) { throw "couldn't reset main" }
 
     # Delete the branch if it somehow exists from a prior failed run.
-    & git branch -D $branchName 2>&1 | Out-Null
+    Invoke-Git 'branch','-D',$branchName   # exits non-zero if branch absent; that's fine
     if (-not (Invoke-Git 'checkout','-b',$branchName)) {
         Write-Fail "couldn't create branch $branchName"
         return [pscustomobject]@{ WS = $WsId; Result = 'branch-failed'; Branch = $branchName; Log = $logFile }
@@ -283,21 +308,24 @@ function Invoke-Ws {
         # -------------------------------------------------------------------
         # Success: commit any stragglers, merge to main, delete branch
         # -------------------------------------------------------------------
-        $uncommitted = Get-GitOutput 'status','--porcelain'
-        if ($uncommitted) {
+        $uncommitted = Invoke-GitCapture 'status','--porcelain'
+        if ($uncommitted.Trim()) {
             Write-Step "committing leftover uncommitted work"
-            & git add -A
-            & git commit -m "feat($slug): $WsId leftover artifacts from agent run" 2>&1 | Out-File -FilePath $logFile -Append -Encoding utf8
+            Invoke-Git 'add','-A'
+            $commitOut = Invoke-GitCapture 'commit','-m',("feat($slug): $WsId leftover artifacts from agent run")
+            $commitOut | Out-File -FilePath $logFile -Append -Encoding utf8
         }
 
         Write-Step "merging $branchName to main (--no-ff)"
         if (-not (Invoke-Git 'checkout','main')) { throw "couldn't checkout main" }
         $mergeMsg = "merge: $WsId $slug"
-        & git merge --no-ff $branchName -m $mergeMsg 2>&1 |
-            Tee-Object -FilePath $logFile -Append | Out-Host
+        $mergeOut = Invoke-GitCapture 'merge','--no-ff',$branchName,'-m',$mergeMsg
+        $mergeOut | Out-File -FilePath $logFile -Append -Encoding utf8
+        $mergeOk = ($LASTEXITCODE -eq 0)
+        Write-Host $mergeOut
 
-        if ($LASTEXITCODE -eq 0) {
-            & git branch -D $branchName 2>&1 | Out-Null
+        if ($mergeOk) {
+            Invoke-Git 'branch','-D',$branchName
             Write-OK "$WsId merged to main"
             return [pscustomobject]@{ WS = $WsId; Result = 'ok'; Branch = '(merged)'; Log = $logFile }
         } else {
@@ -343,10 +371,29 @@ foreach ($ws in $Workstreams) {
         $r = Invoke-Ws -WsId $ws
         $results += $r
     } catch {
-        Write-Fail "exception in $ws : $_"
+        Write-Fail "exception in ${ws}: $($_.Exception.Message)"
         $results += [pscustomobject]@{ WS = $ws; Result = 'exception'; Branch = '(unknown)'; Log = '(none)' }
-        # Try to return to main so the next WS can branch cleanly.
-        Invoke-Git 'checkout','main' | Out-Null
+
+        # Best-effort recovery: figure out where we are, preserve any uncommitted
+        # agent work on its branch, then return to main so the next WS can branch.
+        $prev = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+        try {
+            $currentBranch = (& git rev-parse --abbrev-ref HEAD 2>&1).ToString().Trim()
+            if ($currentBranch -ne "main") {
+                # We're on a WS branch; commit any pending work so it survives.
+                & git add -A 2>&1 | Out-Null
+                & git commit -m "wip: $ws exception state (auto-saved by runner)" --no-verify 2>&1 | Out-Null
+                Write-Info "agent work saved on branch $currentBranch"
+            }
+            # Discard any untracked files on main so the next WS starts clean.
+            & git checkout main 2>&1 | Out-Null
+            & git clean -fd 2>&1 | Out-Null
+        } catch {
+            Write-Warning "recovery failed: $($_.Exception.Message)"
+            Write-Warning "you may need to manually: git checkout main; git reset --hard"
+        } finally {
+            $ErrorActionPreference = $prev
+        }
     }
 
     # Persist running summary after each WS so we can peek mid-run.
