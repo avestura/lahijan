@@ -27,10 +27,15 @@ func newRecordingTracerProvider(exporter *tracetest.InMemoryExporter) *trace.Tra
 // tests exercise the generated routing table end to end. The server has no
 // auth-service deps (they are nil); ping/health/unknown-route do not need them,
 // and authenticated endpoints return 401 because no user is resolved.
+//
+// policy is the optional RBAC resolver; pass nil to leave per-route
+// RequirePerm unenforced (the audit endpoints will then reject with 500 on
+// missing policy rather than 403). Tests that exercise privileged routes pass
+// a fake policy via newFakePolicy below.
 func newTestApp(t *testing.T) *fiber.App {
 	t.Helper()
 	app := fiber.New()
-	RegisterRoutes(app, NewServer(ServerDeps{}))
+	RegisterRoutes(app, NewServer(ServerDeps{}), nil)
 	return app
 }
 
@@ -59,7 +64,7 @@ func TestPing_EmitsTraceSpan(t *testing.T) {
 	t.Cleanup(func() { _ = tp.Shutdown(context.Background()) })
 
 	app := fiber.New()
-	RegisterRoutes(app, NewServer(ServerDeps{Tracer: tp.Tracer("lahijan.api")}))
+	RegisterRoutes(app, NewServer(ServerDeps{Tracer: tp.Tracer("lahijan.api")}), nil)
 
 	_, err := app.Test(httptest.NewRequest("GET", "/api/v1/ping", nil), -1)
 	require.NoError(t, err)

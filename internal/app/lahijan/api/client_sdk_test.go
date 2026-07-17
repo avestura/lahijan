@@ -20,7 +20,7 @@ func startTestServer(t *testing.T) (*lahijanclient.ClientWithResponses, func()) 
 	t.Helper()
 
 	app := fiber.New(fiber.Config{DisableStartupMessage: true})
-	RegisterRoutes(app, NewServer(ServerDeps{}))
+	RegisterRoutes(app, NewServer(ServerDeps{}), nil)
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)

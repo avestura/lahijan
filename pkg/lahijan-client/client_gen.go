@@ -18,11 +18,132 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for AuditEventActorType.
+const (
+	AuditEventActorTypePlugin AuditEventActorType = "plugin"
+	AuditEventActorTypeSystem AuditEventActorType = "system"
+	AuditEventActorTypeUser   AuditEventActorType = "user"
+)
+
+// Defines values for AuditEventStatus.
+const (
+	AuditEventStatusFailure AuditEventStatus = "failure"
+	AuditEventStatusPending AuditEventStatus = "pending"
+	AuditEventStatusSuccess AuditEventStatus = "success"
+)
+
+// Defines values for AuditOutcomeStatus.
+const (
+	AuditOutcomeStatusFailure AuditOutcomeStatus = "failure"
+	AuditOutcomeStatusPending AuditOutcomeStatus = "pending"
+	AuditOutcomeStatusSuccess AuditOutcomeStatus = "success"
+)
+
 // Defines values for HealthStatus.
 const (
 	HealthStatusDegraded HealthStatus = "degraded"
 	HealthStatusOk       HealthStatus = "ok"
 )
+
+// Defines values for ExportFormat.
+const (
+	ExportFormatCsv  ExportFormat = "csv"
+	ExportFormatJson ExportFormat = "json"
+)
+
+// Defines values for ListAuditParamsStatus.
+const (
+	ListAuditParamsStatusFailure ListAuditParamsStatus = "failure"
+	ListAuditParamsStatusPending ListAuditParamsStatus = "pending"
+	ListAuditParamsStatusSuccess ListAuditParamsStatus = "success"
+)
+
+// Defines values for ListAuditParamsActorType.
+const (
+	ListAuditParamsActorTypePlugin ListAuditParamsActorType = "plugin"
+	ListAuditParamsActorTypeSystem ListAuditParamsActorType = "system"
+	ListAuditParamsActorTypeUser   ListAuditParamsActorType = "user"
+)
+
+// Defines values for ExportAuditParamsFormat.
+const (
+	ExportAuditParamsFormatCsv  ExportAuditParamsFormat = "csv"
+	ExportAuditParamsFormatJson ExportAuditParamsFormat = "json"
+)
+
+// Defines values for ExportAuditParamsStatus.
+const (
+	ExportAuditParamsStatusFailure ExportAuditParamsStatus = "failure"
+	ExportAuditParamsStatusPending ExportAuditParamsStatus = "pending"
+	ExportAuditParamsStatusSuccess ExportAuditParamsStatus = "success"
+)
+
+// Defines values for ExportAuditParamsActorType.
+const (
+	ExportAuditParamsActorTypePlugin ExportAuditParamsActorType = "plugin"
+	ExportAuditParamsActorTypeSystem ExportAuditParamsActorType = "system"
+	ExportAuditParamsActorTypeUser   ExportAuditParamsActorType = "user"
+)
+
+// AuditEvent defines model for AuditEvent.
+type AuditEvent struct {
+	// Action The privileged action slug, formatted scope.action
+	// (e.g. compute.instance.create). The localised label can be
+	// rendered via audit.action_<slug> i18n keys.
+	Action    string               `json:"action"`
+	ActorType *AuditEventActorType `json:"actorType,omitempty"`
+
+	// ActorUserId NULL when the actor is the system.
+	ActorUserId *openapi_types.UUID `json:"actorUserId"`
+	CreatedAt   time.Time           `json:"createdAt"`
+
+	// Id The audit row id.
+	Id openapi_types.UUID `json:"id"`
+
+	// Metadata Free-form structured details recorded at emit time.
+	Metadata *map[string]interface{} `json:"metadata,omitempty"`
+
+	// Outcomes The outcome trail, newest first. Empty when Emit was fire-and-forget.
+	Outcomes     *[]AuditOutcome     `json:"outcomes,omitempty"`
+	RequestId    *string             `json:"requestId"`
+	ResourceId   *openapi_types.UUID `json:"resourceId"`
+	ResourceType string              `json:"resourceType"`
+
+	// Status The current status. When the event has outcome rows, this is the
+	// latest outcome's status; otherwise it is the row's initial status.
+	Status AuditEventStatus `json:"status"`
+
+	// TenantId NULL for system-level events (e.g. login).
+	TenantId *openapi_types.UUID `json:"tenantId"`
+}
+
+// AuditEventActorType defines model for AuditEvent.ActorType.
+type AuditEventActorType string
+
+// AuditEventStatus The current status. When the event has outcome rows, this is the
+// latest outcome's status; otherwise it is the row's initial status.
+type AuditEventStatus string
+
+// AuditOutcome defines model for AuditOutcome.
+type AuditOutcome struct {
+	CreatedAt time.Time               `json:"createdAt"`
+	Details   *map[string]interface{} `json:"details,omitempty"`
+	Id        openapi_types.UUID      `json:"id"`
+	Status    AuditOutcomeStatus      `json:"status"`
+}
+
+// AuditOutcomeStatus defines model for AuditOutcome.Status.
+type AuditOutcomeStatus string
+
+// AuditPage defines model for AuditPage.
+type AuditPage struct {
+	Items  []AuditEvent `json:"items"`
+	Limit  int          `json:"limit"`
+	Offset int          `json:"offset"`
+
+	// Total Total events matching the filter (for pagination UI).
+	Total int64 `json:"total"`
+}
 
 // AuthResponse defines model for AuthResponse.
 type AuthResponse struct {
@@ -175,17 +296,73 @@ type User struct {
 	Memberships *[]Membership `json:"memberships,omitempty"`
 }
 
+// ExportFormat defines model for ExportFormat.
+type ExportFormat string
+
+// PageLimit defines model for PageLimit.
+type PageLimit = int
+
+// PageOffset defines model for PageOffset.
+type PageOffset = int
+
 // BadRequest defines model for BadRequest.
 type BadRequest = Error
 
 // Conflict defines model for Conflict.
 type Conflict = Error
 
+// Forbidden defines model for Forbidden.
+type Forbidden = Error
+
 // NotFound defines model for NotFound.
 type NotFound = Error
 
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = Error
+
+// ListAuditParams defines parameters for ListAudit.
+type ListAuditParams struct {
+	// Limit Maximum number of items to return (1..200).
+	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of items to skip for pagination.
+	Offset       *PageOffset               `form:"offset,omitempty" json:"offset,omitempty"`
+	ActorUserId  *openapi_types.UUID       `form:"actorUserId,omitempty" json:"actorUserId,omitempty"`
+	Action       *string                   `form:"action,omitempty" json:"action,omitempty"`
+	ResourceType *string                   `form:"resourceType,omitempty" json:"resourceType,omitempty"`
+	Status       *ListAuditParamsStatus    `form:"status,omitempty" json:"status,omitempty"`
+	ActorType    *ListAuditParamsActorType `form:"actorType,omitempty" json:"actorType,omitempty"`
+	FromTs       *time.Time                `form:"fromTs,omitempty" json:"fromTs,omitempty"`
+	ToTs         *time.Time                `form:"toTs,omitempty" json:"toTs,omitempty"`
+}
+
+// ListAuditParamsStatus defines parameters for ListAudit.
+type ListAuditParamsStatus string
+
+// ListAuditParamsActorType defines parameters for ListAudit.
+type ListAuditParamsActorType string
+
+// ExportAuditParams defines parameters for ExportAudit.
+type ExportAuditParams struct {
+	// Format Output format for the export. Defaults to csv.
+	Format       *ExportAuditParamsFormat    `form:"format,omitempty" json:"format,omitempty"`
+	ActorUserId  *openapi_types.UUID         `form:"actorUserId,omitempty" json:"actorUserId,omitempty"`
+	Action       *string                     `form:"action,omitempty" json:"action,omitempty"`
+	ResourceType *string                     `form:"resourceType,omitempty" json:"resourceType,omitempty"`
+	Status       *ExportAuditParamsStatus    `form:"status,omitempty" json:"status,omitempty"`
+	ActorType    *ExportAuditParamsActorType `form:"actorType,omitempty" json:"actorType,omitempty"`
+	FromTs       *time.Time                  `form:"fromTs,omitempty" json:"fromTs,omitempty"`
+	ToTs         *time.Time                  `form:"toTs,omitempty" json:"toTs,omitempty"`
+}
+
+// ExportAuditParamsFormat defines parameters for ExportAudit.
+type ExportAuditParamsFormat string
+
+// ExportAuditParamsStatus defines parameters for ExportAudit.
+type ExportAuditParamsStatus string
+
+// ExportAuditParamsActorType defines parameters for ExportAudit.
+type ExportAuditParamsActorType string
 
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
@@ -290,6 +467,15 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// ListAudit request
+	ListAudit(ctx context.Context, params *ListAuditParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ExportAudit request
+	ExportAudit(ctx context.Context, params *ExportAuditParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAudit request
+	GetAudit(ctx context.Context, auditId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// LoginWithBody request with any body
 	LoginWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -354,6 +540,42 @@ type ClientInterface interface {
 
 	// GetHealth request
 	GetHealth(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+func (c *Client) ListAudit(ctx context.Context, params *ListAuditParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAuditRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ExportAudit(ctx context.Context, params *ExportAuditParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewExportAuditRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetAudit(ctx context.Context, auditId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAuditRequest(c.Server, auditId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 func (c *Client) LoginWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -654,6 +876,378 @@ func (c *Client) GetHealth(ctx context.Context, reqEditors ...RequestEditorFn) (
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+// NewListAuditRequest generates requests for ListAudit
+func NewListAuditRequest(server string, params *ListAuditParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/audit")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ActorUserId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "actorUserId", runtime.ParamLocationQuery, *params.ActorUserId); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Action != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "action", runtime.ParamLocationQuery, *params.Action); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ResourceType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "resourceType", runtime.ParamLocationQuery, *params.ResourceType); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Status != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "status", runtime.ParamLocationQuery, *params.Status); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ActorType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "actorType", runtime.ParamLocationQuery, *params.ActorType); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.FromTs != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "fromTs", runtime.ParamLocationQuery, *params.FromTs); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ToTs != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "toTs", runtime.ParamLocationQuery, *params.ToTs); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewExportAuditRequest generates requests for ExportAudit
+func NewExportAuditRequest(server string, params *ExportAuditParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/audit/export")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "format", runtime.ParamLocationQuery, *params.Format); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ActorUserId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "actorUserId", runtime.ParamLocationQuery, *params.ActorUserId); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Action != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "action", runtime.ParamLocationQuery, *params.Action); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ResourceType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "resourceType", runtime.ParamLocationQuery, *params.ResourceType); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Status != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "status", runtime.ParamLocationQuery, *params.Status); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ActorType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "actorType", runtime.ParamLocationQuery, *params.ActorType); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.FromTs != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "fromTs", runtime.ParamLocationQuery, *params.FromTs); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ToTs != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "toTs", runtime.ParamLocationQuery, *params.ToTs); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetAuditRequest generates requests for GetAudit
+func NewGetAuditRequest(server string, auditId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "auditId", runtime.ParamLocationPath, auditId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/audit/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }
 
 // NewLoginRequest calls the generic Login builder with application/json body
@@ -1241,6 +1835,15 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+	// ListAuditWithResponse request
+	ListAuditWithResponse(ctx context.Context, params *ListAuditParams, reqEditors ...RequestEditorFn) (*ListAuditResponse, error)
+
+	// ExportAuditWithResponse request
+	ExportAuditWithResponse(ctx context.Context, params *ExportAuditParams, reqEditors ...RequestEditorFn) (*ExportAuditResponse, error)
+
+	// GetAuditWithResponse request
+	GetAuditWithResponse(ctx context.Context, auditId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetAuditResponse, error)
+
 	// LoginWithBodyWithResponse request with any body
 	LoginWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LoginResponse, error)
 
@@ -1305,6 +1908,80 @@ type ClientWithResponsesInterface interface {
 
 	// GetHealthWithResponse request
 	GetHealthWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetHealthResponse, error)
+}
+
+type ListAuditResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AuditPage
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+}
+
+// Status returns HTTPResponse.Status
+func (r ListAuditResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListAuditResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ExportAuditResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]AuditEvent
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+}
+
+// Status returns HTTPResponse.Status
+func (r ExportAuditResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ExportAuditResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetAuditResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AuditEvent
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAuditResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAuditResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
 }
 
 type LoginResponse struct {
@@ -1653,6 +2330,33 @@ func (r GetHealthResponse) StatusCode() int {
 	return 0
 }
 
+// ListAuditWithResponse request returning *ListAuditResponse
+func (c *ClientWithResponses) ListAuditWithResponse(ctx context.Context, params *ListAuditParams, reqEditors ...RequestEditorFn) (*ListAuditResponse, error) {
+	rsp, err := c.ListAudit(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListAuditResponse(rsp)
+}
+
+// ExportAuditWithResponse request returning *ExportAuditResponse
+func (c *ClientWithResponses) ExportAuditWithResponse(ctx context.Context, params *ExportAuditParams, reqEditors ...RequestEditorFn) (*ExportAuditResponse, error) {
+	rsp, err := c.ExportAudit(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseExportAuditResponse(rsp)
+}
+
+// GetAuditWithResponse request returning *GetAuditResponse
+func (c *ClientWithResponses) GetAuditWithResponse(ctx context.Context, auditId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetAuditResponse, error) {
+	rsp, err := c.GetAudit(ctx, auditId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAuditResponse(rsp)
+}
+
 // LoginWithBodyWithResponse request with arbitrary body returning *LoginResponse
 func (c *ClientWithResponses) LoginWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LoginResponse, error) {
 	rsp, err := c.LoginWithBody(ctx, contentType, body, reqEditors...)
@@ -1866,6 +2570,143 @@ func (c *ClientWithResponses) GetHealthWithResponse(ctx context.Context, reqEdit
 		return nil, err
 	}
 	return ParseGetHealthResponse(rsp)
+}
+
+// ParseListAuditResponse parses an HTTP response from a ListAuditWithResponse call
+func ParseListAuditResponse(rsp *http.Response) (*ListAuditResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListAuditResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AuditPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseExportAuditResponse parses an HTTP response from a ExportAuditWithResponse call
+func ParseExportAuditResponse(rsp *http.Response) (*ExportAuditResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ExportAuditResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []AuditEvent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case rsp.StatusCode == 200:
+		// Content-type (text/csv) unsupported
+
+	}
+
+	return response, nil
+}
+
+// ParseGetAuditResponse parses an HTTP response from a GetAuditWithResponse call
+func ParseGetAuditResponse(rsp *http.Response) (*GetAuditResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAuditResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AuditEvent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
 }
 
 // ParseLoginResponse parses an HTTP response from a LoginWithResponse call
