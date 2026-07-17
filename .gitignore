@@ -63,6 +63,9 @@ yarn-error.log*
 *.key
 secrets/
 
+# Logs (especially the WS runner logs)
+logs/
+
 # OS
 Thumbs.db
 ehthumbs.db
