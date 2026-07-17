@@ -76,12 +76,16 @@ run: build ## Build and run lahijan locally with --debug
 	./$(BIN) --debug --http.server.cors.enabled
 
 .PHONY: test
-test: ## Run all Go unit tests
-	$(GO) test $(GOFLAGS) -race -timeout 120s ./...
+test: ## Run all Go unit tests (no race; works without CGO)
+	$(GO) test $(GOFLAGS) -timeout 120s ./...
+
+.PHONY: test-race
+test-race: ## Run all Go unit tests with -race (requires CGO_ENABLED=1)
+	CGO_ENABLED=1 $(GO) test $(GOFLAGS) -race -timeout 120s ./...
 
 .PHONY: test-short
 test-short: ## Run only short tests (skips integration)
-	$(GO) test $(GOFLAGS) -short -race -timeout 60s ./...
+	$(GO) test $(GOFLAGS) -short -timeout 60s ./...
 
 .PHONY: bench
 bench: ## Run benchmarks

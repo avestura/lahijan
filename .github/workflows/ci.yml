@@ -53,7 +53,7 @@ jobs:
           go-version-file: go.mod
           cache: true
       - name: Test
-        run: go test -race -timeout 120s ./...
+        run: make test-race
 
   mod-tidy:
     name: go mod tidy (check)
