@@ -88,7 +88,12 @@ function Write-Fail    { param($Text) Write-Host "[FAIL] $Text" -ForegroundColor
 function Write-Info    { param($Text) Write-Host "       $Text" -ForegroundColor DarkGray }
 
 function Invoke-Git    { param([string[]]$ArgList) & git @ArgList 2>&1 | Out-Null; $LASTEXITCODE -eq 0 }
-function Get-GitOutput { param([string[]]$ArgList) & git @ArgList 2>&1 }
+function Get-GitOutput { param([string[]]$ArgList)
+    $prev = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+    $out = & git @ArgList 2>&1
+    $ErrorActionPreference = $prev
+    return $out
+}
 
 function Get-WsSlug {
     param([string]$WsId)
@@ -174,7 +179,7 @@ function Invoke-Ws {
     $timestamp  = Get-Date -Format "yyyyMMdd-HHmmss"
     $logFile    = Join-Path $LogDir "$WsId-$timestamp.log"
 
-    Write-Header "$WsId — $slug"
+    Write-Header "$WsId - $slug"
     Write-Info "branch will be: $branchName"
     Write-Info "log file:       $logFile"
     Write-Info "ws doc:         $wsDocPath"
@@ -338,7 +343,7 @@ foreach ($ws in $Workstreams) {
         Write-Fail "exception in $ws : $_"
         $results += [pscustomobject]@{ WS = $ws; Result = 'exception'; Branch = '(unknown)'; Log = '(none)' }
         # Try to return to main so the next WS can branch cleanly.
-        & git checkout main 2>&1 | Out-Null
+        Invoke-Git 'checkout','main' | Out-Null
     }
 
     # Persist running summary after each WS so we can peek mid-run.
