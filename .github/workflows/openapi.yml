@@ -1,0 +1,61 @@
+# OpenAPI drift check
+#
+# Regenerates the Go server/client and TypeScript code from api/openapi.yaml
+# and fails if the committed generated code has drifted from the spec. This is
+# the CI guarantee behind the WS-05 Definition of Done item "CI fails if the
+# spec and generated code drift".
+#
+# `make openapi-gen` also implicitly validates the spec: it is loaded and
+# resolved by kin-openapi (the same loader oapi-codegen uses), so a malformed
+# spec or a dangling $ref fails this job. The follow-up `go build` step
+# additionally guarantees the generated Go code compiles.
+
+name: OpenAPI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - api/**
+      - pkg/lahijan-client/**
+      - Makefile
+      - .github/workflows/openapi.yml
+  pull_request:
+    paths:
+      - api/**
+      - pkg/lahijan-client/**
+      - Makefile
+      - .github/workflows/openapi.yml
+
+concurrency:
+  group: openapi-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  drift:
+    name: Generated code in sync with spec
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Regenerate from spec
+        run: make openapi-gen
+      - name: Fail on drift
+        run: |
+          set -euo pipefail
+          if ! git diff --exit-code -- api/gen pkg/lahijan-client; then
+            echo ""
+            echo "::error::OpenAPI generated code is out of date. Run 'make openapi-gen' and commit the result."
+            git diff --stat -- api/gen pkg/lahijan-client
+            exit 1
+          fi
+      - name: Generated Go compiles
+        run: go build ./api/gen/go/ ./pkg/lahijan-client/
+      - name: Generated Go + client SDK vet
+        run: go vet ./api/gen/go/ ./pkg/lahijan-client/
