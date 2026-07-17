@@ -16,11 +16,11 @@ import (
 
 // fakePolicy is a hand-written PolicyResolver stub.
 type fakePolicy struct {
-	allowed bool
-	err     error
-	calls   int
-	lastUID uuid.UUID
-	lastTID uuid.UUID
+	allowed  bool
+	err      error
+	calls    int
+	lastUID  uuid.UUID
+	lastTID  uuid.UUID
 	lastSlug string
 }
 
