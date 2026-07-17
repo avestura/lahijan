@@ -1,7 +1,7 @@
 # WS-03 · Database & Persistence Core
 
 ```
-Status: pending
+Status: done
 Phase: 0
 Depends on: WS-02
 Unblocks: WS-04, WS-05, WS-06, WS-08, WS-09 (everything that touches the DB)
@@ -77,22 +77,26 @@ reuse.
 
 ## Definition of Done
 
-- [ ] migrations up + down both apply cleanly (CI's `migrations.yml` green)
-- [ ] `make sqlc` produces generated code; no diff after re-running
-- [ ] every tenant-scoped query filters by `tenant_id`
-- [ ] `audit_log` rejects UPDATE/DELETE (integration test)
-- [ ] every base table has `created_at` + `updated_at` + index on `tenant_id`
+- [x] migrations up + down both apply cleanly (CI's `migrations.yml` green)
+- [x] `make sqlc` produces generated code; no diff after re-running
+- [x] every tenant-scoped query filters by `tenant_id`
+- [x] `audit_log` rejects UPDATE/DELETE (integration test)
+- [x] every base table has `created_at` + `updated_at` + index on `tenant_id`
       where applicable
-- [ ] testcontainers harness works in CI
-- [ ] `make lint test` green
+- [x] testcontainers harness works in CI
+- [x] `make lint test` green
 
 ## Open questions
 
-- Soft-delete pattern: do we use `deleted_at TIMESTAMPTZ` everywhere, or only
-  where explicitly needed? (Default: only where needed; tables that need it
-  add it explicitly.)
-- Do we want a `slug` column on `tenants` for URL-friendly identifiers?
-  (Default: yes.)
+Resolved by this WS (both defaults adopted):
+
+- Soft-delete pattern: `deleted_at TIMESTAMPTZ` lives only where it is needed.
+  Added to `tenants`, `users`, `memberships`, `roles` (the user-editable
+  catalog rows). Omitted from `audit_log`, `permissions`, `role_permissions`
+  (append-only / pure join) and from the token tables (use `revoked_at`
+  instead). Future tables add it explicitly when they need it.
+- `slug` on `tenants`: yes. `tenants.slug` is `TEXT NOT NULL` with a partial
+  unique index `WHERE deleted_at IS NULL`, used for URL-friendly identifiers.
 
 ## Notes
 
