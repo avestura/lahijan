@@ -22,6 +22,8 @@ sql:
       - "queries/memberships.sql"
       - "queries/audit_log.sql"
       - "queries/tokens.sql"
+      - "queries/sessions.sql"
+      - "queries/email_tokens.sql"
     schema:
       - "migrations/*.up.sql"
     gen:

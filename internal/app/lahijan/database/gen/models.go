@@ -32,6 +32,22 @@ type AuditLog struct {
 	CreatedAt time.Time       `json:"created_at"`
 }
 
+// Single-use expiring tokens for verify-email, password-reset, and email-change.
+type EmailToken struct {
+	ID     uuid.UUID `json:"id"`
+	UserID uuid.UUID `json:"user_id"`
+	// SHA-256 hash of the raw token; raw token is never stored.
+	TokenHash string `json:"token_hash"`
+	// verify_email | password_reset | email_change.
+	Kind string `json:"kind"`
+	// For email_change: the new email to apply on confirmation; NULL otherwise.
+	NewEmail  *string   `json:"new_email"`
+	ExpiresAt time.Time `json:"expires_at"`
+	// Set when the token is consumed; single-use is enforced in the app layer.
+	UsedAt    *time.Time `json:"used_at"`
+	CreatedAt time.Time  `json:"created_at"`
+}
+
 // Tenant-scoped: links a user to a tenant with a role.
 type Membership struct {
 	ID uuid.UUID `json:"id"`
@@ -65,6 +81,8 @@ type PersonalAccessToken struct {
 	RevokedAt  *time.Time `json:"revoked_at"`
 	LastUsedAt *time.Time `json:"last_used_at"`
 	CreatedAt  time.Time  `json:"created_at"`
+	// Permission slugs the PAT grants; enforced by RequirePerm in WS-08.
+	Scopes []string `json:"scopes"`
 }
 
 // Long-lived session refresh tokens; global, one user can have many.
@@ -79,6 +97,10 @@ type RefreshToken struct {
 	CreatedAt time.Time   `json:"created_at"`
 	UserAgent *string     `json:"user_agent"`
 	IpAddress *netip.Addr `json:"ip_address"`
+	// The session this refresh token belongs to (WS-06).
+	SessionID uuid.UUID `json:"session_id"`
+	// Rotation family: reusing any rotated token revokes the whole family + the session.
+	FamilyID uuid.UUID `json:"family_id"`
 }
 
 // Named bundle of permissions; assigned to memberships.
@@ -100,6 +122,22 @@ type RolePermission struct {
 	RoleID       uuid.UUID `json:"role_id"`
 	PermissionID uuid.UUID `json:"permission_id"`
 	CreatedAt    time.Time `json:"created_at"`
+}
+
+// A logical login session; global, backed by an opaque signed cookie.
+type Session struct {
+	ID     uuid.UUID `json:"id"`
+	UserID uuid.UUID `json:"user_id"`
+	// SHA-256 hash of the cookie secret; raw secret is never stored.
+	TokenHash string    `json:"token_hash"`
+	ExpiresAt time.Time `json:"expires_at"`
+	// Set when the session is logged out; NULL means still valid.
+	RevokedAt *time.Time `json:"revoked_at"`
+	CreatedAt time.Time  `json:"created_at"`
+	// Updated on each authenticated request that uses this session.
+	LastSeenAt time.Time   `json:"last_seen_at"`
+	UserAgent  *string     `json:"user_agent"`
+	IpAddress  *netip.Addr `json:"ip_address"`
 }
 
 // Top-level tenancy boundary; one row per organization.
@@ -127,4 +165,10 @@ type User struct {
 	CreatedAt    time.Time  `json:"created_at"`
 	UpdatedAt    time.Time  `json:"updated_at"`
 	DeletedAt    *time.Time `json:"deleted_at"`
+	// Optional human-friendly display name.
+	DisplayName *string `json:"display_name"`
+	// When the user verified their email; NULL until verified.
+	EmailVerifiedAt *time.Time `json:"email_verified_at"`
+	// Preferred locale code (en, fa, ...). Default en.
+	Locale string `json:"locale"`
 }

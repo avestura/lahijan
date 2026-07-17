@@ -15,6 +15,7 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/gofiber/fiber/v2"
+	"github.com/oapi-codegen/runtime"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
@@ -23,6 +24,25 @@ const (
 	HealthStatusDegraded HealthStatus = "degraded"
 	HealthStatusOk       HealthStatus = "ok"
 )
+
+// AuthResponse defines model for AuthResponse.
+type AuthResponse struct {
+	User User `json:"user"`
+}
+
+// CreatePersonalAccessTokenRequest defines model for CreatePersonalAccessTokenRequest.
+type CreatePersonalAccessTokenRequest struct {
+	ExpiresAt *time.Time `json:"expiresAt"`
+	Name      string     `json:"name"`
+
+	// Scopes Permission slugs (scope.action) the PAT grants.
+	Scopes *[]string `json:"scopes,omitempty"`
+}
+
+// EmailRequest defines model for EmailRequest.
+type EmailRequest struct {
+	Email openapi_types.Email `json:"email"`
+}
 
 // Error defines model for Error.
 type Error struct {
@@ -52,6 +72,18 @@ type Health struct {
 // HealthStatus Coarse service health.
 type HealthStatus string
 
+// LoginRequest defines model for LoginRequest.
+type LoginRequest struct {
+	Email    openapi_types.Email `json:"email"`
+	Password string              `json:"password"`
+}
+
+// LogoutRequest Optional. When omitted, the refresh-token cookie is used. Pass an
+// explicit refresh token when logging out a non-browser client.
+type LogoutRequest struct {
+	RefreshToken *string `json:"refreshToken,omitempty"`
+}
+
 // Membership defines model for Membership.
 type Membership struct {
 	// Role Role held within the tenant (e.g. owner, admin, member).
@@ -59,10 +91,74 @@ type Membership struct {
 	TenantId openapi_types.UUID `json:"tenantId"`
 }
 
+// MessageResponse defines model for MessageResponse.
+type MessageResponse struct {
+	// Message Localized human-readable confirmation.
+	Message string `json:"message"`
+}
+
+// PasswordResetConfirmRequest defines model for PasswordResetConfirmRequest.
+type PasswordResetConfirmRequest struct {
+	NewPassword string `json:"newPassword"`
+	Token       string `json:"token"`
+}
+
+// PersonalAccessToken defines model for PersonalAccessToken.
+type PersonalAccessToken struct {
+	CreatedAt  time.Time          `json:"createdAt"`
+	ExpiresAt  *time.Time         `json:"expiresAt"`
+	Id         openapi_types.UUID `json:"id"`
+	LastUsedAt *time.Time         `json:"lastUsedAt"`
+	Name       string             `json:"name"`
+	Scopes     []string           `json:"scopes"`
+
+	// Token The raw PAT. Present ONLY on create; never returned again.
+	Token *string `json:"token,omitempty"`
+}
+
 // Pong defines model for Pong.
 type Pong struct {
 	// Pong RFC 3339 timestamp at which the server handled the request.
 	Pong time.Time `json:"pong"`
+}
+
+// RefreshRequest Optional. When omitted, the refresh-token cookie is used. Pass an
+// explicit refresh token when rotating from a non-browser client.
+type RefreshRequest struct {
+	RefreshToken *string `json:"refreshToken,omitempty"`
+}
+
+// RegisterRequest defines model for RegisterRequest.
+type RegisterRequest struct {
+	DisplayName *string             `json:"displayName"`
+	Email       openapi_types.Email `json:"email"`
+
+	// Locale Preferred locale code (en, fa). Defaults to en.
+	Locale *string `json:"locale,omitempty"`
+
+	// Password Plaintext password; hashed with argon2id before storage.
+	Password string `json:"password"`
+}
+
+// TokenRequest defines model for TokenRequest.
+type TokenRequest struct {
+	// Token The single-use signed token from an email link.
+	Token string `json:"token"`
+}
+
+// UpdateMeRequest defines model for UpdateMeRequest.
+type UpdateMeRequest struct {
+	// CurrentPassword Required when changing the password.
+	CurrentPassword *string `json:"currentPassword,omitempty"`
+	DisplayName     *string `json:"displayName"`
+	Locale          *string `json:"locale,omitempty"`
+
+	// NewEmail Triggers an email-change confirmation link; the email is not swapped
+	// until the link is consumed.
+	NewEmail *openapi_types.Email `json:"newEmail,omitempty"`
+
+	// NewPassword When set, currentPassword must also be present.
+	NewPassword *string `json:"newPassword,omitempty"`
 }
 
 // User defines model for User.
@@ -80,17 +176,89 @@ type User struct {
 	Memberships *[]Membership `json:"memberships,omitempty"`
 }
 
-// NotImplemented defines model for NotImplemented.
-type NotImplemented = Error
+// BadRequest defines model for BadRequest.
+type BadRequest = Error
+
+// Conflict defines model for Conflict.
+type Conflict = Error
+
+// NotFound defines model for NotFound.
+type NotFound = Error
 
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = Error
 
+// LoginJSONRequestBody defines body for Login for application/json ContentType.
+type LoginJSONRequestBody = LoginRequest
+
+// LogoutJSONRequestBody defines body for Logout for application/json ContentType.
+type LogoutJSONRequestBody = LogoutRequest
+
+// UpdateCurrentUserJSONRequestBody defines body for UpdateCurrentUser for application/json ContentType.
+type UpdateCurrentUserJSONRequestBody = UpdateMeRequest
+
+// ConfirmPasswordResetJSONRequestBody defines body for ConfirmPasswordReset for application/json ContentType.
+type ConfirmPasswordResetJSONRequestBody = PasswordResetConfirmRequest
+
+// RequestPasswordResetJSONRequestBody defines body for RequestPasswordReset for application/json ContentType.
+type RequestPasswordResetJSONRequestBody = EmailRequest
+
+// CreatePersonalAccessTokenJSONRequestBody defines body for CreatePersonalAccessToken for application/json ContentType.
+type CreatePersonalAccessTokenJSONRequestBody = CreatePersonalAccessTokenRequest
+
+// RefreshJSONRequestBody defines body for Refresh for application/json ContentType.
+type RefreshJSONRequestBody = RefreshRequest
+
+// RegisterJSONRequestBody defines body for Register for application/json ContentType.
+type RegisterJSONRequestBody = RegisterRequest
+
+// ResendVerificationJSONRequestBody defines body for ResendVerification for application/json ContentType.
+type ResendVerificationJSONRequestBody = EmailRequest
+
+// VerifyEmailJSONRequestBody defines body for VerifyEmail for application/json ContentType.
+type VerifyEmailJSONRequestBody = TokenRequest
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Log in with email and password
+	// (POST /api/v1/auth/login)
+	Login(c *fiber.Ctx) error
+	// Log out the current session
+	// (POST /api/v1/auth/logout)
+	Logout(c *fiber.Ctx) error
 	// Current authenticated user
-	// (GET /api/v1/me)
+	// (GET /api/v1/auth/me)
 	GetCurrentUser(c *fiber.Ctx) error
+	// Update the current user's profile
+	// (PATCH /api/v1/auth/me)
+	UpdateCurrentUser(c *fiber.Ctx) error
+	// Reset the password with a token
+	// (POST /api/v1/auth/password-reset/confirm)
+	ConfirmPasswordReset(c *fiber.Ctx) error
+	// Request a password-reset link
+	// (POST /api/v1/auth/password-reset/request)
+	RequestPasswordReset(c *fiber.Ctx) error
+	// List the current user's PATs
+	// (GET /api/v1/auth/personal-access-tokens)
+	ListPersonalAccessTokens(c *fiber.Ctx) error
+	// Issue a personal access token
+	// (POST /api/v1/auth/personal-access-tokens)
+	CreatePersonalAccessToken(c *fiber.Ctx) error
+	// Revoke a personal access token
+	// (DELETE /api/v1/auth/personal-access-tokens/{tokenId})
+	DeletePersonalAccessToken(c *fiber.Ctx, tokenId openapi_types.UUID) error
+	// Rotate the refresh token
+	// (POST /api/v1/auth/refresh)
+	Refresh(c *fiber.Ctx) error
+	// Register a new user account
+	// (POST /api/v1/auth/register)
+	Register(c *fiber.Ctx) error
+	// Resend the email verification link
+	// (POST /api/v1/auth/resend-verification)
+	ResendVerification(c *fiber.Ctx) error
+	// Confirm an email verification token
+	// (POST /api/v1/auth/verify-email)
+	VerifyEmail(c *fiber.Ctx) error
 	// Round-trip probe for the API pipeline
 	// (GET /api/v1/ping)
 	Ping(c *fiber.Ctx) error
@@ -106,10 +274,92 @@ type ServerInterfaceWrapper struct {
 
 type MiddlewareFunc fiber.Handler
 
+// Login operation middleware
+func (siw *ServerInterfaceWrapper) Login(c *fiber.Ctx) error {
+
+	return siw.Handler.Login(c)
+}
+
+// Logout operation middleware
+func (siw *ServerInterfaceWrapper) Logout(c *fiber.Ctx) error {
+
+	return siw.Handler.Logout(c)
+}
+
 // GetCurrentUser operation middleware
 func (siw *ServerInterfaceWrapper) GetCurrentUser(c *fiber.Ctx) error {
 
 	return siw.Handler.GetCurrentUser(c)
+}
+
+// UpdateCurrentUser operation middleware
+func (siw *ServerInterfaceWrapper) UpdateCurrentUser(c *fiber.Ctx) error {
+
+	return siw.Handler.UpdateCurrentUser(c)
+}
+
+// ConfirmPasswordReset operation middleware
+func (siw *ServerInterfaceWrapper) ConfirmPasswordReset(c *fiber.Ctx) error {
+
+	return siw.Handler.ConfirmPasswordReset(c)
+}
+
+// RequestPasswordReset operation middleware
+func (siw *ServerInterfaceWrapper) RequestPasswordReset(c *fiber.Ctx) error {
+
+	return siw.Handler.RequestPasswordReset(c)
+}
+
+// ListPersonalAccessTokens operation middleware
+func (siw *ServerInterfaceWrapper) ListPersonalAccessTokens(c *fiber.Ctx) error {
+
+	return siw.Handler.ListPersonalAccessTokens(c)
+}
+
+// CreatePersonalAccessToken operation middleware
+func (siw *ServerInterfaceWrapper) CreatePersonalAccessToken(c *fiber.Ctx) error {
+
+	return siw.Handler.CreatePersonalAccessToken(c)
+}
+
+// DeletePersonalAccessToken operation middleware
+func (siw *ServerInterfaceWrapper) DeletePersonalAccessToken(c *fiber.Ctx) error {
+
+	var err error
+
+	// ------------- Path parameter "tokenId" -------------
+	var tokenId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tokenId", c.Params("tokenId"), &tokenId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter tokenId: %w", err).Error())
+	}
+
+	return siw.Handler.DeletePersonalAccessToken(c, tokenId)
+}
+
+// Refresh operation middleware
+func (siw *ServerInterfaceWrapper) Refresh(c *fiber.Ctx) error {
+
+	return siw.Handler.Refresh(c)
+}
+
+// Register operation middleware
+func (siw *ServerInterfaceWrapper) Register(c *fiber.Ctx) error {
+
+	return siw.Handler.Register(c)
+}
+
+// ResendVerification operation middleware
+func (siw *ServerInterfaceWrapper) ResendVerification(c *fiber.Ctx) error {
+
+	return siw.Handler.ResendVerification(c)
+}
+
+// VerifyEmail operation middleware
+func (siw *ServerInterfaceWrapper) VerifyEmail(c *fiber.Ctx) error {
+
+	return siw.Handler.VerifyEmail(c)
 }
 
 // Ping operation middleware
@@ -145,7 +395,31 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 		router.Use(fiber.Handler(m))
 	}
 
-	router.Get(options.BaseURL+"/api/v1/me", wrapper.GetCurrentUser)
+	router.Post(options.BaseURL+"/api/v1/auth/login", wrapper.Login)
+
+	router.Post(options.BaseURL+"/api/v1/auth/logout", wrapper.Logout)
+
+	router.Get(options.BaseURL+"/api/v1/auth/me", wrapper.GetCurrentUser)
+
+	router.Patch(options.BaseURL+"/api/v1/auth/me", wrapper.UpdateCurrentUser)
+
+	router.Post(options.BaseURL+"/api/v1/auth/password-reset/confirm", wrapper.ConfirmPasswordReset)
+
+	router.Post(options.BaseURL+"/api/v1/auth/password-reset/request", wrapper.RequestPasswordReset)
+
+	router.Get(options.BaseURL+"/api/v1/auth/personal-access-tokens", wrapper.ListPersonalAccessTokens)
+
+	router.Post(options.BaseURL+"/api/v1/auth/personal-access-tokens", wrapper.CreatePersonalAccessToken)
+
+	router.Delete(options.BaseURL+"/api/v1/auth/personal-access-tokens/:tokenId", wrapper.DeletePersonalAccessToken)
+
+	router.Post(options.BaseURL+"/api/v1/auth/refresh", wrapper.Refresh)
+
+	router.Post(options.BaseURL+"/api/v1/auth/register", wrapper.Register)
+
+	router.Post(options.BaseURL+"/api/v1/auth/resend-verification", wrapper.ResendVerification)
+
+	router.Post(options.BaseURL+"/api/v1/auth/verify-email", wrapper.VerifyEmail)
 
 	router.Get(options.BaseURL+"/api/v1/ping", wrapper.Ping)
 
@@ -156,34 +430,68 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
-	"69v1/wMAAP//hThs800SAAA=",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

@@ -48,6 +48,26 @@ services:
       start_period: 5s
     shm_size: 256m
 
+  # MailHog: an in-process SMTP catch-all for outbound auth emails (WS-06).
+  # Point conf.smtp.host/port at this service and browse http://localhost:8025
+  # to inspect verification + password-reset emails during local dev.
+  # Not shipped in the prod stack.
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: lahijan-mailhog-dev
+    restart: unless-stopped
+    ports:
+      # SMTP port the app sends to (conf.smtp.port).
+      - "${MAILHOG_SMTP_PORT:-1025}:1025"
+      # Web UI for inspecting captured mail.
+      - "${MAILHOG_UI_PORT:-8025}:8025"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "1025"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 5s
+
 volumes:
   postgres_data:
     name: lahijan-postgres-data-dev

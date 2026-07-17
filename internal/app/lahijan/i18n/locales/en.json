@@ -1,0 +1,58 @@
+{
+  "auth.email_subject_verify_email": {
+    "description": "Subject of the email verification message.",
+    "other": "Verify your Lahijan email"
+  },
+  "auth.email_body_verify_email": {
+    "description": "Body of the email verification message. {{.Link}} is the verification URL.",
+    "other": "Welcome to Lahijan. Please verify your email by opening this link within 24 hours: {{.Link}}"
+  },
+  "auth.email_subject_reset_password": {
+    "description": "Subject of the password-reset email.",
+    "other": "Reset your Lahijan password"
+  },
+  "auth.email_body_reset_password": {
+    "description": "Body of the password-reset email. {{.Link}} is the reset URL.",
+    "other": "You requested a password reset. Open this link within 1 hour to choose a new password: {{.Link}}. If you did not request this, you can safely ignore this email."
+  },
+  "auth.email_subject_email_changed": {
+    "description": "Subject of the email-changed notice.",
+    "other": "Your Lahijan email was changed"
+  },
+  "auth.email_body_email_changed": {
+    "description": "Body of the email-changed notice. {{.NewEmail}} is the new address.",
+    "other": "Your Lahijan account email was changed to {{.NewEmail}}. If this was not you, contact your operator immediately."
+  },
+  "auth.email_greeting": { "other": "Hello," },
+  "auth.email_signature": { "other": "— The Lahijan team" },
+
+  "auth.err_bad_request": { "other": "The request was malformed." },
+  "auth.err_unauthorized": { "other": "Authentication is required." },
+  "auth.err_invalid_credentials": { "other": "Invalid email or password." },
+  "auth.err_email_taken": { "other": "An account with this email already exists." },
+  "auth.err_user_inactive": { "other": "This account is disabled." },
+  "auth.err_email_unverified": { "other": "Please verify your email before logging in." },
+  "auth.err_invalid_token": { "other": "This token is invalid, expired, or already used." },
+  "auth.err_refresh_reuse": { "other": "Refresh token reuse detected; all sessions for this login have been revoked." },
+  "auth.err_password_too_weak": {
+    "description": "{{.Min}} is the minimum password length.",
+    "other": "Password is too weak. Use at least {{.Min}} characters with a mix of letters, digits, and symbols."
+  },
+  "auth.err_email_invalid": { "other": "A valid email address is required." },
+  "auth.err_pat_not_found": { "other": "Personal access token not found." },
+  "auth.err_pat_expired": { "other": "This personal access token has expired." },
+  "auth.err_forbidden": { "other": "You do not have permission to do that." },
+  "auth.err_not_found": { "other": "Resource not found." },
+  "auth.err_internal": { "other": "Something went wrong. Please try again." },
+  "auth.err_pat_name_required": { "other": "A name is required for the personal access token." },
+  "auth.err_scopes_invalid": { "other": "One or more requested scopes are not allowed." },
+
+  "auth.msg_logged_out": { "other": "You have been logged out." },
+  "auth.msg_email_sent": { "other": "If that account exists, an email is on its way." },
+  "auth.msg_email_verified": { "other": "Your email has been verified." },
+  "auth.msg_password_reset": { "other": "Your password has been reset." },
+  "auth.msg_email_changed": { "other": "Your email has been updated." },
+  "auth.msg_password_changed": { "other": "Your password has been changed." },
+  "auth.msg_profile_updated": { "other": "Your profile has been updated." },
+  "auth.msg_pat_revoked": { "other": "The personal access token has been revoked." }
+}

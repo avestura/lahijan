@@ -47,7 +47,179 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/me": {
+    "/api/v1/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register a new user account
+         * @description Creates a user with an argon2id password hash, opens a session, issues a
+         *     refresh token (set as cookies), and emails a verification link. The
+         *     response returns the new user; the session cookie and refresh-token
+         *     cookie are set on the response.
+         */
+        post: operations["register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Log in with email and password
+         * @description Verifies credentials and opens a session. Sets the session and
+         *     refresh-token cookies; returns the authenticated user.
+         */
+        post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Log out the current session
+         * @description Revokes the session and every refresh token in its family, then clears
+         *     the session and refresh cookies. Idempotent.
+         */
+        post: operations["logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rotate the refresh token
+         * @description Consumes the presented refresh token (from the cookie or body) and
+         *     issues a new one in the same family. Reusing a previously rotated
+         *     token revokes the whole family and the session (reuse detection) and
+         *     returns 401.
+         */
+        post: operations["refresh"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/verify-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm an email verification token
+         * @description Consumes the single-use token emailed at registration (or via
+         *     resend-verification) and marks the user's email verified.
+         */
+        post: operations["verifyEmail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/resend-verification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resend the email verification link
+         * @description Issues a fresh verify-email token and emails the link. Returns the same
+         *     response whether or not the email is registered (no enumeration).
+         */
+        post: operations["resendVerification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/password-reset/request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request a password-reset link
+         * @description Emails a single-use reset link to the user if the account exists.
+         *     Always returns 200 (no account enumeration).
+         */
+        post: operations["requestPasswordReset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/password-reset/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset the password with a token
+         * @description Consumes the single-use reset token and sets the new password. The new
+         *     password is strength-validated; the consumed token cannot be reused.
+         */
+        post: operations["confirmPasswordReset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/me": {
         parameters: {
             query?: never;
             header?: never;
@@ -56,14 +228,60 @@ export interface paths {
         };
         /**
          * Current authenticated user
-         * @description Returns the currently authenticated user and their tenant memberships.
-         *     This endpoint is a SEED for the future auth module (WS-06); until then
-         *     it is unauthenticated and returns a placeholder.
+         * @description Returns the user identified by the session cookie or PAT.
          */
         get: operations["getCurrentUser"];
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update the current user's profile
+         * @description Updates display name and/or locale and/or password. A password change
+         *     requires currentPassword. An email change requests a confirmation
+         *     email and does not swap the email until confirmed.
+         */
+        patch: operations["updateCurrentUser"];
+        trace?: never;
+    };
+    "/api/v1/auth/personal-access-tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the current user's PATs
+         * @description Returns the caller's non-revoked personal access tokens.
+         */
+        get: operations["listPersonalAccessTokens"];
+        put?: never;
+        /**
+         * Issue a personal access token
+         * @description Mints a PAT with the requested scopes and expiry. The raw token is
+         *     returned exactly once in the response body; only its hash is stored.
+         */
+        post: operations["createPersonalAccessToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/personal-access-tokens/{tokenId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke a personal access token */
+        delete: operations["deletePersonalAccessToken"];
         options?: never;
         head?: never;
         patch?: never;
@@ -134,6 +352,102 @@ export interface components {
             tenantId: string;
             /** @description Role held within the tenant (e.g. owner, admin, member). */
             role: string;
+        };
+        RegisterRequest: {
+            /** Format: email */
+            email: string;
+            /**
+             * Format: password
+             * @description Plaintext password; hashed with argon2id before storage.
+             */
+            password: string;
+            displayName?: string | null;
+            /**
+             * @description Preferred locale code (en, fa). Defaults to en.
+             * @default en
+             */
+            locale: string;
+        };
+        LoginRequest: {
+            /** Format: email */
+            email: string;
+            /** Format: password */
+            password: string;
+        };
+        /**
+         * @description Optional. When omitted, the refresh-token cookie is used. Pass an
+         *     explicit refresh token when logging out a non-browser client.
+         */
+        LogoutRequest: {
+            refreshToken?: string;
+        };
+        /**
+         * @description Optional. When omitted, the refresh-token cookie is used. Pass an
+         *     explicit refresh token when rotating from a non-browser client.
+         */
+        RefreshRequest: {
+            refreshToken?: string;
+        };
+        TokenRequest: {
+            /** @description The single-use signed token from an email link. */
+            token: string;
+        };
+        EmailRequest: {
+            /** Format: email */
+            email: string;
+        };
+        PasswordResetConfirmRequest: {
+            token: string;
+            /** Format: password */
+            newPassword: string;
+        };
+        UpdateMeRequest: {
+            displayName?: string | null;
+            locale?: string;
+            /**
+             * Format: password
+             * @description Required when changing the password.
+             */
+            currentPassword?: string;
+            /**
+             * Format: password
+             * @description When set, currentPassword must also be present.
+             */
+            newPassword?: string;
+            /**
+             * Format: email
+             * @description Triggers an email-change confirmation link; the email is not swapped
+             *     until the link is consumed.
+             */
+            newEmail?: string;
+        };
+        AuthResponse: {
+            user: components["schemas"]["User"];
+        };
+        CreatePersonalAccessTokenRequest: {
+            name: string;
+            /** @description Permission slugs (scope.action) the PAT grants. */
+            scopes?: string[];
+            /** Format: date-time */
+            expiresAt?: string | null;
+        };
+        PersonalAccessToken: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            scopes: string[];
+            /** @description The raw PAT. Present ONLY on create; never returned again. */
+            token?: string;
+            /** Format: date-time */
+            expiresAt?: string | null;
+            /** Format: date-time */
+            lastUsedAt?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        MessageResponse: {
+            /** @description Localized human-readable confirmation. */
+            message: string;
         };
     };
     responses: {
@@ -208,6 +522,23 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
+        /** @description The request conflicts with the current state of the resource. */
+        Conflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                /**
+                 * @example {
+                 *       "error": {
+                 *         "code": "conflict",
+                 *         "message": "an account with this email already exists"
+                 *       }
+                 *     }
+                 */
+                "application/json": components["schemas"]["Error"];
+            };
+        };
         /** @description The endpoint exists but is not implemented yet. */
         NotImplemented: {
             headers: {
@@ -245,7 +576,14 @@ export interface components {
     };
     parameters: never;
     requestBodies: never;
-    headers: never;
+    headers: {
+        /**
+         * @description An HTTP-only cookie carrying either the session id or the refresh
+         *     token. Lahijan sets both on register/login/refresh and clears them on
+         *     logout.
+         */
+        SetCookie: string;
+    };
     pathItems: never;
 }
 export type $defs = Record<string, never>;
@@ -299,6 +637,208 @@ export interface operations {
             };
         };
     };
+    register: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description Account created; session cookies set. */
+            201: {
+                headers: {
+                    "Set-Cookie": components["headers"]["SetCookie"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Logged in; session cookies set. */
+            200: {
+                headers: {
+                    "Set-Cookie": components["headers"]["SetCookie"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["LogoutRequest"];
+            };
+        };
+        responses: {
+            /** @description Logged out. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    refresh: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RefreshRequest"];
+            };
+        };
+        responses: {
+            /** @description Refreshed; new cookies set. */
+            200: {
+                headers: {
+                    "Set-Cookie": components["headers"]["SetCookie"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    verifyEmail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TokenRequest"];
+            };
+        };
+        responses: {
+            /** @description Email verified. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    resendVerification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailRequest"];
+            };
+        };
+        responses: {
+            /** @description Verification email sent (or would be sent). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+        };
+    };
+    requestPasswordReset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailRequest"];
+            };
+        };
+        responses: {
+            /** @description Reset email sent (or would be sent). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+        };
+    };
+    confirmPasswordReset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetConfirmRequest"];
+            };
+        };
+        responses: {
+            /** @description Password reset. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
     getCurrentUser: {
         parameters: {
             query?: never;
@@ -318,7 +858,103 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
-            501: components["responses"]["NotImplemented"];
+        };
+    };
+    updateCurrentUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateMeRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated; the new user state. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    listPersonalAccessTokens: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The caller's PATs. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonalAccessToken"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    createPersonalAccessToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePersonalAccessTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description The new PAT (raw token included). */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonalAccessToken"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    deletePersonalAccessToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tokenId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revoked. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
         };
     };
 }

@@ -1,37 +1,78 @@
 // Package api: server.go implements the OpenAPI-derived Fiber server interface.
 //
-// The handlers here are intentionally thin. They implement the
-// apigen.ServerInterface generated from api/openapi.yaml by oapi-codegen, so
-// the request/response types can never drift from the spec (ADR-0015). All
-// errors go through the standard envelope (errors.go).
+// The handlers here are intentionally thin: they decode the request, call the
+// relevant auth service, set/clear cookies as needed, and render the response.
+// All errors go through the standard envelope (errors.go). Per ADR-0015 the
+// request/response types come from apigen so they cannot drift from the spec.
 package api
 
 import (
 	"time"
 
 	"github.com/avestura/lahijan/api/gen/go"
+	"github.com/avestura/lahijan/internal/app/lahijan/api/middleware"
+	"github.com/avestura/lahijan/internal/app/lahijan/auth/email"
+	"github.com/avestura/lahijan/internal/app/lahijan/auth/pat"
+	"github.com/avestura/lahijan/internal/app/lahijan/auth/secrets"
+	"github.com/avestura/lahijan/internal/app/lahijan/auth/session"
+	"github.com/avestura/lahijan/internal/app/lahijan/database"
+	"github.com/avestura/lahijan/internal/app/lahijan/i18n"
 	"github.com/avestura/lahijan/internal/app/lahijan/version"
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 	"go.opentelemetry.io/otel/trace"
 )
 
-// Server implements apigen.ServerInterface. Add per-area handler fields here as
-// later WSs land real services; for WS-05 the handlers are self-contained.
-//
-// The tracer is injected (defaulting to the package-level global-resolved one)
-// so tests can drive the handlers with a dedicated, isolated tracer provider
-// instead of mutating process-global OTel state.
+// LocalsUserID is the Fiber-Locals key under which the auth middleware stores
+// the resolved user id (mirrors middleware.LocalsUserID to keep the api package
+// self-contained for handler reads).
+const LocalsUserID = middleware.LocalsUserID
+
+// Server implements apigen.ServerInterface. The auth service deps are injected
+// so tests can drive the handlers with fakes, and the tracer is injected (it
+// defaults to the package-level global one) so a test can use a dedicated,
+// isolated tracer provider instead of mutating process-global OTel state.
 type Server struct {
-	tracer trace.Tracer
+	tracer     trace.Tracer
+	users      *database.UsersRepository
+	sessions   *database.SessionsRepository
+	sessionSvc *session.Service
+	patSvc     *pat.Service
+	emailSvc   *email.Service
+	signer     *secrets.Signer
+	cookies    CookieConfig
 }
 
-// NewServer builds the API server with the default (global) tracer.
-func NewServer() *Server { return &Server{tracer: Tracer()} }
+// ServerDeps carries the dependencies NewServer requires. Wire it once from
+// program.Start once the DB pool and auth services are built.
+type ServerDeps struct {
+	Tracer     trace.Tracer
+	Users      *database.UsersRepository
+	Sessions   *database.SessionsRepository
+	SessionSvc *session.Service
+	PATSvc     *pat.Service
+	EmailSvc   *email.Service
+	Signer     *secrets.Signer
+	Cookies    CookieConfig
+}
 
-// NewServerWithTracer builds an API server whose handlers use the given tracer.
-// Intended for tests; production code uses NewServer.
-func NewServerWithTracer(t trace.Tracer) *Server {
-	return &Server{tracer: t}
+// NewServer builds the API server with the given dependencies.
+func NewServer(deps ServerDeps) *Server {
+	s := &Server{
+		tracer:     deps.Tracer,
+		users:      deps.Users,
+		sessions:   deps.Sessions,
+		sessionSvc: deps.SessionSvc,
+		patSvc:     deps.PATSvc,
+		emailSvc:   deps.EmailSvc,
+		signer:     deps.Signer,
+		cookies:    deps.Cookies,
+	}
+	if s.tracer == nil {
+		s.tracer = Tracer()
+	}
+	return s
 }
 
 // Ping handles GET /api/v1/ping. It returns the current server timestamp and
@@ -53,9 +94,42 @@ func (s *Server) GetHealth(c *fiber.Ctx) error {
 	})
 }
 
-// GetCurrentUser handles GET /api/v1/me. It is a SEED for the future auth
-// module (WS-06): until authentication exists it returns a deterministic
-// placeholder so the client-generation pipeline is exercised end to end.
-func (s *Server) GetCurrentUser(c *fiber.Ctx) error {
-	return SendNotImplemented(c, "authentication is not implemented yet; see WS-06")
+// currentUserID reads the authenticated user id from the request scope (set by
+// the Auth middleware). Returns (uuid.Nil, false) when no user is resolved.
+func currentUserID(c *fiber.Ctx) (uuid.UUID, bool) {
+	v := c.Locals(LocalsUserID)
+	if v == nil {
+		return uuid.Nil, false
+	}
+	switch t := v.(type) {
+	case uuid.UUID:
+		return t, t != uuid.Nil
+	case *uuid.UUID:
+		if t == nil {
+			return uuid.Nil, false
+		}
+		return *t, *t != uuid.Nil
+	}
+	return uuid.Nil, false
+}
+
+// requireUser returns the current user id or sends a 401 envelope. Every
+// authenticated handler calls this first.
+func (s *Server) requireUser(c *fiber.Ctx) (uuid.UUID, bool) {
+	uid, ok := currentUserID(c)
+	if !ok {
+		_ = SendUnauthorized(c, i18n.T(c.UserContext(), "auth.err_unauthorized", nil))
+		return uuid.Nil, false
+	}
+	return uid, true
+}
+
+// toUserDTO converts a database user row to the OpenAPI User schema.
+func toUserDTO(u database.User) apigen.User {
+	out := apigen.User{
+		Id:          u.ID,
+		Email:       openapi_types.Email(u.Email),
+		DisplayName: u.DisplayName,
+	}
+	return out
 }

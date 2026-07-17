@@ -1,7 +1,7 @@
 # WS-06 · Core Auth (Password + Tokens + Sessions)
 
 ```
-Status: pending
+Status: done
 Phase: 1
 Depends on: WS-05
 Unblocks: WS-07a, WS-07b, WS-07c, WS-08
@@ -80,23 +80,27 @@ API with a session cookie or a PAT.
 
 ## Definition of Done
 
-- [ ] every auth endpoint ships under `/api/v1/auth/*` and uses the error envelope
-- [ ] every privileged auth action emits an audit event (interface stubbed if WS-08 not merged yet)
-- [ ] passwords hashed with argon2id; parameters configurable via `conf`
-- [ ] cookies: HttpOnly, Secure (configurable for local dev), SameSite per env
-- [ ] PATs: hashed at rest, shown once, scoped, expiry-enforced
-- [ ] every user-facing string goes through `i18n.T`
-- [ ] `en.json` and `fa.json` keys match (CI check)
-- [ ] ≥1 happy + ≥1 failure test per endpoint
-- [ ] `make lint test` green
+- [x] every auth endpoint ships under `/api/v1/auth/*` and uses the error envelope
+- [x] every privileged auth action emits an audit event (interface stubbed if WS-08 not merged yet)
+- [x] passwords hashed with argon2id; parameters configurable via `conf`
+- [x] cookies: HttpOnly, Secure (configurable for local dev), SameSite per env
+- [x] PATs: hashed at rest, shown once, scoped, expiry-enforced
+- [x] every user-facing string goes through `i18n.T`
+- [x] `en.json` and `fa.json` keys match (CI check)
+- [x] ≥1 happy + ≥1 failure test per endpoint
+- [x] `make lint test` green
 
 ## Open questions
 
 - Email service in dev: real SMTP, MailHog container, or in-process catch-all?
-  (Default: MailHog in `docker-compose.dev.yml`; remove in WS-04? — actually
-  this WS adds MailHog.)
+  **Resolved:** MailHog added to `deployments/docker-compose.dev.yml` (SMTP on
+  `:1025`, web UI on `:8025`); the app talks to it via `conf.smtp.*` when
+  `smtp.enabled` is true. Tests use an in-process `emersion/go-smtp` capture
+  server (`notify/email/testsmtp`) so they don't need a container.
 - Password breach check (HaveIBeenPwned k-anonymity API) — opt-in via conf?
-  (Default: opt-in, off by default for privacy.)
+  **Resolved:** config key `auth.password.breachCheck.enabled` is wired (off by
+  default for privacy); the actual network lookup is deferred to a follow-up
+  since it adds an outbound HTTP dependency and is not load-bearing for MVP.
 
 ## Notes
 

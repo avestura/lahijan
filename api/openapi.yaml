@@ -86,16 +86,223 @@ paths:
               schema:
                 $ref: "#/components/schemas/Pong"
 
-  /api/v1/me:
+  /api/v1/auth/register:
+    post:
+      tags: [auth]
+      operationId: register
+      summary: Register a new user account
+      description: |
+        Creates a user with an argon2id password hash, opens a session, issues a
+        refresh token (set as cookies), and emails a verification link. The
+        response returns the new user; the session cookie and refresh-token
+        cookie are set on the response.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: Account created; session cookies set.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/SetCookie"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/v1/auth/login:
+    post:
+      tags: [auth]
+      operationId: login
+      summary: Log in with email and password
+      description: |
+        Verifies credentials and opens a session. Sets the session and
+        refresh-token cookies; returns the authenticated user.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Logged in; session cookies set.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/SetCookie"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      summary: Log out the current session
+      description: |
+        Revokes the session and every refresh token in its family, then clears
+        the session and refresh cookies. Idempotent.
+      security: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogoutRequest"
+      responses:
+        "200":
+          description: Logged out.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/auth/refresh:
+    post:
+      tags: [auth]
+      operationId: refresh
+      summary: Rotate the refresh token
+      description: |
+        Consumes the presented refresh token (from the cookie or body) and
+        issues a new one in the same family. Reusing a previously rotated
+        token revokes the whole family and the session (reuse detection) and
+        returns 401.
+      security: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "200":
+          description: Refreshed; new cookies set.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/SetCookie"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/auth/verify-email:
+    post:
+      tags: [auth]
+      operationId: verifyEmail
+      summary: Confirm an email verification token
+      description: |
+        Consumes the single-use token emailed at registration (or via
+        resend-verification) and marks the user's email verified.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TokenRequest"
+      responses:
+        "200":
+          description: Email verified.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /api/v1/auth/resend-verification:
+    post:
+      tags: [auth]
+      operationId: resendVerification
+      summary: Resend the email verification link
+      description: |
+        Issues a fresh verify-email token and emails the link. Returns the same
+        response whether or not the email is registered (no enumeration).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailRequest"
+      responses:
+        "200":
+          description: Verification email sent (or would be sent).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /api/v1/auth/password-reset/request:
+    post:
+      tags: [auth]
+      operationId: requestPasswordReset
+      summary: Request a password-reset link
+      description: |
+        Emails a single-use reset link to the user if the account exists.
+        Always returns 200 (no account enumeration).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailRequest"
+      responses:
+        "200":
+          description: Reset email sent (or would be sent).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /api/v1/auth/password-reset/confirm:
+    post:
+      tags: [auth]
+      operationId: confirmPasswordReset
+      summary: Reset the password with a token
+      description: |
+        Consumes the single-use reset token and sets the new password. The new
+        password is strength-validated; the consumed token cannot be reused.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordResetConfirmRequest"
+      responses:
+        "200":
+          description: Password reset.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /api/v1/auth/me:
     get:
       tags: [auth]
       operationId: getCurrentUser
       summary: Current authenticated user
-      description: |
-        Returns the currently authenticated user and their tenant memberships.
-        This endpoint is a SEED for the future auth module (WS-06); until then
-        it is unauthenticated and returns a placeholder.
-      security: []
+      description: Returns the user identified by the session cookie or PAT.
       responses:
         "200":
           description: The current user.
@@ -105,13 +312,113 @@ paths:
                 $ref: "#/components/schemas/User"
         "401":
           $ref: "#/components/responses/Unauthorized"
-        "501":
-          $ref: "#/components/responses/NotImplemented"
+    patch:
+      tags: [auth]
+      operationId: updateCurrentUser
+      summary: Update the current user's profile
+      description: |
+        Updates display name and/or locale and/or password. A password change
+        requires currentPassword. An email change requests a confirmation
+        email and does not swap the email until confirmed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMeRequest"
+      responses:
+        "200":
+          description: Updated; the new user state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/auth/personal-access-tokens:
+    get:
+      tags: [auth]
+      operationId: listPersonalAccessTokens
+      summary: List the current user's PATs
+      description: Returns the caller's non-revoked personal access tokens.
+      responses:
+        "200":
+          description: The caller's PATs.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PersonalAccessToken"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [auth]
+      operationId: createPersonalAccessToken
+      summary: Issue a personal access token
+      description: |
+        Mints a PAT with the requested scopes and expiry. The raw token is
+        returned exactly once in the response body; only its hash is stored.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePersonalAccessTokenRequest"
+      responses:
+        "201":
+          description: The new PAT (raw token included).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PersonalAccessToken"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/auth/personal-access-tokens/{tokenId}:
+    delete:
+      tags: [auth]
+      operationId: deletePersonalAccessToken
+      summary: Revoke a personal access token
+      parameters:
+        - name: tokenId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
 # ---------------------------------------------------------------------------
 # Components
 # ---------------------------------------------------------------------------
 components:
+  # Standard headers reused across auth responses.
+  headers:
+    SetCookie:
+      description: |
+        An HTTP-only cookie carrying either the session id or the refresh
+        token. Lahijan sets both on register/login/refresh and clears them on
+        logout.
+      schema:
+        type: string
+        examples: ["lahijan_session=...; HttpOnly; SameSite=Lax"]
+
   # Standard error responses reused across the API.
   responses:
     BadRequest:
@@ -156,6 +463,16 @@ components:
             error:
               code: not_found
               message: "resource not found"
+    Conflict:
+      description: The request conflicts with the current state of the resource.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              code: conflict
+              message: "an account with this email already exists"
     NotImplemented:
       description: The endpoint exists but is not implemented yet.
       content:
@@ -263,3 +580,175 @@ components:
         role:
           type: string
           description: Role held within the tenant (e.g. owner, admin, member).
+
+    # ---------------------------------------------------------------------
+    # Auth request/response schemas (WS-06).
+    # ---------------------------------------------------------------------
+
+    RegisterRequest:
+      type: object
+      required: [email, password]
+      additionalProperties: false
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          description: Plaintext password; hashed with argon2id before storage.
+        displayName:
+          type: string
+          nullable: true
+        locale:
+          type: string
+          description: Preferred locale code (en, fa). Defaults to en.
+          default: en
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      additionalProperties: false
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    LogoutRequest:
+      type: object
+      additionalProperties: false
+      description: |
+        Optional. When omitted, the refresh-token cookie is used. Pass an
+        explicit refresh token when logging out a non-browser client.
+      properties:
+        refreshToken:
+          type: string
+
+    RefreshRequest:
+      type: object
+      additionalProperties: false
+      description: |
+        Optional. When omitted, the refresh-token cookie is used. Pass an
+        explicit refresh token when rotating from a non-browser client.
+      properties:
+        refreshToken:
+          type: string
+
+    TokenRequest:
+      type: object
+      required: [token]
+      additionalProperties: false
+      properties:
+        token:
+          type: string
+          description: The single-use signed token from an email link.
+
+    EmailRequest:
+      type: object
+      required: [email]
+      additionalProperties: false
+      properties:
+        email:
+          type: string
+          format: email
+
+    PasswordResetConfirmRequest:
+      type: object
+      required: [token, newPassword]
+      additionalProperties: false
+      properties:
+        token:
+          type: string
+        newPassword:
+          type: string
+          format: password
+
+    UpdateMeRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        displayName:
+          type: string
+          nullable: true
+        locale:
+          type: string
+        currentPassword:
+          type: string
+          format: password
+          description: Required when changing the password.
+        newPassword:
+          type: string
+          format: password
+          description: When set, currentPassword must also be present.
+        newEmail:
+          type: string
+          format: email
+          description: |
+            Triggers an email-change confirmation link; the email is not swapped
+            until the link is consumed.
+
+    AuthResponse:
+      type: object
+      required: [user]
+      additionalProperties: false
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+
+    CreatePersonalAccessTokenRequest:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+        scopes:
+          type: array
+          description: Permission slugs (scope.action) the PAT grants.
+          items:
+            type: string
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    PersonalAccessToken:
+      type: object
+      required: [id, name, scopes, createdAt]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+        token:
+          type: string
+          description: The raw PAT. Present ONLY on create; never returned again.
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        lastUsedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    MessageResponse:
+      type: object
+      required: [message]
+      additionalProperties: false
+      properties:
+        message:
+          type: string
+          description: Localized human-readable confirmation.

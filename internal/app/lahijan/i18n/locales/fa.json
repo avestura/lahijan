@@ -1,0 +1,58 @@
+{
+  "auth.email_subject_verify_email": {
+    "description": "موضوع پیام تأیید رایانشانی.",
+    "other": "رایانشانی خود را در لاہیجان تأیید کنید"
+  },
+  "auth.email_body_verify_email": {
+    "description": "بدنهٔ پیام تأیید رایانشانی. {{.Link}} نشانی تأیید است.",
+    "other": "به لاہیجان خوش آمدید. لطفاً برای تأیید رایانشانی خود، این پیوند را تا ۲۴ ساعت آینده باز کنید: {{.Link}}"
+  },
+  "auth.email_subject_reset_password": {
+    "description": "موضوع رایانشانی بازنشانی گذرواژه.",
+    "other": "بازنشانی گذرواژهٔ لاہیجان"
+  },
+  "auth.email_body_reset_password": {
+    "description": "بدنهٔ رایانشانی بازنشانی گذرواژه. {{.Link}} نشانی بازنشانی است.",
+    "other": "شما درخواست بازنشانی گذرواژه کرده‌اید. این پیوند را تا ۱ ساعت برای انتخاب گذرواژهٔ جدید باز کنید: {{.Link}}. اگر این درخواست از شما نبوده، می‌توانید این رایانشانی را نادیده بگیرید."
+  },
+  "auth.email_subject_email_changed": {
+    "description": "موضوع آگاهی تغییر رایانشانی.",
+    "other": "رایانشانی لاہیجان شما تغییر کرد"
+  },
+  "auth.email_body_email_changed": {
+    "description": "بدنهٔ آگاهی تغییر رایانشانی. {{.NewEmail}} نشانی تازه است.",
+    "other": "رایانشانی حساب لاہیجان شما به {{.NewEmail}} تغییر کرد. اگر این کار از شما نبوده، بی‌درنگ با اپراتور خود تماس بگیرید."
+  },
+  "auth.email_greeting": { "other": "سلام،" },
+  "auth.email_signature": { "other": "— تیم لاہیجان" },
+
+  "auth.err_bad_request": { "other": "درخواست نادرست بود." },
+  "auth.err_unauthorized": { "other": "احراز هویت لازم است." },
+  "auth.err_invalid_credentials": { "other": "رایانشانی یا گذرواژه نادرست است." },
+  "auth.err_email_taken": { "other": "حسابی با این رایانشانی از پیش وجود دارد." },
+  "auth.err_user_inactive": { "other": "این حساب غیرفعال است." },
+  "auth.err_email_unverified": { "other": "لطفاً پیش از ورود، رایانشانی خود را تأیید کنید." },
+  "auth.err_invalid_token": { "other": "این نشانه نامعتبر، منقضی یا پیش‌تر استفاده‌شده است." },
+  "auth.err_refresh_reuse": { "other": "استفادهٔ مجدد از نشانهٔ نوسازی شناسایی شد؛ همهٔ نشست‌های این ورود باطل شدند." },
+  "auth.err_password_too_weak": {
+    "description": "{{.Min}} کمینهٔ طول گذرواژه است.",
+    "other": "گذرواژه بسیار ضعیف است. حداقل {{.Min}} نویسه با ترکیبی از حروف، اعداد و نمادها به‌کار ببرید."
+  },
+  "auth.err_email_invalid": { "other": "یک رایانشانی معتبر لازم است." },
+  "auth.err_pat_not_found": { "other": "نشانهٔ دسترسی شخصی یافت نشد." },
+  "auth.err_pat_expired": { "other": "این نشانهٔ دسترسی شخصی منقضی شده است." },
+  "auth.err_forbidden": { "other": "شما اجازهٔ انجام این کار را ندارید." },
+  "auth.err_not_found": { "other": "منبع یافت نشد." },
+  "auth.err_internal": { "other": "اشکالی رخ داد. لطفاً دوباره تلاش کنید." },
+  "auth.err_pat_name_required": { "other": "نامی برای نشانهٔ دسترسی شخصی لازم است." },
+  "auth.err_scopes_invalid": { "other": "یک یا چند حوزهٔ درخواست‌شده مجاز نیست." },
+
+  "auth.msg_logged_out": { "other": "از حساب خود بیرون آمدید." },
+  "auth.msg_email_sent": { "other": "اگر آن حساب وجود داشته باشد، رایانشانی در راه است." },
+  "auth.msg_email_verified": { "other": "رایانشانی شما تأیید شد." },
+  "auth.msg_password_reset": { "other": "گذرواژهٔ شما بازنشانی شد." },
+  "auth.msg_email_changed": { "other": "رایانشانی شما به‌روزرسانی شد." },
+  "auth.msg_password_changed": { "other": "گذرواژهٔ شما تغییر کرد." },
+  "auth.msg_profile_updated": { "other": "نمایهٔ شما به‌روز شد." },
+  "auth.msg_pat_revoked": { "other": "نشانهٔ دسترسی شخصی باطل شد." }
+}

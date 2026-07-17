@@ -24,21 +24,30 @@ func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
 
 const createUser = `-- name: CreateUser :one
 
-INSERT INTO users (email, password_hash, is_active)
-VALUES ($1, $2, $3)
-RETURNING id, email, password_hash, is_active, created_at, updated_at, deleted_at
+INSERT INTO users (email, password_hash, is_active, display_name, locale)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, email, password_hash, is_active, created_at, updated_at, deleted_at, display_name, email_verified_at, locale
 `
 
 type CreateUserParams struct {
 	Email        string  `json:"email"`
 	PasswordHash *string `json:"password_hash"`
 	IsActive     bool    `json:"is_active"`
+	DisplayName  *string `json:"display_name"`
+	Locale       string  `json:"locale"`
 }
 
 // Users: global table. password_hash is nullable for OAuth/SSO-only users.
+// WS-06 adds display_name, email_verified_at, and locale.
 // Optional fields use explicit params; the repository wrapper supplies defaults.
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
-	row := q.db.QueryRow(ctx, createUser, arg.Email, arg.PasswordHash, arg.IsActive)
+	row := q.db.QueryRow(ctx, createUser,
+		arg.Email,
+		arg.PasswordHash,
+		arg.IsActive,
+		arg.DisplayName,
+		arg.Locale,
+	)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -48,12 +57,15 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.DisplayName,
+		&i.EmailVerifiedAt,
+		&i.Locale,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password_hash, is_active, created_at, updated_at, deleted_at FROM users WHERE email = $1 AND deleted_at IS NULL
+SELECT id, email, password_hash, is_active, created_at, updated_at, deleted_at, display_name, email_verified_at, locale FROM users WHERE email = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -67,12 +79,15 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.DisplayName,
+		&i.EmailVerifiedAt,
+		&i.Locale,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, password_hash, is_active, created_at, updated_at, deleted_at FROM users WHERE id = $1
+SELECT id, email, password_hash, is_active, created_at, updated_at, deleted_at, display_name, email_verified_at, locale FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
@@ -86,12 +101,15 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.DisplayName,
+		&i.EmailVerifiedAt,
+		&i.Locale,
 	)
 	return i, err
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, email, password_hash, is_active, created_at, updated_at, deleted_at FROM users
+SELECT id, email, password_hash, is_active, created_at, updated_at, deleted_at, display_name, email_verified_at, locale FROM users
 WHERE deleted_at IS NULL
 ORDER BY created_at DESC
 LIMIT $1 OFFSET $2
@@ -119,6 +137,9 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.DisplayName,
+			&i.EmailVerifiedAt,
+			&i.Locale,
 		); err != nil {
 			return nil, err
 		}
@@ -141,6 +162,38 @@ func (q *Queries) SoftDeleteUser(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const updateUserEmail = `-- name: UpdateUserEmail :exec
+UPDATE users
+SET email = $2, email_verified_at = now(), updated_at = now()
+WHERE id = $1
+`
+
+type UpdateUserEmailParams struct {
+	ID    uuid.UUID `json:"id"`
+	Email string    `json:"email"`
+}
+
+func (q *Queries) UpdateUserEmail(ctx context.Context, arg UpdateUserEmailParams) error {
+	_, err := q.db.Exec(ctx, updateUserEmail, arg.ID, arg.Email)
+	return err
+}
+
+const updateUserLocale = `-- name: UpdateUserLocale :exec
+UPDATE users
+SET locale = $2, updated_at = now()
+WHERE id = $1
+`
+
+type UpdateUserLocaleParams struct {
+	ID     uuid.UUID `json:"id"`
+	Locale string    `json:"locale"`
+}
+
+func (q *Queries) UpdateUserLocale(ctx context.Context, arg UpdateUserLocaleParams) error {
+	_, err := q.db.Exec(ctx, updateUserLocale, arg.ID, arg.Locale)
+	return err
+}
+
 const updateUserPassword = `-- name: UpdateUserPassword :exec
 UPDATE users
 SET password_hash = $2, updated_at = now()
@@ -154,5 +207,32 @@ type UpdateUserPasswordParams struct {
 
 func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
 	_, err := q.db.Exec(ctx, updateUserPassword, arg.ID, arg.PasswordHash)
+	return err
+}
+
+const updateUserProfile = `-- name: UpdateUserProfile :exec
+UPDATE users
+SET display_name = $2, updated_at = now()
+WHERE id = $1
+`
+
+type UpdateUserProfileParams struct {
+	ID          uuid.UUID `json:"id"`
+	DisplayName *string   `json:"display_name"`
+}
+
+func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) error {
+	_, err := q.db.Exec(ctx, updateUserProfile, arg.ID, arg.DisplayName)
+	return err
+}
+
+const verifyUserEmail = `-- name: VerifyUserEmail :exec
+UPDATE users
+SET email_verified_at = now(), updated_at = now()
+WHERE id = $1 AND email_verified_at IS NULL
+`
+
+func (q *Queries) VerifyUserEmail(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, verifyUserEmail, id)
 	return err
 }

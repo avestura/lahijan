@@ -231,8 +231,13 @@ hooks: ## Install git hooks locally
 	@echo "git hooks installed"
 
 .PHONY: ci-check
-ci-check: lint test openapi-verify ## Run everything CI runs locally (lint + test + openapi drift)
+ci-check: lint test openapi-verify i18n-verify ## Run everything CI runs locally (lint + test + openapi + i18n drift)
 	@echo "ci-check passed"
+
+.PHONY: i18n-verify
+i18n-verify: ## Fail if en.json and fa.json locale keys have drifted out of sync
+	$(GO) test $(GOFLAGS) -run TestLocaleKeys_enAndFaInSync ./internal/app/lahijan/i18n/
+	@echo "i18n: en.json and fa.json keys are in sync"
 
 .PHONY: clean
 clean: ## Remove build artifacts
