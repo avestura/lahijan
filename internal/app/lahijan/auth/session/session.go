@@ -392,6 +392,41 @@ func (s *Service) auditFail(ctx context.Context, action string, userID *uuid.UUI
 	})
 }
 
+// ChangePassword verifies the current password, strength-validates the new one,
+// and persists a fresh argon2id hash. Used by PATCH /me. A wrong current
+// password returns ErrInvalidCredentials.
+func (s *Service) ChangePassword(ctx context.Context, userID uuid.UUID, currentPassword, newPassword string) error {
+	if err := password.Validate(newPassword, s.cfg.MinPasswordLen); err != nil {
+		return err
+	}
+	user, err := s.users.GetByID(ctx, userID)
+	if err != nil {
+		return ErrInvalidCredentials
+	}
+	if user.PasswordHash == nil {
+		return ErrInvalidCredentials
+	}
+	ok, err := s.hasher.Verify(currentPassword, *user.PasswordHash)
+	if err != nil || !ok {
+		return ErrInvalidCredentials
+	}
+	hash, err := s.hasher.Hash(newPassword)
+	if err != nil {
+		return fmt.Errorf("auth/session: hash new password: %w", err)
+	}
+	if err := s.users.UpdatePassword(ctx, userID, hash); err != nil {
+		return fmt.Errorf("auth/session: set password: %w", err)
+	}
+	_ = s.audit.Emit(ctx, audit.Event{
+		ActorUserID:  &userID,
+		Action:       audit.ActionPasswordChange,
+		ResourceType: audit.ResourceUser,
+		ResourceID:   &userID,
+		Status:       audit.StatusSuccess,
+	})
+	return nil
+}
+
 // normalizeEmail lower-cases and trims an email for storage and lookup.
 func normalizeEmail(s string) string {
 	return strings.ToLower(strings.TrimSpace(s))

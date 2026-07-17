@@ -20,7 +20,7 @@ func startTestServer(t *testing.T) (*lahijanclient.ClientWithResponses, func()) 
 	t.Helper()
 
 	app := fiber.New(fiber.Config{DisableStartupMessage: true})
-	RegisterRoutes(app)
+	RegisterRoutes(app, NewServer(ServerDeps{}))
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
@@ -66,13 +66,15 @@ func TestClientSDK_MeReturnsErrorEnvelope(t *testing.T) {
 	client, stop := startTestServer(t)
 	defer stop()
 
+	// /api/v1/auth/me requires authentication; without credentials the SDK
+	// gets the standard 401 envelope (WS-06).
 	resp, err := client.GetCurrentUserWithResponse(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, http.StatusNotImplemented, resp.StatusCode())
-	require.NotNil(t, resp.JSON501, "error body must decode into the envelope")
+	require.Equal(t, http.StatusUnauthorized, resp.StatusCode())
+	require.NotNil(t, resp.JSON401, "error body must decode into the envelope")
 
 	// The decoded body must match the server-side envelope the api package owns.
 	var env ErrorEnvelope
 	require.NoError(t, json.Unmarshal(resp.Body, &env))
-	require.Equal(t, CodeNotImplemented, env.Error.Code)
+	require.Equal(t, CodeUnauthorized, env.Error.Code)
 }

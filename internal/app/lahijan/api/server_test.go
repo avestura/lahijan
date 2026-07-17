@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/avestura/lahijan/api/gen/go"
+	apigen "github.com/avestura/lahijan/api/gen/go"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/sdk/trace"
@@ -24,11 +24,13 @@ func newRecordingTracerProvider(exporter *tracetest.InMemoryExporter) *trace.Tra
 }
 
 // newTestApp wires the real route registrations onto a fresh Fiber app so the
-// tests exercise the generated routing table end to end.
+// tests exercise the generated routing table end to end. The server has no
+// auth-service deps (they are nil); ping/health/unknown-route do not need them,
+// and authenticated endpoints return 401 because no user is resolved.
 func newTestApp(t *testing.T) *fiber.App {
 	t.Helper()
 	app := fiber.New()
-	RegisterRoutes(app)
+	RegisterRoutes(app, NewServer(ServerDeps{}))
 	return app
 }
 
@@ -57,7 +59,7 @@ func TestPing_EmitsTraceSpan(t *testing.T) {
 	t.Cleanup(func() { _ = tp.Shutdown(context.Background()) })
 
 	app := fiber.New()
-	apigen.RegisterHandlers(app, NewServerWithTracer(tp.Tracer("lahijan.api")))
+	RegisterRoutes(app, NewServer(ServerDeps{Tracer: tp.Tracer("lahijan.api")}))
 
 	_, err := app.Test(httptest.NewRequest("GET", "/api/v1/ping", nil), -1)
 	require.NoError(t, err)
@@ -98,17 +100,20 @@ func TestHealth_ReturnsOkAndVersion(t *testing.T) {
 	require.NotEmpty(t, h.Version, "health must report the build version")
 }
 
-func TestMe_ReturnsEnvelopeError(t *testing.T) {
+func TestMe_RequiresAuthentication(t *testing.T) {
 	t.Parallel()
 	app := newTestApp(t)
 
-	resp, err := app.Test(httptest.NewRequest("GET", "/api/v1/me", nil), -1)
+	// /api/v1/auth/me requires authentication; with no principal resolved it
+	// must come back as the standard 401 envelope (WS-06 replaced the WS-05
+	// NotImplemented seed with a real handler).
+	resp, err := app.Test(httptest.NewRequest("GET", "/api/v1/auth/me", nil), -1)
 	require.NoError(t, err)
-	require.Equal(t, fiber.StatusNotImplemented, resp.StatusCode)
+	require.Equal(t, fiber.StatusUnauthorized, resp.StatusCode)
 
 	var env ErrorEnvelope
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&env))
-	require.Equal(t, CodeNotImplemented, env.Error.Code)
+	require.Equal(t, CodeUnauthorized, env.Error.Code)
 }
 
 func TestUnknownRoute_ReturnsEnvelopeNotFound(t *testing.T) {

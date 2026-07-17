@@ -16,6 +16,11 @@ func IsDebugMode() bool {
 	return viper.GetBool("debug")
 }
 
+// GetEnvironment returns the application environment string (dev, stg, prd).
+func GetEnvironment() string {
+	return viper.GetString("environment")
+}
+
 // GetHTTPServerHost returns the host the HTTP server binds to.
 func GetHTTPServerHost() string {
 	return viper.GetString("http.server.host")
