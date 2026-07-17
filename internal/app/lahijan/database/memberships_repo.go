@@ -120,3 +120,59 @@ func (r *MembershipsRepository) SoftDelete(ctx context.Context, id uuid.UUID) er
 func (r *MembershipsRepository) ListForUser(ctx context.Context, userID uuid.UUID) ([]gen.Membership, error) {
 	return r.q.ListMembershipsForUser(ctx, userID)
 }
+
+// RoleSlugForUser returns the role slug of the user's membership in tenantID.
+// Returns ("", false, nil) when the user is not a member of the tenant; ("",
+// true, nil) when the user is a member but their membership has no role yet
+// (e.g. during bootstrap before RBAC seeding completes).
+//
+// This is the cross-tenant lookup the RBAC policy evaluator calls to decide
+// whether to short-circuit on RolePlatformAdmin. The tenant id comes from
+// the caller, NOT from ctx, because this is the lookup that PROVES the user
+// can adopt that tenant for the request.
+func (r *MembershipsRepository) RoleSlugForUser(
+	ctx context.Context,
+	userID, tenantID uuid.UUID,
+) (string, bool, error) {
+	m, err := r.q.GetMembershipByUserAndTenant(ctx, gen.GetMembershipByUserAndTenantParams{
+		UserID:   userID,
+		TenantID: tenantID,
+	})
+	if err != nil {
+		if IsNoRows(err) {
+			return "", false, nil
+		}
+		return "", false, err
+	}
+	if m.RoleID == nil {
+		return "", true, nil
+	}
+	role, err := r.q.GetRoleByID(ctx, *m.RoleID)
+	if err != nil {
+		return "", false, err
+	}
+	return role.Slug, true, nil
+}
+
+// PermissionSlugsForUser returns every permission slug granted to the user via
+// the role on their membership in tenantID. Returns an empty slice when the
+// user is not a member or when their role has no grants.
+//
+// Used by the RBAC policy evaluator (RequirePerm).
+func (r *MembershipsRepository) PermissionSlugsForUser(
+	ctx context.Context,
+	userID, tenantID uuid.UUID,
+) ([]string, error) {
+	perms, err := r.q.ListPermissionsForUser(ctx, gen.ListPermissionsForUserParams{
+		UserID:   userID,
+		TenantID: tenantID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, 0, len(perms))
+	for _, p := range perms {
+		out = append(out, p.Slug)
+	}
+	return out, nil
+}
