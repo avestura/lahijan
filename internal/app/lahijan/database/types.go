@@ -20,4 +20,5 @@ type (
 	Role                = gen.Role
 	Permission          = gen.Permission
 	AuditLog            = gen.AuditLog
+	AuditLogOutcome     = gen.AuditLogOutcome
 )

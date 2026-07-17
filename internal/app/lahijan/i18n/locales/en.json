@@ -54,5 +54,67 @@
   "auth.msg_email_changed": { "other": "Your email has been updated." },
   "auth.msg_password_changed": { "other": "Your password has been changed." },
   "auth.msg_profile_updated": { "other": "Your profile has been updated." },
-  "auth.msg_pat_revoked": { "other": "The personal access token has been revoked." }
+  "auth.msg_pat_revoked": { "other": "The personal access token has been revoked." },
+
+  "rbac.err_tenant_scope_required": {
+    "description": "Returned when a privileged endpoint is called without the X-Tenant-Id header.",
+    "other": "A tenant scope is required for this action. Set the X-Tenant-Id header."
+  },
+  "rbac.err_permission_denied": {
+    "description": "Generic denied message for non-HTTP callers (jobs, websockets).",
+    "other": "Permission denied."
+  },
+
+  "audit.err_not_found": { "other": "Audit event not found." },
+  "audit.err_forbidden": { "other": "You do not have permission to read the audit log." },
+  "audit.err_internal": { "other": "Could not read the audit log. Please try again." },
+
+  "audit.action_auth_user_register": { "other": "User registered" },
+  "audit.action_auth_user_login": { "other": "User logged in" },
+  "audit.action_auth_user_logout": { "other": "User logged out" },
+  "audit.action_auth_user_profile_update": { "other": "Profile updated" },
+  "audit.action_auth_session_refresh": { "other": "Session refreshed" },
+  "audit.action_auth_session_refresh_reuse": { "other": "Refresh token reuse detected" },
+  "audit.action_auth_email_verify": { "other": "Email verified" },
+  "audit.action_auth_email_resend_verification": { "other": "Verification email resent" },
+  "audit.action_auth_email_change_request": { "other": "Email change requested" },
+  "audit.action_auth_email_change_confirm": { "other": "Email change confirmed" },
+  "audit.action_auth_password_reset_request": { "other": "Password reset requested" },
+  "audit.action_auth_password_reset_confirm": { "other": "Password reset" },
+  "audit.action_auth_password_change": { "other": "Password changed" },
+  "audit.action_auth_pat_create": { "other": "Personal access token created" },
+  "audit.action_auth_pat_revoke": { "other": "Personal access token revoked" },
+  "audit.action_auth_pat_use": { "other": "Personal access token used" },
+
+  "audit.action_audit_export": { "other": "Audit log exported" },
+  "audit.action_rbac_role_update": { "other": "Role updated" },
+
+  "audit.action_compute_instance_create": { "other": "Compute instance created" },
+  "audit.action_compute_instance_delete": { "other": "Compute instance deleted" },
+  "audit.action_compute_instance_start": { "other": "Compute instance started" },
+  "audit.action_compute_instance_stop": { "other": "Compute instance stopped" },
+  "audit.action_compute_instance_restart": { "other": "Compute instance restarted" },
+
+  "audit.action_dns_zone_create": { "other": "DNS zone created" },
+  "audit.action_dns_zone_delete": { "other": "DNS zone deleted" },
+  "audit.action_dns_record_create": { "other": "DNS record created" },
+  "audit.action_dns_record_delete": { "other": "DNS record deleted" },
+
+  "audit.action_s3_bucket_create": { "other": "Object storage bucket created" },
+  "audit.action_s3_bucket_delete": { "other": "Object storage bucket deleted" },
+  "audit.action_s3_credentials_create": { "other": "Object storage credentials issued" },
+  "audit.action_s3_credentials_revoke": { "other": "Object storage credentials revoked" },
+
+  "audit.action_billing_balance_adjust": { "other": "Balance adjusted" },
+  "audit.action_billing_receipt_create": { "other": "Receipt generated" },
+
+  "audit.action_plugins_install": { "other": "Plugin installed" },
+  "audit.action_plugins_uninstall": { "other": "Plugin uninstalled" },
+  "audit.action_plugins_permission_approve": { "other": "Plugin permissions approved" },
+
+  "rbac.role_platform_admin": { "other": "Platform Administrator" },
+  "rbac.role_tenant_owner": { "other": "Tenant Owner" },
+  "rbac.role_tenant_admin": { "other": "Tenant Administrator" },
+  "rbac.role_tenant_member": { "other": "Tenant Member" },
+  "rbac.role_tenant_viewer": { "other": "Tenant Viewer" }
 }

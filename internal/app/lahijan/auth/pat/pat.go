@@ -97,7 +97,8 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (CreateResult, err
 	if err != nil {
 		return CreateResult{}, fmt.Errorf("auth/pat: persist token: %w", err)
 	}
-	_ = s.audit.Emit(ctx, audit.Event{
+	// Best-effort: audit failure is logged but does not block the auth flow.
+	_, _ = s.audit.Emit(ctx, audit.Event{
 		ActorUserID:  &in.UserID,
 		Action:       audit.ActionPATCreate,
 		ResourceType: audit.ResourcePAT,
@@ -126,7 +127,8 @@ func (s *Service) Revoke(ctx context.Context, id, userID uuid.UUID) error {
 	if err := s.tokens.RevokePersonalAccessTokenByID(ctx, id, userID); err != nil {
 		return fmt.Errorf("auth/pat: revoke: %w", err)
 	}
-	_ = s.audit.Emit(ctx, audit.Event{
+	// Best-effort: audit failure is logged but does not block the auth flow.
+	_, _ = s.audit.Emit(ctx, audit.Event{
 		ActorUserID:  &userID,
 		Action:       audit.ActionPATRevoke,
 		ResourceType: audit.ResourcePAT,
@@ -162,7 +164,8 @@ func (s *Service) Authenticate(ctx context.Context, displayToken string) (Authen
 		return AuthenticateResult{}, ErrNotFound
 	}
 	_ = s.tokens.TouchPersonalAccessToken(ctx, hash)
-	_ = s.audit.Emit(ctx, audit.Event{
+	// Best-effort: audit failure is logged but does not block the auth flow.
+	_, _ = s.audit.Emit(ctx, audit.Event{
 		ActorUserID:  &row.UserID,
 		Action:       audit.ActionPATUse,
 		ResourceType: audit.ResourcePAT,

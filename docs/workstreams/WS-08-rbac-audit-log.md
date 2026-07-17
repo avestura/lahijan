@@ -1,7 +1,7 @@
 # WS-08 · RBAC + Audit Log
 
 ```
-Status: pending
+Status: done
 Phase: 1
 Depends on: WS-06
 Unblocks: WS-10a, WS-14..17 (every privileged action needs RBAC + audit)
@@ -79,23 +79,39 @@ trigger-enforced immutability, and the query/export API.
 
 ## Definition of Done
 
-- [ ] every authenticated route carries a tenant_id in context (when applicable)
-- [ ] every privileged endpoint has `RequirePerm` on it
-- [ ] `RequirePerm` returns the standard error envelope when denied
-- [ ] audit table rejects UPDATE and DELETE (integration test)
-- [ ] audit emit + mark-outcome flow tested end-to-end
-- [ ] audit query API supports filters + pagination + export
-- [ ] audit actions are i18n-keyed; en + fa in sync
-- [ ] every privileged action in WS-06 (auth) is retrofitted to emit audit
-- [ ] `make lint test` green
+- [x] every authenticated route carries a tenant_id in context (when applicable)
+- [x] every privileged endpoint has `RequirePerm` on it
+- [x] `RequirePerm` returns the standard error envelope when denied
+- [x] audit table rejects UPDATE and DELETE (integration test)
+- [x] audit emit + mark-outcome flow tested end-to-end
+- [x] audit query API supports filters + pagination + export
+- [x] audit actions are i18n-keyed; en + fa in sync
+- [x] every privileged action in WS-06 (auth) is retrofitted to emit audit
+- [x] `make lint test` green
 
 ## Open questions
 
 - Hash-chained audit rows (each row includes `prev_hash`)? Strong tamper
-  evidence but adds write cost. (Default: defer to Phase 7; this WS just
-  makes the table immutable.)
-- Streaming export for large audit queries? (Default: CSV streaming via
-  chunked transfer encoding.)
+  evidence but adds write cost. **Resolved (this WS):** deferred to Phase 7.
+  The audit_log and audit_log_outcomes tables are both fully immutable
+  (trigger-enforced), which is the contract this WS was scoped to land.
+- Streaming export for large audit queries? **Resolved (this WS):** CSV export
+  uses Fiber's `BodyWriter` so each row flushes as it's written; the
+  `ExportRowCap` constant caps the in-memory cost at 10 000 rows. True
+  chunked-transfer streaming (server-side cursors) is a Phase 7 candidate
+  once we have a profiled workload.
+
+## Notes
+
+- This WS makes audit a first-class primitive that all later modules consume.
+- Every Phase 3/4 WS doc references this WS in its "Required reading".
+- platform.admin is currently per-tenant (a membership with that role grants
+  the full catalog inside the tenant it's held in). A truly global
+  platform.admin (cross-tenant override without per-tenant memberships) is
+  deferred — the WS-08 doc lists it as "global" but the existing memberships
+  table is NOT NULL on tenant_id. A future WS will add the cross-tenant
+  bypass via either a separate `user_roles` table (NULL tenant_id for global
+  roles) or an `is_platform_admin` flag on `users`.
 
 ## Notes
 

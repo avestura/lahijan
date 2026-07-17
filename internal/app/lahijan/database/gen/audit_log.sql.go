@@ -8,6 +8,7 @@ package gen
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -19,6 +20,86 @@ SELECT count(*) FROM audit_log WHERE tenant_id = $1
 // : tenant-scoped
 func (q *Queries) CountAuditLogForTenant(ctx context.Context, tenantID *uuid.UUID) (int64, error) {
 	row := q.db.QueryRow(ctx, countAuditLogForTenant, tenantID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countAuditLogForTenantFiltered = `-- name: CountAuditLogForTenantFiltered :one
+SELECT count(*) FROM audit_log
+WHERE tenant_id = $1
+  AND ($2::uuid IS NULL OR actor_user_id = $2::uuid)
+  AND ($3::text IS NULL OR action = $3::text)
+  AND ($4::text IS NULL OR resource_type = $4::text)
+  AND ($5::text IS NULL OR status = $5::text)
+  AND ($6::text IS NULL OR actor_type = $6::text)
+  AND ($7::timestamptz IS NULL OR created_at >= $7::timestamptz)
+  AND ($8::timestamptz IS NULL OR created_at <= $8::timestamptz)
+`
+
+type CountAuditLogForTenantFilteredParams struct {
+	TenantID     *uuid.UUID `json:"tenant_id"`
+	ActorUserID  *uuid.UUID `json:"actor_user_id"`
+	Action       *string    `json:"action"`
+	ResourceType *string    `json:"resource_type"`
+	Status       *string    `json:"status"`
+	ActorType    *string    `json:"actor_type"`
+	FromTs       *time.Time `json:"from_ts"`
+	ToTs         *time.Time `json:"to_ts"`
+}
+
+// : tenant-scoped; same filters as ListAuditLogForTenantFiltered, for pagination.
+func (q *Queries) CountAuditLogForTenantFiltered(ctx context.Context, arg CountAuditLogForTenantFilteredParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countAuditLogForTenantFiltered,
+		arg.TenantID,
+		arg.ActorUserID,
+		arg.Action,
+		arg.ResourceType,
+		arg.Status,
+		arg.ActorType,
+		arg.FromTs,
+		arg.ToTs,
+	)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countAuditLogGlobalFiltered = `-- name: CountAuditLogGlobalFiltered :one
+SELECT count(*) FROM audit_log
+WHERE ($1::uuid IS NULL OR tenant_id = $1::uuid)
+  AND ($2::uuid IS NULL OR actor_user_id = $2::uuid)
+  AND ($3::text IS NULL OR action = $3::text)
+  AND ($4::text IS NULL OR resource_type = $4::text)
+  AND ($5::text IS NULL OR status = $5::text)
+  AND ($6::text IS NULL OR actor_type = $6::text)
+  AND ($7::timestamptz IS NULL OR created_at >= $7::timestamptz)
+  AND ($8::timestamptz IS NULL OR created_at <= $8::timestamptz)
+`
+
+type CountAuditLogGlobalFilteredParams struct {
+	TenantID     *uuid.UUID `json:"tenant_id"`
+	ActorUserID  *uuid.UUID `json:"actor_user_id"`
+	Action       *string    `json:"action"`
+	ResourceType *string    `json:"resource_type"`
+	Status       *string    `json:"status"`
+	ActorType    *string    `json:"actor_type"`
+	FromTs       *time.Time `json:"from_ts"`
+	ToTs         *time.Time `json:"to_ts"`
+}
+
+// : admin-only; pagination counterpart to ListAuditLogGlobalFiltered.
+func (q *Queries) CountAuditLogGlobalFiltered(ctx context.Context, arg CountAuditLogGlobalFilteredParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countAuditLogGlobalFiltered,
+		arg.TenantID,
+		arg.ActorUserID,
+		arg.Action,
+		arg.ResourceType,
+		arg.Status,
+		arg.ActorType,
+		arg.FromTs,
+		arg.ToTs,
+	)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -86,12 +167,77 @@ func (q *Queries) CreateAuditLog(ctx context.Context, arg CreateAuditLogParams) 
 	return i, err
 }
 
+const createAuditLogOutcome = `-- name: CreateAuditLogOutcome :one
+
+INSERT INTO audit_log_outcomes (audit_id, status, details)
+VALUES ($1, $2, $3)
+RETURNING id, audit_id, status, details, created_at
+`
+
+type CreateAuditLogOutcomeParams struct {
+	AuditID uuid.UUID       `json:"audit_id"`
+	Status  string          `json:"status"`
+	Details json.RawMessage `json:"details"`
+}
+
+// ===========================================================================
+// audit_log_outcomes: append-only outcome trail (WS-08 MarkOutcome pattern).
+// Same append-only contract as audit_log; the trigger on this table rejects
+// UPDATE and DELETE.
+// ===========================================================================
+func (q *Queries) CreateAuditLogOutcome(ctx context.Context, arg CreateAuditLogOutcomeParams) (AuditLogOutcome, error) {
+	row := q.db.QueryRow(ctx, createAuditLogOutcome, arg.AuditID, arg.Status, arg.Details)
+	var i AuditLogOutcome
+	err := row.Scan(
+		&i.ID,
+		&i.AuditID,
+		&i.Status,
+		&i.Details,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getAuditLog = `-- name: GetAuditLog :one
 SELECT id, tenant_id, actor_user_id, actor_type, action, resource_type, resource_id, status, request_id, metadata, created_at FROM audit_log WHERE id = $1
 `
 
 func (q *Queries) GetAuditLog(ctx context.Context, id uuid.UUID) (AuditLog, error) {
 	row := q.db.QueryRow(ctx, getAuditLog, id)
+	var i AuditLog
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.ActorUserID,
+		&i.ActorType,
+		&i.Action,
+		&i.ResourceType,
+		&i.ResourceID,
+		&i.Status,
+		&i.RequestID,
+		&i.Metadata,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getAuditLogForTenant = `-- name: GetAuditLogForTenant :one
+SELECT id, tenant_id, actor_user_id, actor_type, action, resource_type, resource_id, status, request_id, metadata, created_at FROM audit_log
+WHERE id = $2
+  AND (tenant_id = $1 OR tenant_id IS NULL)
+`
+
+type GetAuditLogForTenantParams struct {
+	TenantID *uuid.UUID `json:"tenant_id"`
+	ID       uuid.UUID  `json:"id"`
+}
+
+// : tenant-scoped; single-row read for the GET /audit/{id} handler. Returns the
+// : row if it belongs to the tenant in ctx, OR is a system-level event (NULL
+// : tenant). System events are visible from any tenant so operators can trace
+// : auth flows even when scoped.
+func (q *Queries) GetAuditLogForTenant(ctx context.Context, arg GetAuditLogForTenantParams) (AuditLog, error) {
+	row := q.db.QueryRow(ctx, getAuditLogForTenant, arg.TenantID, arg.ID)
 	var i AuditLog
 	err := row.Scan(
 		&i.ID,
@@ -155,6 +301,80 @@ func (q *Queries) ListAuditLogForTenant(ctx context.Context, arg ListAuditLogFor
 	return items, nil
 }
 
+const listAuditLogForTenantFiltered = `-- name: ListAuditLogForTenantFiltered :many
+SELECT id, tenant_id, actor_user_id, actor_type, action, resource_type, resource_id, status, request_id, metadata, created_at FROM audit_log
+WHERE tenant_id = $1
+  AND ($2::uuid IS NULL OR actor_user_id = $2::uuid)
+  AND ($3::text IS NULL OR action = $3::text)
+  AND ($4::text IS NULL OR resource_type = $4::text)
+  AND ($5::text IS NULL OR status = $5::text)
+  AND ($6::text IS NULL OR actor_type = $6::text)
+  AND ($7::timestamptz IS NULL OR created_at >= $7::timestamptz)
+  AND ($8::timestamptz IS NULL OR created_at <= $8::timestamptz)
+ORDER BY created_at DESC
+LIMIT $10 OFFSET $9
+`
+
+type ListAuditLogForTenantFilteredParams struct {
+	TenantID     *uuid.UUID `json:"tenant_id"`
+	ActorUserID  *uuid.UUID `json:"actor_user_id"`
+	Action       *string    `json:"action"`
+	ResourceType *string    `json:"resource_type"`
+	Status       *string    `json:"status"`
+	ActorType    *string    `json:"actor_type"`
+	FromTs       *time.Time `json:"from_ts"`
+	ToTs         *time.Time `json:"to_ts"`
+	Offset       int32      `json:"offset"`
+	Limit        int32      `json:"limit"`
+}
+
+// : tenant-scoped; filtered + paginated read for GET /audit.
+// Each filter is NULL-able: a NULL means "do not filter on this column".
+// sqlc.narg declares a nullable parameter; the ::type cast tells sqlc the
+// concrete Go type to emit (*uuid.UUID, *string, *time.Time).
+func (q *Queries) ListAuditLogForTenantFiltered(ctx context.Context, arg ListAuditLogForTenantFilteredParams) ([]AuditLog, error) {
+	rows, err := q.db.Query(ctx, listAuditLogForTenantFiltered,
+		arg.TenantID,
+		arg.ActorUserID,
+		arg.Action,
+		arg.ResourceType,
+		arg.Status,
+		arg.ActorType,
+		arg.FromTs,
+		arg.ToTs,
+		arg.Offset,
+		arg.Limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AuditLog{}
+	for rows.Next() {
+		var i AuditLog
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.ActorUserID,
+			&i.ActorType,
+			&i.Action,
+			&i.ResourceType,
+			&i.ResourceID,
+			&i.Status,
+			&i.RequestID,
+			&i.Metadata,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listAuditLogGlobal = `-- name: ListAuditLogGlobal :many
 SELECT id, tenant_id, actor_user_id, actor_type, action, resource_type, resource_id, status, request_id, metadata, created_at FROM audit_log
 ORDER BY created_at DESC
@@ -187,6 +407,111 @@ func (q *Queries) ListAuditLogGlobal(ctx context.Context, arg ListAuditLogGlobal
 			&i.Status,
 			&i.RequestID,
 			&i.Metadata,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAuditLogGlobalFiltered = `-- name: ListAuditLogGlobalFiltered :many
+SELECT id, tenant_id, actor_user_id, actor_type, action, resource_type, resource_id, status, request_id, metadata, created_at FROM audit_log
+WHERE ($1::uuid IS NULL OR tenant_id = $1::uuid)
+  AND ($2::uuid IS NULL OR actor_user_id = $2::uuid)
+  AND ($3::text IS NULL OR action = $3::text)
+  AND ($4::text IS NULL OR resource_type = $4::text)
+  AND ($5::text IS NULL OR status = $5::text)
+  AND ($6::text IS NULL OR actor_type = $6::text)
+  AND ($7::timestamptz IS NULL OR created_at >= $7::timestamptz)
+  AND ($8::timestamptz IS NULL OR created_at <= $8::timestamptz)
+ORDER BY created_at DESC
+LIMIT $10 OFFSET $9
+`
+
+type ListAuditLogGlobalFilteredParams struct {
+	TenantID     *uuid.UUID `json:"tenant_id"`
+	ActorUserID  *uuid.UUID `json:"actor_user_id"`
+	Action       *string    `json:"action"`
+	ResourceType *string    `json:"resource_type"`
+	Status       *string    `json:"status"`
+	ActorType    *string    `json:"actor_type"`
+	FromTs       *time.Time `json:"from_ts"`
+	ToTs         *time.Time `json:"to_ts"`
+	Offset       int32      `json:"offset"`
+	Limit        int32      `json:"limit"`
+}
+
+// : admin-only; same shape as ListAuditLogForTenantFiltered but unscoped. Used
+// : by the global audit export endpoint behind RequirePerm("audit.read_global").
+func (q *Queries) ListAuditLogGlobalFiltered(ctx context.Context, arg ListAuditLogGlobalFilteredParams) ([]AuditLog, error) {
+	rows, err := q.db.Query(ctx, listAuditLogGlobalFiltered,
+		arg.TenantID,
+		arg.ActorUserID,
+		arg.Action,
+		arg.ResourceType,
+		arg.Status,
+		arg.ActorType,
+		arg.FromTs,
+		arg.ToTs,
+		arg.Offset,
+		arg.Limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AuditLog{}
+	for rows.Next() {
+		var i AuditLog
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.ActorUserID,
+			&i.ActorType,
+			&i.Action,
+			&i.ResourceType,
+			&i.ResourceID,
+			&i.Status,
+			&i.RequestID,
+			&i.Metadata,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAuditLogOutcomes = `-- name: ListAuditLogOutcomes :many
+SELECT id, audit_id, status, details, created_at FROM audit_log_outcomes
+WHERE audit_id = $1
+ORDER BY created_at DESC
+`
+
+// : newest-first so the caller can pick the latest as the current status.
+func (q *Queries) ListAuditLogOutcomes(ctx context.Context, auditID uuid.UUID) ([]AuditLogOutcome, error) {
+	rows, err := q.db.Query(ctx, listAuditLogOutcomes, auditID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AuditLogOutcome{}
+	for rows.Next() {
+		var i AuditLogOutcome
+		if err := rows.Scan(
+			&i.ID,
+			&i.AuditID,
+			&i.Status,
+			&i.Details,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err

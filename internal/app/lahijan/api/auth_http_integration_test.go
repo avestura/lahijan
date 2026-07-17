@@ -23,6 +23,7 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/email"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/password"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/pat"
+	"github.com/avestura/lahijan/internal/app/lahijan/auth/rbac"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/secrets"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/session"
 	"github.com/avestura/lahijan/internal/app/lahijan/database"
@@ -76,16 +77,24 @@ func newTestApp(t *testing.T) *testApp {
 	)
 	emailSvc := mailer // alias for clarity in the server wiring
 	server := api.NewServer(api.ServerDeps{
-		Users:      repos.Users,
-		Sessions:   repos.Sessions,
-		SessionSvc: sessionSvc,
-		PATSvc:     patSvc,
-		EmailSvc:   emailSvc,
-		Signer:     signer,
-		Cookies:    cookies,
+		Users:        repos.Users,
+		Sessions:     repos.Sessions,
+		SessionSvc:   sessionSvc,
+		PATSvc:       patSvc,
+		EmailSvc:     emailSvc,
+		Signer:       signer,
+		Cookies:      cookies,
+		Audit:        repos.AuditLog,
+		AuditEmitter: audit.NewDBEmitter(repos.AuditLog),
 	})
+	// Wire the rbac.PolicyEvaluator over MembershipsRepository so per-route
+	// RequirePerm (via AuditGate) works in the integration tests too.
+	policy := middleware.NewPolicyResolver(rbac.NewEvaluator(repos.Memberships))
 	app := fiber.New()
 	middleware.Apply(app, middleware.Options{
+		Tenant: middleware.TenantWithResolver(middleware.TenantResolver{
+			Tenants: repos.Tenants,
+		}),
 		Auth: middleware.AuthWithResolver(middleware.AuthResolver{
 			Cookies: middleware.CookieConfig{
 				SessionName: cookies.SessionName,
@@ -96,7 +105,7 @@ func newTestApp(t *testing.T) *testApp {
 			PATService:   patSvc,
 		}),
 	})
-	api.RegisterRoutes(app, server)
+	api.RegisterRoutes(app, server, policy)
 	return &testApp{app: app, cookies: cookies, repos: repos}
 }
 

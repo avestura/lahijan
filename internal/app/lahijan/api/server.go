@@ -11,6 +11,7 @@ import (
 
 	"github.com/avestura/lahijan/api/gen/go"
 	"github.com/avestura/lahijan/internal/app/lahijan/api/middleware"
+	"github.com/avestura/lahijan/internal/app/lahijan/auth/audit"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/email"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/pat"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/secrets"
@@ -42,6 +43,10 @@ type Server struct {
 	emailSvc   *email.Service
 	signer     *secrets.Signer
 	cookies    CookieConfig
+
+	// WS-08: audit query API deps.
+	audit        *database.AuditLogRepository
+	auditEmitter audit.Emitter
 }
 
 // ServerDeps carries the dependencies NewServer requires. Wire it once from
@@ -55,22 +60,36 @@ type ServerDeps struct {
 	EmailSvc   *email.Service
 	Signer     *secrets.Signer
 	Cookies    CookieConfig
+
+	// WS-08: the audit query API reads from AuditLogRepository and records
+	// export events via Emitter. Both are required for the audit endpoints
+	// to function; pass nil only in tests that don't exercise those routes.
+	Audit        *database.AuditLogRepository
+	AuditEmitter audit.Emitter
 }
 
 // NewServer builds the API server with the given dependencies.
 func NewServer(deps ServerDeps) *Server {
 	s := &Server{
-		tracer:     deps.Tracer,
-		users:      deps.Users,
-		sessions:   deps.Sessions,
-		sessionSvc: deps.SessionSvc,
-		patSvc:     deps.PATSvc,
-		emailSvc:   deps.EmailSvc,
-		signer:     deps.Signer,
-		cookies:    deps.Cookies,
+		tracer:       deps.Tracer,
+		users:        deps.Users,
+		sessions:     deps.Sessions,
+		sessionSvc:   deps.SessionSvc,
+		patSvc:       deps.PATSvc,
+		emailSvc:     deps.EmailSvc,
+		signer:       deps.Signer,
+		cookies:      deps.Cookies,
+		audit:        deps.Audit,
+		auditEmitter: deps.AuditEmitter,
 	}
 	if s.tracer == nil {
 		s.tracer = Tracer()
+	}
+	if s.auditEmitter == nil {
+		// Default to Noop so audit_handlers.go can call Emit without nil
+		// guards in every code path. Tests that assert on audit rows pass a
+		// capturing emitter instead.
+		s.auditEmitter = audit.NoopEmitter{}
 	}
 	return s
 }

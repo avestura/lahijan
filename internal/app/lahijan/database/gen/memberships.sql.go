@@ -108,6 +108,35 @@ func (q *Queries) GetMembershipByUser(ctx context.Context, arg GetMembershipByUs
 	return i, err
 }
 
+const getMembershipByUserAndTenant = `-- name: GetMembershipByUserAndTenant :one
+SELECT id, tenant_id, user_id, role_id, created_at, updated_at, deleted_at FROM memberships
+WHERE user_id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+`
+
+type GetMembershipByUserAndTenantParams struct {
+	UserID   uuid.UUID `json:"user_id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+}
+
+// : user-scoped (cross-tenant check by user + tenant; used by the tenant
+// : middleware to verify the caller is a member of the requested tenant). The
+// : tenant id comes from the caller, NOT from ctx, because this is the lookup
+// : that PROVES the user can adopt that tenant for the request.
+func (q *Queries) GetMembershipByUserAndTenant(ctx context.Context, arg GetMembershipByUserAndTenantParams) (Membership, error) {
+	row := q.db.QueryRow(ctx, getMembershipByUserAndTenant, arg.UserID, arg.TenantID)
+	var i Membership
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.UserID,
+		&i.RoleID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const listMembershipsForTenant = `-- name: ListMembershipsForTenant :many
 SELECT id, tenant_id, user_id, role_id, created_at, updated_at, deleted_at FROM memberships
 WHERE tenant_id = $1 AND deleted_at IS NULL
@@ -174,6 +203,49 @@ func (q *Queries) ListMembershipsForUser(ctx context.Context, userID uuid.UUID) 
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPermissionsForUser = `-- name: ListPermissionsForUser :many
+SELECT p.id, p.slug, p.description, p.created_at FROM permissions p
+JOIN role_permissions rp ON rp.permission_id = p.id
+JOIN memberships m ON m.role_id = rp.role_id
+WHERE m.user_id = $1
+  AND m.tenant_id = $2
+  AND m.deleted_at IS NULL
+ORDER BY p.slug
+`
+
+type ListPermissionsForUserParams struct {
+	UserID   uuid.UUID `json:"user_id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+}
+
+// : user-scoped (cross-tenant; the policy evaluator calls this for RequirePerm).
+// Returns every permission granted to the user via the role on their membership
+// in the given tenant. Used by RBAC policy enforcement (WS-08).
+func (q *Queries) ListPermissionsForUser(ctx context.Context, arg ListPermissionsForUserParams) ([]Permission, error) {
+	rows, err := q.db.Query(ctx, listPermissionsForUser, arg.UserID, arg.TenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Permission{}
+	for rows.Next() {
+		var i Permission
+		if err := rows.Scan(
+			&i.ID,
+			&i.Slug,
+			&i.Description,
+			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}

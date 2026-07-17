@@ -32,6 +32,18 @@ type AuditLog struct {
 	CreatedAt time.Time       `json:"created_at"`
 }
 
+// Append-only outcome trail for an audit_log row; UPDATE and DELETE are rejected by trigger.
+type AuditLogOutcome struct {
+	ID uuid.UUID `json:"id"`
+	// The audit_log row this outcome belongs to.
+	AuditID uuid.UUID `json:"audit_id"`
+	// success | failure | pending (the new current status of the audit event).
+	Status string `json:"status"`
+	// Optional structured details about the outcome (e.g. error message).
+	Details   json.RawMessage `json:"details"`
+	CreatedAt time.Time       `json:"created_at"`
+}
+
 // Single-use expiring tokens for verify-email, password-reset, and email-change.
 type EmailToken struct {
 	ID     uuid.UUID `json:"id"`

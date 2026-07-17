@@ -1,5 +1,6 @@
 // Package program is Lahijan's bootstrap layer: it sets up config, builds the
-// GoFiber app, wires middleware, builds the auth subsystem (WS-06), registers
+// GoFiber app, wires middleware, builds the auth subsystem (WS-06) and the
+// RBAC/audit subsystem (WS-08), seeds the permission catalog, registers
 // routes, and calls app.Listen. All other backend code is invoked from here;
 // nothing should call into program/ from outside.
 package program
@@ -19,6 +20,7 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/email"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/password"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/pat"
+	"github.com/avestura/lahijan/internal/app/lahijan/auth/rbac"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/secrets"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/session"
 	"github.com/avestura/lahijan/internal/app/lahijan/conf"
@@ -72,6 +74,15 @@ func Start() error {
 	}
 	defer cleanup()
 
+	// Seed the RBAC catalog (permissions + default roles + grants). Idempotent
+	// so it is safe to run on every bootstrap. Fail-fast on error: without the
+	// seed, every privileged route returns 403.
+	seedCtx, seedCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer seedCancel()
+	if err := rbac.SeedOnce(seedCtx, authDeps.repos); err != nil {
+		log.Fatalf("failed to seed rbac catalog: %s", err.Error())
+	}
+
 	app := fiber.New(fiber.Config{
 		ServerHeader: "Lahijan",
 		AppName:      "Lahijan",
@@ -98,22 +109,29 @@ func Start() error {
 	// (requestid -> recover -> cors -> logger -> tenant -> auth -> audit -> rbac).
 	// See docs/architecture/conventions.md#http-api and api/middleware.
 	authMW := buildAuthMiddleware(authDeps)
+	tenantMW := buildTenantMiddleware(authDeps)
+	policy := middleware.NewPolicyResolver(rbac.NewEvaluator(authDeps.repos.Memberships))
 	middleware.Apply(app, middleware.Options{
 		CORS:          corsOptions(),
 		RequestLogger: conf.GetHTTPServerLoggerEnabled(),
+		Tenant:        tenantMW,
 		Auth:          authMW,
 	})
 
-	// Register the OpenAPI-derived routes (/health, /api/v1/ping, /api/v1/auth/*, ...).
+	// Register the OpenAPI-derived routes (/health, /api/v1/ping, /api/v1/auth/*,
+	// /api/v1/audit/*, ...). The audit gate runs RequirePerm for the audit
+	// endpoints; everything else passes through to the handler.
 	api.RegisterRoutes(app, api.NewServer(api.ServerDeps{
-		Users:      authDeps.repos.Users,
-		Sessions:   authDeps.repos.Sessions,
-		SessionSvc: authDeps.sessionSvc,
-		PATSvc:     authDeps.patSvc,
-		EmailSvc:   authDeps.emailSvc,
-		Signer:     authDeps.signer,
-		Cookies:    authDeps.cookies,
-	}))
+		Users:        authDeps.repos.Users,
+		Sessions:     authDeps.repos.Sessions,
+		SessionSvc:   authDeps.sessionSvc,
+		PATSvc:       authDeps.patSvc,
+		EmailSvc:     authDeps.emailSvc,
+		Signer:       authDeps.signer,
+		Cookies:      authDeps.cookies,
+		Audit:        authDeps.repos.AuditLog,
+		AuditEmitter: authDeps.audit,
+	}), policy)
 
 	if err := app.Listen(conf.GetHTTPServerAddress()); err != nil {
 		return errors.Join(errors.New("fiber server stopped"), err)
@@ -229,6 +247,19 @@ func buildAuthMiddleware(deps *authDeps) fiber.Handler {
 		Signer:       deps.signer,
 		SessionsRepo: deps.repos.Sessions,
 		PATService:   deps.patSvc,
+	})
+}
+
+// buildTenantMiddleware builds the Tenant middleware with the X-Tenant-Id /
+// X-Tenant-Slug resolver (WS-08). Returns nil to leave the pass-through seam
+// in place when deps are unavailable (tests); program.Start always passes
+// real deps.
+func buildTenantMiddleware(deps *authDeps) fiber.Handler {
+	if deps == nil {
+		return nil
+	}
+	return middleware.TenantWithResolver(middleware.TenantResolver{
+		Tenants: deps.repos.Tenants,
 	})
 }
 

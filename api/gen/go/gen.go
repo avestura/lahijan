@@ -19,11 +19,132 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for AuditEventActorType.
+const (
+	AuditEventActorTypePlugin AuditEventActorType = "plugin"
+	AuditEventActorTypeSystem AuditEventActorType = "system"
+	AuditEventActorTypeUser   AuditEventActorType = "user"
+)
+
+// Defines values for AuditEventStatus.
+const (
+	AuditEventStatusFailure AuditEventStatus = "failure"
+	AuditEventStatusPending AuditEventStatus = "pending"
+	AuditEventStatusSuccess AuditEventStatus = "success"
+)
+
+// Defines values for AuditOutcomeStatus.
+const (
+	AuditOutcomeStatusFailure AuditOutcomeStatus = "failure"
+	AuditOutcomeStatusPending AuditOutcomeStatus = "pending"
+	AuditOutcomeStatusSuccess AuditOutcomeStatus = "success"
+)
+
 // Defines values for HealthStatus.
 const (
 	HealthStatusDegraded HealthStatus = "degraded"
 	HealthStatusOk       HealthStatus = "ok"
 )
+
+// Defines values for ExportFormat.
+const (
+	ExportFormatCsv  ExportFormat = "csv"
+	ExportFormatJson ExportFormat = "json"
+)
+
+// Defines values for ListAuditParamsStatus.
+const (
+	ListAuditParamsStatusFailure ListAuditParamsStatus = "failure"
+	ListAuditParamsStatusPending ListAuditParamsStatus = "pending"
+	ListAuditParamsStatusSuccess ListAuditParamsStatus = "success"
+)
+
+// Defines values for ListAuditParamsActorType.
+const (
+	ListAuditParamsActorTypePlugin ListAuditParamsActorType = "plugin"
+	ListAuditParamsActorTypeSystem ListAuditParamsActorType = "system"
+	ListAuditParamsActorTypeUser   ListAuditParamsActorType = "user"
+)
+
+// Defines values for ExportAuditParamsFormat.
+const (
+	ExportAuditParamsFormatCsv  ExportAuditParamsFormat = "csv"
+	ExportAuditParamsFormatJson ExportAuditParamsFormat = "json"
+)
+
+// Defines values for ExportAuditParamsStatus.
+const (
+	ExportAuditParamsStatusFailure ExportAuditParamsStatus = "failure"
+	ExportAuditParamsStatusPending ExportAuditParamsStatus = "pending"
+	ExportAuditParamsStatusSuccess ExportAuditParamsStatus = "success"
+)
+
+// Defines values for ExportAuditParamsActorType.
+const (
+	ExportAuditParamsActorTypePlugin ExportAuditParamsActorType = "plugin"
+	ExportAuditParamsActorTypeSystem ExportAuditParamsActorType = "system"
+	ExportAuditParamsActorTypeUser   ExportAuditParamsActorType = "user"
+)
+
+// AuditEvent defines model for AuditEvent.
+type AuditEvent struct {
+	// Action The privileged action slug, formatted scope.action
+	// (e.g. compute.instance.create). The localised label can be
+	// rendered via audit.action_<slug> i18n keys.
+	Action    string               `json:"action"`
+	ActorType *AuditEventActorType `json:"actorType,omitempty"`
+
+	// ActorUserId NULL when the actor is the system.
+	ActorUserId *openapi_types.UUID `json:"actorUserId"`
+	CreatedAt   time.Time           `json:"createdAt"`
+
+	// Id The audit row id.
+	Id openapi_types.UUID `json:"id"`
+
+	// Metadata Free-form structured details recorded at emit time.
+	Metadata *map[string]interface{} `json:"metadata,omitempty"`
+
+	// Outcomes The outcome trail, newest first. Empty when Emit was fire-and-forget.
+	Outcomes     *[]AuditOutcome     `json:"outcomes,omitempty"`
+	RequestId    *string             `json:"requestId"`
+	ResourceId   *openapi_types.UUID `json:"resourceId"`
+	ResourceType string              `json:"resourceType"`
+
+	// Status The current status. When the event has outcome rows, this is the
+	// latest outcome's status; otherwise it is the row's initial status.
+	Status AuditEventStatus `json:"status"`
+
+	// TenantId NULL for system-level events (e.g. login).
+	TenantId *openapi_types.UUID `json:"tenantId"`
+}
+
+// AuditEventActorType defines model for AuditEvent.ActorType.
+type AuditEventActorType string
+
+// AuditEventStatus The current status. When the event has outcome rows, this is the
+// latest outcome's status; otherwise it is the row's initial status.
+type AuditEventStatus string
+
+// AuditOutcome defines model for AuditOutcome.
+type AuditOutcome struct {
+	CreatedAt time.Time               `json:"createdAt"`
+	Details   *map[string]interface{} `json:"details,omitempty"`
+	Id        openapi_types.UUID      `json:"id"`
+	Status    AuditOutcomeStatus      `json:"status"`
+}
+
+// AuditOutcomeStatus defines model for AuditOutcome.Status.
+type AuditOutcomeStatus string
+
+// AuditPage defines model for AuditPage.
+type AuditPage struct {
+	Items  []AuditEvent `json:"items"`
+	Limit  int          `json:"limit"`
+	Offset int          `json:"offset"`
+
+	// Total Total events matching the filter (for pagination UI).
+	Total int64 `json:"total"`
+}
 
 // AuthResponse defines model for AuthResponse.
 type AuthResponse struct {
@@ -176,17 +297,73 @@ type User struct {
 	Memberships *[]Membership `json:"memberships,omitempty"`
 }
 
+// ExportFormat defines model for ExportFormat.
+type ExportFormat string
+
+// PageLimit defines model for PageLimit.
+type PageLimit = int
+
+// PageOffset defines model for PageOffset.
+type PageOffset = int
+
 // BadRequest defines model for BadRequest.
 type BadRequest = Error
 
 // Conflict defines model for Conflict.
 type Conflict = Error
 
+// Forbidden defines model for Forbidden.
+type Forbidden = Error
+
 // NotFound defines model for NotFound.
 type NotFound = Error
 
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = Error
+
+// ListAuditParams defines parameters for ListAudit.
+type ListAuditParams struct {
+	// Limit Maximum number of items to return (1..200).
+	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of items to skip for pagination.
+	Offset       *PageOffset               `form:"offset,omitempty" json:"offset,omitempty"`
+	ActorUserId  *openapi_types.UUID       `form:"actorUserId,omitempty" json:"actorUserId,omitempty"`
+	Action       *string                   `form:"action,omitempty" json:"action,omitempty"`
+	ResourceType *string                   `form:"resourceType,omitempty" json:"resourceType,omitempty"`
+	Status       *ListAuditParamsStatus    `form:"status,omitempty" json:"status,omitempty"`
+	ActorType    *ListAuditParamsActorType `form:"actorType,omitempty" json:"actorType,omitempty"`
+	FromTs       *time.Time                `form:"fromTs,omitempty" json:"fromTs,omitempty"`
+	ToTs         *time.Time                `form:"toTs,omitempty" json:"toTs,omitempty"`
+}
+
+// ListAuditParamsStatus defines parameters for ListAudit.
+type ListAuditParamsStatus string
+
+// ListAuditParamsActorType defines parameters for ListAudit.
+type ListAuditParamsActorType string
+
+// ExportAuditParams defines parameters for ExportAudit.
+type ExportAuditParams struct {
+	// Format Output format for the export. Defaults to csv.
+	Format       *ExportAuditParamsFormat    `form:"format,omitempty" json:"format,omitempty"`
+	ActorUserId  *openapi_types.UUID         `form:"actorUserId,omitempty" json:"actorUserId,omitempty"`
+	Action       *string                     `form:"action,omitempty" json:"action,omitempty"`
+	ResourceType *string                     `form:"resourceType,omitempty" json:"resourceType,omitempty"`
+	Status       *ExportAuditParamsStatus    `form:"status,omitempty" json:"status,omitempty"`
+	ActorType    *ExportAuditParamsActorType `form:"actorType,omitempty" json:"actorType,omitempty"`
+	FromTs       *time.Time                  `form:"fromTs,omitempty" json:"fromTs,omitempty"`
+	ToTs         *time.Time                  `form:"toTs,omitempty" json:"toTs,omitempty"`
+}
+
+// ExportAuditParamsFormat defines parameters for ExportAudit.
+type ExportAuditParamsFormat string
+
+// ExportAuditParamsStatus defines parameters for ExportAudit.
+type ExportAuditParamsStatus string
+
+// ExportAuditParamsActorType defines parameters for ExportAudit.
+type ExportAuditParamsActorType string
 
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
@@ -220,6 +397,15 @@ type VerifyEmailJSONRequestBody = TokenRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// List audit events for the current tenant
+	// (GET /api/v1/audit)
+	ListAudit(c *fiber.Ctx, params ListAuditParams) error
+	// Export the tenant audit log (CSV or JSON)
+	// (GET /api/v1/audit/export)
+	ExportAudit(c *fiber.Ctx, params ExportAuditParams) error
+	// Fetch a single audit event by id
+	// (GET /api/v1/audit/{auditId})
+	GetAudit(c *fiber.Ctx, auditId openapi_types.UUID) error
 	// Log in with email and password
 	// (POST /api/v1/auth/login)
 	Login(c *fiber.Ctx) error
@@ -273,6 +459,175 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc fiber.Handler
+
+// ListAudit operation middleware
+func (siw *ServerInterfaceWrapper) ListAudit(c *fiber.Ctx) error {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAuditParams
+
+	var query url.Values
+	query, err = url.ParseQuery(string(c.Request().URI().QueryString()))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for query string: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "limit", query, &params.Limit)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter limit: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "offset" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "offset", query, &params.Offset)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter offset: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "actorUserId" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "actorUserId", query, &params.ActorUserId)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter actorUserId: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "action" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "action", query, &params.Action)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter action: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "resourceType" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "resourceType", query, &params.ResourceType)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter resourceType: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "status", query, &params.Status)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter status: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "actorType" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "actorType", query, &params.ActorType)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter actorType: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "fromTs" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "fromTs", query, &params.FromTs)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter fromTs: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "toTs" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "toTs", query, &params.ToTs)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter toTs: %w", err).Error())
+	}
+
+	return siw.Handler.ListAudit(c, params)
+}
+
+// ExportAudit operation middleware
+func (siw *ServerInterfaceWrapper) ExportAudit(c *fiber.Ctx) error {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ExportAuditParams
+
+	var query url.Values
+	query, err = url.ParseQuery(string(c.Request().URI().QueryString()))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for query string: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "format" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "format", query, &params.Format)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter format: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "actorUserId" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "actorUserId", query, &params.ActorUserId)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter actorUserId: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "action" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "action", query, &params.Action)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter action: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "resourceType" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "resourceType", query, &params.ResourceType)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter resourceType: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "status", query, &params.Status)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter status: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "actorType" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "actorType", query, &params.ActorType)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter actorType: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "fromTs" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "fromTs", query, &params.FromTs)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter fromTs: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "toTs" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "toTs", query, &params.ToTs)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter toTs: %w", err).Error())
+	}
+
+	return siw.Handler.ExportAudit(c, params)
+}
+
+// GetAudit operation middleware
+func (siw *ServerInterfaceWrapper) GetAudit(c *fiber.Ctx) error {
+
+	var err error
+
+	// ------------- Path parameter "auditId" -------------
+	var auditId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "auditId", c.Params("auditId"), &auditId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter auditId: %w", err).Error())
+	}
+
+	return siw.Handler.GetAudit(c, auditId)
+}
 
 // Login operation middleware
 func (siw *ServerInterfaceWrapper) Login(c *fiber.Ctx) error {
@@ -395,6 +750,12 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 		router.Use(fiber.Handler(m))
 	}
 
+	router.Get(options.BaseURL+"/api/v1/audit", wrapper.ListAudit)
+
+	router.Get(options.BaseURL+"/api/v1/audit/export", wrapper.ExportAudit)
+
+	router.Get(options.BaseURL+"/api/v1/audit/:auditId", wrapper.GetAudit)
+
 	router.Post(options.BaseURL+"/api/v1/auth/login", wrapper.Login)
 
 	router.Post(options.BaseURL+"/api/v1/auth/logout", wrapper.Logout)
@@ -430,68 +791,90 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/+RbbW/bSJL+KwXeAWMDFKUkc7dYG/tB48nsGEgygu3s4W4UBC12iewJ2c3tblrWBf7v",
-	"h+puUqREWbJjZwe4T3Gkfq16quqpqtbXKFVlpSRKa6Kzr1GOjKN2f16jvVDqi0D6D0eTalFZoWR0Fk0l",
-	"/HpzMxspWawhdYMgZVqvhcwAhc1Rg80RDBojlATBQflPNC41mnwurfqCMoF3LBd/MAkGrYGFsjkoCRoz",
-	"YSzqcaEyIcdhDjDJIS2QaUNLlaDkXBYqU7VN5jKKI5PmWDI6Ld6xsirQRGe/R4Xf4XM4y9+SJDmHX62t",
-	"fpPF+hyuWYnXwuLf3rG76FMc2XWF0VlkrBYyi+7v7+NIo6mUNOik8hPjV/jPGo2l/6VKWpTuT1ZVhUgZ",
-	"SWj8hyExtedwf2qttJ/CaYMF4591WCiOOFomCrfBUmDBo7MISyaK6D6OSjSGZTQnjIeF4mtYMlEgh1tW",
-	"CO52jeisGxn8u8ZldBb923ij4LH/1ozfusO4y/UVe+NU5HdZMQMlK5ZKl8gTOsmFkstCpN9487RZpXs1",
-	"JoGlqaqlhZWwOdhcGHAiAFZoZHwNeCeMNc99y+Y0ptkXIa21RmnBWGYR1DIA16hap+gE8UHZX1Qt+bcJ",
-	"Qir7eemW6SvZbwRSWfBfP++VkbeXAa7QuI2ccN3dPkpW21xp8b/4jferuyv1lF3bHKUNS7lzCY3Pcs9p",
-	"f2lh2tXJA+XMBLtJOps5s6OJV8HQ3V05F7QEK2ZaVaitIPtfssJgHFWdj75GtUF96MAfaYx3JuGyZ7/7",
-	"iRufoxZ/YGqdoWlkFmeoDR1gmqZozA05zI7recQB8a4SGs3UzSN7ZjY6izizOLKixCiOZF0UbEFqtLrG",
-	"HS8YR5KVTiw7X5hUVX6XviJmqEvhvb8p6szAiRuZsJQGnDqbmk1vINNMWpNEcSQslmZwj/AB05qtd4To",
-	"TjYkxLfkPZ4oMOd7u8Lyn+yGh/5Z/KjBwzS28ZhTPGGON71tZbxnaS4kjsiRkprBLQ00GE6MZF/wc8oM",
-	"npIaurGzH6S27Hmp9EJwjhR6u65MSItasmIgmvYC3fCtPP76x/+t8uPAWF2ntiZrDgsBW6jaOjT5O51g",
-	"kiVQoR65QDqXmwDpR5jTBH7RiCPSLXgNnVMYMHWJ2kBZG+tcIjP0yVwyWIo75OBN2VONHf22zm1b9L/W",
-	"JZPbgg+jYzBsiWAVmFytgNyBs4SHQeZUvNlxF23boHQwGgLlr8gKmz8SYRQV6wGDv1BMG6J8+lakCLlb",
-	"2wFK1iWdQ31xRCfTjCMfBMctaiN8WOmv/VMtCg7h6zYi11IS31wIyfT6sNzCwTfbDInkHTHOF3YacVQx",
-	"Y1ZK897o9sPjvExnlT0XUbU99ibD9pbAf+UoQZXCWuRxl8CPHH9vuL8wBF6ewIwZA0zOJd4RVRC2GQ9+",
-	"/IrWK1SWkeLIcBlIJUcLrVYGNaSFQBnYfF+4YRkXBAdixP2ABN5juUBtclE9UpFaFQOGfKUKQnXBHVEU",
-	"0knDomTSBqejVhJ1DIyXQsZQuu1PkyH9+2mXff3XtTis+3Zm7I/5afDizjM8kc3s9WTvVMoK8v2Q930a",
-	"UWhBlxBKHjbD/X4rjmYB0VdoKPl0yz7NGCWuZo8zsjiy+8HVU4EbFve2GLzMLn17bDB3NJA/wNt27vAM",
-	"VE8cA8s4KpixH82Dp3sOVnksK+yobyDzYSsimwnMNBpK7X778O6/QUnwEj4HibeoQaOttUQOLGPiCCg7",
-	"wbg7tCeOO0obBIWS2SNRUIUpW+7olwt48+bNX4FkbSwrK2AWVrlI81B60XSlnEleIA+u21nSNsl7PXn9",
-	"n6PJX0av/nLz6vXZZHI2mfwPnf0YwG0JxB116NpX3n3/KcORVpZZikdLrcqXDEhXoaz1NI/GhakKtv4Q",
-	"TOagbT2CjhTk2YPHX7K6cINltK2HmcYlaiLffkLIH1DGsGSnCfzsJxsitCiTQ8Rna/GCUeJwZ6EZc07p",
-	"eo4+3gLTmZKvBYcFLpVGMFZplmESxS/FoL4h4X7AFRkhswJHNVFlkZGz8VD04JOh5lUI+eWw//HbDJ39",
-	"Y0VG+x6fdvxQAJvtVdZVU1NxBpTmTDpCRwbZiPRIxcSPxvUGrLvhBFdvG9RvSV6LLKPsrpHwyB26z12c",
-	"1M99Lum0IHxtzKxYVSGfy1paUbjvaSR9HdJG7j3EYUvboiX9QzrvZtDGsKUAn5OywihYIFQ+hh2P/F10",
-	"hILV073PnvzcE8OlFih5sYYwCShEJsfwARzW3kcp/lmjy4+9ZpKjhC34w0uJPkj3EZ2yzSMGst4bnwB0",
-	"xvgcYbH2JWzaqFfceqhI2MlYDlW93FH3lZtosJBL1ZRvmS/Ze7YVNS2X9+RwmZCoibbUuojOotzaypyN",
-	"x5mweb1IUlWO2S0aW2s2Do2UaKfmeo3FctTk/dPZJSxdbamsaosx/PzhOnatG3+61nG3rZ+VZpXr6Mwl",
-	"IY5ZpX8wIORSs7be4xbAu0oZNMCCE41D+jVy3IuDqfWSpZjM5VxOi2LDjAwwjdAypo83F+DVaxKggYL7",
-	"ER8/Xv5svCkXIsWQOwWxTSuW5jh6nUx2pLVarRLmvk6UzsZhrhm/u7x4++H6rZtDChW26CrgolA1h1nB",
-	"rCtFTWeXneLEWTRJXvl5qkLJKhGdRW/cRxS3bO7QNGaVGN++GrPa5r5b5hmjd/l9Nf0DtVgKNER6OUor",
-	"WGG8YiqUTqq+Q5bANVrT698xyedyiGqZ80Ca/fhOYR+5x76TpterUJJSXl9jieKmnfWT4usjGg3HNQZ6",
-	"9Zv7vtWQ09lu572eTJ5t714LYaA38U5lGXIQ8rwVbJAieX3yEv3u62jTfh3aNgweb/q0bs8fJ6/2zWhv",
-	"Pu41eVwnBNNaC7uOzn7/FEemLkum1/7MIKSnYKEdJzl0ww3LXBZB60WfaKltTKra7gflFd6qL7iDNqB8",
-	"bL3F1oUEYQ0sWSmKtaP/MvSD53J7fjMzCDiBS45lpWzL5ncgScd8MUx2SnH3uz3l5wThdvFnPw5V7Rt+",
-	"zw+YpiLfNlK9Yg6jxZOLDAeBsnEzIXqTp1kKDMEWt4wKlHY5/46u/472wh/M8aAX1EVo+g02YxvZeILw",
-	"dDW0gg93GvDBu3J3ESTNB+iRyxtMj7mRPY2VbpK+8L+W58O0/dtnAkihwvlcs01kE5g2GU7g38HeKPx0",
-	"qfhcbpxN26MmHt5h556Nh1kNBe+r2l9nW9vPb+Hb6dZ3Djz7cOaPxX1KI9F3mPyzhgC5yWHIdR68PANK",
-	"/ZF63oEO9YOBSqulKPCwk2jQNqI8yI4DAPaHmAufo4UYs0m/3fQQWghnpmE9JKkNvG/8J3PZolwYoo8o",
-	"M5uPQnexEXKTD4ZlUyYJuAvazFWkBjAayty90vcLwfSh8vp3huwRYarNfp2ingbYBwLVlVd/p2QRCk3Q",
-	"FPgfh0O9KbUM49CVJjbZSweDrppgVSe2+Q5n8yLKv3xKKKtZsbVpKffryQROpNqMk3UZoHU6BLUglu8B",
-	"td7jiz8ftrzyfRxxDYETpWGlasrc0X1ymhxAj38+xqAPA6fLI7ATekMj5ppDPqcyR5GflBWFc5hSyZF2",
-	"9JlDsx749TyEzS73eSeMHehLmW9lQUeVN4YaYrt1jmG21Fx6Nr0xz0KXSBJDYYg2GCRMgzb9XkjHXWbT",
-	"m837wc07O98UaooXQq99ONFs1aQ0hshS6DrhHUttsQYlU4TQYG7u4t58noN7cEtJUM5M7gOR0nviyr43",
-	"ZC9k8QffrB3lBV49X7AbQtswuijgkwZPOoqRaVFz5Kf/KqJ0aUyN5F6GLPupDmb81f17ye89lAu0LuPq",
-	"I+dn9/kwciqmWYnWFSl+/xoJ6YrPNm8aoWdR2CHa1nX3aeehNw+f/tXRwXnVp/oZmvTj4UntI+K+4v3m",
-	"T9d8qHwcyYdDMwH5Vq3lxPWjPKVtsmlyQae+FigIneT4yHSUbN2VoXzRF2gSuMKaqA5dReOtULUp1r7b",
-	"ijz8AAB0p/6zylXRzHY+s5vUnzgGDRwthhekoSjpI+OPk1fDjMcL42Vc3lZX+4UrO4fKi+E0lIqQVv70",
-	"pcUrh4RuF/94iPtG+gMYd8GIAOr4tCf2ctNEbik/xdF4uwIeQ4PvturdmAVRPGYa4Z76zgY2zP7WldjT",
-	"TTfRxXtaJETxbrG8ScjPh4pXnRqm991z2XyjabAF1ScIw+gPcnop+PffM3znAH/IHqYhKwoPcl646P4E",
-	"gvDXw1PaX9w8nIt4PQR37BAfUsJjbMmg5KMucveb1WXj9r1NuEnrkU+jNoWUYA5Nn5wCwQb1FCE6BrHK",
-	"0f1aTGlX4uv13hszR+6y3MPZLd3kH92L/L/MbbsS+LYUl+TZUcmOdzuMri5CHl+h85Byk5EDswERXufu",
-	"PrfCuegdCDt2ACXTXzYdgx9M7x7DWZMT3vpteFLwEuh5fE70XdHzti+i5666harj5qVTD1SH438l/GPI",
-	"B8skDCols4Ef9Pk3ke27gARmWt0G3P1WoZzOLudyNK8nkzcIilVilCqOGUpoPvxFLFBDJSoshHQvDVfu",
-	"IZSzFPJRPIG3JWXoTM4lrXmDBZZo9RqsZimCqZgcQt6MbvaCuncvT4fKrEpmBxwBZSkjq0UFlVYLdO87",
-	"SGTT2WUrio7WqvCiIWgub39lcrC2tfXjEbike3Pkbkel0xyd9SvtayqFYnwuF6xgMkVtzv3PdqDS4lYU",
-	"mHm1VEoM93z/jjb8AOYFpR52GJD7dbirMOG6a2ds/zF583yBat+vJDt7Nz/IeRgC1z3FeBjs0bhbhezM",
-	"Vwi2NmYljpQWmXBcWt8iRaNchDjDmckXimnufjbhH9mMo/tP7U47hKT/SqhRt4ETf9IYCnGLEo2JgVyH",
-	"WzcUKtpD38dfH/4VaZOL9nu27ULOS91/uv+/AAAA///LK84jTD8AAA==",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

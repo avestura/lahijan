@@ -25,6 +25,8 @@ type CORSConfig struct {
 // optional and conditionally registered; the domain slots (tenant, auth,
 // audit, rbac) are always registered. Auth may be overridden with a real
 // resolver-backed handler (WS-06); when nil, the pass-through seam is used.
+// Tenant may be overridden with a resolver-backed handler (WS-08); when nil,
+// the pass-through seam is used.
 type Options struct {
 	// CORS, when non-nil, enables the cors middleware with the given config.
 	CORS *CORSConfig
@@ -33,6 +35,9 @@ type Options struct {
 	// Auth, when non-nil, replaces the pass-through Auth slot with a real
 	// resolver-backed handler (WS-06). Nil keeps the WS-05 pass-through.
 	Auth fiber.Handler
+	// Tenant, when non-nil, replaces the pass-through Tenant slot with a real
+	// resolver-backed handler (WS-08). Nil keeps the WS-05 pass-through.
+	Tenant fiber.Handler
 }
 
 // Apply registers the full Lahijan middleware stack on app, in the canonical
@@ -40,9 +45,10 @@ type Options struct {
 //
 //	requestid -> recover -> cors -> logger -> tenant -> auth -> audit -> rbac
 //
-// Every later handler runs after all of these. The auth slot defaults to a
-// pass-through seam and is replaced by WS-06's resolver-backed handler when
-// Options.Auth is set; audit/rbac remain pass-through seams filled by WS-08.
+// Every later handler runs after all of these. The auth and tenant slots
+// default to pass-through seams and are replaced by resolver-backed handlers
+// when Options.Auth / Options.Tenant are set; audit/rbac remain pass-through
+// seams (real enforcement is per-route via api/middleware.RequirePerm).
 func Apply(app *fiber.App, opts Options) {
 	// 1. requestid — must be first so every downstream log/audit row can carry
 	//    the request id.
@@ -68,8 +74,12 @@ func Apply(app *fiber.App, opts Options) {
 		app.Use(logger.New())
 	}
 
-	// 5. tenant (pass-through seam — WS-06/WS-08 fill in real resolution).
-	app.Use(Tenant())
+	// 5. tenant — pass-through seam, or the WS-08 resolver-backed handler.
+	if opts.Tenant != nil {
+		app.Use(opts.Tenant)
+	} else {
+		app.Use(Tenant())
+	}
 
 	// 6. auth — pass-through seam, or the WS-06 resolver-backed handler.
 	if opts.Auth != nil {
@@ -78,7 +88,8 @@ func Apply(app *fiber.App, opts Options) {
 		app.Use(Auth())
 	}
 
-	// 7-8. audit + rbac (pass-through seams, filled by WS-08).
+	// 7-8. audit + rbac (pass-through seams; per-route RequirePerm does the
+	//      real enforcement).
 	app.Use(Audit())
 	app.Use(RBAC())
 }

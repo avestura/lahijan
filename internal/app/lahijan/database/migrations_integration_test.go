@@ -56,7 +56,6 @@ func TestMigrations_UpThenDownThenUp_AppliesCleanly(t *testing.T) {
 	srcErr, dbErr := m.Close()
 	require.NoError(t, srcErr)
 	require.NoError(t, dbErr)
-	require.Equal(t, uint(6), v, "all six base migrations should be applied")
 
 	// 2) Down all.
 	m, err = migrate.NewWithSourceInstance("iofs", src, dsn)
@@ -75,5 +74,11 @@ func TestMigrations_UpThenDownThenUp_AppliesCleanly(t *testing.T) {
 	srcErr, dbErr = m.Close()
 	require.NoError(t, srcErr)
 	require.NoError(t, dbErr)
-	assert.Equal(t, uint(6), v2, "re-up should reach the same version")
+	assert.Equal(t, v, v2, "re-up should reach the same version as the first up")
+	// Sanity-check the version is at least the highest base migration number
+	// present in the migrations directory. We don't hard-code the absolute
+	// count here (it grows each WS); the equality above already proves
+	// reversibility, and this just guards against a migration file that
+	// forgets to bump the sequence.
+	assert.GreaterOrEqual(t, v, uint(10), "expected at least migration 0010 by WS-08")
 }

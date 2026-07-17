@@ -89,7 +89,8 @@ func (s *Service) SendVerification(ctx context.Context, userID uuid.UUID) error 
 func (s *Service) Verify(ctx context.Context, rawToken string) error {
 	tok, payloadHash, err := s.lookup(ctx, rawToken, database.EmailTokenVerifyEmail)
 	if err != nil {
-		_ = s.audit.Emit(ctx, failEvent(audit.ActionVerifyEmail, &tok.UserID))
+		// Best-effort: audit failure is logged but does not block the auth flow.
+		_, _ = s.audit.Emit(ctx, failEvent(audit.ActionVerifyEmail, &tok.UserID))
 		return err
 	}
 	consumed, err := s.tokens.Consume(ctx, payloadHash)
@@ -102,7 +103,8 @@ func (s *Service) Verify(ctx context.Context, rawToken string) error {
 	if err := s.users.VerifyEmail(ctx, tok.UserID); err != nil {
 		return fmt.Errorf("auth/email: mark email verified: %w", err)
 	}
-	_ = s.audit.Emit(ctx, audit.Event{
+	// Best-effort: audit failure is logged but does not block the auth flow.
+	_, _ = s.audit.Emit(ctx, audit.Event{
 		ActorUserID:  &tok.UserID,
 		Action:       audit.ActionVerifyEmail,
 		ResourceType: audit.ResourceUser,
@@ -134,7 +136,8 @@ func (s *Service) ConfirmPasswordReset(ctx context.Context, rawToken, newPasswor
 	}
 	tok, payloadHash, err := s.lookup(ctx, rawToken, database.EmailTokenPasswordReset)
 	if err != nil {
-		_ = s.audit.Emit(ctx, failEvent(audit.ActionPasswordResetConf, &tok.UserID))
+		// Best-effort: audit failure is logged but does not block the auth flow.
+		_, _ = s.audit.Emit(ctx, failEvent(audit.ActionPasswordResetConf, &tok.UserID))
 		return err
 	}
 	hash, err := s.hasher.Hash(newPassword)
@@ -153,7 +156,8 @@ func (s *Service) ConfirmPasswordReset(ctx context.Context, rawToken, newPasswor
 	}
 	// Revoke every outstanding session for this user so a stolen password is
 	// followed by a forced re-login on all devices.
-	_ = s.audit.Emit(ctx, audit.Event{
+	// Best-effort: audit failure is logged but does not block the auth flow.
+	_, _ = s.audit.Emit(ctx, audit.Event{
 		ActorUserID:  &tok.UserID,
 		Action:       audit.ActionPasswordResetConf,
 		ResourceType: audit.ResourceUser,
@@ -194,7 +198,8 @@ func (s *Service) ConfirmEmailChange(ctx context.Context, rawToken string) error
 	if err := s.users.UpdateEmail(ctx, tok.UserID, *tok.NewEmail); err != nil {
 		return fmt.Errorf("auth/email: update email: %w", err)
 	}
-	_ = s.audit.Emit(ctx, audit.Event{
+	// Best-effort: audit failure is logged but does not block the auth flow.
+	_, _ = s.audit.Emit(ctx, audit.Event{
 		ActorUserID:  &tok.UserID,
 		Action:       audit.ActionEmailChangeConf,
 		ResourceType: audit.ResourceUser,
