@@ -44,7 +44,7 @@ The ws-implementer subagent (`.opencode/agent/ws-implementer.md`) and the
 | [WS-07a](./WS-07a-external-idps-oauth-oidc.md) | External IdPs: OAuth + OIDC | pending | WS-06 |
 | [WS-07b](./WS-07b-external-idps-saml.md) | External IdPs: SAML 2.0 | pending | WS-06 |
 | [WS-07c](./WS-07c-mfa.md) | Multi-Factor Auth | pending | WS-06 |
-| [WS-08](./WS-08-rbac-audit-log.md) | RBAC + Audit Log | pending | WS-06 |
+| [WS-08](./WS-08-rbac-audit-log.md) | RBAC + Audit Log | done | WS-06 |
 
 ## Phase 2 — Platform Services
 
