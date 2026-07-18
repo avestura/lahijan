@@ -68,6 +68,29 @@ services:
       retries: 6
       start_period: 5s
 
+  # Incus client sidecar (WS-11). In dev Lahijan runs on the host and connects
+  # to the host's Incus socket directly, so this service is gated behind a
+  # compose profile and only brought up when an operator wants to validate the
+  # prod-style mount from inside a container. Enable with:
+  #   docker compose --profile incus up -d
+  # The host MUST have Incus installed and the socket at INCUS_SOCKET_PATH.
+  incus-client:
+    image: ghcr.io/lxc/incus:6.0
+    container_name: lahijan-incus-client-dev
+    profiles: ["incus"]
+    restart: unless-stopped
+    volumes:
+      # Mount the host's Incus socket dir read-only. The Lahijan container
+      # (when run under compose) bind-mounts the same path.
+      - "${INCUS_SOCKET_PATH:-/var/lib/incus}:/var/lib/incus:ro"
+    command: ["sleep", "infinity"]
+    healthcheck:
+      test: ["CMD", "test", "-S", "/var/lib/incus/unix.socket"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 5s
+
 volumes:
   postgres_data:
     name: lahijan-postgres-data-dev
