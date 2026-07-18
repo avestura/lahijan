@@ -20,18 +20,25 @@ type TopicPattern string
 //	pattern "dns.record.*",       topic "dns.record"         -> false
 //	pattern "dns.record.*",       topic "dns.zone.created"   -> false
 //	pattern "*",                  topic "anything"           -> true
-//	pattern "*",                  topic "dns.record.created" -> false
+//	pattern "*",                  topic "dns.record.created" -> true (bare * = match-all)
 //	pattern "dns.*",              topic "dns.record.created" -> false
 //
-// The last two cases are deliberate: "scope.*" (a single segment
-// followed by ".*") is supported, but a bare "*" matches only a bare
-// topic, and "dns.*" matches only direct children (dns.record) — not
-// grand-children. This matches the permission slug semantics so a grant
-// the admin sees is the grant the plugin gets.
+// The bare "*" pattern is special-cased to match every topic so the
+// EventService can register a single listener that receives every
+// event for downstream dispatch to per-plugin subscriptions.
+//
+// "scope.*" (a single segment followed by ".*") matches only direct
+// children (dns.record) — not grand-children. This matches the
+// permission slug semantics so a grant the admin sees is the grant the
+// plugin gets.
 func (p TopicPattern) Matches(topic string) bool {
 	pat := string(p)
 	if pat == "" {
 		return false
+	}
+	// Bare "*" matches every topic.
+	if pat == "*" {
+		return true
 	}
 	// Exact match.
 	if pat == topic {

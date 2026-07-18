@@ -49,10 +49,12 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/jobs"
 	notifyemail "github.com/avestura/lahijan/internal/app/lahijan/notify/email"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/eventbus"
+	"github.com/avestura/lahijan/internal/app/lahijan/wasm/eventservice"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/hostfuncs"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/installer"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/permission"
 	wasmruntime "github.com/avestura/lahijan/internal/app/lahijan/wasm/runtime"
+	wasmworker "github.com/avestura/lahijan/internal/app/lahijan/wasm/worker"
 	"github.com/gofiber/fiber/v2"
 	fiberlog "github.com/gofiber/fiber/v2/log"
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
@@ -181,6 +183,21 @@ func Start() error {
 				fiberlog.Error("wasm runtime close: %s", err.Error())
 			}
 		}()
+	}
+
+	// WS-10b: register the wasm.plugin.invoke River worker when both
+	// wasm + jobs are enabled. The worker is the durable side of
+	// jobs.schedule and async event delivery; without it, plugin-queued
+	// jobs would sit in the queue forever. The EventService wires the
+	// in-process bus to the subscription table; it enqueues a job per
+	// matched subscription at emit time.
+	if wasmDeps.runtime != nil && jobDeps.registry != nil && jobDeps.client != nil {
+		registerPluginInvokeWorker(jobDeps.registry, wasmDeps.runtime, authDeps.repos.Plugins)
+		eventSvc := eventservice.New(wasmDeps.bus, authDeps.repos.PluginSubscriptions, jobDeps.client, slog.Default())
+		if err := eventSvc.Start(context.Background()); err != nil {
+			log.Fatalf("failed to start event service: %s", err.Error())
+		}
+		defer eventSvc.Stop()
 	}
 
 	// Flip the idp service's JIT toggle from config. The toggle is
@@ -823,6 +840,12 @@ type jobDeps struct {
 // the api handlers degrade cleanly. The supervisor is returned WITHOUT
 // having been started — program.Start starts it in the background so
 // bootstrap is not blocked on leadership election.
+//
+// WS-10b: the wasm.plugin.invoke worker is registered when both jobs and
+// wasm are enabled. The worker resolves plugin ids to compiled modules
+// via the installer; that resolver is wired in buildWasmDeps AFTER the
+// jobs deps return, so we leave the registration slot empty here and
+// program.Start calls registerPluginInvokeWorker once both deps exist.
 func buildJobDeps(_ context.Context, _ *database.Repos) (jobDeps, error) {
 	if !conf.GetJobsEnabled() {
 		fiberlog.Debug("jobs subsystem is disabled; skipping river client setup")
@@ -912,6 +935,41 @@ func mountJobsAdminUI(app *fiber.App, client *jobs.Client, policy middleware.Pol
 	app.Use(prefix, gate, httpHandler)
 	fiberlog.Info("jobs admin ui mounted", "path", prefix)
 	return nil
+}
+
+// registerPluginInvokeWorker registers the WS-10b wasm.plugin.invoke
+// worker on the River registry. The worker resolves plugin_id ->
+// compiled-module hash by reading the plugins table via the
+// PluginsRepository; the hash is the sha256 of the wasm bytes the
+// installer stored at upload time. Called from Start AFTER both
+// jobDeps and wasmDeps are built, so the worker closes over both.
+//
+// The hash lookup uses the plugins table's wasm_hash column directly;
+// the runtime's Compile step is idempotent on hash, so the worker's
+// instantiation succeeds whether the module was compiled at upload
+// time (warm) or at first invoke (cold).
+func registerPluginInvokeWorker(
+	registry *jobs.Registry,
+	rt *wasmruntime.Runtime,
+	plugins *database.PluginsRepository,
+) {
+	if registry == nil || rt == nil || plugins == nil {
+		return
+	}
+	resolver := func(ctx context.Context, pluginID uuid.UUID) (string, error) {
+		row, err := plugins.Get(ctx, pluginID)
+		if err != nil {
+			return "", err
+		}
+		return row.WasmHash, nil
+	}
+	jobs.Register(registry, hostfuncs.PluginInvokeArgs{},
+		wasmworker.NewPluginInvokeWorker(rt, slog.Default(), resolver),
+		jobs.KindSpec{
+			Queue:       "plugins",
+			Description: "Invoke a WASM plugin export on behalf of jobs.schedule or events delivery.",
+			Tags:        []string{"wasm", "plugins"},
+		})
 }
 
 // wasmDeps bundles the WS-10a/WS-10b WASM plugin subsystem dependencies

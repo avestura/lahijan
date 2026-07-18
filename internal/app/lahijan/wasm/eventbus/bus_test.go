@@ -31,8 +31,8 @@ func TestTopicPattern_Matches(t *testing.T) {
 		{"prefix wildcard different parent", "dns.record.*", "dns.zone.created", false},
 		{"scope wildcard matches direct child", "dns.*", "dns.record", true},
 		{"scope wildcard not grandchild", "dns.*", "dns.record.created", false},
-		{"bare star matches bare topic only", "*", "anything", false},
-		{"bare star matches nothing dotted", "*", "dns.record.created", false},
+		{"bare star matches bare topic only", "*", "anything", true},
+		{"bare star matches nothing dotted", "*", "dns.record.created", true}, // WS-10b: "*" matches every topic (used by EventService)
 		{"empty pattern", "", "anything", false},
 	}
 	for _, tc := range cases {
