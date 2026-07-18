@@ -1,7 +1,7 @@
 # WS-11 · Incus Provider
 
 ```
-Status: pending
+Status: done
 Phase: 3
 Depends on: WS-05
 Unblocks: WS-14 (compute module), WS-24 (noVNC), WS-25 (snapshots), WS-30 (public IPs)
@@ -69,26 +69,56 @@ storage pools, events, exec.
 
 ## Definition of Done
 
-- [ ] `Ping(ctx)` works against a real Incus socket
-- [ ] every Incus API surface (instances, images, profiles, devices, networks,
+- [x] `Ping(ctx)` works against a real Incus socket
+- [x] every Incus API surface (instances, images, profiles, devices, networks,
       projects, storage) is reachable through the driver
-- [ ] tenant → project mapping tested
-- [ ] restricted project defaults enforced (a tenant can't see another's
+- [x] tenant → project mapping tested
+- [x] restricted project defaults enforced (a tenant can't see another's
       instances through Incus)
-- [ ] events from Incus propagate to the event bus
-- [ ] `exec` works (round-trips a command via websocket in integration test)
-- [ ] all provider calls are traced (OTel spans)
-- [ ] `make lint test` green
+- [x] events from Incus propagate to the event bus
+- [x] `exec` works (round-trips a command via websocket in integration test)
+- [x] all provider calls are traced (OTel spans)
+- [x] `make lint test` green
 
-## Open questions
+## Resolution notes (implementation)
 
-- Library choice: `github.com/lxc/incus/client` (official). License: Apache-2.
-  (Default: use it.)
-- For dev without a real Incus daemon: do we ship a fake in compose, or do
-  tests stub it? (Default: tests stub via httptest; the real daemon is only
-  in integration / e2e.)
-- Image catalog: which images to seed as "featured"? (Default: ubuntu/24.04,
-  debian/12, alpine/3.20, fedora/40 — matches our kickoff assumptions.)
+- **Library choice (resolved via ADR-0025):** the WS doc lists
+  `github.com/lxc/incus/client` (official) as the default, but the WS-11
+  implementation ships a thin internal REST client over the Incus REST API
+  instead. The official SDK is a heavyweight dependency (large transitive
+  tree) and its connection bootstrap makes httptest fakes painful. The
+  internal client adds exactly one runtime dependency
+  (`github.com/gorilla/websocket`, BSD-2-Clause) for the events + exec
+  websockets; the rest is plain `net/http`. ADR-0025 documents the
+  decision and narrows ADR-0010's compliance bullet from "wraps the Incus
+  Go SDK" to "wraps the Incus REST API from Go."
+- **Fake Incus server (resolved per WS doc default):** tests stub via
+  httptest (`internal/app/lahijan/providers/incus/fake/server.go`). The
+  fake implements every endpoint the driver touches, plus the events +
+  exec websockets. The same fake will be reused by WS-14 (compute module)
+  unit tests; the WS-22 sandbox integration harness may swap it for a
+  richer fake if it turns out to need more coverage.
+- **Image catalog (resolved per WS doc default):** the four default
+  featured images (ubuntu/24.04, debian/12, alpine/3.20, fedora/40) are
+  seeded via `conf.providers.incus.featuredImages` and surfaced via
+  `incus.FeaturedImages(cfg)`. WS-14 renders them in the image picker.
+- **PlacementDriver abstraction (added per the WS doc notes):** the driver
+  exposes the per-instance lifecycle (CreateInstance, SetInstanceState,
+  ...) which a future `PlacementDriver` wrapper can layer scheduling on
+  top of. The MVP `LocalPlacementDriver` is implicit (the driver points
+  at one daemon); WS-26 swaps it for a `ClusterPlacementDriver` without
+  touching the compute module.
+- **Exec websocket protocol:** the implementation opens three websockets
+  per exec (stdin/stdout/stderr) using the per-fd secrets the daemon
+  returns in the operation metadata. The bytes are pumped in goroutines;
+  the operation is waited on for the exit code. The same pattern will be
+  reused by WS-14's xterm.js console (interactive, not captured) and is
+  incompatible with WS-24's noVNC (different protocol).
+- **Event listener lifecycle:** `StartEventListener` returns an
+  `*EventListener` whose `Close()` is wired into `program.Start` via
+  `defer`. The listener uses exponential backoff with jitter on
+  transient disconnects; permanent dial errors (auth failure, etc.)
+  abort the loop and log at Error.
 
 ## Notes
 

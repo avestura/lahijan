@@ -180,8 +180,8 @@ func Start() error {
 		defer func() {
 			stopCtx, stopCancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer stopCancel()
-			if err := wasmDeps.runtime.Close(stopCtx); err != nil {
-				fiberlog.Error("wasm runtime close: %s", err.Error())
+			if closeErr := wasmDeps.runtime.Close(stopCtx); closeErr != nil {
+				fiberlog.Error("wasm runtime close: %s", closeErr.Error())
 			}
 		}()
 	}
@@ -195,8 +195,8 @@ func Start() error {
 	if wasmDeps.runtime != nil && jobDeps.registry != nil && jobDeps.client != nil {
 		registerPluginInvokeWorker(jobDeps.registry, wasmDeps.runtime, authDeps.repos.Plugins)
 		eventSvc := eventservice.New(wasmDeps.bus, authDeps.repos.PluginSubscriptions, jobDeps.client, slog.Default())
-		if err := eventSvc.Start(context.Background()); err != nil {
-			log.Fatalf("failed to start event service: %s", err.Error())
+		if startErr := eventSvc.Start(context.Background()); startErr != nil {
+			log.Fatalf("failed to start event service: %s", startErr.Error())
 		}
 		defer eventSvc.Stop()
 	}
@@ -205,6 +205,19 @@ func Start() error {
 	// process-wide today (not per-provider); a future WS can move it onto
 	// the per-provider struct if granular control is needed.
 	idp.SetJITEnabled(conf.GetAuthSAMLJITEnabled())
+
+	// WS-11: build the Incus driver (providers/incus/*). Returns a zero-value
+	// incusDeps when providers.incus.enabled is false; the compute module
+	// (WS-14) degrades to 501 in that case. Built AFTER wasmDeps so the
+	// events listener can fan into the WASM event bus when both subsystems
+	// are enabled.
+	incusDeps, err := buildIncusDeps(context.Background(), wasmDeps.bus)
+	if err != nil {
+		log.Fatalf("failed to build incus deps: %s", err.Error())
+	}
+	if incusDeps.listener != nil {
+		defer func() { _ = incusDeps.listener.Close() }()
+	}
 
 	// Seed the RBAC catalog (permissions + default roles + grants). Idempotent
 	// so it is safe to run on every bootstrap. Fail-fast on error: without the

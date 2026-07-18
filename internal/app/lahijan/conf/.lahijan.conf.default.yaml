@@ -375,3 +375,71 @@ wasm:
     # watches the file's mtime and re-reads on change; the HTTP loader only
     # re-fetches on TTL expiry.
     cacheTtlSeconds: 60
+
+# Infrastructure providers (WS-11..13). Each driver is wired ONLY when its
+# top-level `enabled` flag is true; otherwise program.Start skips building the
+# driver and the consuming module degrades to 501 "feature disabled" envelopes.
+# Per ADR-0025 the Incus driver is a thin internal REST client over the Incus
+# REST API (no upstream SDK dependency).
+providers:
+  # Incus compute backend (WS-11). In dev the daemon lives on the host; the
+  # Lahijan app talks to it over the Unix socket at socketPath. In prod the
+  # incus-client sidecar container mounts the host socket (see
+  # deployments/incus/preseed.yaml).
+  incus:
+    # toggles the Incus driver. When false, program.Start skips building it
+    # and the compute module (WS-14) degrades to 501.
+    enabled: false
+    # Unix socket path to the Incus daemon. Empty disables Unix-socket mode
+    # and the driver uses remoteURL (HTTPS) instead.
+    socketPath: "/var/snap/incus/common/incus/unix.socket"
+    # Optional HTTPS remote Incus endpoint (e.g. https://incus.lan:8443).
+    # Empty in dev (Unix socket wins). Set this + clientCert/clientKey for
+    # remote-daemon deployments.
+    remoteURL: ""
+    # Per-request timeout in seconds for Incus REST calls. Long-running
+    # operations (image copy, snapshot) use an async wait via the operations
+    # endpoint instead of a long blocking HTTP call.
+    requestTimeoutSeconds: 30
+    # Tenant -> Incus project name prefix. The full project name is
+    # "<prefix><tenant-uuid>". The default "lahijan-tenant-" matches ADR-0010.
+    projectPrefix: "lahijan-tenant-"
+    # Project features turned on at tenant bootstrap. See Incus docs on
+    # "Projects" — these flags isolate images, profiles, networks, and
+    # storage objects per tenant inside the Incus daemon.
+    projectFeatures:
+      images: true
+      profiles: true
+      networks: true
+      storageVolumes: true
+      storageBuckets: true
+    # Featured image aliases advertised by the compute module's image catalog
+    # (WS-14). These are the images Incus is expected to have available via
+    # its image server; Lahijan does not host them itself.
+    featuredImages:
+      - "ubuntu/24.04"
+      - "debian/12"
+      - "alpine/3.20"
+      - "fedora/40"
+    # Events stream (websocket /1.0/events). When enabled, the driver opens
+    # a long-lived websocket to Incus and fans events into the WASM event
+    # bus (see internal/app/lahijan/wasm/eventbus). Disable for dev runs
+    # that do not have a real daemon (the driver then skips the listener).
+    events:
+      enabled: true
+      # backoff cap between reconnect attempts (seconds). The driver uses
+      # exponential backoff with jitter; this is the upper bound.
+      maxReconnectSeconds: 30
+      # maximum event payload bytes accepted from the daemon. Larger events
+      # are dropped (with a warn log) to prevent a misbehaving daemon from
+      # exhausting process memory.
+      maxPayloadBytes: 1048576
+    # mTLS material for HTTPS remote Incus. All four are PEM-encoded. Leave
+    # empty for Unix-socket mode (the daemon trusts the local uid).
+    tls:
+      serverCert: ""
+      clientCert: ""
+      clientKey: ""
+      # set to true to skip server cert verification (dev only; never true
+      # in prod). Used when pointing at a daemon with a self-signed cert.
+      insecureSkipVerify: false

@@ -1,0 +1,91 @@
+// Package incus: operations.go wraps the Incus async-operations API. Long-
+// running calls (instance create, image copy, snapshot) return an Operation
+// URL; the client polls GetOperation / WaitOperation until it terminates.
+package incus
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"time"
+)
+
+// GetOperation fetches the current state of an async operation.
+func (p *Provider) GetOperation(ctx context.Context, opID string) (*Operation, error) {
+	ctx, span := startSpan(ctx, "operation.get")
+	defer span.End()
+	raw, err := p.do(ctx, "GET", "operations/"+opID, nil)
+	if err != nil {
+		setStatus(span, err)
+		return nil, err
+	}
+	var op Operation
+	if err := json.Unmarshal(raw, &op); err != nil {
+		setStatus(span, err)
+		return nil, fmt.Errorf("incus: decode operation: %w", err)
+	}
+	setStatus(span, nil)
+	return &op, nil
+}
+
+// WaitOperation blocks until the operation terminates (success, failure, or
+// cancel). Uses the Incus wait endpoint with a generous internal timeout; the
+// caller's context still applies for cancellation.
+//
+// The Incus REST API: GET /1.0/operations/<uuid>/wait?timeout=<secs>. Returns
+// the final Operation state.
+func (p *Provider) WaitOperation(ctx context.Context, opID string) (*Operation, error) {
+	ctx, span := startSpan(ctx, "operation.wait",
+		opIDAttr(opID))
+	defer span.End()
+
+	// Compute a wait timeout from the caller's deadline (if any). Fall back
+	// to 5 minutes when the caller has no deadline — Incus-side timeouts
+	// typically fire first.
+	waitSecs := 300
+	if dl, ok := ctx.Deadline(); ok {
+		// Reserve a small grace period so the wait returns before the caller
+		// context expires; the daemon-side wait then surfaces a useful
+		// timeout instead of a client-side cancellation.
+		if d := time.Until(dl) - 2*time.Second; d > 0 {
+			waitSecs = int(d.Seconds())
+		}
+	}
+
+	path := fmt.Sprintf("operations/%s/wait?timeout=%d", opID, waitSecs)
+	raw, err := p.do(ctx, "GET", path, nil)
+	if err != nil {
+		setStatus(span, err)
+		return nil, err
+	}
+
+	// WaitOperation returns a Response whose Metadata is the Operation. Some
+	// Incus versions wrap an extra Response envelope around it.
+	var op Operation
+	if err := json.Unmarshal(raw, &op); err == nil && op.ID != "" {
+		setStatus(span, nil)
+		return &op, nil
+	}
+	// Fall back: try to unwrap a nested envelope.
+	var inner Response
+	if err := json.Unmarshal(raw, &inner); err == nil && inner.Metadata != nil {
+		if err := json.Unmarshal(inner.Metadata, &op); err == nil && op.ID != "" {
+			setStatus(span, nil)
+			return &op, nil
+		}
+	}
+	setStatus(span, nil)
+	return &op, nil
+}
+
+// CancelOperation requests that the daemon cancel a running async operation.
+// The daemon may not honour the request for operations that have already
+// passed the point of no return (e.g. an in-flight migration); the returned
+// Operation reflects the post-cancel state.
+func (p *Provider) CancelOperation(ctx context.Context, opID string) error {
+	ctx, span := startSpan(ctx, "operation.cancel", opIDAttr(opID))
+	defer span.End()
+	_, err := p.do(ctx, "DELETE", "operations/"+opID, nil)
+	setStatus(span, err)
+	return err
+}

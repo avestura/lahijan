@@ -633,3 +633,102 @@ func GetWasmMarketplaceURL() string {
 func GetWasmMarketplaceCacheTTL() int {
 	return viper.GetInt("wasm.marketplace.cacheTtlSeconds")
 }
+
+// ---------------------------------------------------------------------------
+// Infrastructure providers (WS-11..13). Getters under providers.<name>.*.
+// ---------------------------------------------------------------------------
+
+// GetProvidersIncusEnabled reports whether the Incus compute driver (WS-11)
+// is wired into this process. When false, program.Start skips building the
+// driver and the compute module degrades to 501 "feature disabled".
+func GetProvidersIncusEnabled() bool {
+	return viper.GetBool("providers.incus.enabled")
+}
+
+// GetProvidersIncusSocketPath returns the Incus daemon Unix socket path.
+// Empty means "use the HTTPS remote URL instead".
+func GetProvidersIncusSocketPath() string {
+	return viper.GetString("providers.incus.socketPath")
+}
+
+// GetProvidersIncusRemoteURL returns the optional HTTPS remote Incus URL.
+// Empty in dev (Unix socket wins).
+func GetProvidersIncusRemoteURL() string {
+	return viper.GetString("providers.incus.remoteURL")
+}
+
+// GetProvidersIncusRequestTimeoutSeconds returns the per-REST-call timeout.
+func GetProvidersIncusRequestTimeoutSeconds() int {
+	return viper.GetInt("providers.incus.requestTimeoutSeconds")
+}
+
+// GetProvidersIncusProjectPrefix returns the prefix prepended to the tenant
+// UUID to form the Incus project name. Default "lahijan-tenant-".
+func GetProvidersIncusProjectPrefix() string {
+	return viper.GetString("providers.incus.projectPrefix")
+}
+
+// IncusProjectFeatures carries the project-feature flags applied at tenant
+// bootstrap. Each isolates a resource class inside the per-tenant Incus
+// project.
+type IncusProjectFeatures struct {
+	Images         bool
+	Profiles       bool
+	Networks       bool
+	StorageVolumes bool
+	StorageBuckets bool
+}
+
+// GetProvidersIncusProjectFeatures returns the project-feature flags.
+func GetProvidersIncusProjectFeatures() IncusProjectFeatures {
+	return IncusProjectFeatures{
+		Images:         viper.GetBool("providers.incus.projectFeatures.images"),
+		Profiles:       viper.GetBool("providers.incus.projectFeatures.profiles"),
+		Networks:       viper.GetBool("providers.incus.projectFeatures.networks"),
+		StorageVolumes: viper.GetBool("providers.incus.projectFeatures.storageVolumes"),
+		StorageBuckets: viper.GetBool("providers.incus.projectFeatures.storageBuckets"),
+	}
+}
+
+// GetProvidersIncusFeaturedImages returns the list of image aliases
+// advertised as "featured" by the compute module's image catalog.
+func GetProvidersIncusFeaturedImages() []string {
+	return viper.GetStringSlice("providers.incus.featuredImages")
+}
+
+// GetProvidersIncusEventsEnabled reports whether the events listener should
+// start at bootstrap. Disable for dev runs that do not have a real daemon.
+func GetProvidersIncusEventsEnabled() bool {
+	return viper.GetBool("providers.incus.events.enabled")
+}
+
+// GetProvidersIncusEventsMaxReconnectSeconds returns the upper bound on the
+// reconnect backoff applied by the events listener.
+func GetProvidersIncusEventsMaxReconnectSeconds() int {
+	return viper.GetInt("providers.incus.events.maxReconnectSeconds")
+}
+
+// GetProvidersIncusEventsMaxPayloadBytes returns the cap on a single event
+// payload received from the Incus daemon. Larger events are dropped.
+func GetProvidersIncusEventsMaxPayloadBytes() int {
+	return viper.GetInt("providers.incus.events.maxPayloadBytes")
+}
+
+// IncusTLSConfig carries the mTLS material for HTTPS remote Incus.
+type IncusTLSConfig struct {
+	ServerCert         string
+	ClientCert         string
+	ClientKey          string
+	InsecureSkipVerify bool
+}
+
+// GetProvidersIncusTLS returns the mTLS material for HTTPS remote Incus.
+// All four fields are empty in Unix-socket mode.
+func GetProvidersIncusTLS() IncusTLSConfig {
+	return IncusTLSConfig{
+		ServerCert:         viper.GetString("providers.incus.tls.serverCert"),
+		ClientCert:         viper.GetString("providers.incus.tls.clientCert"),
+		ClientKey:          viper.GetString("providers.incus.tls.clientKey"),
+		InsecureSkipVerify: viper.GetBool("providers.incus.tls.insecureSkipVerify"),
+	}
+}
