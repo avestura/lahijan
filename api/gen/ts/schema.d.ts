@@ -929,6 +929,158 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/plugins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List installed plugins
+         * @description Returns a paginated list of plugins visible to the caller. A
+         *     platform.admin sees every plugin across every tenant; a tenant
+         *     admin sees their tenant's plugins plus every platform-wide plugin
+         *     (tenant_id IS NULL).
+         */
+        get: operations["listAdminPlugins"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload a new plugin (.wasm + manifest)
+         * @description Accepts multipart/form-data with two parts:
+         *
+         *       * `wasm`     — the compiled .wasm bytes (binary).
+         *       * `manifest` — the lahijan.manifest.yaml text.
+         *
+         *     The server parses + validates the manifest, compiles the wasm bytes
+         *     under the configured memory cap (rejecting modules that declare more
+         *     memory than `wasm.max_memory_per_plugin`), persists a new plugin row
+         *     in "pending" status, and emits an audit event. The plugin is NOT
+         *     active after upload; the admin must grant at least one permission
+         *     (or call /enable directly when no permissions are needed) before
+         *     the runtime will instantiate it.
+         */
+        post: operations["uploadAdminPlugin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/{pluginId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fetch a single plugin by id
+         * @description Returns the full plugin row including the parsed manifest and the
+         *     list of granted permissions. The wasm bytes are NOT included (they
+         *     can be very large); a separate download endpoint will land in a
+         *     follow-up WS if needed.
+         */
+        get: operations["getAdminPlugin"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a plugin
+         * @description Hard-deletes the plugin row and its grants (CASCADE). Active
+         *     instances are cancelled at the next host-call boundary. Emits an
+         *     audit event (action: plugins.delete).
+         */
+        delete: operations["deleteAdminPlugin"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/{pluginId}/permissions/{permission}/{action}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Grant or revoke a single permission on a plugin
+         * @description {action} is one of `grant` | `revoke`. The {permission} path
+         *     segment is the slug (e.g. `kv.read:cache`); URL-encode the `:`
+         *     separator as `%3A` if your client does not do so automatically.
+         *     Grants are idempotent; revokes are no-ops when the slug is not
+         *     held. Every call emits an audit event (action: plugins.grant |
+         *     plugins.revoke) carrying the permission slug in metadata.
+         */
+        post: operations["setAdminPluginPermission"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/{pluginId}/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enable a plugin
+         * @description Flips the plugin's status from "pending" or "disabled" to "active".
+         *     The runtime may now instantiate it on demand. Emits an audit event
+         *     (action: plugins.enable).
+         */
+        post: operations["enableAdminPlugin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/{pluginId}/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Disable a plugin
+         * @description Flips the plugin's status to "disabled". Grants persist; calling
+         *     /enable picks them back up. Emits an audit event (action:
+         *     plugins.disable).
+         */
+        post: operations["disableAdminPlugin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1256,6 +1408,47 @@ export interface components {
         };
         AdminJobPage: {
             items: components["schemas"]["AdminJob"][];
+            /** Format: int64 */
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        AdminPlugin: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: uuid
+             * @description NULL for platform-wide plugins.
+             */
+            tenantId?: string | null;
+            name: string;
+            version: string;
+            description?: string;
+            /** @description sha256 hex of wasmBytes; surfaced in the admin UI. */
+            wasmHash: string;
+            /**
+             * Format: int64
+             * @description Size of the stored .wasm bytes.
+             */
+            wasmSize: number;
+            /**
+             * @description The parsed lahijan.manifest.yaml kept verbatim. Shape documented
+             *     in internal/app/lahijan/wasm/manifest/manifest.go.
+             */
+            manifest?: {
+                [key: string]: unknown;
+            };
+            /** @description Granted permission slugs (admin-approved at install). */
+            permissions?: string[];
+            /** @enum {string} */
+            status: "pending" | "active" | "disabled";
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        AdminPluginPage: {
+            items: components["schemas"]["AdminPlugin"][];
             /** Format: int64 */
             total: number;
             limit: number;
@@ -2689,6 +2882,211 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+        };
+    };
+    listAdminPlugins: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of items to return (1..200). */
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Number of items to skip for pagination. */
+                offset?: components["parameters"]["PageOffset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of plugins. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPluginPage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    uploadAdminPlugin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    wasm: string;
+                    manifest: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The plugin was uploaded; the new row is returned. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPlugin"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description A plugin with this (name, version) already exists. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The .wasm module exceeds the configured max upload size. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAdminPlugin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pluginId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The plugin row + grants. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPlugin"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteAdminPlugin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pluginId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setAdminPluginPermission: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pluginId: string;
+                /** @description The permission slug (e.g. "kv.read:cache"). */
+                permission: string;
+                action: "grant" | "revoke";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The grant/revoke was applied; the updated grant list is returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    enableAdminPlugin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pluginId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The plugin was enabled; the updated row is returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPlugin"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    disableAdminPlugin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pluginId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The plugin was disabled; the updated row is returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPlugin"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
 }

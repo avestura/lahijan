@@ -1307,6 +1307,225 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
 
+  # -------------------------------------------------------------------------
+  # Admin: plugin system (WS-10a). Platform-admin-only endpoints for
+  # uploading, listing, inspecting, granting, enabling, disabling, and
+  # deleting WASM plugins. Every state-changing action emits an audit event
+  # (action: plugins.upload | plugins.grant | plugins.revoke | plugins.enable
+  # | plugins.disable | plugins.delete). The runtime itself (instantiation)
+  # is gated behind conf.wasm.enabled; when the runtime is disabled these
+  # endpoints still work (the plugin row is persisted in "pending") and the
+  # runtime will compile on first instantiation after the operator turns
+  # wasm.enabled on.
+  # -------------------------------------------------------------------------
+
+  /api/v1/admin/plugins:
+    get:
+      tags: [admin]
+      operationId: listAdminPlugins
+      summary: List installed plugins
+      description: |
+        Returns a paginated list of plugins visible to the caller. A
+        platform.admin sees every plugin across every tenant; a tenant
+        admin sees their tenant's plugins plus every platform-wide plugin
+        (tenant_id IS NULL).
+      parameters:
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+      responses:
+        "200":
+          description: A page of plugins.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminPluginPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/v1/admin/plugins/upload:
+    post:
+      tags: [admin]
+      operationId: uploadAdminPlugin
+      summary: Upload a new plugin (.wasm + manifest)
+      description: |
+        Accepts multipart/form-data with two parts:
+
+          * `wasm`     — the compiled .wasm bytes (binary).
+          * `manifest` — the lahijan.manifest.yaml text.
+
+        The server parses + validates the manifest, compiles the wasm bytes
+        under the configured memory cap (rejecting modules that declare more
+        memory than `wasm.max_memory_per_plugin`), persists a new plugin row
+        in "pending" status, and emits an audit event. The plugin is NOT
+        active after upload; the admin must grant at least one permission
+        (or call /enable directly when no permissions are needed) before
+        the runtime will instantiate it.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [wasm, manifest]
+              properties:
+                wasm:
+                  type: string
+                  format: binary
+                manifest:
+                  type: string
+      responses:
+        "201":
+          description: The plugin was uploaded; the new row is returned.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminPlugin" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409":
+          description: A plugin with this (name, version) already exists.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "413":
+          description: The .wasm module exceeds the configured max upload size.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/admin/plugins/{pluginId}:
+    get:
+      tags: [admin]
+      operationId: getAdminPlugin
+      summary: Fetch a single plugin by id
+      description: |
+        Returns the full plugin row including the parsed manifest and the
+        list of granted permissions. The wasm bytes are NOT included (they
+        can be very large); a separate download endpoint will land in a
+        follow-up WS if needed.
+      parameters:
+        - name: pluginId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The plugin row + grants.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminPlugin" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [admin]
+      operationId: deleteAdminPlugin
+      summary: Delete a plugin
+      description: |
+        Hard-deletes the plugin row and its grants (CASCADE). Active
+        instances are cancelled at the next host-call boundary. Emits an
+        audit event (action: plugins.delete).
+      parameters:
+        - name: pluginId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Deleted.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/admin/plugins/{pluginId}/permissions/{permission}/{action}:
+    post:
+      tags: [admin]
+      operationId: setAdminPluginPermission
+      summary: Grant or revoke a single permission on a plugin
+      description: |
+        {action} is one of `grant` | `revoke`. The {permission} path
+        segment is the slug (e.g. `kv.read:cache`); URL-encode the `:`
+        separator as `%3A` if your client does not do so automatically.
+        Grants are idempotent; revokes are no-ops when the slug is not
+        held. Every call emits an audit event (action: plugins.grant |
+        plugins.revoke) carrying the permission slug in metadata.
+      parameters:
+        - name: pluginId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: permission
+          in: path
+          required: true
+          schema: { type: string }
+          description: The permission slug (e.g. "kv.read:cache").
+        - name: action
+          in: path
+          required: true
+          schema: { type: string, enum: [grant, revoke] }
+      responses:
+        "200":
+          description: The grant/revoke was applied; the updated grant list is returned.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/admin/plugins/{pluginId}/enable:
+    post:
+      tags: [admin]
+      operationId: enableAdminPlugin
+      summary: Enable a plugin
+      description: |
+        Flips the plugin's status from "pending" or "disabled" to "active".
+        The runtime may now instantiate it on demand. Emits an audit event
+        (action: plugins.enable).
+      parameters:
+        - name: pluginId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The plugin was enabled; the updated row is returned.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminPlugin" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/admin/plugins/{pluginId}/disable:
+    post:
+      tags: [admin]
+      operationId: disableAdminPlugin
+      summary: Disable a plugin
+      description: |
+        Flips the plugin's status to "disabled". Grants persist; calling
+        /enable picks them back up. Emits an audit event (action:
+        plugins.disable).
+      parameters:
+        - name: pluginId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The plugin was disabled; the updated row is returned.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminPlugin" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
 # ---------------------------------------------------------------------------
 # Components
 # ---------------------------------------------------------------------------
@@ -1937,6 +2156,77 @@ components:
         items:
           type: array
           items: { $ref: "#/components/schemas/AdminJob" }
+        total:
+          type: integer
+          format: int64
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    # ---------------------------------------------------------------------
+    # Admin plugin schemas (WS-10a). The plugin row + grant shape used by
+    # the /api/v1/admin/plugins/* endpoints. The wasm bytes are NOT exposed
+    # — the admin UI shows the hash; downloads land in a follow-up WS if
+    # needed. The manifest is round-tripped verbatim (parsed YAML -> JSON)
+    # so the UI can render exactly what the plugin declared at upload time.
+    # ---------------------------------------------------------------------
+
+    AdminPlugin:
+      type: object
+      required: [id, name, version, status, wasmHash, wasmSize, createdAt, updatedAt]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+          nullable: true
+          description: NULL for platform-wide plugins.
+        name:
+          type: string
+        version:
+          type: string
+        description:
+          type: string
+        wasmHash:
+          type: string
+          description: sha256 hex of wasmBytes; surfaced in the admin UI.
+        wasmSize:
+          type: integer
+          format: int64
+          description: Size of the stored .wasm bytes.
+        manifest:
+          type: object
+          additionalProperties: true
+          description: |
+            The parsed lahijan.manifest.yaml kept verbatim. Shape documented
+            in internal/app/lahijan/wasm/manifest/manifest.go.
+        permissions:
+          type: array
+          description: Granted permission slugs (admin-approved at install).
+          items:
+            type: string
+        status:
+          type: string
+          enum: [pending, active, disabled]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AdminPluginPage:
+      type: object
+      required: [items, total, limit, offset]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/AdminPlugin" }
         total:
           type: integer
           format: int64
