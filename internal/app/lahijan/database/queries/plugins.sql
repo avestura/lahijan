@@ -75,6 +75,24 @@ WHERE id = $1;
 -- associated plugin_permissions rows (FK ON DELETE CASCADE).
 DELETE FROM plugins WHERE id = $1;
 
+-- name: FindPluginsByNameGlobal :many
+--: admin-only; every row across every tenant with the given name. Used by
+--: the marketplace upgrade flow to locate the previous version(s) of a
+--: plugin before swapping it for the new one. Ordered by created_at DESC
+--: so the newest prior version comes first.
+SELECT * FROM plugins
+WHERE name = $1
+ORDER BY created_at DESC;
+
+-- name: FindPluginsByNameForTenant :many
+--: tenant-scoped; every row visible to the tenant in ctx with the given
+--: name (the tenant's own + platform-wide). Used by the tenant-scoped
+--: marketplace upgrade flow.
+SELECT * FROM plugins
+WHERE name = $2
+  AND (tenant_id = $1 OR tenant_id IS NULL)
+ORDER BY created_at DESC;
+
 -- ===========================================================================
 -- plugin_permissions
 -- ===========================================================================
