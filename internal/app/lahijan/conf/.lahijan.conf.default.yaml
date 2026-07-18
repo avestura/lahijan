@@ -133,6 +133,56 @@ auth:
   signing:
     key: ""
 
+  # AES-256-GCM key (32 raw bytes, base64-encoded) used to encrypt external
+  # IdP tokens (OAuth access_token / refresh_token, OIDC id_token) at rest.
+  # Leave empty in dev to use a deterministic warning-prefixed value; MUST be
+  # set to a high-entropy 32-byte secret in prod. The key is read at startup;
+  # rotation is a follow-up WS.
+  secrets:
+    encryptionKey: ""
+
+  # External identity providers (WS-07a). Every provider is keyed by a stable
+  # name ("google", "github", "keycloak"); the key appears in the URL paths
+  # /api/v1/auth/oauth/{provider}/start and is stored as the `provider` column
+  # on user_oauth_identities.
+  #
+  # Client IDs / secrets are overridable via env. The OAuth2 authorization-code
+  # flow uses PKCE for every provider, including the confidential clients.
+  oauth:
+    providers:
+      google:
+        enabled: false
+        clientId: ""
+        clientSecret: ""
+        # scopes requested at token time (openid + email + profile is the
+        # minimum needed for account linking)
+        scopes: ["openid", "email", "profile"]
+      github:
+        enabled: false
+        clientId: ""
+        clientSecret: ""
+        scopes: ["read:user", "user:email"]
+    # The redirect URL the IdP sends the user back to. The full path is
+    # /api/v1/auth/oauth/{provider}/callback; this base is prepended to it.
+    # Leave empty in dev to derive from the request Host header (works when
+    # the app is reached on localhost).
+    redirectBase: ""
+
+  # OpenID Connect providers (WS-07a). Any OIDC-compliant IdP (Keycloak,
+  # Auth0, Okta, Google Workspace, ...) is configured here under a stable key.
+  # The key is namespaced in user_oauth_identities as "oidc:<key>" so it never
+  # collides with the OAuth presets above.
+  oidc:
+    providers:
+      keycloak:
+        enabled: false
+        issuer: ""              # e.g. https://sso.example.com/realms/main
+        clientId: ""
+        clientSecret: ""
+        scopes: ["openid", "email", "profile"]
+    # Same shape as oauth.redirectBase above.
+    redirectBase: ""
+
 # SMTP for outgoing auth emails (WS-06). In dev, point this at MailHog
 # (see deployments/docker-compose.dev.yml). Disable to drop emails silently
 # (useful in tests).
