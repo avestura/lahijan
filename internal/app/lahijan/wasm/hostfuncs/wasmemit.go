@@ -23,10 +23,14 @@ func encodeString(s string) []byte {
 	return out
 }
 
-// encodeI32Const emits the i32.const <value> instruction (LEB128).
+// encodeI32Const emits the i32.const <value> instruction. The value is
+// encoded as SIGNED LEB128 because the WASM spec says i32.const takes
+// a signed value. For values 0..63 the signed + unsigned encodings are
+// identical; for value 64 the signed encoding needs a continuation
+// byte (bit 6 is the sign bit in the last byte of signed LEB128).
 func encodeI32Const(v uint32) []byte {
 	out := []byte{0x41} // i32.const opcode
-	return append(out, encodeLEB128(v)...)
+	return append(out, encodeLEB128Signed(int64(v))...)
 }
 
 // encodeI64Const emits the i64.const <value> instruction.
@@ -214,6 +218,257 @@ func emitEmitEventModule(topic, payload string) []byte {
 	dataBody = append(dataBody, 0x0b)
 	dataBody = append(dataBody, encodeLEB128(uint32(len(payload)))...)
 	dataBody = append(dataBody, []byte(payload)...)
+	dataSec := section(0x0b, dataBody)
+
+	out := append([]byte{}, wasmMagic...)
+	out = append(out, typeSec...)
+	out = append(out, importSec...)
+	out = append(out, funcSec...)
+	out = append(out, memSec...)
+	out = append(out, exportSec...)
+	out = append(out, codeSec...)
+	out = append(out, dataSec...)
+	return out
+}
+
+// emitConfigGetModule builds a WASM module that calls config.get with
+// the supplied key. The plugin supplies a 4 KiB response buffer at
+// offset 4096; the host writes the value (if any) there.
+func emitConfigGetModule(key string) []byte {
+	const keyOff, bufOff, bufCap = 0, 4096, 4096
+	const memPages = 1
+
+	typeSec := section(0x01, []byte{
+		0x02,
+		0x60, 0x04, 0x7f, 0x7f, 0x7f, 0x7f, 0x01, 0x7f, // config.get
+		0x60, 0x00, 0x01, 0x7f, // run
+	})
+	importBody := []byte{0x01}
+	importBody = append(importBody, encodeString("lahijan_config")...)
+	importBody = append(importBody, encodeString("get")...)
+	importBody = append(importBody, 0x00, 0x00)
+	importSec := section(0x02, importBody)
+	funcSec := section(0x03, []byte{0x01, 0x01})
+	memSec := section(0x05, []byte{0x01, 0x01, byte(memPages), byte(memPages)})
+	exportBody := []byte{0x02}
+	exportBody = append(exportBody, encodeString("memory")...)
+	exportBody = append(exportBody, 0x02, 0x00)
+	exportBody = append(exportBody, encodeString("run")...)
+	exportBody = append(exportBody, 0x00, 0x01)
+	exportSec := section(0x07, exportBody)
+
+	body := []byte{0x00}
+	body = append(body, encodeI32Const(keyOff)...)
+	body = append(body, encodeI32Const(uint32(len(key)))...)
+	body = append(body, encodeI32Const(bufOff)...)
+	body = append(body, encodeI32Const(bufCap)...)
+	body = append(body, 0x10, 0x00)
+	body = append(body, 0x0b)
+	fnBody := append(encodeLEB128(uint32(len(body))), body...)
+	codeSec := section(0x0a, append([]byte{0x01}, fnBody...))
+
+	dataBody := []byte{0x01}
+	dataBody = append(dataBody, 0x00)
+	dataBody = append(dataBody, encodeI32Const(keyOff)...)
+	dataBody = append(dataBody, 0x0b)
+	dataBody = append(dataBody, encodeLEB128(uint32(len(key)))...)
+	dataBody = append(dataBody, []byte(key)...)
+	dataSec := section(0x0b, dataBody)
+
+	out := append([]byte{}, wasmMagic...)
+	out = append(out, typeSec...)
+	out = append(out, importSec...)
+	out = append(out, funcSec...)
+	out = append(out, memSec...)
+	out = append(out, exportSec...)
+	out = append(out, codeSec...)
+	out = append(out, dataSec...)
+	return out
+}
+
+// emitHTTPRequestModule builds a WASM module that calls
+// lahijan_network.http_request with method + url only (no headers, no body).
+// Sufficient for the network permission-gate test.
+func emitHTTPRequestModule(method, url string) []byte {
+	const methodOff, urlOff, headersOff, bodyOff = 0, 64, 1024, 2048
+	const memPages = 1
+
+	typeSec := section(0x01, []byte{
+		0x02,
+		// type 0: (i32 i32 i32 i32 i32 i32 i32 i32) -> i32 -- http_request
+		0x60, 0x08, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x01, 0x7f,
+		0x60, 0x00, 0x01, 0x7f, // type 1: () -> i32 -- run
+	})
+	importBody := []byte{0x01}
+	importBody = append(importBody, encodeString("lahijan_network")...)
+	importBody = append(importBody, encodeString("http_request")...)
+	importBody = append(importBody, 0x00, 0x00)
+	importSec := section(0x02, importBody)
+	funcSec := section(0x03, []byte{0x01, 0x01})
+	memSec := section(0x05, []byte{0x01, 0x01, byte(memPages), byte(memPages)})
+	exportBody := []byte{0x02}
+	exportBody = append(exportBody, encodeString("memory")...)
+	exportBody = append(exportBody, 0x02, 0x00)
+	exportBody = append(exportBody, encodeString("run")...)
+	exportBody = append(exportBody, 0x00, 0x01)
+	exportSec := section(0x07, exportBody)
+
+	body := []byte{0x00}
+	body = append(body, encodeI32Const(methodOff)...)
+	body = append(body, encodeI32Const(uint32(len(method)))...)
+	body = append(body, encodeI32Const(urlOff)...)
+	body = append(body, encodeI32Const(uint32(len(url)))...)
+	body = append(body, encodeI32Const(headersOff)...)
+	body = append(body, encodeI32Const(0)...) // no headers
+	body = append(body, encodeI32Const(bodyOff)...)
+	body = append(body, encodeI32Const(0)...) // no body
+	body = append(body, 0x10, 0x00)
+	body = append(body, 0x0b)
+	fnBody := append(encodeLEB128(uint32(len(body))), body...)
+	codeSec := section(0x0a, append([]byte{0x01}, fnBody...))
+
+	dataBody := []byte{0x02}
+	dataBody = append(dataBody, 0x00)
+	dataBody = append(dataBody, encodeI32Const(methodOff)...)
+	dataBody = append(dataBody, 0x0b)
+	dataBody = append(dataBody, encodeLEB128(uint32(len(method)))...)
+	dataBody = append(dataBody, []byte(method)...)
+	dataBody = append(dataBody, 0x00)
+	dataBody = append(dataBody, encodeI32Const(urlOff)...)
+	dataBody = append(dataBody, 0x0b)
+	dataBody = append(dataBody, encodeLEB128(uint32(len(url)))...)
+	dataBody = append(dataBody, []byte(url)...)
+	dataSec := section(0x0b, dataBody)
+
+	out := append([]byte{}, wasmMagic...)
+	out = append(out, typeSec...)
+	out = append(out, importSec...)
+	out = append(out, funcSec...)
+	out = append(out, memSec...)
+	out = append(out, exportSec...)
+	out = append(out, codeSec...)
+	out = append(out, dataSec...)
+	return out
+}
+
+// emitRegisterHandlerModule builds a WASM module that calls
+// api.register_handler(method, path, handler).
+func emitRegisterHandlerModule(method, path, handler string) []byte {
+	const methodOff, pathOff, handlerOff = 0, 64, 1024
+	const memPages = 1
+
+	typeSec := section(0x01, []byte{
+		0x02,
+		// type 0: (i32 i32 i32 i32 i32 i32) -> i32 -- register_handler
+		0x60, 0x06, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x01, 0x7f,
+		0x60, 0x00, 0x01, 0x7f, // type 1: () -> i32 -- run
+	})
+	importBody := []byte{0x01}
+	importBody = append(importBody, encodeString("lahijan_api")...)
+	importBody = append(importBody, encodeString("register_handler")...)
+	importBody = append(importBody, 0x00, 0x00)
+	importSec := section(0x02, importBody)
+	funcSec := section(0x03, []byte{0x01, 0x01})
+	memSec := section(0x05, []byte{0x01, 0x01, byte(memPages), byte(memPages)})
+	exportBody := []byte{0x02}
+	exportBody = append(exportBody, encodeString("memory")...)
+	exportBody = append(exportBody, 0x02, 0x00)
+	exportBody = append(exportBody, encodeString("run")...)
+	exportBody = append(exportBody, 0x00, 0x01)
+	exportSec := section(0x07, exportBody)
+
+	body := []byte{0x00}
+	body = append(body, encodeI32Const(methodOff)...)
+	body = append(body, encodeI32Const(uint32(len(method)))...)
+	body = append(body, encodeI32Const(pathOff)...)
+	body = append(body, encodeI32Const(uint32(len(path)))...)
+	body = append(body, encodeI32Const(handlerOff)...)
+	body = append(body, encodeI32Const(uint32(len(handler)))...)
+	body = append(body, 0x10, 0x00)
+	body = append(body, 0x0b)
+	fnBody := append(encodeLEB128(uint32(len(body))), body...)
+	codeSec := section(0x0a, append([]byte{0x01}, fnBody...))
+
+	dataBody := []byte{0x03}
+	// method
+	dataBody = append(dataBody, 0x00)
+	dataBody = append(dataBody, encodeI32Const(methodOff)...)
+	dataBody = append(dataBody, 0x0b)
+	dataBody = append(dataBody, encodeLEB128(uint32(len(method)))...)
+	dataBody = append(dataBody, []byte(method)...)
+	// path
+	dataBody = append(dataBody, 0x00)
+	dataBody = append(dataBody, encodeI32Const(pathOff)...)
+	dataBody = append(dataBody, 0x0b)
+	dataBody = append(dataBody, encodeLEB128(uint32(len(path)))...)
+	dataBody = append(dataBody, []byte(path)...)
+	// handler
+	dataBody = append(dataBody, 0x00)
+	dataBody = append(dataBody, encodeI32Const(handlerOff)...)
+	dataBody = append(dataBody, 0x0b)
+	dataBody = append(dataBody, encodeLEB128(uint32(len(handler)))...)
+	dataBody = append(dataBody, []byte(handler)...)
+	dataSec := section(0x0b, dataBody)
+
+	out := append([]byte{}, wasmMagic...)
+	out = append(out, typeSec...)
+	out = append(out, importSec...)
+	out = append(out, funcSec...)
+	out = append(out, memSec...)
+	out = append(out, exportSec...)
+	out = append(out, codeSec...)
+	out = append(out, dataSec...)
+	return out
+}
+
+// emitScheduleModule builds a WASM module that calls jobs.schedule
+// with the supplied export name, args payload, and run_at timestamp.
+func emitScheduleModule(name, args string, runAtMS int64) []byte {
+	const nameOff, argsOff = 0, 256
+	const memPages = 1
+
+	typeSec := section(0x01, []byte{
+		0x02,
+		// type 0: (i32 i32 i32 i32 i64) -> i32 -- schedule
+		0x60, 0x05, 0x7f, 0x7f, 0x7f, 0x7f, 0x7e, 0x01, 0x7f,
+		0x60, 0x00, 0x01, 0x7f,
+	})
+	importBody := []byte{0x01}
+	importBody = append(importBody, encodeString("lahijan_jobs")...)
+	importBody = append(importBody, encodeString("schedule")...)
+	importBody = append(importBody, 0x00, 0x00)
+	importSec := section(0x02, importBody)
+	funcSec := section(0x03, []byte{0x01, 0x01})
+	memSec := section(0x05, []byte{0x01, 0x01, byte(memPages), byte(memPages)})
+	exportBody := []byte{0x02}
+	exportBody = append(exportBody, encodeString("memory")...)
+	exportBody = append(exportBody, 0x02, 0x00)
+	exportBody = append(exportBody, encodeString("run")...)
+	exportBody = append(exportBody, 0x00, 0x01)
+	exportSec := section(0x07, exportBody)
+
+	body := []byte{0x00}
+	body = append(body, encodeI32Const(nameOff)...)
+	body = append(body, encodeI32Const(uint32(len(name)))...)
+	body = append(body, encodeI32Const(argsOff)...)
+	body = append(body, encodeI32Const(uint32(len(args)))...)
+	body = append(body, encodeI64Const(runAtMS)...)
+	body = append(body, 0x10, 0x00)
+	body = append(body, 0x0b)
+	fnBody := append(encodeLEB128(uint32(len(body))), body...)
+	codeSec := section(0x0a, append([]byte{0x01}, fnBody...))
+
+	dataBody := []byte{0x02}
+	dataBody = append(dataBody, 0x00)
+	dataBody = append(dataBody, encodeI32Const(nameOff)...)
+	dataBody = append(dataBody, 0x0b)
+	dataBody = append(dataBody, encodeLEB128(uint32(len(name)))...)
+	dataBody = append(dataBody, []byte(name)...)
+	dataBody = append(dataBody, 0x00)
+	dataBody = append(dataBody, encodeI32Const(argsOff)...)
+	dataBody = append(dataBody, 0x0b)
+	dataBody = append(dataBody, encodeLEB128(uint32(len(args)))...)
+	dataBody = append(dataBody, []byte(args)...)
 	dataSec := section(0x0b, dataBody)
 
 	out := append([]byte{}, wasmMagic...)

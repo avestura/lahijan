@@ -93,9 +93,6 @@ func (r *registrar) jobsSchedule(
 	if code != StatusSuccess {
 		return code
 	}
-	if r.deps.Jobs == nil {
-		return r.end(ctx, jobsModuleName, "schedule", pid, permission.CapJobSchedule, StatusUnavailable)
-	}
 	if nameLen == 0 || nameLen > MaxJobNameLen || argsLen > MaxJobArgsLen {
 		return r.end(ctx, jobsModuleName, "schedule", pid, permission.CapJobSchedule, StatusInvalidArgument)
 	}
@@ -106,13 +103,13 @@ func (r *registrar) jobsSchedule(
 	}
 	now := time.Now().UnixMilli()
 	if runAtMS < now {
-		// Past times are allowed (River runs immediately) but the host
-		// clips very old timestamps to "now" so a plugin cannot enqueue
-		// a flood of historical work.
 		runAtMS = now
 	}
 	if runAtMS-now > maxOff*1000 {
 		return r.end(ctx, jobsModuleName, "schedule", pid, permission.CapJobSchedule, StatusInvalidArgument)
+	}
+	if r.deps.Jobs == nil {
+		return r.end(ctx, jobsModuleName, "schedule", pid, permission.CapJobSchedule, StatusUnavailable)
 	}
 	nameBytes, err := readMemory(m, namePtr, nameLen)
 	if err != nil {
