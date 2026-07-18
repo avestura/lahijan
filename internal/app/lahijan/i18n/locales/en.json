@@ -216,5 +216,30 @@
   "rbac.role_tenant_owner": { "other": "Tenant Owner" },
   "rbac.role_tenant_admin": { "other": "Tenant Administrator" },
   "rbac.role_tenant_member": { "other": "Tenant Member" },
-  "rbac.role_tenant_viewer": { "other": "Tenant Viewer" }
+  "rbac.role_tenant_viewer": { "other": "Tenant Viewer" },
+
+  "compute.err_disabled": { "other": "The compute subsystem is not enabled on this server." },
+  "compute.err_not_found": { "other": "Compute resource not found." },
+  "compute.err_name_taken": { "other": "A resource with this name already exists." },
+  "compute.err_not_running": { "other": "The instance must be running for this action." },
+  "compute.err_bad_request": { "other": "The request was malformed." },
+  "compute.err_quota_exceeded": { "other": "Quota exceeded for this tenant." },
+  "compute.err_insufficient_balance": { "other": "Insufficient balance to perform this action." },
+
+  "audit.action_compute_instance_create": { "other": "Compute instance created" },
+  "audit.action_compute_instance_start": { "other": "Compute instance started" },
+  "audit.action_compute_instance_stop": { "other": "Compute instance stopped" },
+  "audit.action_compute_instance_restart": { "other": "Compute instance restarted" },
+  "audit.action_compute_instance_freeze": { "other": "Compute instance frozen" },
+  "audit.action_compute_instance_delete": { "other": "Compute instance deleted" },
+  "audit.action_compute_instance_update": { "other": "Compute instance updated" },
+  "audit.action_compute_instance_exec": { "other": "Command executed in compute instance" },
+  "audit.action_compute_image_upload": { "other": "Compute image uploaded" },
+  "audit.action_compute_image_delete": { "other": "Compute image deleted" },
+  "audit.action_compute_profile_create": { "other": "Compute profile created" },
+  "audit.action_compute_profile_delete": { "other": "Compute profile deleted" },
+  "audit.action_compute_network_create": { "other": "Compute network created" },
+  "audit.action_compute_network_delete": { "other": "Compute network deleted" },
+  "audit.action_compute_storage_volume_create": { "other": "Compute storage volume created" },
+  "audit.action_compute_storage_volume_delete": { "other": "Compute storage volume deleted" }
 }

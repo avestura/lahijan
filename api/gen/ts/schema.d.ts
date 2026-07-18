@@ -1188,6 +1188,289 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/compute/instances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List compute instances
+         * @description Returns a paginated list of the caller's compute instances within
+         *     the tenant in scope. The list reflects the cached state in the
+         *     Lahijan database; live state from the daemon is queried on demand
+         *     via GET /instances/{id} (which reconciles) or via the per-instance
+         *     reconcile endpoint (TODO).
+         */
+        get: operations["listComputeInstances"];
+        put?: never;
+        /**
+         * Create a compute instance
+         * @description Creates a new instance in the caller's tenant. The service checks
+         *     the per-tenant quota (vCPU / RAM / disk / instance count) before
+         *     reaching the daemon; an over-quota request returns 422. The
+         *     instance is created in "stopped" state; the caller must POST
+         *     /instances/{id}/start to launch it.
+         */
+        post: operations["createComputeInstance"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compute/instances/{instanceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a compute instance (reconciled)
+         * @description Returns the instance, reconciling the cached row with the live
+         *     daemon state. A flaky daemon returns the cached state instead of
+         *     erroring so the UI does not 500 on a backend blip.
+         */
+        get: operations["getComputeInstance"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a compute instance
+         * @description Stops the instance if running (force = true skips the graceful
+         *     shutdown), deletes it from the daemon, and soft-deletes the
+         *     cached row (the row is retained for historical audit + billing
+         *     joins).
+         */
+        delete: operations["deleteComputeInstance"];
+        options?: never;
+        head?: never;
+        /**
+         * Update an instance's config
+         * @description Replaces the instance's description, config, devices, and profiles.
+         *     Hot-pluggable fields (e.g. limits.memory for a stopped instance)
+         *     apply immediately; others require a restart.
+         */
+        patch: operations["updateComputeInstance"];
+        trace?: never;
+    };
+    "/api/v1/compute/instances/{instanceId}/{action}": {
+        parameters: {
+            query?: {
+                /** @description Force the action (skip graceful shutdown for stop). */
+                force?: boolean;
+                /** @description Action timeout in seconds. */
+                timeout?: number;
+            };
+            header?: never;
+            path: {
+                instanceId: string;
+                action: "start" | "stop" | "restart" | "freeze" | "unfreeze";
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply a lifecycle action to an instance
+         * @description Starts, stops, restarts, freezes, or unfreezes an instance. The
+         *     cached row is updated with the new status; the audit log records
+         *     the action and the WASM event bus emits the corresponding
+         *     compute.instance.* event.
+         */
+        post: operations["setComputeInstanceState"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compute/instances/{instanceId}/exec": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run a one-shot command inside an instance
+         * @description Runs the given command in the instance and returns the captured
+         *     stdout, stderr, and exit code. The interactive (bidirectional,
+         *     xterm.js) variant lands with WS-20 (dashboard UI); this endpoint
+         *     is the simpler "run + capture" path the API exposes today. The
+         *     instance must be running (WS-14 open question 3).
+         */
+        post: operations["execComputeInstance"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compute/images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List compute images */
+        get: operations["listComputeImages"];
+        put?: never;
+        /**
+         * Record a custom image
+         * @description Records a custom image row in the tenant's catalog. The actual
+         *     upload to the image store is performed by the provider driver;
+         *     this endpoint persists the alias + fingerprint so the catalog is
+         *     listable and the alias resolves at instance-create time.
+         */
+        post: operations["uploadComputeImage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compute/images/{imageId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                imageId: string;
+            };
+            cookie?: never;
+        };
+        /** Get an image */
+        get: operations["getComputeImage"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a custom image
+         * @description Featured images cannot be deleted.
+         */
+        delete: operations["deleteComputeImage"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compute/profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List profiles */
+        get: operations["listComputeProfiles"];
+        put?: never;
+        /** Create a profile */
+        post: operations["createComputeProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compute/profiles/{profileId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profileId: string;
+            };
+            cookie?: never;
+        };
+        /** Get a profile */
+        get: operations["getComputeProfile"];
+        put?: never;
+        post?: never;
+        /** Delete a profile */
+        delete: operations["deleteComputeProfile"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compute/networks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List networks */
+        get: operations["listComputeNetworks"];
+        put?: never;
+        /** Create a network */
+        post: operations["createComputeNetwork"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compute/networks/{networkId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                networkId: string;
+            };
+            cookie?: never;
+        };
+        /** Get a network */
+        get: operations["getComputeNetwork"];
+        put?: never;
+        post?: never;
+        /** Delete a network */
+        delete: operations["deleteComputeNetwork"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compute/storage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List storage volumes */
+        get: operations["listComputeStorageVolumes"];
+        put?: never;
+        /** Create a storage volume */
+        post: operations["createComputeStorageVolume"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compute/storage/{volumeId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                volumeId: string;
+            };
+            cookie?: never;
+        };
+        /** Get a storage volume */
+        get: operations["getComputeStorageVolume"];
+        put?: never;
+        post?: never;
+        /** Delete a storage volume */
+        delete: operations["deleteComputeStorageVolume"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1738,6 +2021,242 @@ export interface components {
              *     (kind=webauthn only).
              */
             webauthnResponse?: unknown;
+        };
+        ComputeInstance: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            tenantId: string;
+            name: string;
+            /**
+             * @description Instance type. Defaults to container.
+             * @enum {string}
+             */
+            type?: "container" | "virtual-machine";
+            /** @description Cached Incus status string (Running, Stopped, Frozen, ...). */
+            status: string;
+            /** @description Numeric Incus status code (Running=103, Stopped=102). */
+            statusCode?: number;
+            imageAlias: string;
+            /** @description Resolved image fingerprint (filled in at create success). */
+            imageFingerprint?: string;
+            /** @description Profile names applied to the instance. */
+            profiles?: string[];
+            /** @description Free-form config map (limits.cpu, limits.memory, ...). */
+            config?: {
+                [key: string]: string;
+            };
+            /** @description Per-device config map (root disk, nics, ...). */
+            devices?: {
+                [key: string]: {
+                    [key: string]: string;
+                };
+            };
+            description?: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        ComputeInstancePage: {
+            items: components["schemas"]["ComputeInstance"][];
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        ComputeInstanceCreateRequest: {
+            name: string;
+            /**
+             * @default container
+             * @enum {string}
+             */
+            type: "container" | "virtual-machine";
+            imageAlias: string;
+            description?: string;
+            config?: {
+                [key: string]: string;
+            };
+            devices?: {
+                [key: string]: {
+                    [key: string]: string;
+                };
+            };
+            /**
+             * @default [
+             *       "default"
+             *     ]
+             */
+            profiles: string[];
+        };
+        ComputeInstanceUpdateRequest: {
+            description?: string;
+            config?: {
+                [key: string]: string;
+            };
+            devices?: {
+                [key: string]: {
+                    [key: string]: string;
+                };
+            };
+            profiles?: string[];
+        };
+        ComputeExecRequest: {
+            /** @description The argv to execute. Must be non-empty. */
+            command: string[];
+            environment?: {
+                [key: string]: string;
+            };
+            /** @default 0 */
+            user: number;
+            /** @default 0 */
+            group: number;
+            cwd?: string;
+            /** @description Input bytes for the process stdin (UTF-8 text). */
+            stdin?: string;
+        };
+        ComputeExecResult: {
+            /** @description Captured stdout (base64 if non-UTF-8). */
+            stdout?: string;
+            /** @description Captured stderr (base64 if non-UTF-8). */
+            stderr?: string;
+            exitCode: number;
+        };
+        ComputeImage: {
+            /** Format: uuid */
+            id: string;
+            alias: string;
+            /** @enum {string} */
+            source: "featured" | "custom";
+            fingerprint?: string;
+            /** @enum {string} */
+            type?: "container" | "virtual-machine";
+            architecture?: string;
+            /** Format: int64 */
+            sizeBytes?: number;
+            description?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        ComputeImagePage: {
+            items: components["schemas"]["ComputeImage"][];
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        ComputeImageUploadRequest: {
+            alias: string;
+            fingerprint: string;
+            /**
+             * @default container
+             * @enum {string}
+             */
+            type: "container" | "virtual-machine";
+            architecture?: string;
+            /** Format: int64 */
+            sizeBytes?: number;
+            properties?: {
+                [key: string]: string;
+            };
+            description?: string;
+        };
+        ComputeProfile: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            description?: string;
+            config?: {
+                [key: string]: string;
+            };
+            devices?: {
+                [key: string]: {
+                    [key: string]: string;
+                };
+            };
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        ComputeProfilePage: {
+            items: components["schemas"]["ComputeProfile"][];
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        ComputeProfileCreateRequest: {
+            name: string;
+            description?: string;
+            config?: {
+                [key: string]: string;
+            };
+            devices?: {
+                [key: string]: {
+                    [key: string]: string;
+                };
+            };
+        };
+        ComputeNetwork: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            description?: string;
+            type: string;
+            config?: {
+                [key: string]: string;
+            };
+            aclNames?: string[];
+            forwardNames?: string[];
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        ComputeNetworkPage: {
+            items: components["schemas"]["ComputeNetwork"][];
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        ComputeNetworkCreateRequest: {
+            name: string;
+            description?: string;
+            /** @default bridge */
+            type: string;
+            config?: {
+                [key: string]: string;
+            };
+        };
+        ComputeStorageVolume: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            description?: string;
+            type?: string;
+            poolName: string;
+            config?: {
+                [key: string]: string;
+            };
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        ComputeStorageVolumePage: {
+            items: components["schemas"]["ComputeStorageVolume"][];
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        ComputeStorageVolumeCreateRequest: {
+            name: string;
+            description?: string;
+            /** @default default */
+            poolName: string;
+            config?: {
+                [key: string]: string;
+            };
         };
     };
     responses: {
@@ -3450,6 +3969,661 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+        };
+    };
+    listComputeInstances: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of items to return (1..200). */
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Number of items to skip for pagination. */
+                offset?: components["parameters"]["PageOffset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of instances. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeInstancePage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createComputeInstance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComputeInstanceCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Instance created (in stopped state). */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeInstance"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description Insufficient balance to create the instance (per ADR-0013). */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            /** @description Quota exceeded. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The compute subsystem is not enabled on this server. */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getComputeInstance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instanceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The instance. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeInstance"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteComputeInstance: {
+        parameters: {
+            query?: {
+                /** @description Skip the graceful shutdown and force-delete. */
+                force?: boolean;
+            };
+            header?: never;
+            path: {
+                instanceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Instance deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateComputeInstance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instanceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComputeInstanceUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description The updated instance. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeInstance"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setComputeInstanceState: {
+        parameters: {
+            query?: {
+                /** @description Force the action (skip graceful shutdown for stop). */
+                force?: boolean;
+                /** @description Action timeout in seconds. */
+                timeout?: number;
+            };
+            header?: never;
+            path: {
+                instanceId: string;
+                action: "start" | "stop" | "restart" | "freeze" | "unfreeze";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The updated instance. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeInstance"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The action conflicts with the current state (e.g. start on a running instance). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    execComputeInstance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instanceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComputeExecRequest"];
+            };
+        };
+        responses: {
+            /** @description The captured output. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeExecResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The instance is not running. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listComputeImages: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of items to return (1..200). */
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Number of items to skip for pagination. */
+                offset?: components["parameters"]["PageOffset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of images. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeImagePage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    uploadComputeImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComputeImageUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description Image recorded. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeImage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getComputeImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                imageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeImage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteComputeImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                imageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Image deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listComputeProfiles: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of items to return (1..200). */
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Number of items to skip for pagination. */
+                offset?: components["parameters"]["PageOffset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of profiles. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeProfilePage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createComputeProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComputeProfileCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Profile created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeProfile"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getComputeProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profileId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The profile. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeProfile"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteComputeProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profileId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Profile deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listComputeNetworks: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of items to return (1..200). */
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Number of items to skip for pagination. */
+                offset?: components["parameters"]["PageOffset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of networks. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeNetworkPage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createComputeNetwork: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComputeNetworkCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Network created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeNetwork"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getComputeNetwork: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                networkId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The network. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeNetwork"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteComputeNetwork: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                networkId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Network deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listComputeStorageVolumes: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of items to return (1..200). */
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Number of items to skip for pagination. */
+                offset?: components["parameters"]["PageOffset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of storage volumes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeStorageVolumePage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createComputeStorageVolume: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComputeStorageVolumeCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Volume created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeStorageVolume"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getComputeStorageVolume: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                volumeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The volume. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeStorageVolume"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteComputeStorageVolume: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                volumeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Volume deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
 }

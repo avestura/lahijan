@@ -22,6 +22,7 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/secrets"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/session"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/state"
+	"github.com/avestura/lahijan/internal/app/lahijan/compute"
 	"github.com/avestura/lahijan/internal/app/lahijan/database"
 	"github.com/avestura/lahijan/internal/app/lahijan/i18n"
 	"github.com/avestura/lahijan/internal/app/lahijan/version"
@@ -97,6 +98,13 @@ type Server struct {
 	// configured marketplace index + asset loaders. Nil-appropriate when
 	// the WASM subsystem is disabled; the handlers degrade to 501.
 	marketplaceSvc *marketplace.Service
+
+	// WS-14: compute module deps. computeSvc is the entrypoint every
+	// /api/v1/compute/* handler talks to; it wraps the Incus provider +
+	// the compute_* repositories + the audit emitter + the WASM event
+	// bus. Nil-appropriate when the Incus provider is disabled; the
+	// handlers degrade to 501.
+	computeSvc *compute.Service
 }
 
 // ServerDeps carries the dependencies NewServer requires. Wire it once from
@@ -148,8 +156,13 @@ type ServerDeps struct {
 
 	// WS-10c: marketplace deps. MarketplaceSvc is the entrypoint the
 	// admin marketplace API talks to. Nil-appropriate when the WASM
-	// subsystem is disabled; the handlers degrade to a 501 envelope.
+	// subsystem is disabled; the handlers degrade to 501 envelope.
 	MarketplaceSvc *marketplace.Service
+
+	// WS-14: compute module deps. ComputeSvc is the entrypoint every
+	// /api/v1/compute/* handler talks to. Nil-appropriate when the Incus
+	// provider is disabled; the handlers degrade to 501.
+	ComputeSvc *compute.Service
 }
 
 // NewServer builds the API server with the given dependencies.
@@ -177,6 +190,7 @@ func NewServer(deps ServerDeps) *Server {
 		pluginsRepo:     deps.PluginsRepo,
 		pluginSvc:       deps.PluginSvc,
 		marketplaceSvc:  deps.MarketplaceSvc,
+		computeSvc:      deps.ComputeSvc,
 	}
 	if s.tracer == nil {
 		s.tracer = Tracer()

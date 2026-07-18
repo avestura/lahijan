@@ -43,11 +43,13 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/secrets"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/session"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/state"
+	"github.com/avestura/lahijan/internal/app/lahijan/compute"
 	"github.com/avestura/lahijan/internal/app/lahijan/conf"
 	"github.com/avestura/lahijan/internal/app/lahijan/conf/computeddefault"
 	"github.com/avestura/lahijan/internal/app/lahijan/database"
 	"github.com/avestura/lahijan/internal/app/lahijan/jobs"
 	notifyemail "github.com/avestura/lahijan/internal/app/lahijan/notify/email"
+	"github.com/avestura/lahijan/internal/app/lahijan/providers/incus"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/eventbus"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/eventservice"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/hostfuncs"
@@ -219,6 +221,34 @@ func Start() error {
 		defer func() { _ = incusDeps.listener.Close() }()
 	}
 
+	// WS-14: build the compute module (internal/app/lahijan/compute/*).
+	// Returns a nil service when the Incus provider is disabled; the api
+	// handlers degrade to 501 in that case. Built AFTER wasmDeps + incusDeps
+	// so it can wire both into the service. The policy evaluator is the
+	// same one the audit gate uses; seeding has already run.
+	var computeSvc *compute.Service
+	if incusDeps.provider != nil {
+		computeSvc = compute.New(
+			incusDeps.provider,
+			authDeps.repos,
+			authDeps.audit,
+			wasmDeps.bus,
+			rbac.NewEvaluator(authDeps.repos.Memberships),
+			compute.Config{Quotas: compute.DefaultQuotas()},
+		)
+		// Seed the featured-image catalog for every existing tenant. A
+		// future WS will hook this into the tenant-create path so a new
+		// tenant picks up the catalog automatically. Runs synchronously
+		// at bootstrap so by the time the listener is up the catalog is
+		// consistent.
+		featuredAliases := incus.FeaturedImages(conf.GetProvidersIncusFeaturedImages())
+		if len(featuredAliases) > 0 {
+			seedCtx, seedCancel := context.WithTimeout(context.Background(), 30*time.Second)
+			seedComputeFeaturedImagesForTenants(seedCtx, computeSvc, authDeps.repos.Tenants, featuredAliases)
+			seedCancel()
+		}
+	}
+
 	// WS-12: build the PowerDNS driver (providers/powerdns/*). Returns a
 	// zero-value powerdnsDeps when providers.powerdns.enabled is false; the
 	// DNS module (WS-15) degrades to 501 in that case. Built AFTER wasmDeps
@@ -309,6 +339,7 @@ func Start() error {
 		PluginsRepo:    wasmDeps.pluginsRepo,
 		PluginSvc:      wasmDeps.svc,
 		MarketplaceSvc: wasmDeps.marketplace,
+		ComputeSvc:     computeSvc,
 	}), policy)
 
 	// WS-09: mount River's built-in web UI (admin-only). The UI ships its

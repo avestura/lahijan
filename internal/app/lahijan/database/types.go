@@ -25,4 +25,13 @@ type (
 	UserSamlIdentity    = gen.UserSamlIdentity
 	Plugin              = gen.Plugin
 	PluginPermission    = gen.PluginPermission
+
+	// ComputeInstance / ComputeImage / ComputeProfile / ComputeNetwork /
+	// ComputeStorageVolume are the row aliases (WS-14). Services reference
+	// these (e.g. database.ComputeInstance) instead of gen.ComputeInstance.
+	ComputeInstance      = gen.ComputeInstance
+	ComputeImage         = gen.ComputeImage
+	ComputeProfile       = gen.ComputeProfile
+	ComputeNetwork       = gen.ComputeNetwork
+	ComputeStorageVolume = gen.ComputeStorageVolume
 )

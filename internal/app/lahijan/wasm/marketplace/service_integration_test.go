@@ -25,8 +25,8 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/database"
 	"github.com/avestura/lahijan/internal/app/lahijan/database/testutil"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/installer"
-	"github.com/avestura/lahijan/internal/app/lahijan/wasm/marketplace"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/manifest"
+	"github.com/avestura/lahijan/internal/app/lahijan/wasm/marketplace"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/permission"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/runtime"
 )

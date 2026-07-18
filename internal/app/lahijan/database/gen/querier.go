@@ -33,6 +33,18 @@ type Querier interface {
 	//: admin-only; pagination counterpart to ListAuditLogGlobalFiltered.
 	CountAuditLogGlobalFiltered(ctx context.Context, arg CountAuditLogGlobalFilteredParams) (int64, error)
 	//: tenant-scoped
+	CountComputeImages(ctx context.Context, tenantID uuid.UUID) (int64, error)
+	//: tenant-scoped
+	CountComputeInstances(ctx context.Context, tenantID uuid.UUID) (int64, error)
+	//: tenant-scoped; used by the quota checker to count running instances.
+	CountComputeInstancesByStatus(ctx context.Context, arg CountComputeInstancesByStatusParams) (int64, error)
+	//: tenant-scoped
+	CountComputeNetworks(ctx context.Context, tenantID uuid.UUID) (int64, error)
+	//: tenant-scoped
+	CountComputeProfiles(ctx context.Context, tenantID uuid.UUID) (int64, error)
+	//: tenant-scoped
+	CountComputeStorageVolumes(ctx context.Context, tenantID uuid.UUID) (int64, error)
+	//: tenant-scoped
 	CountDNSZones(ctx context.Context, tenantID uuid.UUID) (int64, error)
 	//: tenant-scoped
 	CountMembershipsForTenant(ctx context.Context, tenantID uuid.UUID) (int64, error)
@@ -59,6 +71,28 @@ type Querier interface {
 	// UPDATE and DELETE.
 	// ===========================================================================
 	CreateAuditLogOutcome(ctx context.Context, arg CreateAuditLogOutcomeParams) (AuditLogOutcome, error)
+	// compute_images (WS-14): tenant-scoped image catalog.
+	// Featured rows are seeded at bootstrap from conf.providers.incus.featuredImages;
+	// custom rows are inserted on user upload. Every query is tenant-scoped.
+	//: tenant-scoped
+	CreateComputeImage(ctx context.Context, arg CreateComputeImageParams) (ComputeImage, error)
+	// compute_instances (WS-14): tenant-scoped records of Incus instances.
+	// Every query here filters by tenant_id (set by WithTenant at the repo seam)
+	// except the cross-tenant admin lookups which are explicitly marked. Soft-
+	// deleted rows (deleted_at IS NOT NULL) are excluded from the unique name
+	// index and from list/count, but the rows are kept for historical audit +
+	// billing joins.
+	//: tenant-scoped
+	CreateComputeInstance(ctx context.Context, arg CreateComputeInstanceParams) (ComputeInstance, error)
+	// compute_networks (WS-14): tenant-scoped Incus network catalog.
+	//: tenant-scoped
+	CreateComputeNetwork(ctx context.Context, arg CreateComputeNetworkParams) (ComputeNetwork, error)
+	// compute_profiles (WS-14): tenant-scoped Incus profile catalog.
+	//: tenant-scoped
+	CreateComputeProfile(ctx context.Context, arg CreateComputeProfileParams) (ComputeProfile, error)
+	// compute_storage_volumes (WS-14): tenant-scoped custom storage volumes.
+	//: tenant-scoped
+	CreateComputeStorageVolume(ctx context.Context, arg CreateComputeStorageVolumeParams) (ComputeStorageVolume, error)
 	// DNS zones: tenant-scoped mapping (WS-12). The PowerDNS driver operates on
 	// the canonical zone id; the DNS service (WS-15) consults this table to
 	// translate a tenant context into the canonical id. Every query is
@@ -203,6 +237,28 @@ type Querier interface {
 	//: tenant). System events are visible from any tenant so operators can trace
 	//: auth flows even when scoped.
 	GetAuditLogForTenant(ctx context.Context, arg GetAuditLogForTenantParams) (AuditLog, error)
+	//: tenant-scoped; resolves an alias to a fingerprint at instance-create time.
+	GetComputeImageByAlias(ctx context.Context, arg GetComputeImageByAliasParams) (ComputeImage, error)
+	//: tenant-scoped; used by the upload path to detect duplicates.
+	GetComputeImageByFingerprint(ctx context.Context, arg GetComputeImageByFingerprintParams) (ComputeImage, error)
+	//: tenant-scoped
+	GetComputeImageByID(ctx context.Context, arg GetComputeImageByIDParams) (ComputeImage, error)
+	//: tenant-scoped
+	GetComputeInstanceByID(ctx context.Context, arg GetComputeInstanceByIDParams) (ComputeInstance, error)
+	//: tenant-scoped
+	GetComputeInstanceByName(ctx context.Context, arg GetComputeInstanceByNameParams) (ComputeInstance, error)
+	//: tenant-scoped
+	GetComputeNetworkByID(ctx context.Context, arg GetComputeNetworkByIDParams) (ComputeNetwork, error)
+	//: tenant-scoped
+	GetComputeNetworkByName(ctx context.Context, arg GetComputeNetworkByNameParams) (ComputeNetwork, error)
+	//: tenant-scoped
+	GetComputeProfileByID(ctx context.Context, arg GetComputeProfileByIDParams) (ComputeProfile, error)
+	//: tenant-scoped
+	GetComputeProfileByName(ctx context.Context, arg GetComputeProfileByNameParams) (ComputeProfile, error)
+	//: tenant-scoped
+	GetComputeStorageVolumeByID(ctx context.Context, arg GetComputeStorageVolumeByIDParams) (ComputeStorageVolume, error)
+	//: tenant-scoped; lookup by (pool, name) — the Incus composite key.
+	GetComputeStorageVolumeByName(ctx context.Context, arg GetComputeStorageVolumeByNameParams) (ComputeStorageVolume, error)
 	// Admin-only path: no tenant scoping. Used by the DNS service's
 	// cross-tenant "is this canonical id owned by anyone?" check.
 	GetDNSZoneByCanonical(ctx context.Context, canonicalID string) (DnsZone, error)
@@ -308,6 +364,22 @@ type Querier interface {
 	//: newest-first so the caller can pick the latest as the current status.
 	ListAuditLogOutcomes(ctx context.Context, auditID uuid.UUID) ([]AuditLogOutcome, error)
 	//: tenant-scoped
+	ListComputeImages(ctx context.Context, arg ListComputeImagesParams) ([]ComputeImage, error)
+	//: tenant-scoped; returns the (id, config_json) pairs the quota checker
+	//: walks to aggregate CPU/RAM/disk usage. We do the math in Go (not SQL)
+	//: because limits.cpu can be "4" (int) or "4,4,4" (pinned CPUs) and
+	//: limits.memory / root.size accept unit suffixes (GiB, MiB, ...). A single
+	//: round-trip keeps this cheap.
+	ListComputeInstanceConfigsForQuota(ctx context.Context, tenantID uuid.UUID) ([]ListComputeInstanceConfigsForQuotaRow, error)
+	//: tenant-scoped
+	ListComputeInstances(ctx context.Context, arg ListComputeInstancesParams) ([]ComputeInstance, error)
+	//: tenant-scoped
+	ListComputeNetworks(ctx context.Context, arg ListComputeNetworksParams) ([]ComputeNetwork, error)
+	//: tenant-scoped
+	ListComputeProfiles(ctx context.Context, arg ListComputeProfilesParams) ([]ComputeProfile, error)
+	//: tenant-scoped
+	ListComputeStorageVolumes(ctx context.Context, arg ListComputeStorageVolumesParams) ([]ComputeStorageVolume, error)
+	//: tenant-scoped
 	ListDNSZones(ctx context.Context, arg ListDNSZonesParams) ([]DnsZone, error)
 	//: tenant-scoped
 	ListMembershipsForTenant(ctx context.Context, arg ListMembershipsForTenantParams) ([]Membership, error)
@@ -362,6 +434,12 @@ type Querier interface {
 	RevokeRefreshTokenFamily(ctx context.Context, familyID uuid.UUID) error
 	RevokeRefreshTokensForSession(ctx context.Context, sessionID uuid.UUID) error
 	RevokeSession(ctx context.Context, id uuid.UUID) error
+	//: tenant-scoped; records the resolved fingerprint after a successful
+	//: CreateInstance against Incus.
+	SetComputeInstanceImageFingerprint(ctx context.Context, arg SetComputeInstanceImageFingerprintParams) error
+	//: tenant-scoped; caches the last-known Incus status. Called after every
+	//: lifecycle transition (start/stop/restart/freeze) and on read-reconcile.
+	SetComputeInstanceStatus(ctx context.Context, arg SetComputeInstanceStatusParams) error
 	//: tenant-scoped
 	SetDNSZoneAXFRCached(ctx context.Context, arg SetDNSZoneAXFRCachedParams) error
 	//: tenant-scoped
@@ -375,11 +453,31 @@ type Querier interface {
 	SetPluginStatus(ctx context.Context, arg SetPluginStatusParams) error
 	SetTenantActive(ctx context.Context, arg SetTenantActiveParams) error
 	//: tenant-scoped
+	SoftDeleteComputeImage(ctx context.Context, arg SoftDeleteComputeImageParams) error
+	//: tenant-scoped; marks the row deleted_at=now() so historical audit +
+	//: billing joins remain valid. The Incus instance itself is deleted via the
+	//: provider driver before this runs.
+	SoftDeleteComputeInstance(ctx context.Context, arg SoftDeleteComputeInstanceParams) error
+	//: tenant-scoped
+	SoftDeleteComputeNetwork(ctx context.Context, arg SoftDeleteComputeNetworkParams) error
+	//: tenant-scoped
+	SoftDeleteComputeProfile(ctx context.Context, arg SoftDeleteComputeProfileParams) error
+	//: tenant-scoped
+	SoftDeleteComputeStorageVolume(ctx context.Context, arg SoftDeleteComputeStorageVolumeParams) error
+	//: tenant-scoped
 	SoftDeleteMembership(ctx context.Context, arg SoftDeleteMembershipParams) error
 	SoftDeleteTenant(ctx context.Context, id uuid.UUID) error
 	SoftDeleteUser(ctx context.Context, id uuid.UUID) error
 	TouchPersonalAccessToken(ctx context.Context, tokenHash string) error
 	TouchSession(ctx context.Context, id uuid.UUID) error
+	//: tenant-scoped; replaces the cached config snapshot after a PATCH.
+	UpdateComputeInstanceConfig(ctx context.Context, arg UpdateComputeInstanceConfigParams) error
+	//: tenant-scoped
+	UpdateComputeNetwork(ctx context.Context, arg UpdateComputeNetworkParams) error
+	//: tenant-scoped
+	UpdateComputeProfile(ctx context.Context, arg UpdateComputeProfileParams) error
+	//: tenant-scoped
+	UpdateComputeStorageVolume(ctx context.Context, arg UpdateComputeStorageVolumeParams) error
 	//: tenant-scoped
 	UpdateDNSZoneDescription(ctx context.Context, arg UpdateDNSZoneDescriptionParams) error
 	//: tenant-scoped
@@ -398,6 +496,10 @@ type Querier interface {
 	// Bumps the sign counter on every successful assertion; the RP rejects any
 	// future assertion whose count is not strictly greater.
 	UpdateWebauthnSignCount(ctx context.Context, arg UpdateWebauthnSignCountParams) error
+	//: tenant-scoped; sets the fingerprint on an existing row (the bootstrap
+	//: path seeds rows with fingerprint='' and the provider resolves them
+	//: lazily on first use).
+	UpsertComputeImageFingerprint(ctx context.Context, arg UpsertComputeImageFingerprintParams) error
 	// plugin_config (WS-10b). One row per (plugin_id, key); the admin sets
 	// these via the admin plugin API and the plugin reads them through the
 	// config_get host function. Rows flagged is_secret = true are NEVER
