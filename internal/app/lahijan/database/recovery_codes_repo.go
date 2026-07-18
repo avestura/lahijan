@@ -17,6 +17,11 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/database/gen"
 )
 
+// UserRecoveryCodeRow is the package-level alias for the sqlc-generated
+// type so callers do not need to import the gen package directly. Mirrors
+// the existing pattern in users_repo.go (which returns gen.User).
+type UserRecoveryCodeRow = gen.UserRecoveryCode
+
 // RecoveryCodesRepository is the persistence boundary for
 // user_recovery_codes.
 type RecoveryCodesRepository struct {

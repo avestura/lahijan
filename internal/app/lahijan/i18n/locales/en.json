@@ -80,6 +80,33 @@
     "other": "This account is not yet linked to your organisation's login. Contact your operator to be added."
   },
 
+  "auth.err_mfa_required_unenrolled": {
+    "description": "Returned when login is blocked because the tenant requires MFA but the user has no factor enrolled.",
+    "other": "Your organisation requires multi-factor authentication. Please enroll an MFA factor before logging in."
+  },
+  "auth.err_mfa_pending_not_found": { "other": "The MFA session has expired. Please log in again." },
+  "auth.err_mfa_pending_expired": { "other": "The MFA session has expired. Please log in again." },
+  "auth.err_mfa_pending_consumed": { "other": "This MFA session has already been used. Please log in again." },
+  "auth.err_mfa_pending_revoked": { "other": "This MFA session was revoked due to too many failed attempts. Please log in again." },
+  "auth.err_mfa_too_many_attempts": {
+    "description": "Returned after 5 consecutive failed MFA challenges against the same pending session.",
+    "other": "Too many incorrect codes. The MFA session has been revoked; please log in again."
+  },
+  "auth.err_mfa_invalid_challenge": { "other": "That code didn't match. Please try again." },
+  "auth.err_mfa_not_enrolled": { "other": "This MFA factor is not enrolled." },
+  "auth.err_mfa_already_enrolled": { "other": "This MFA factor is already enrolled. Disable it first if you want to re-enroll." },
+  "auth.err_mfa_factor_not_found": { "other": "MFA factor not found." },
+  "auth.err_mfa_password_required": { "other": "Your current password is required to disable MFA." },
+  "auth.err_mfa_disabled": { "other": "MFA is not enabled on this server." },
+
+  "auth.msg_mfa_totp_enrolled": { "other": "Your authenticator app is now set up. Enter the 6-digit code to confirm." },
+  "auth.msg_mfa_totp_confirmed": { "other": "TOTP has been enabled." },
+  "auth.msg_mfa_totp_disabled": { "other": "TOTP has been disabled." },
+  "auth.msg_mfa_webauthn_registered": { "other": "Passkey registered." },
+  "auth.msg_mfa_webauthn_deleted": { "other": "Passkey removed." },
+  "auth.msg_mfa_recovery_regenerated": { "other": "A fresh batch of recovery codes has been generated. Save them now — they will not be shown again." },
+  "auth.msg_mfa_challenge_ok": { "other": "Multi-factor authentication succeeded." },
+
   "rbac.err_tenant_scope_required": {
     "description": "Returned when a privileged endpoint is called without the X-Tenant-Id header.",
     "other": "A tenant scope is required for this action. Set the X-Tenant-Id header."
@@ -113,6 +140,13 @@
   "audit.action_auth_idp_link": { "other": "Identity provider linked" },
   "audit.action_auth_idp_login": { "other": "Logged in via identity provider" },
   "audit.action_auth_idp_unlink": { "other": "Identity provider unlinked" },
+
+  "audit.action_auth_mfa_enroll": { "other": "MFA factor enrolled" },
+  "audit.action_auth_mfa_verify": { "other": "MFA factor verified" },
+  "audit.action_auth_mfa_disable": { "other": "MFA factor disabled" },
+  "audit.action_auth_mfa_recovery_refresh": { "other": "Recovery codes regenerated" },
+  "audit.action_auth_mfa_challenge": { "other": "MFA challenge succeeded" },
+  "audit.action_auth_mfa_challenge_fail": { "other": "MFA challenge failed" },
 
   "audit.action_audit_export": { "other": "Audit log exported" },
   "audit.action_rbac_role_update": { "other": "Role updated" },
