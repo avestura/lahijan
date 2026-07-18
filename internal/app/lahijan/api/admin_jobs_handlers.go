@@ -265,8 +265,15 @@ func isTerminalState(s rivertype.JobState) bool {
 	switch s {
 	case rivertype.JobStateCancelled, rivertype.JobStateCompleted, rivertype.JobStateDiscarded:
 		return true
+	case rivertype.JobStateAvailable, rivertype.JobStatePending,
+		rivertype.JobStateRetryable, rivertype.JobStateRunning, rivertype.JobStateScheduled:
+		return false
+	default:
+		// Unknown states are treated as non-terminal so cancel is allowed
+		// (the River-side cancel call itself will return the appropriate
+		// error if the state is genuinely not cancellable).
+		return false
 	}
-	return false
 }
 
 // toAdminJobDTO converts a River JobRow into the OpenAPI AdminJob schema.

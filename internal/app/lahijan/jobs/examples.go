@@ -6,16 +6,16 @@
 //
 // They exist so that:
 //
-//   1. The River client always has at least one worker to execute, which
-//      lets the integration test prove the queue + retry + DLQ + admin API
-//      loop works end-to-end before any domain module ships.
-//   2. The admin UI has a non-empty catalog to render during development.
-//   3. The OTel middleware has real traffic to emit spans/metrics for.
+//  1. The River client always has at least one worker to execute, which
+//     lets the integration test prove the queue + retry + DLQ + admin API
+//     loop works end-to-end before any domain module ships.
+//  2. The admin UI has a non-empty catalog to render during development.
+//  3. The OTel middleware has real traffic to emit spans/metrics for.
 package jobs
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"log/slog"
 	"time"
 
@@ -57,7 +57,8 @@ func (w *MeteringRollupWorker) Work(ctx context.Context, job *river.Job[Metering
 	if log == nil {
 		log = slog.Default()
 	}
-	log.InfoContext(ctx, "jobs: metering rollup placeholder",
+	log.InfoContext(
+		ctx, "jobs: metering rollup placeholder",
 		"tenant_id", job.Args.TenantID,
 		"period", job.Args.Period.Format(time.RFC3339),
 		"attempt", job.Attempt,
@@ -99,7 +100,8 @@ func (w *AuditLogPruneWorker) Work(ctx context.Context, job *river.Job[AuditLogP
 	if log == nil {
 		log = slog.Default()
 	}
-	log.InfoContext(ctx, "jobs: audit log prune placeholder",
+	log.InfoContext(
+		ctx, "jobs: audit log prune placeholder",
 		"tenant_id", job.Args.TenantID,
 		"retention_days", job.Args.RetentionDays,
 		"attempt", job.Attempt,
@@ -144,7 +146,8 @@ func (w *NotifyEmailSendWorker) Work(ctx context.Context, job *river.Job[NotifyE
 	if log == nil {
 		log = slog.Default()
 	}
-	log.InfoContext(ctx, "jobs: notify email send placeholder",
+	log.InfoContext(
+		ctx, "jobs: notify email send placeholder",
 		"to", job.Args.To,
 		"subject", job.Args.Subject,
 		"attempt", job.Attempt,
@@ -192,9 +195,10 @@ func (w *ComputeInstanceSnapshotWorker) Work(ctx context.Context, job *river.Job
 		// retry -> DLQ without inventing a synthetic failing kind. The
 		// caller-side validation in WS-25 will make this unreachable in
 		// practice.
-		return fmt.Errorf("jobs: compute.instance.snapshot: instance_id is required (placeholder failure)")
+		return errors.New("jobs: compute.instance.snapshot: instance_id is required (placeholder failure)")
 	}
-	log.InfoContext(ctx, "jobs: compute instance snapshot placeholder",
+	log.InfoContext(
+		ctx, "jobs: compute instance snapshot placeholder",
 		"tenant_id", job.Args.TenantID,
 		"instance_id", job.Args.InstanceID,
 		"snapshot_id", job.Args.SnapshotID,
@@ -223,7 +227,7 @@ type AlwaysFailWorker struct {
 
 // Work implements river.Worker.
 func (AlwaysFailWorker) Work(_ context.Context, job *river.Job[AlwaysFailArgs]) error {
-	return fmt.Errorf("jobs: always_fail: %s", job.Args.Reason)
+	return errors.New("jobs: always_fail: " + job.Args.Reason)
 }
 
 // ---------------------------------------------------------------------------

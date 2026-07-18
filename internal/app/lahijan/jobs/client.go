@@ -58,6 +58,10 @@ type Config struct {
 	// own. Defaults to 5 (matches River upstream).
 	MaxAttempts int
 
+	// RetryPolicy overrides River's default (attempt^4 seconds — 1s, 16s,
+	// 81s, ...) so callers can tighten the schedule. Nil keeps the default.
+	RetryPolicy river.ClientRetryPolicy
+
 	// PollOnly disables LISTEN/NOTIFY and falls back to polling — needed for
 	// PgBouncer transaction-pooling deployments that do not pass through
 	// Postgres notifications.
@@ -112,6 +116,7 @@ func NewClient(pool *pgxpool.Pool, registry *Registry, cfg Config) (*Client, err
 		JobTimeout:  cfg.JobTimeout,
 		MaxAttempts: cfg.MaxAttempts,
 		PollOnly:    cfg.PollOnly,
+		RetryPolicy: cfg.RetryPolicy,
 		Middleware: []rivertype.Middleware{
 			mw,
 		},
@@ -150,11 +155,11 @@ func buildQueues(r *Registry, cfg Config) map[string]river.QueueConfig {
 		if _, ok := out[q]; ok {
 			continue
 		}
-		max := defaults
+		workerCount := defaults
 		if spec.Concurrency > 0 {
-			max = spec.Concurrency
+			workerCount = spec.Concurrency
 		}
-		out[q] = river.QueueConfig{MaxWorkers: max}
+		out[q] = river.QueueConfig{MaxWorkers: workerCount}
 	}
 	return out
 }

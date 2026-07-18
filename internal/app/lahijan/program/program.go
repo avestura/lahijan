@@ -137,9 +137,11 @@ func Start() error {
 	if jobDeps.supervisor != nil {
 		// Start workers in the background so bootstrap is not blocked on
 		// River's leadership election (which can take a few seconds).
-		startCtx, startCancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer startCancel()
-		if err := jobDeps.supervisor.Start(startCtx); err != nil {
+		// context.Background() so the queue's lifetime is the process's
+		// lifetime — River ties the client's lifetime to the Start
+		// context, so a timeout here would stop the workers after the
+		// timeout. The defer below drains via Stop on shutdown.
+		if err := jobDeps.supervisor.Start(context.Background()); err != nil {
 			log.Fatalf("failed to start job supervisor: %s", err.Error())
 		}
 		defer func() {
@@ -780,8 +782,8 @@ func buildMFADeps(ctx context.Context, a *authDeps) (mfaDeps, error) {
 // started. The cleanup func is invoked at process shutdown to drain the
 // queue before the DB pool closes.
 type jobDeps struct {
-	registry  *jobs.Registry
-	client    *jobs.Client
+	registry   *jobs.Registry
+	client     *jobs.Client
 	supervisor *jobs.Supervisor
 }
 

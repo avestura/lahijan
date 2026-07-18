@@ -121,7 +121,8 @@ func (m *otelMiddleware) Work(
 		attribute.Int(attrPriority, job.Priority),
 	}
 	spanName := "river." + job.Kind + ".work"
-	ctx, span := tracer().Start(ctx, spanName,
+	ctx, span := tracer().Start(
+		ctx, spanName,
 		trace.WithSpanKind(trace.SpanKindConsumer),
 		trace.WithAttributes(attrs...),
 	)
@@ -137,19 +138,17 @@ func (m *otelMiddleware) Work(
 	dur := time.Since(start)
 
 	if metricsOK {
-		durationAttr := attribute.KeyValue{Key: attrKind, Value: attribute.StringValue(job.Kind)}
+		outcome := outcomeSuccess
 		if err != nil {
-			m.doneCounter.Add(ctx, 1,
-				metric.WithAttributes(attrs...),
-				metric.WithAttributes(attribute.String(attrOutcome, outcomeError)))
-			durationAttr = attribute.String(attrOutcome, outcomeError)
-		} else {
-			m.doneCounter.Add(ctx, 1,
-				metric.WithAttributes(attrs...),
-				metric.WithAttributes(attribute.String(attrOutcome, outcomeSuccess)))
-			durationAttr = attribute.String(attrOutcome, outcomeSuccess)
+			outcome = outcomeError
 		}
-		m.histDuration.Record(ctx, dur.Milliseconds(), metric.WithAttributes(durationAttr))
+		outcomeAttr := attribute.String(attrOutcome, outcome)
+		m.doneCounter.Add(ctx, 1,
+			metric.WithAttributes(attrs...),
+			metric.WithAttributes(outcomeAttr),
+		)
+		m.histDuration.Record(ctx, dur.Milliseconds(),
+			metric.WithAttributes(attribute.String(attrKind, job.Kind), outcomeAttr))
 	}
 
 	if err != nil {

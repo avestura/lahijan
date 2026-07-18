@@ -51,8 +51,10 @@ func NewSupervisor(client *Client, softStopTimeout time.Duration) (*Supervisor, 
 
 // Start starts the River client's workers + maintenance services. It is
 // idempotent — a second call returns nil without re-starting. The caller
-// owns the supplied ctx: cancelling it does NOT stop the workers; call
-// Stop to drain them gracefully.
+// owns the supplied ctx: cancelling it WILL stop the workers (River ties
+// the client's lifetime to this context). For a long-lived server, pass
+// context.Background() and use Stop to drain; for a request-scoped job,
+// pass the request context to tie the queue's lifetime to that request.
 //
 // Returns when the client has finished starting (typically <1s); workers
 // keep running in background goroutines River owns.
