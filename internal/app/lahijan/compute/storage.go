@@ -44,7 +44,7 @@ func (s *Service) CreateVolume(
 		Name:        params.Name,
 		Description: params.Description,
 		PoolName:    pool,
-		ConfigJson:  configJSON,
+		Config:      configJSON,
 	})
 	if err != nil {
 		if database.IsUniqueViolation(err) {
@@ -69,7 +69,7 @@ func (s *Service) CreateVolume(
 			_ = s.repos.ComputeStorageVolumes.SoftDelete(ctx, row.ID)
 			return VolumeRow{}, fmt.Errorf("compute: ensure project: %w", err)
 		}
-		if err := s.provider.CreateStorageVolume(ctx, project, pool, incus.StorageVolumesPost{
+		if err := s.provider.CreateStorageVolume(ctx, pool, incus.StorageVolumesPost{
 			Name:        params.Name,
 			Type:        "custom",
 			Description: params.Description,
@@ -135,7 +135,7 @@ func (s *Service) DeleteVolume(
 	})
 	if s.provider != nil {
 		project := s.provider.ProjectName(tenantID)
-		if err := s.provider.DeleteStorageVolume(ctx, project, row.PoolName, row.Name); err != nil {
+		if err := s.provider.DeleteStorageVolume(ctx, row.PoolName, project, "custom", row.Name); err != nil {
 			_ = s.audit.MarkOutcome(ctx, auditID, audit.Outcome{Status: audit.StatusFailure, Details: map[string]any{"error": err.Error()}})
 			return fmt.Errorf("compute: incus delete volume: %w", err)
 		}

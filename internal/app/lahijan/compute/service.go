@@ -122,8 +122,8 @@ type incusNetworkOps interface {
 
 // incusVolumeOps covers storage volume CRUD.
 type incusVolumeOps interface {
-	CreateStorageVolume(ctx context.Context, project, pool string, body incus.StorageVolumesPost) error
-	DeleteStorageVolume(ctx context.Context, project, pool, name string) error
+	CreateStorageVolume(ctx context.Context, pool string, body incus.StorageVolumesPost) error
+	DeleteStorageVolume(ctx context.Context, pool, project, volType, name string) error
 }
 
 // incusExecOps covers the exec websocket proxy.

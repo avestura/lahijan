@@ -46,7 +46,7 @@ func (s *Service) CreateNetwork(
 		Name:        params.Name,
 		Description: params.Description,
 		Type:        netType,
-		ConfigJson:  configJSON,
+		Config:      configJSON,
 	})
 	if err != nil {
 		if database.IsUniqueViolation(err) {

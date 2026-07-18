@@ -34,7 +34,7 @@ func TestLocalAssetLoader_ReadsFiles(t *testing.T) {
 	loader := NewLocalAssetLoader(root)
 
 	asset, err := loader.Fetch(context.Background(), Entry{
-		Name: "test-plugin",
+		Name:   "test-plugin",
 		Source: Source{Repo: "local", Path: "test-plugin"},
 	})
 	require.NoError(t, err)

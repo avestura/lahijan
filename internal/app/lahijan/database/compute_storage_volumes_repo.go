@@ -39,7 +39,7 @@ type CreateComputeStorageVolumeParams struct {
 	Description string
 	Type        string
 	PoolName    string
-	ConfigJson  json.RawMessage
+	Config      json.RawMessage
 }
 
 // Create inserts a new compute_storage_volumes row scoped to the tenant in ctx.
@@ -59,7 +59,7 @@ func (r *ComputeStorageVolumesRepository) Create(
 	if pool == "" {
 		pool = "default"
 	}
-	cfg := arg.ConfigJson
+	cfg := arg.Config
 	if len(cfg) == 0 {
 		cfg = json.RawMessage(`{}`)
 	}

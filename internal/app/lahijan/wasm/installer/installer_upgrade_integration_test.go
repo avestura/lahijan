@@ -91,7 +91,8 @@ func TestUpgrade_HappyPath_PreservesAndDropsGrants(t *testing.T) {
 
 	// Audit row emitted for the upgrade.
 	var n int
-	require.NoError(t, pool.QueryRow(ctx,
+	require.NoError(t, pool.QueryRow(
+		ctx,
 		"SELECT count(*) FROM audit_log WHERE action = $1 AND resource_id = $2",
 		installer.ActionUpgrade, res.New.ID,
 	).Scan(&n))
@@ -113,7 +114,7 @@ func TestUpgrade_NoPriorVersion_Rejects(t *testing.T) {
 	_, err := svc.Upgrade(tctx, installer.UploadParams{
 		TenantID: &tenant.ID, ActorUserID: actor.ID,
 		WasmBytes: addModule(),
-		Manifest: &manifest.Manifest{Name: "no-prior", Version: "1.0.0"},
+		Manifest:  &manifest.Manifest{Name: "no-prior", Version: "1.0.0"},
 	})
 	require.ErrorIs(t, err, installer.ErrNotInstalled)
 }
@@ -157,14 +158,14 @@ func TestUpgrade_Downgrade_Rejects(t *testing.T) {
 	_, err := svc.Upload(ctx, installer.UploadParams{
 		TenantID: &tenant.ID, ActorUserID: actor.ID,
 		WasmBytes: addModule(),
-		Manifest: &manifest.Manifest{Name: "down-target", Version: "2.0.0"},
+		Manifest:  &manifest.Manifest{Name: "down-target", Version: "2.0.0"},
 	})
 	require.NoError(t, err)
 
 	_, err = svc.Upgrade(tctx, installer.UploadParams{
 		TenantID: &tenant.ID, ActorUserID: actor.ID,
 		WasmBytes: addModule(),
-		Manifest: &manifest.Manifest{Name: "down-target", Version: "1.0.0"},
+		Manifest:  &manifest.Manifest{Name: "down-target", Version: "1.0.0"},
 	})
 	require.ErrorIs(t, err, installer.ErrDowngrade)
 }

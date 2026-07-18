@@ -74,14 +74,14 @@ func (s *Service) UploadImage(
 	}
 	props, _ := json.Marshal(params.Properties)
 	row, err := s.repos.ComputeImages.Create(ctx, database.CreateComputeImageParams{
-		Alias:          params.Alias,
-		Source:         database.ImageSourceCustom,
-		Fingerprint:    params.Fingerprint,
-		Type:           params.Type,
-		Architecture:   params.Architecture,
-		SizeBytes:      params.SizeBytes,
-		PropertiesJson: props,
-		Description:    params.Description,
+		Alias:        params.Alias,
+		Source:       database.ImageSourceCustom,
+		Fingerprint:  params.Fingerprint,
+		Type:         params.Type,
+		Architecture: params.Architecture,
+		SizeBytes:    params.SizeBytes,
+		Properties:   props,
+		Description:  params.Description,
 	})
 	if err != nil {
 		if database.IsUniqueViolation(err) {

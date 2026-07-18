@@ -34,7 +34,7 @@ type CreateComputeNetworkParams struct {
 	Name         string
 	Description  string
 	Type         string
-	ConfigJson   json.RawMessage
+	Config       json.RawMessage
 	ACLNames     []string
 	ForwardNames []string
 }
@@ -52,7 +52,7 @@ func (r *ComputeNetworksRepository) Create(
 	if netType == "" {
 		netType = NetworkTypeBridge
 	}
-	cfg := arg.ConfigJson
+	cfg := arg.Config
 	if len(cfg) == 0 {
 		cfg = json.RawMessage(`{}`)
 	}

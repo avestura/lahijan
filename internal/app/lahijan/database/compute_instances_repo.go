@@ -68,7 +68,7 @@ type CreateComputeInstanceParams struct {
 	ImageAlias       string
 	ImageFingerprint string
 	Profiles         []string
-	ConfigJson       json.RawMessage
+	Config           json.RawMessage
 	Description      string
 }
 
@@ -97,7 +97,7 @@ func (r *ComputeInstancesRepository) Create(
 	if profiles == nil {
 		profiles = []string{}
 	}
-	cfg := arg.ConfigJson
+	cfg := arg.Config
 	if len(cfg) == 0 {
 		cfg = json.RawMessage(`{}`)
 	}
@@ -184,8 +184,8 @@ func (r *ComputeInstancesRepository) CountByStatus(
 // service layer (limits.cpu can be pinned-cpu lists, limits.memory / root
 // size accept unit suffixes — Go is the cleaner place to do the math).
 type InstanceConfigForQuota struct {
-	ID         uuid.UUID
-	ConfigJson json.RawMessage
+	ID     uuid.UUID
+	Config json.RawMessage
 }
 
 // ListConfigsForQuota returns the (id, config_json) pair for every
@@ -203,7 +203,7 @@ func (r *ComputeInstancesRepository) ListConfigsForQuota(
 	}
 	out := make([]InstanceConfigForQuota, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, InstanceConfigForQuota{ID: row.ID, ConfigJson: row.ConfigJson})
+		out = append(out, InstanceConfigForQuota{ID: row.ID, Config: row.ConfigJson})
 	}
 	return out, nil
 }

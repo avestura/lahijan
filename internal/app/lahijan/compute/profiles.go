@@ -43,7 +43,7 @@ func (s *Service) CreateProfile(
 	row, err := s.repos.ComputeProfiles.Create(ctx, database.CreateComputeProfileParams{
 		Name:        params.Name,
 		Description: params.Description,
-		ConfigJson:  configJSON,
+		Config:      configJSON,
 	})
 	if err != nil {
 		if database.IsUniqueViolation(err) {

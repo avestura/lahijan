@@ -26,7 +26,7 @@ func NewComputeProfilesRepository(q *gen.Queries) *ComputeProfilesRepository {
 type CreateComputeProfileParams struct {
 	Name        string
 	Description string
-	ConfigJson  json.RawMessage
+	Config      json.RawMessage
 }
 
 // Create inserts a new compute_profiles row scoped to the tenant in ctx.
@@ -38,7 +38,7 @@ func (r *ComputeProfilesRepository) Create(
 	if err != nil {
 		return gen.ComputeProfile{}, err
 	}
-	cfg := arg.ConfigJson
+	cfg := arg.Config
 	if len(cfg) == 0 {
 		cfg = json.RawMessage(`{}`)
 	}

@@ -128,7 +128,7 @@ func (s *Service) CreateInstance(
 		StatusCode:  int32(database.StatusCodeStopped),
 		ImageAlias:  params.ImageAlias,
 		Profiles:    profiles,
-		ConfigJson:  configJSON,
+		Config:      configJSON,
 		Description: params.Description,
 	})
 	if err != nil {

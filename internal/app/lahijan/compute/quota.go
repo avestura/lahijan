@@ -294,7 +294,7 @@ func (s *Service) computeUsage(ctx context.Context, tenantID uuid.UUID) (usage, 
 	}
 	u := usage{InstanceCount: len(rows)}
 	for _, row := range rows {
-		cfg, err := parseInstanceConfig(row.ConfigJson)
+		cfg, err := parseInstanceConfig(row.Config)
 		if err != nil {
 			// A malformed row should not block quota; treat it as 0
 			// usage but log the parse failure for follow-up.
