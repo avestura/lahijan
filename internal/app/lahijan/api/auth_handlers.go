@@ -86,9 +86,9 @@ func (s *Server) Login(c *fiber.Ctx) error {
 			return SendInternal(c, i18n.T(c.UserContext(), "auth.err_internal", nil))
 		}
 		if required {
-			pending, err := s.mfaSvc.BeginLogin(c.UserContext(), user.ID, ua, ip)
-			if err != nil {
-				return s.mapMFAError(c, err)
+			pending, perr := s.mfaSvc.BeginLogin(c.UserContext(), user.ID, ua, ip)
+			if perr != nil {
+				return s.mapMFAError(c, perr)
 			}
 			if pending.Token == "" {
 				// Should not happen: IsMFARequired returned true so
@@ -103,9 +103,9 @@ func (s *Server) Login(c *fiber.Ctx) error {
 				factors = append(factors, apigen.MFAChallengeRequiredEnrolledFactors("webauthn"))
 			}
 			return c.Status(fiber.StatusAccepted).JSON(apigen.MFAChallengeRequired{
-				MfaRequired:        true,
+				MfaRequired:         true,
 				PendingSessionToken: pending.Token,
-				EnrolledFactors:    &factors,
+				EnrolledFactors:     &factors,
 			})
 		}
 		// Not required: open the real session now.

@@ -6,19 +6,19 @@
 // The service owns four responsibilities:
 //
 //  1. Factor enrollment (per-user):
-//       TOTP:   EnrollTOTP / VerifyTOTP / DisableTOTP
-//       WebAuthn: BeginWebAuthnRegistration / FinishWebAuthnRegistration
-//       Recovery: RegenerateRecoveryCodes
+//     TOTP:   EnrollTOTP / VerifyTOTP / DisableTOTP
+//     WebAuthn: BeginWebAuthnRegistration / FinishWebAuthnRegistration
+//     Recovery: RegenerateRecoveryCodes
 //
 //  2. Login flow integration:
-//       BeginLoginFromPassword / BeginLoginFromIdP — issue a pending_session_token
-//       Challenge — verify a TOTP / recovery / WebAuthn code against the
-//                   pending session and, on success, issue the real session.
+//     BeginLoginFromPassword / BeginLoginFromIdP — issue a pending_session_token
+//     Challenge — verify a TOTP / recovery / WebAuthn code against the
+//     pending session and, on success, issue the real session.
 //
 //  3. Policy enforcement:
-//       IsMFARequired — does this user need an MFA challenge before the real
-//                       session is issued? (per-user opt-in OR per-tenant
-//                       required OR per-role required)
+//     IsMFARequired — does this user need an MFA challenge before the real
+//     session is issued? (per-user opt-in OR per-tenant
+//     required OR per-role required)
 //
 //  4. Audit emission for every privileged MFA action (enroll, verify,
 //     disable, regenerate, challenge success/failure).
@@ -49,17 +49,17 @@ import (
 
 // Sentinel errors. The api handler maps these to localised envelopes.
 var (
-	ErrNotFound            = errors.New("mfa: factor not found")
-	ErrAlreadyEnrolled     = errors.New("mfa: factor already enrolled")
-	ErrNotEnrolled         = errors.New("mfa: factor not enrolled")
-	ErrPendingNotFound     = errors.New("mfa: pending session not found")
-	ErrPendingExpired      = errors.New("mfa: pending session expired")
-	ErrPendingConsumed     = errors.New("mfa: pending session already used")
-	ErrPendingRevoked      = errors.New("mfa: pending session revoked")
-	ErrTooManyAttempts     = errors.New("mfa: too many failed attempts; pending session revoked")
-	ErrInvalidChallenge    = errors.New("mfa: invalid challenge code")
+	ErrNotFound              = errors.New("mfa: factor not found")
+	ErrAlreadyEnrolled       = errors.New("mfa: factor already enrolled")
+	ErrNotEnrolled           = errors.New("mfa: factor not enrolled")
+	ErrPendingNotFound       = errors.New("mfa: pending session not found")
+	ErrPendingExpired        = errors.New("mfa: pending session expired")
+	ErrPendingConsumed       = errors.New("mfa: pending session already used")
+	ErrPendingRevoked        = errors.New("mfa: pending session revoked")
+	ErrTooManyAttempts       = errors.New("mfa: too many failed attempts; pending session revoked")
+	ErrInvalidChallenge      = errors.New("mfa: invalid challenge code")
 	ErrMFARequiredUnenrolled = errors.New("mfa: policy requires MFA but the user has no factor enrolled")
-	ErrPasswordRequired    = errors.New("mfa: current password is required to disable MFA")
+	ErrPasswordRequired      = errors.New("mfa: current password is required to disable MFA")
 )
 
 // Audit action constants are registered centrally in audit/audit.go;
@@ -174,8 +174,8 @@ type EnrollTOTPInput struct {
 // Until the user calls VerifyTOTP with a valid 6-digit code, the secret
 // does NOT count as an enrolled factor.
 type TOTPSecret struct {
-	Raw              string
-	ProvisioningURI  string
+	Raw             string
+	ProvisioningURI string
 }
 
 // EnrollTOTP generates a fresh TOTP secret, AES-GCM-encrypts it, persists
@@ -202,8 +202,8 @@ func (s *Service) EnrollTOTP(ctx context.Context, in EnrollTOTPInput) (TOTPSecre
 		return TOTPSecret{}, fmt.Errorf("mfa: encrypt totp secret: %w", err)
 	}
 	if _, err := s.repos.TOTPSecrets.Upsert(ctx, database.UpsertTOTPSecretParams{
-		UserID:            in.UserID,
-		SecretCiphertext:  enc,
+		UserID:           in.UserID,
+		SecretCiphertext: enc,
 	}); err != nil {
 		return TOTPSecret{}, fmt.Errorf("mfa: persist totp secret: %w", err)
 	}
@@ -302,9 +302,9 @@ type webauthnUser struct {
 	creds []webauthn.Credential
 }
 
-func (u *webauthnUser) WebAuthnID() []byte                { return u.id[:] }
-func (u *webauthnUser) WebAuthnName() string              { return u.email }
-func (u *webauthnUser) WebAuthnDisplayName() string       { return u.email }
+func (u *webauthnUser) WebAuthnID() []byte                         { return u.id[:] }
+func (u *webauthnUser) WebAuthnName() string                       { return u.email }
+func (u *webauthnUser) WebAuthnDisplayName() string                { return u.email }
 func (u *webauthnUser) WebAuthnCredentials() []webauthn.Credential { return u.creds }
 
 // loadWebauthnUser builds the webauthnUser for the given userID by
@@ -621,10 +621,15 @@ func (s *Service) BeginLogin(
 	return PendingSession{Token: raw, UserID: userID}, nil
 }
 
-// Challenge verifies the MFA code against the pending session and, on
-// success, consumes the pending token and issues the real session + refresh
-// token via the SessionOpener. On failure, bumps the failure counter; at
-// MaxAttempts the pending token is revoked (brute-force lockout).
+// ChallengeInput carries the fields the challenge endpoint needs. The
+// pending token identifies the user (and the brute-force counter); kind
+// selects which factor to verify; code carries the user-typed value for
+// TOTP / recovery; the webauthn fields carry the ceremony artifacts.
+//
+// On success, the Challenge method consumes the pending token and issues
+// the real session + refresh token via the SessionOpener. On failure, it
+// bumps the failure counter; at MaxAttempts the pending token is revoked
+// (brute-force lockout).
 //
 // kind selects which factor to verify:
 //   - "totp"     — code is a 6-digit TOTP value
@@ -704,12 +709,12 @@ func (s *Service) Challenge(ctx context.Context, in ChallengeInput) (ChallengeRe
 	}
 
 	// Success: consume the pending token and issue the real session.
-	if err := s.repos.MFAPending.Consume(ctx, row.ID); err != nil {
-		return ChallengeResult{}, fmt.Errorf("mfa: consume pending session: %w", err)
+	if cerr := s.repos.MFAPending.Consume(ctx, row.ID); cerr != nil {
+		return ChallengeResult{}, fmt.Errorf("mfa: consume pending session: %w", cerr)
 	}
-	sess, err := s.sessions.OpenForExistingUser(ctx, row.UserID, row.UserAgent, row.IpAddress)
-	if err != nil {
-		return ChallengeResult{}, fmt.Errorf("mfa: open session after challenge: %w", err)
+	sess, oerr := s.sessions.OpenForExistingUser(ctx, row.UserID, row.UserAgent, row.IpAddress)
+	if oerr != nil {
+		return ChallengeResult{}, fmt.Errorf("mfa: open session after challenge: %w", oerr)
 	}
 	auditEmit(s, ctx, audit.Event{
 		ActorUserID:  &row.UserID,
@@ -732,6 +737,9 @@ func (s *Service) verifyFactor(ctx context.Context, userID uuid.UUID, in Challen
 		row, err := s.repos.TOTPSecrets.Get(ctx, userID)
 		if err != nil {
 			if database.IsNoRows(err) {
+				//nolint:nilerr // "no rows" means the user has no TOTP
+				// factor — treat as a failed challenge rather than a
+				// system error so the brute-force counter ticks.
 				return false, nil
 			}
 			return false, fmt.Errorf("mfa: load totp secret for challenge: %w", err)
@@ -741,18 +749,24 @@ func (s *Service) verifyFactor(ctx context.Context, userID uuid.UUID, in Challen
 			return false, fmt.Errorf("mfa: decrypt totp secret: %w", err)
 		}
 		if err := totp.Validate(s.cfg.TOTP, raw, in.Code); err != nil {
+			//nolint:nilerr // invalid 6-digit code is a failed challenge,
+			// not a system error.
 			return false, nil
 		}
 		return true, nil
 	case "recovery":
 		norm, err := recovery.Normalize(in.Code)
 		if err != nil {
+			//nolint:nilerr // malformed recovery code is a failed
+			// challenge, not a system error.
 			return false, nil
 		}
 		hash := recovery.Hash(norm)
 		row, err := s.repos.RecoveryCodes.LookupUnused(ctx, userID, hash)
 		if err != nil {
 			if database.IsNoRows(err) {
+				//nolint:nilerr // unknown / already-used recovery code
+				// is a failed challenge, not a system error.
 				return false, nil
 			}
 			return false, fmt.Errorf("mfa: lookup recovery code: %w", err)
@@ -766,6 +780,8 @@ func (s *Service) verifyFactor(ctx context.Context, userID uuid.UUID, in Challen
 			return false, errors.New("mfa: webauthn is not configured")
 		}
 		if _, err := s.FinishWebAuthnLogin(ctx, userID, in.WebAuthnSession, in.WebAuthnAssertion); err != nil {
+			//nolint:nilerr // assertion verification failure is a failed
+			// challenge, not a system error.
 			return false, nil
 		}
 		return true, nil
@@ -811,4 +827,3 @@ func auditEmit(s *Service, ctx context.Context, ev audit.Event) {
 	}
 	_, _ = s.audit.Emit(ctx, ev)
 }
-

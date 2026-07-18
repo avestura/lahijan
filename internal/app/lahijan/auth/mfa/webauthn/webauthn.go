@@ -3,11 +3,11 @@
 // The package exposes two ceremony pairs:
 //
 //   - Registration (attestation):
-//       BeginRegistration(user) -> (CredentialCreation, SessionData)
-//       FinishRegistration(user, SessionData, parsed) -> Credential
+//     BeginRegistration(user) -> (CredentialCreation, SessionData)
+//     FinishRegistration(user, SessionData, parsed) -> Credential
 //   - Authentication (assertion):
-//       BeginLogin(user) -> (CredentialAssertion, SessionData)
-//       FinishLogin(user, SessionData, parsed) -> Credential
+//     BeginLogin(user) -> (CredentialAssertion, SessionData)
+//     FinishLogin(user, SessionData, parsed) -> Credential
 //
 // The package wraps `github.com/go-webauthn/webauthn` (Apache-2.0; see
 // ADR-0021) so callers in auth/mfa never import the upstream library

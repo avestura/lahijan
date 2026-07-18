@@ -49,10 +49,10 @@ type Config struct {
 // back to the platform name); the other fields should stay at defaults.
 func DefaultConfig() Config {
 	return Config{
-		Issuer:  "Lahijan",
-		Digits:  6,
-		Period:  30,
-		Skew:    1,
+		Issuer: "Lahijan",
+		Digits: 6,
+		Period: 30,
+		Skew:   1,
 	}
 }
 

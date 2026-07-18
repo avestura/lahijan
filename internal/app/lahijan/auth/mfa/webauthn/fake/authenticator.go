@@ -105,17 +105,17 @@ func (a *Authenticator) SignRegistration(creationJSON []byte, rpOrigin, rpID str
 	}
 
 	authData, err := buildAuthData(rpID, true, a.counter, &attestedCredentialData{
-		AAGUID:               make([]byte, 16),
-		CredentialID:         a.credID,
-		CredentialPublicKey:  coseKeyCBOR,
+		AAGUID:              make([]byte, 16),
+		CredentialID:        a.credID,
+		CredentialPublicKey: coseKeyCBOR,
 	})
 	if err != nil {
 		return nil, err
 	}
 
 	attObj := map[string]any{
-		"fmt":     "none",
-		"attStmt": map[string]any{},
+		"fmt":      "none",
+		"attStmt":  map[string]any{},
 		"authData": authData,
 	}
 	attObjCBOR, err := cbor.Marshal(attObj)
@@ -124,9 +124,9 @@ func (a *Authenticator) SignRegistration(creationJSON []byte, rpOrigin, rpID str
 	}
 
 	resp := registrationResponse{
-		ID:      base64.RawURLEncoding.EncodeToString(a.credID),
-		RawID:   base64.RawURLEncoding.EncodeToString(a.credID),
-		Type:    "public-key",
+		ID:    base64.RawURLEncoding.EncodeToString(a.credID),
+		RawID: base64.RawURLEncoding.EncodeToString(a.credID),
+		Type:  "public-key",
 		Response: registrationResponseInner{
 			AttestationObject: base64.RawURLEncoding.EncodeToString(attObjCBOR),
 			ClientDataJSON:    base64.RawURLEncoding.EncodeToString(clientDataRaw),
@@ -206,9 +206,9 @@ type clientDataJSON struct {
 
 // registrationResponse is the JSON shape the browser POSTs at /register/finish.
 type registrationResponse struct {
-	ID       string                  `json:"id"`
-	RawID    string                  `json:"rawId"`
-	Type     string                  `json:"type"`
+	ID       string                    `json:"id"`
+	RawID    string                    `json:"rawId"`
+	Type     string                    `json:"type"`
 	Response registrationResponseInner `json:"response"`
 }
 

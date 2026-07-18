@@ -11,6 +11,7 @@ package webauthn
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/go-webauthn/webauthn/webauthn"
@@ -29,7 +30,7 @@ type SessionData struct {
 // package's opaque SessionData wrapper. Caller-stable across processes.
 func MarshalSession(s *webauthn.SessionData) (SessionData, error) {
 	if s == nil {
-		return SessionData{}, fmt.Errorf("webauthn: marshal nil session")
+		return SessionData{}, errors.New("webauthn: marshal nil session")
 	}
 	raw, err := json.Marshal(s)
 	if err != nil {
@@ -42,7 +43,7 @@ func MarshalSession(s *webauthn.SessionData) (SessionData, error) {
 // into the upstream SessionData pointer the RP's Finish* methods expect.
 func UnmarshalSession(s SessionData) (*webauthn.SessionData, error) {
 	if len(s.raw) == 0 {
-		return nil, fmt.Errorf("webauthn: unmarshal empty session")
+		return nil, errors.New("webauthn: unmarshal empty session")
 	}
 	var out webauthn.SessionData
 	if err := json.Unmarshal(s.raw, &out); err != nil {

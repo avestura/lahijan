@@ -234,9 +234,9 @@ func (s *Server) FinishWebAuthnLogin(c *fiber.Ctx) error {
 	})
 }
 
-// DeleteWebAuthnCredential handles DELETE /api/v1/me/mfa/webauthn/credentials/{credentialId}.
-func (s *Server) DeleteWebAuthnCredential(c *fiber.Ctx, credentialId openapi_types.UUID) error {
-	_ = credentialId
+// DeleteWebAuthnCredential handles DELETE /api/v1/me/mfa/webauthn/credentials/{credentialID}.
+func (s *Server) DeleteWebAuthnCredential(c *fiber.Ctx, credentialID openapi_types.UUID) error {
+	_ = credentialID
 	// Stub: not load-bearing for WS-07c DoD; admin-only revocation path.
 	return SendNotImplemented(c, "WebAuthn credential deletion not implemented")
 }

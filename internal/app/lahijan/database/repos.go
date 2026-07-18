@@ -14,20 +14,20 @@ type DBTX = gen.DBTX
 // Repos is the aggregate of all repositories. Wire it into services once at
 // bootstrap (program.Start) and pass the same instance to every handler.
 type Repos struct {
-	Tenants          *TenantsRepository
-	Users            *UsersRepository
-	RBAC             *RBACRepository
-	Memberships      *MembershipsRepository
-	AuditLog         *AuditLogRepository
-	Tokens           *TokensRepository
-	Sessions         *SessionsRepository
-	EmailTokens      *EmailTokensRepository
-	OAuthIdentities  *OAuthIdentitiesRepository
-	SamlIdentities   *SamlIdentitiesRepository
-	TOTPSecrets      *TOTPSecretsRepository
-	WebauthnCreds    *WebauthnCredentialsRepository
-	RecoveryCodes    *RecoveryCodesRepository
-	MFAPending       *MFAPendingSessionsRepository
+	Tenants         *TenantsRepository
+	Users           *UsersRepository
+	RBAC            *RBACRepository
+	Memberships     *MembershipsRepository
+	AuditLog        *AuditLogRepository
+	Tokens          *TokensRepository
+	Sessions        *SessionsRepository
+	EmailTokens     *EmailTokensRepository
+	OAuthIdentities *OAuthIdentitiesRepository
+	SamlIdentities  *SamlIdentitiesRepository
+	TOTPSecrets     *TOTPSecretsRepository
+	WebauthnCreds   *WebauthnCredentialsRepository
+	RecoveryCodes   *RecoveryCodesRepository
+	MFAPending      *MFAPendingSessionsRepository
 }
 
 // NewRepos builds the aggregate repository from a pool or transaction. The
