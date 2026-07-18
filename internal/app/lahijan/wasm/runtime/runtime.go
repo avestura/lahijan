@@ -313,6 +313,11 @@ func (i *Instance) Close(ctx context.Context) error {
 // Direct exports (no host function involved) are unprivileged by
 // construction.
 //
+// The calling Instance's pluginID is injected into the call context
+// (under PluginIDKey) so host functions called BY the plugin can
+// resolve the caller. WS-10b's host-functions package reads it back
+// out via runtime.PluginIDFromContext.
+//
 // Returns ErrExecTimeout (wrapping context.DeadlineExceeded) when the call
 // exceeds the configured ExecTimeout.
 func (i *Instance) Call(ctx context.Context, fnName string, args ...uint64) ([]uint64, error) {
@@ -322,6 +327,7 @@ func (i *Instance) Call(ctx context.Context, fnName string, args ...uint64) ([]u
 	}
 	callCtx, cancel := context.WithTimeout(ctx, i.rt.cfg.ExecTimeout)
 	defer cancel()
+	callCtx = context.WithValue(callCtx, pluginIDKey{}, i.pluginID)
 	res, err := fn.Call(callCtx, args...)
 	if err != nil {
 		if errors.Is(callCtx.Err(), context.DeadlineExceeded) {
@@ -331,6 +337,34 @@ func (i *Instance) Call(ctx context.Context, fnName string, args ...uint64) ([]u
 		return nil, fmt.Errorf("wasm: call %s: %w", fnName, err)
 	}
 	return res, nil
+}
+
+// pluginIDKey is the unexported context-key type the runtime uses to
+// propagate the calling plugin's id to host functions. Host functions
+// (WS-10b) read it back via PluginIDFromContext. Defined here (not in
+// hostfuncs) to avoid a hostfuncs -> runtime -> hostfuncs import cycle.
+type pluginIDKey struct{}
+
+// PluginIDFromContext resolves the calling plugin's id from the call
+// context. Returns uuid.Nil + the sentinel ErrNoPluginInContext when
+// absent. Host functions fail closed on this case.
+func PluginIDFromContext(ctx context.Context) (uuid.UUID, error) {
+	id, ok := ctx.Value(pluginIDKey{}).(uuid.UUID)
+	if !ok || id == uuid.Nil {
+		return uuid.Nil, ErrNoPluginInContext
+	}
+	return id, nil
+}
+
+// ErrNoPluginInContext is returned by PluginIDFromContext when the
+// runtime did not inject a plugin id (e.g. the call did not originate
+// from Instance.Call). Host functions fail closed.
+var ErrNoPluginInContext = errors.New("wasm: no plugin_id in call context")
+
+// WithPluginID is exported so tests can build a context that satisfies
+// PluginIDFromContext without spinning up a full runtime.
+func WithPluginID(ctx context.Context, id uuid.UUID) context.Context {
+	return context.WithValue(ctx, pluginIDKey{}, id)
 }
 
 // HasExport reports whether the module exports a function with the given
