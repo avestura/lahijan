@@ -35,6 +35,7 @@ sql:
       - "queries/plugin_config.sql"
       - "queries/plugin_event_subscriptions.sql"
       - "queries/plugin_http_handlers.sql"
+      - "queries/dns_zones.sql"
     schema:
       - "migrations/*.up.sql"
     gen:

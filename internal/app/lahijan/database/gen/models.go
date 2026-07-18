@@ -95,6 +95,24 @@ type AuditLogOutcome struct {
 	CreatedAt time.Time       `json:"created_at"`
 }
 
+// Tenant -> PDNS zone ownership mapping. Enforced by the DNS service (WS-15).
+type DnsZone struct {
+	ID       uuid.UUID `json:"id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+	// PDNS-assigned zone id; globally unique because two tenants cannot own the same zone.
+	CanonicalID string `json:"canonical_id"`
+	Name        string `json:"name"`
+	// Zone kind: Native | Master | Slave. Lahijan uses Native by default.
+	Kind string `json:"kind"`
+	// Cached DNSSEC state; flipped by the DNS service on EnableDNSSEC / DisableDNSSEC.
+	IsDnssecEnabled bool `json:"is_dnssec_enabled"`
+	// Cached AXFR state; off by default per WS-12.
+	IsAxfrEnabled bool      `json:"is_axfr_enabled"`
+	Description   string    `json:"description"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
 // Single-use expiring tokens for verify-email, password-reset, and email-change.
 type EmailToken struct {
 	ID     uuid.UUID `json:"id"`

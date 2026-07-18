@@ -33,6 +33,8 @@ type Querier interface {
 	//: admin-only; pagination counterpart to ListAuditLogGlobalFiltered.
 	CountAuditLogGlobalFiltered(ctx context.Context, arg CountAuditLogGlobalFilteredParams) (int64, error)
 	//: tenant-scoped
+	CountDNSZones(ctx context.Context, tenantID uuid.UUID) (int64, error)
+	//: tenant-scoped
 	CountMembershipsForTenant(ctx context.Context, tenantID uuid.UUID) (int64, error)
 	CountOAuthIdentitiesForUser(ctx context.Context, userID uuid.UUID) (int64, error)
 	// Number of grants held by the plugin; surfaced in the admin detail view.
@@ -57,6 +59,13 @@ type Querier interface {
 	// UPDATE and DELETE.
 	// ===========================================================================
 	CreateAuditLogOutcome(ctx context.Context, arg CreateAuditLogOutcomeParams) (AuditLogOutcome, error)
+	// DNS zones: tenant-scoped mapping (WS-12). The PowerDNS driver operates on
+	// the canonical zone id; the DNS service (WS-15) consults this table to
+	// translate a tenant context into the canonical id. Every query is
+	// tenant-scoped via WithTenant (database/tenant.go) EXCEPT the admin-only
+	// "canonical id -> row" lookup which is global.
+	//: tenant-scoped
+	CreateDNSZone(ctx context.Context, arg CreateDNSZoneParams) (DnsZone, error)
 	// Email tokens: single-use, expiring tokens for email verification, password
 	// reset, and email change (WS-06). Global; only the SHA-256 hash is stored.
 	CreateEmailToken(ctx context.Context, arg CreateEmailTokenParams) (EmailToken, error)
@@ -144,6 +153,8 @@ type Querier interface {
 	CreateWebauthnCredential(ctx context.Context, arg CreateWebauthnCredentialParams) (UserWebauthnCredential, error)
 	// Used before regenerating a fresh batch: every old code is invalidated.
 	DeleteAllRecoveryCodesForUser(ctx context.Context, userID uuid.UUID) error
+	//: tenant-scoped
+	DeleteDNSZone(ctx context.Context, arg DeleteDNSZoneParams) error
 	// Bulk-delete every expired row. The cleanup job (post-MVP) calls this
 	// periodically; the rowsize is small so a single bulk delete is fine.
 	DeleteExpiredPluginKV(ctx context.Context) (int64, error)
@@ -192,6 +203,16 @@ type Querier interface {
 	//: tenant). System events are visible from any tenant so operators can trace
 	//: auth flows even when scoped.
 	GetAuditLogForTenant(ctx context.Context, arg GetAuditLogForTenantParams) (AuditLog, error)
+	// Admin-only path: no tenant scoping. Used by the DNS service's
+	// cross-tenant "is this canonical id owned by anyone?" check.
+	GetDNSZoneByCanonical(ctx context.Context, canonicalID string) (DnsZone, error)
+	//: tenant-scoped
+	// Tenant-scoped variant: returns the row only if the canonical id is owned
+	// by the given tenant. Used by the DNS service on every privileged call to
+	// enforce tenant isolation at the repository seam.
+	GetDNSZoneByCanonicalForTenant(ctx context.Context, arg GetDNSZoneByCanonicalForTenantParams) (DnsZone, error)
+	//: tenant-scoped
+	GetDNSZoneByID(ctx context.Context, arg GetDNSZoneByIDParams) (DnsZone, error)
 	GetEmailTokenByHash(ctx context.Context, tokenHash string) (EmailToken, error)
 	GetMFAPendingSessionByHash(ctx context.Context, tokenHash string) (MfaPendingSession, error)
 	//: tenant-scoped
@@ -287,6 +308,8 @@ type Querier interface {
 	//: newest-first so the caller can pick the latest as the current status.
 	ListAuditLogOutcomes(ctx context.Context, auditID uuid.UUID) ([]AuditLogOutcome, error)
 	//: tenant-scoped
+	ListDNSZones(ctx context.Context, arg ListDNSZonesParams) ([]DnsZone, error)
+	//: tenant-scoped
 	ListMembershipsForTenant(ctx context.Context, arg ListMembershipsForTenantParams) ([]Membership, error)
 	//: user-scoped (cross-tenant; used to list the tenants a user belongs to)
 	ListMembershipsForUser(ctx context.Context, userID uuid.UUID) ([]Membership, error)
@@ -340,6 +363,12 @@ type Querier interface {
 	RevokeRefreshTokensForSession(ctx context.Context, sessionID uuid.UUID) error
 	RevokeSession(ctx context.Context, id uuid.UUID) error
 	//: tenant-scoped
+	SetDNSZoneAXFRCached(ctx context.Context, arg SetDNSZoneAXFRCachedParams) error
+	//: tenant-scoped
+	// Flips the cached is_dnssec_enabled flag. Called by the DNS service after
+	// a successful EnableDNSSEC / DisableDNSSEC against PDNS.
+	SetDNSZoneDNSSECCached(ctx context.Context, arg SetDNSZoneDNSSECCachedParams) error
+	//: tenant-scoped
 	SetMembershipRole(ctx context.Context, arg SetMembershipRoleParams) error
 	// Promote a plugin from pending -> active, or active -> disabled. The
 	// CHECK constraint on the column rejects any other value at the DB layer.
@@ -351,6 +380,10 @@ type Querier interface {
 	SoftDeleteUser(ctx context.Context, id uuid.UUID) error
 	TouchPersonalAccessToken(ctx context.Context, tokenHash string) error
 	TouchSession(ctx context.Context, id uuid.UUID) error
+	//: tenant-scoped
+	UpdateDNSZoneDescription(ctx context.Context, arg UpdateDNSZoneDescriptionParams) error
+	//: tenant-scoped
+	UpdateDNSZoneKind(ctx context.Context, arg UpdateDNSZoneKindParams) error
 	// Rotates the stored tokens (and scopes + expiry) on every login or refresh.
 	// Called by the IdP service when the IdP hands back a fresh access_token.
 	UpdateOAuthIdentityTokens(ctx context.Context, arg UpdateOAuthIdentityTokensParams) error
