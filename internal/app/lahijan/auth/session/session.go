@@ -328,6 +328,44 @@ func (s *Service) openSession(
 	}, nil
 }
 
+// OpenForExistingUser opens a session + refresh token for a known user.
+// Used by the external-IdP (WS-07a) and any future "log this user in without
+// re-checking credentials" path (e.g. SSO, passwordless). The caller MUST
+// have already authenticated the user through some other channel (OAuth,
+// OIDC, etc.); this method does NOT verify credentials.
+//
+// Emits an audit event with audit.ActionLogin + metadata indicating the
+// session was opened via an IdP.
+func (s *Service) OpenForExistingUser(
+	ctx context.Context,
+	userID uuid.UUID,
+	ua *string,
+	ip *netip.Addr,
+) (Session, error) {
+	user, err := s.users.GetByID(ctx, userID)
+	if err != nil {
+		return Session{}, fmt.Errorf("auth/session: load user for idp login: %w", err)
+	}
+	if !user.IsActive {
+		s.auditFail(ctx, audit.ActionLogin, &user.ID)
+		return Session{}, ErrUserInactive
+	}
+	sess, err := s.openSession(ctx, user.ID, ua, ip)
+	if err != nil {
+		return Session{}, err
+	}
+	// Best-effort: audit failure is logged but does not block the auth flow.
+	_, _ = s.audit.Emit(ctx, audit.Event{
+		ActorUserID:  &user.ID,
+		Action:       audit.ActionIdpLogin,
+		ResourceType: audit.ResourceSession,
+		ResourceID:   &sess.SessionID,
+		Status:       audit.StatusSuccess,
+		Metadata:     map[string]any{"via": "external_idp"},
+	})
+	return sess, nil
+}
+
 // continueSession reuses the existing session for a refresh rotation: it issues
 // a new refresh token in the same family and leaves the session cookie alone.
 //

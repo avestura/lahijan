@@ -7,8 +7,11 @@ package program
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
 	"log"
+	"net/netip"
 	"strings"
 	"time"
 
@@ -18,11 +21,15 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/api/middleware"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/audit"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/email"
+	"github.com/avestura/lahijan/internal/app/lahijan/auth/idp"
+	"github.com/avestura/lahijan/internal/app/lahijan/auth/oauth"
+	"github.com/avestura/lahijan/internal/app/lahijan/auth/oidc"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/password"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/pat"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/rbac"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/secrets"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/session"
+	"github.com/avestura/lahijan/internal/app/lahijan/auth/state"
 	"github.com/avestura/lahijan/internal/app/lahijan/conf"
 	"github.com/avestura/lahijan/internal/app/lahijan/conf/computeddefault"
 	"github.com/avestura/lahijan/internal/app/lahijan/database"
@@ -30,6 +37,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	fiberlog "github.com/gofiber/fiber/v2/log"
 	"github.com/gofiber/fiber/v2/middleware/healthcheck"
+	"github.com/google/uuid"
 )
 
 func init() {
@@ -73,6 +81,14 @@ func Start() error {
 		log.Fatalf("failed to build auth deps: %s", err.Error())
 	}
 	defer cleanup()
+
+	// WS-07a: build the external-IdP stack (OAuth + OIDC + account-linking
+	// service). Returns a zero-value idpDeps (all nil) when no provider is
+	// enabled; the handlers degrade to "feature disabled" envelopes.
+	idpDeps, err := buildIdpDeps(context.Background(), authDeps)
+	if err != nil {
+		log.Fatalf("failed to build idp deps: %s", err.Error())
+	}
 
 	// Seed the RBAC catalog (permissions + default roles + grants). Idempotent
 	// so it is safe to run on every bootstrap. Fail-fast on error: without the
@@ -131,6 +147,11 @@ func Start() error {
 		Cookies:      authDeps.cookies,
 		Audit:        authDeps.repos.AuditLog,
 		AuditEmitter: authDeps.audit,
+		IDPSvc:       idpDeps.svc,
+		IDPOAuth:     idpDeps.oauthReg,
+		IDPOIDC:      idpDeps.oidcReg,
+		StateSigner:  idpDeps.stateSigner,
+		IDPCookies:   api.DefaultExternalIDPCookies,
 	}), policy)
 
 	if err := app.Listen(conf.GetHTTPServerAddress()); err != nil {
@@ -282,4 +303,169 @@ func corsOptions() *middleware.CORSConfig {
 func isDev(env string) bool {
 	e := strings.ToLower(strings.TrimSpace(env))
 	return e == "" || e == "dev" || e == "development" || e == "local"
+}
+
+// idpDeps bundles the external-IdP (WS-07a) dependencies built at bootstrap.
+// Any field may be nil when the corresponding feature is disabled in config;
+// the api handlers degrade to "feature disabled" envelopes when so.
+type idpDeps struct {
+	svc         *idp.Service
+	oauthReg    *oauth.Registry
+	oidcReg     *oidc.Registry
+	stateSigner *state.Signer
+}
+
+// buildIdpDeps wires the OAuth + OIDC providers + the account-linking service
+// from config. Returns an empty idpDeps (all nil) when no provider is enabled
+// in either registry, so the api handlers can short-circuit cleanly.
+//
+// Failures here are loud (log.Fatalf) because a misconfigured provider that
+// the deployer turned on should not silently degrade to "no IdP" at runtime.
+func buildIdpDeps(ctx context.Context, a *authDeps) (idpDeps, error) {
+	stateSigner := state.NewSigner(a.signer)
+
+	// Build the OAuth registry from conf.auth.oauth.providers.*.
+	oauthNames := conf.ListAuthOAuthProviderNames()
+	oauthProviders := make([]oauth.Provider, 0, len(oauthNames))
+	redirectBase := conf.GetAuthOAuthRedirectBase()
+	for _, name := range oauthNames {
+		cfg := conf.GetAuthOAuthProvider(name)
+		if !cfg.Enabled {
+			continue
+		}
+		preset := oauth.PresetConfig{
+			Key:          name,
+			ClientID:     cfg.ClientID,
+			ClientSecret: cfg.ClientSecret,
+			RedirectURL:  buildRedirectURL(redirectBase, "/api/v1/auth/oauth/"+name+"/callback"),
+			Scopes:       cfg.Scopes,
+		}
+		var p oauth.Provider
+		switch name {
+		case "google":
+			p = oauth.NewGoogle(preset, stateSigner.Verify)
+		case "github":
+			p = oauth.NewGitHub(preset, stateSigner.Verify)
+		default:
+			// Generic OAuth2 (self-hosted IdP). Endpoints are sourced from
+			// the per-provider endpoints subkey when shipped; for now we
+			// fall back to google.Endpoint because the YAML has no generic
+			// endpoint config in the WS-07a scope.
+			p = oauth.NewGoogle(preset, stateSigner.Verify)
+		}
+		oauthProviders = append(oauthProviders, p)
+	}
+	oauthReg := oauth.NewRegistry(oauthProviders...)
+
+	// Build the OIDC registry from conf.auth.oidc.providers.*. Discovery
+	// happens here, once per provider, against the live IdP — a broken
+	// issuer URL fails bootstrap.
+	oidcNames := conf.ListAuthOIDCProviderNames()
+	oidcProviders := make([]oidc.Provider, 0, len(oidcNames))
+	oidcRedirectBase := conf.GetAuthOIDCRedirectBase()
+	for _, name := range oidcNames {
+		cfg := conf.GetAuthOIDCProvider(name)
+		if !cfg.Enabled {
+			continue
+		}
+		p, err := oidc.NewProvider(ctx, oidc.ProviderConfig{
+			Key:          name,
+			Issuer:       cfg.Issuer,
+			ClientID:     cfg.ClientID,
+			ClientSecret: cfg.ClientSecret,
+			RedirectURL:  buildRedirectURL(oidcRedirectBase, "/api/v1/auth/oidc/"+name+"/callback"),
+			Scopes:       cfg.Scopes,
+		}, stateSigner.Verify)
+		if err != nil {
+			return idpDeps{}, errors.Join(errors.New("oidc discovery for "+name), err)
+		}
+		oidcProviders = append(oidcProviders, p)
+	}
+	oidcReg := oidc.NewRegistry(oidcProviders...)
+
+	// If no provider is enabled, return an empty deps so handlers degrade.
+	if len(oauthProviders) == 0 && len(oidcProviders) == 0 {
+		return idpDeps{}, nil
+	}
+
+	// Build the AES-GCM envelope for token encryption. The key is sourced
+	// from conf.auth.secrets.encryptionKey (base64 of 32 raw bytes). In dev
+	// an empty key falls back to a deterministic warning-prefixed value.
+	crypto, err := buildCrypto()
+	if err != nil {
+		return idpDeps{}, err
+	}
+
+	svc := idp.New(a.repos, crypto, a.audit, &sessionOpenerAdapter{svc: a.sessionSvc})
+	return idpDeps{
+		svc:         svc,
+		oauthReg:    oauthReg,
+		oidcReg:     oidcReg,
+		stateSigner: stateSigner,
+	}, nil
+}
+
+// buildCrypto loads the AES-256-GCM encryption key from conf and returns the
+// Crypto envelope. In dev an empty key is derived from a fixed warning value
+// so misconfiguration is loud but local dev "just works".
+func buildCrypto() (*secrets.Crypto, error) {
+	raw := conf.GetAuthSecretsEncryptionKey()
+	if raw == "" {
+		if isDev(conf.GetEnvironment()) {
+			// Dev-only deterministic key. Logged once at warn so the dev
+			// sees it. Production rejects this path via the empty check.
+			fiberlog.Warn("auth.secrets.encryptionKey is empty in dev; using a derived warning value. Set it in any non-dev environment.")
+			derived := sha256.Sum256([]byte("DEV-ONLY-INSECURE-CHANGE-ME-lahijan-encryption-key"))
+			return secrets.NewCrypto(derived[:])
+		}
+		return nil, errors.New("auth.secrets.encryptionKey must be set in any non-dev environment")
+	}
+	key, err := base64.StdEncoding.DecodeString(raw)
+	if err != nil {
+		return nil, errors.Join(errors.New("auth.secrets.encryptionKey is not valid base64"), err)
+	}
+	return secrets.NewCrypto(key)
+}
+
+// buildRedirectURL prepends the configured redirectBase to the given path.
+// In dev, when redirectBase is empty, the path is returned as-is and the
+// handler will derive the absolute URL from the request Host header.
+func buildRedirectURL(base, path string) string {
+	if base == "" {
+		return path
+	}
+	return strings.TrimRight(base, "/") + path
+}
+
+// sessionOpenerAdapter bridges session.Service (which owns openSession) to
+// idp.SessionOpener. Lives here so the auth/idp package does not need to
+// import auth/session (which would create a cycle in some test setups).
+type sessionOpenerAdapter struct {
+	svc *session.Service
+}
+
+// OpenForExistingUser implements idp.SessionOpener by delegating to
+// session.Service.OpenForExistingUser and reshaping the result into
+// idp.SessionOpen.
+func (a *sessionOpenerAdapter) OpenForExistingUser(
+	ctx context.Context,
+	userID uuid.UUID,
+	ua *string,
+	ip *netip.Addr,
+) (idp.SessionOpen, error) {
+	sess, err := a.svc.OpenForExistingUser(ctx, userID, ua, ip)
+	if err != nil {
+		return idp.SessionOpen{}, err
+	}
+	return idp.SessionOpen{
+		UserID:      sess.UserID,
+		SessionID:   sess.SessionID,
+		ExpiresAt:   sess.ExpiresAt,
+		CookieValue: sess.CookieValue,
+		Refresh: idp.RefreshIssue{
+			Raw:       sess.Refresh.Raw,
+			FamilyID:  sess.Refresh.FamilyID,
+			ExpiresAt: sess.Refresh.ExpiresAt,
+		},
+	}, nil
 }

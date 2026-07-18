@@ -287,6 +287,151 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/oauth/{provider}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Begin an OAuth 2.0 social-login flow
+         * @description Mints a signed CSRF state token + PKCE verifier, sets them as
+         *     short-lived cookies, and 302s the browser to the IdP's authorization
+         *     endpoint.
+         *
+         *     When called from an authenticated session (the user is linking a new
+         *     IdP to their existing account) the response also sets a
+         *     lahijan_link_uid cookie carrying the user's id; the callback enforces
+         *     the link against the user who started the flow.
+         */
+        get: operations["startOAuth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/oauth/{provider}/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Finish an OAuth 2.0 social-login flow
+         * @description Consumes the IdP's redirect (?code + ?state), verifies the state
+         *     against the cookie nonce, exchanges the code for tokens (with PKCE),
+         *     fetches the profile, and either:
+         *       - logs the user in (sets the session + refresh cookies), or
+         *       - links the identity to the logged-in user (when lahijan_link_uid
+         *         is set), or
+         *       - returns a "completion required" envelope when the IdP returned no
+         *         email and no user could be created.
+         *
+         *     On success the browser is redirected to the dashboard root (`/`); on
+         *     failure it is redirected to the login page with an error query.
+         */
+        get: operations["callbackOAuth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/oidc/{provider}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Begin an OpenID Connect flow
+         * @description Same cookie + state pattern as /auth/oauth/{provider}/start but for
+         *     OIDC providers. Mints the PKCE verifier AND the OIDC nonce in addition
+         *     to the state token; both are persisted as short-lived cookies.
+         */
+        get: operations["startOIDC"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/oidc/{provider}/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Finish an OpenID Connect flow
+         * @description Consumes the IdP's redirect, verifies state + nonce, exchanges the
+         *     code for an access_token + id_token, verifies the id_token (signature
+         *     via JWKS, audience, expiry, nonce), and either logs the user in or
+         *     links the identity.
+         */
+        get: operations["callbackOIDC"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/identities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the current user's linked external identities
+         * @description Returns every external identity (OAuth + OIDC) linked to the current
+         *     user. Tokens are NOT included; only the provider key, subject, and
+         *     scopes are returned.
+         */
+        get: operations["listMyIdentities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/identities/{identityId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Unlink an external identity from the current user
+         * @description Removes the (user, provider) link. Refuses if removing it would leave
+         *     the user with no way to log in (no password and no other identities).
+         */
+        delete: operations["deleteMyIdentity"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/audit": {
         parameters: {
             query?: never;
@@ -519,6 +664,31 @@ export interface components {
         MessageResponse: {
             /** @description Localized human-readable confirmation. */
             message: string;
+        };
+        ExternalIdentity: {
+            /**
+             * Format: uuid
+             * @description The identity row id.
+             */
+            id: string;
+            /**
+             * @description The provider key: a configured OAuth preset (google, github) or
+             *     "oidc:<config_key>" for an OIDC IdP.
+             */
+            provider: string;
+            /** @description The IdP-stable subject identifier. */
+            subject: string;
+            /** @description Scope strings the IdP granted at issue/refresh time. */
+            scopes: string[];
+            /**
+             * Format: date-time
+             * @description When the access_token expires; NULL when non-expiring.
+             */
+            expiresAt?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt?: string;
         };
         AuditEvent: {
             /**
@@ -1097,6 +1267,174 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    startOAuth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The configured OAuth provider key (e.g. google, github). */
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirect to the IdP authorization URL. */
+            302: {
+                headers: {
+                    /** @description The absolute IdP authorization URL. */
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description The provider key is not configured or not enabled. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    callbackOAuth: {
+        parameters: {
+            query: {
+                code: string;
+                state: string;
+            };
+            header?: never;
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirect to the dashboard or login page. */
+            302: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    startOIDC: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirect to the IdP authorization URL. */
+            302: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description The provider key is not configured or not enabled. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    callbackOIDC: {
+        parameters: {
+            query: {
+                code: string;
+                state: string;
+            };
+            header?: never;
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirect to the dashboard or login page. */
+            302: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    listMyIdentities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The caller's linked identities. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExternalIdentity"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    deleteMyIdentity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identityId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Unlinked. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            /** @description Removing this identity would leave the user with no way to log in. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     listAudit: {

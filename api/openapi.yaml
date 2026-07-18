@@ -407,6 +407,211 @@ paths:
           $ref: "#/components/responses/NotFound"
 
   # -------------------------------------------------------------------------
+  # External identity providers (WS-07a): OAuth 2.0 social login + OIDC.
+  # -------------------------------------------------------------------------
+  # Each provider has a start + callback pair. The start endpoint mints a
+  # signed state token + PKCE verifier, sets them as short-lived cookies, and
+  # 302s the browser to the IdP. The callback verifies the state, exchanges
+  # the code for tokens, fetches the profile, and either logs the user in or
+  # links the identity to the logged-in user (via the lahijan_link_uid cookie
+  # set by the start endpoint when called from an authenticated session).
+
+  /api/v1/auth/oauth/{provider}/start:
+    get:
+      tags: [auth]
+      operationId: startOAuth
+      summary: Begin an OAuth 2.0 social-login flow
+      description: |
+        Mints a signed CSRF state token + PKCE verifier, sets them as
+        short-lived cookies, and 302s the browser to the IdP's authorization
+        endpoint.
+
+        When called from an authenticated session (the user is linking a new
+        IdP to their existing account) the response also sets a
+        lahijan_link_uid cookie carrying the user's id; the callback enforces
+        the link against the user who started the flow.
+      security: []
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          description: The configured OAuth provider key (e.g. google, github).
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to the IdP authorization URL.
+          headers:
+            Location:
+              description: The absolute IdP authorization URL.
+              schema:
+                type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          description: The provider key is not configured or not enabled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/auth/oauth/{provider}/callback:
+    get:
+      tags: [auth]
+      operationId: callbackOAuth
+      summary: Finish an OAuth 2.0 social-login flow
+      description: |
+        Consumes the IdP's redirect (?code + ?state), verifies the state
+        against the cookie nonce, exchanges the code for tokens (with PKCE),
+        fetches the profile, and either:
+          - logs the user in (sets the session + refresh cookies), or
+          - links the identity to the logged-in user (when lahijan_link_uid
+            is set), or
+          - returns a "completion required" envelope when the IdP returned no
+            email and no user could be created.
+
+        On success the browser is redirected to the dashboard root (`/`); on
+        failure it is redirected to the login page with an error query.
+      security: []
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to the dashboard or login page.
+          headers:
+            Location:
+              schema: { type: string }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /api/v1/auth/oidc/{provider}/start:
+    get:
+      tags: [auth]
+      operationId: startOIDC
+      summary: Begin an OpenID Connect flow
+      description: |
+        Same cookie + state pattern as /auth/oauth/{provider}/start but for
+        OIDC providers. Mints the PKCE verifier AND the OIDC nonce in addition
+        to the state token; both are persisted as short-lived cookies.
+      security: []
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "302":
+          description: Redirect to the IdP authorization URL.
+          headers:
+            Location: { schema: { type: string } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404":
+          description: The provider key is not configured or not enabled.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/auth/oidc/{provider}/callback:
+    get:
+      tags: [auth]
+      operationId: callbackOIDC
+      summary: Finish an OpenID Connect flow
+      description: |
+        Consumes the IdP's redirect, verifies state + nonce, exchanges the
+        code for an access_token + id_token, verifies the id_token (signature
+        via JWKS, audience, expiry, nonce), and either logs the user in or
+        links the identity.
+      security: []
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema: { type: string }
+        - name: code
+          in: query
+          required: true
+          schema: { type: string }
+        - name: state
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "302":
+          description: Redirect to the dashboard or login page.
+          headers:
+            Location: { schema: { type: string } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /api/v1/me/identities:
+    get:
+      tags: [auth]
+      operationId: listMyIdentities
+      summary: List the current user's linked external identities
+      description: |
+        Returns every external identity (OAuth + OIDC) linked to the current
+        user. Tokens are NOT included; only the provider key, subject, and
+        scopes are returned.
+      responses:
+        "200":
+          description: The caller's linked identities.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ExternalIdentity"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/me/identities/{identityId}:
+    delete:
+      tags: [auth]
+      operationId: deleteMyIdentity
+      summary: Unlink an external identity from the current user
+      description: |
+        Removes the (user, provider) link. Refuses if removing it would leave
+        the user with no way to log in (no password and no other identities).
+      parameters:
+        - name: identityId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Unlinked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: |
+            Removing this identity would leave the user with no way to log in.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # -------------------------------------------------------------------------
   # Audit log (WS-08)
   # -------------------------------------------------------------------------
   # /api/v1/audit returns the tenant-scoped audit trail; the caller must be a
@@ -900,6 +1105,43 @@ components:
         message:
           type: string
           description: Localized human-readable confirmation.
+
+    # External identity (WS-07a): a link between a user and an OAuth/OIDC IdP.
+    # Tokens are NOT included; only the provider key, the IdP-stable subject,
+    # and the scopes the IdP granted at issue/refresh time.
+    ExternalIdentity:
+      type: object
+      required: [id, provider, subject, scopes, createdAt]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: The identity row id.
+        provider:
+          type: string
+          description: |
+            The provider key: a configured OAuth preset (google, github) or
+            "oidc:<config_key>" for an OIDC IdP.
+        subject:
+          type: string
+          description: The IdP-stable subject identifier.
+        scopes:
+          type: array
+          description: Scope strings the IdP granted at issue/refresh time.
+          items:
+            type: string
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the access_token expires; NULL when non-expiring.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
 
     # ---------------------------------------------------------------------
     # Audit schemas (WS-08).
