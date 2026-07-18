@@ -63,7 +63,16 @@ func (s *Server) StartOAuth(c *fiber.Ctx, provider string) error {
 		return SendNotFound(c, i18n.T(c.UserContext(), "auth.err_idp_unknown", map[string]any{"Provider": provider}))
 	}
 
-	stateToken, nonce, err := s.stateSigner.Issue(provider, s.linkUIDString(c))
+	// Resolve the link_uid FIRST so the state token carries the same value
+	// the callback will read from the cookie. If we read from the cookie
+	// here we'd see "" (the request had no link_uid cookie yet) and the
+	// callback would reject as a CSRF mismatch.
+	linkUID := ""
+	if uid, ok := currentUserID(c); ok {
+		linkUID = uid.String()
+		setIDPCookie(c, s.idpCookies.LinkUID, linkUID, idpFlowTTL)
+	}
+	stateToken, nonce, err := s.stateSigner.Issue(provider, linkUID)
 	if err != nil {
 		return SendInternal(c, i18n.T(c.UserContext(), "auth.err_internal", nil))
 	}
@@ -74,9 +83,6 @@ func (s *Server) StartOAuth(c *fiber.Ctx, provider string) error {
 
 	setIDPCookie(c, s.idpCookies.State, nonce, idpFlowTTL)
 	setIDPCookie(c, s.idpCookies.PKCE, verifier, idpFlowTTL)
-	if uid, ok := currentUserID(c); ok {
-		setIDPCookie(c, s.idpCookies.LinkUID, uid.String(), idpFlowTTL)
-	}
 	return c.Redirect(authURL, fiber.StatusFound)
 }
 
@@ -147,7 +153,12 @@ func (s *Server) StartOIDC(c *fiber.Ctx, provider string) error {
 	// token must carry that namespaced value so a callback to one OIDC
 	// provider cannot be replayed against another.
 	namespaced := "oidc:" + provider
-	stateToken, nonce, err := s.stateSigner.Issue(namespaced, s.linkUIDString(c))
+	linkUID := ""
+	if uid, ok := currentUserID(c); ok {
+		linkUID = uid.String()
+		setIDPCookie(c, s.idpCookies.LinkUID, linkUID, idpFlowTTL)
+	}
+	stateToken, nonce, err := s.stateSigner.Issue(namespaced, linkUID)
 	if err != nil {
 		return SendInternal(c, i18n.T(c.UserContext(), "auth.err_internal", nil))
 	}
@@ -159,9 +170,6 @@ func (s *Server) StartOIDC(c *fiber.Ctx, provider string) error {
 	setIDPCookie(c, s.idpCookies.State, nonce, idpFlowTTL)
 	setIDPCookie(c, s.idpCookies.PKCE, verifier, idpFlowTTL)
 	setIDPCookie(c, s.idpCookies.OIDCNonce, oidcNonce, idpFlowTTL)
-	if uid, ok := currentUserID(c); ok {
-		setIDPCookie(c, s.idpCookies.LinkUID, uid.String(), idpFlowTTL)
-	}
 	return c.Redirect(authURL, fiber.StatusFound)
 }
 

@@ -138,8 +138,10 @@ func TestProvider_StateVerifierIsWired(t *testing.T) {
 	t.Parallel()
 	_, p := newFakeProvider(t, realVerifier(t))
 
+	// The state token is issued with the namespaced key (oidc:test-idp)
+	// because that's what gets stored on user_oauth_identities.provider.
 	s := state.NewSigner(secrets.NewSigner("oidc-test-signing-key"))
-	token, nonce, err := s.Issue("test-idp", "")
+	token, nonce, err := s.Issue("oidc:test-idp", "")
 	require.NoError(t, err)
 
 	require.NoError(t, p.VerifyState(token, nonce, ""))

@@ -183,8 +183,11 @@ func (p *provider) BuildAuthURL(stateToken string) (string, string, string, erro
 }
 
 // VerifyState delegates to the auth/state signer (shared with auth/oauth).
+// The state-token's provider claim is compared against the namespaced key
+// ("oidc:<key>") so a callback to /oidc/X cannot be replayed against
+// /oidc/Y or against an OAuth preset path.
 func (p *provider) VerifyState(stateToken, cookieNonce, linkUserID string) error {
-	return p.stateVerifier(stateToken, cookieNonce, p.key, linkUserID)
+	return p.stateVerifier(stateToken, cookieNonce, "oidc:"+p.key, linkUserID)
 }
 
 // Exchange turns the callback code into IdP tokens AND verifies the id_token:
