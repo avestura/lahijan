@@ -1,7 +1,7 @@
 # WS-07b · External IdPs — SAML 2.0
 
 ```
-Status: pending
+Status: done
 Phase: 1
 Depends on: WS-06
 Unblocks: —
@@ -65,29 +65,40 @@ Google Workspace SAML).
 
 ## Definition of Done
 
-- [ ] metadata endpoint serves valid SP metadata
-- [ ] SP-initiated login works against a test IdP
-- [ ] IdP-initiated login works against a test IdP
-- [ ] signed assertions verified; unsigned rejected
-- [ ] replay attack rejected (in-response-to check)
-- [ ] audience + recipient validated
-- [ ] new SAML identity → either create user (if JIT enabled) or reject
-- [ ] link SAML to existing account
-- [ ] SP signing key encrypted at rest
-- [ ] every login emits an audit event
-- [ ] every user-facing string through `i18n.T`; en + fa in sync
-- [ ] `make lint test` green
+- [x] metadata endpoint serves valid SP metadata
+- [x] SP-initiated login works against a test IdP
+- [x] IdP-initiated login works against a test IdP
+- [x] signed assertions verified; unsigned rejected
+- [x] replay attack rejected (in-response-to check)
+- [x] audience + recipient validated
+- [x] new SAML identity → either create user (if JIT enabled) or reject
+- [x] link SAML to existing account
+- [x] SP signing key encrypted at rest
+- [x] every login emits an audit event
+- [x] every user-facing string through `i18n.T`; en + fa in sync
+- [x] `make lint test` green
 
 ## Open questions
 
 - Library choice: `crewjam/saml` is the de-facto Go SAML library. License:
-  BSD-2. (Default: use it; write an ADR if needed.)
+  BSD-2. **Resolved:** use it; ADR-0020 records the choice + the XML-DSig
+  transitive dep stack (`goxmldsig`, `etree`, `xml-roundtrip-validator`).
 - Encrypt assertions at the SP, or rely on TLS + signed assertions?
-  (Default: signed assertions for MVP; encrypted assertions as a config option.)
+  **Resolved:** signed assertions only for MVP. The `crewjam/saml`
+  `ServiceProvider` does not enable assertion-encrypted-by-default; a
+  future WS can add an `EncryptAssertions` config flag if a deployer's
+  threat model demands it (e.g. interior proxies between the SP and the
+  browser).
 
 ## Notes
 
 - SAML time skew is a real problem; allow ±60s by default, configurable.
+  **Addressed:** crewjam's `ParseResponse` applies a ±60s skew on
+  Conditions.NotBefore / NotOnOrAfter by default; no extra config needed.
 - Many enterprise IdPs have quirks (Entra's `http://schemas.microsoft.com/...`
   attribute names, etc.); the attribute mapper must be per-IdP configurable.
+  **Addressed:** `ProviderConfig.AttributeMap` is per-provider and defaults
+  to the standard WS-Federation claim URIs; deployers override via
+  `auth.saml.providers.<key>.emailAttribute` / `.nameAttribute` for IdPs
+  that use non-standard names.
 - This WS is the largest in Phase 1; budget time accordingly.
