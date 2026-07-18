@@ -1,0 +1,54 @@
+# PowerDNS Authoritative reference configuration for Lahijan.
+#
+# This file is NOT used by the docker-compose stack (the PDNS image reads
+# its config from PDNS_* env vars there). It is the reference config an
+# operator copies onto a host that runs PDNS outside compose (e.g. a
+# bare-metal authoritative server that lives on a different host than the
+# Lahijan process).
+#
+# Render with envsubst before launching pdns_server:
+#
+#   envsubst < pdns.conf.template > /etc/powerdns/pdns.conf
+#
+# Required environment variables:
+#   PDNS_API_KEY              - the X-API-Key secret Lahijan sends
+#   PDNS_DATABASE_HOST        - Postgres host (the shared instance)
+#   PDNS_DATABASE_PORT        - Postgres port (default 5432)
+#   PDNS_DATABASE_NAME        - Postgres logical DB for PDNS (default pdns)
+#   PDNS_DATABASE_USER        - Postgres user scoped to PDNS' DB
+#   PDNS_DATABASE_PASSWORD    - password for PDNS_DATABASE_USER
+#
+# The schema.pgsql.sql file in the same directory MUST be applied to
+# PDNS_DATABASE_NAME before launching pdns_server; PDNS does not
+# auto-migrate.
+
+# --- gpgsql backend (ADR-0007) ---
+launch=gpgsql
+gpgsql-host=${PDNS_DATABASE_HOST}
+gpgsql-port=${PDNS_DATABASE_PORT:-5432}
+gpgsql-dbname=${PDNS_DATABASE_NAME:-pdns}
+gpgsql-user=${PDNS_DATABASE_USER}
+gpgsql-password=${PDNS_DATABASE_PASSWORD}
+
+# --- HTTP API + webserver (the Lahijan driver talks to this) ---
+api=yes
+api-key=${PDNS_API_KEY}
+webserver=yes
+webserver-address=0.0.0.0
+webserver-port=8081
+# In prod restrict this to the Lahijan process's source IP.
+webserver-allow-from=0.0.0.0/0,::/0
+webserver-loglevel=9
+
+# --- Authoritative DNS listener ---
+local-address=0.0.0.0,::
+local-port=53
+
+# --- SOA-EDIT-API policy (Lahijan sets per-zone override at create time) ---
+default-soa-edit-api=DEFAULT
+
+# --- Disable PDNS' own dnsupdate (RFC 2136); Lahijan is the only writer ---
+dnsupdate=no
+
+# --- Disable AXFR by default; per-zone ALLOW-AXFR-FROM overrides this ---
+allow-axfr-ips=
