@@ -6,6 +6,7 @@ package conf
 
 import (
 	"net"
+	"sort"
 	"strconv"
 
 	"github.com/spf13/viper"
@@ -306,4 +307,98 @@ func GetSMTPFromName() string {
 // GetSMTPAppBaseURL returns the public dashboard origin used to build email links.
 func GetSMTPAppBaseURL() string {
 	return viper.GetString("smtp.appBaseURL")
+}
+
+// ---------------------------------------------------------------------------
+// External identity providers (WS-07a). Getters under auth.secrets.*,
+// auth.oauth.*, and auth.oidc.*.
+// ---------------------------------------------------------------------------
+
+// GetAuthSecretsEncryptionKey returns the base64-encoded AES-256-GCM key used
+// to encrypt external IdP tokens at rest. Empty in dev; must be set in prod.
+func GetAuthSecretsEncryptionKey() string {
+	return viper.GetString("auth.secrets.encryptionKey")
+}
+
+// OAuthProviderConfig carries the configurable fields of one OAuth2 social
+// provider (Google, GitHub, generic).
+type OAuthProviderConfig struct {
+	Enabled      bool
+	ClientID     string
+	ClientSecret string
+	Scopes       []string
+}
+
+// GetAuthOAuthProvider returns the config for the named OAuth provider key
+// (e.g. "google", "github"). Returns a zero-value (Enabled=false) config when
+// the key is absent so callers can simply check .Enabled.
+func GetAuthOAuthProvider(name string) OAuthProviderConfig {
+	prefix := "auth.oauth.providers." + name
+	return OAuthProviderConfig{
+		Enabled:      viper.GetBool(prefix + ".enabled"),
+		ClientID:     viper.GetString(prefix + ".clientId"),
+		ClientSecret: viper.GetString(prefix + ".clientSecret"),
+		Scopes:       viper.GetStringSlice(prefix + ".scopes"),
+	}
+}
+
+// ListAuthOAuthProviderNames returns every OAuth provider key configured under
+// auth.oauth.providers.* (sorted). The stable key is what callers use to look
+// up the config and what appears in URL paths.
+func ListAuthOAuthProviderNames() []string {
+	return sortedProviderKeys("auth.oauth.providers")
+}
+
+// GetAuthOAuthRedirectBase returns the OAuth redirect base URL. Empty in dev;
+// the callback handler derives it from the request Host header.
+func GetAuthOAuthRedirectBase() string {
+	return viper.GetString("auth.oauth.redirectBase")
+}
+
+// OIDCProviderConfig carries the configurable fields of one OIDC provider
+// (Keycloak, Auth0, Okta, ...). The Issuer is used for OIDC discovery.
+type OIDCProviderConfig struct {
+	Enabled      bool
+	Issuer       string
+	ClientID     string
+	ClientSecret string
+	Scopes       []string
+}
+
+// GetAuthOIDCProvider returns the config for the named OIDC provider key.
+// Returns a zero-value (Enabled=false) config when the key is absent.
+func GetAuthOIDCProvider(name string) OIDCProviderConfig {
+	prefix := "auth.oidc.providers." + name
+	return OIDCProviderConfig{
+		Enabled:      viper.GetBool(prefix + ".enabled"),
+		Issuer:       viper.GetString(prefix + ".issuer"),
+		ClientID:     viper.GetString(prefix + ".clientId"),
+		ClientSecret: viper.GetString(prefix + ".clientSecret"),
+		Scopes:       viper.GetStringSlice(prefix + ".scopes"),
+	}
+}
+
+// ListAuthOIDCProviderNames returns every OIDC provider key configured under
+// auth.oidc.providers.* (sorted).
+func ListAuthOIDCProviderNames() []string {
+	return sortedProviderKeys("auth.oidc.providers")
+}
+
+// GetAuthOIDCRedirectBase returns the OIDC redirect base URL.
+func GetAuthOIDCRedirectBase() string {
+	return viper.GetString("auth.oidc.redirectBase")
+}
+
+// sortedProviderKeys returns the immediate child keys of the providers map at
+// the given viper path. Viper exposes nested maps via GetStringMap; the keys
+// are returned sorted so callers iterate deterministically (useful for tests
+// and for emitting provider lists in error messages).
+func sortedProviderKeys(path string) []string {
+	m := viper.GetStringMap(path)
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }

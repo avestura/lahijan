@@ -180,6 +180,28 @@ type Error struct {
 	} `json:"error"`
 }
 
+// ExternalIdentity defines model for ExternalIdentity.
+type ExternalIdentity struct {
+	CreatedAt time.Time `json:"createdAt"`
+
+	// ExpiresAt When the access_token expires; NULL when non-expiring.
+	ExpiresAt *time.Time `json:"expiresAt"`
+
+	// Id The identity row id.
+	Id openapi_types.UUID `json:"id"`
+
+	// Provider The provider key: a configured OAuth preset (google, github) or
+	// "oidc:<config_key>" for an OIDC IdP.
+	Provider string `json:"provider"`
+
+	// Scopes Scope strings the IdP granted at issue/refresh time.
+	Scopes []string `json:"scopes"`
+
+	// Subject The IdP-stable subject identifier.
+	Subject   string     `json:"subject"`
+	UpdatedAt *time.Time `json:"updatedAt,omitempty"`
+}
+
 // Health defines model for Health.
 type Health struct {
 	// Status Coarse service health.
@@ -364,6 +386,18 @@ type ExportAuditParamsStatus string
 // ExportAuditParamsActorType defines parameters for ExportAudit.
 type ExportAuditParamsActorType string
 
+// CallbackOAuthParams defines parameters for CallbackOAuth.
+type CallbackOAuthParams struct {
+	Code  string `form:"code" json:"code"`
+	State string `form:"state" json:"state"`
+}
+
+// CallbackOIDCParams defines parameters for CallbackOIDC.
+type CallbackOIDCParams struct {
+	Code  string `form:"code" json:"code"`
+	State string `form:"state" json:"state"`
+}
+
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
 
@@ -494,6 +528,18 @@ type ClientInterface interface {
 
 	UpdateCurrentUser(ctx context.Context, body UpdateCurrentUserJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// CallbackOAuth request
+	CallbackOAuth(ctx context.Context, provider string, params *CallbackOAuthParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// StartOAuth request
+	StartOAuth(ctx context.Context, provider string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CallbackOIDC request
+	CallbackOIDC(ctx context.Context, provider string, params *CallbackOIDCParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// StartOIDC request
+	StartOIDC(ctx context.Context, provider string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ConfirmPasswordResetWithBody request with any body
 	ConfirmPasswordResetWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -534,6 +580,12 @@ type ClientInterface interface {
 	VerifyEmailWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	VerifyEmail(ctx context.Context, body VerifyEmailJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListMyIdentities request
+	ListMyIdentities(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteMyIdentity request
+	DeleteMyIdentity(ctx context.Context, identityId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// Ping request
 	Ping(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -652,6 +704,54 @@ func (c *Client) UpdateCurrentUserWithBody(ctx context.Context, contentType stri
 
 func (c *Client) UpdateCurrentUser(ctx context.Context, body UpdateCurrentUserJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateCurrentUserRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CallbackOAuth(ctx context.Context, provider string, params *CallbackOAuthParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCallbackOAuthRequest(c.Server, provider, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) StartOAuth(ctx context.Context, provider string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStartOAuthRequest(c.Server, provider)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CallbackOIDC(ctx context.Context, provider string, params *CallbackOIDCParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCallbackOIDCRequest(c.Server, provider, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) StartOIDC(ctx context.Context, provider string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStartOIDCRequest(c.Server, provider)
 	if err != nil {
 		return nil, err
 	}
@@ -844,6 +944,30 @@ func (c *Client) VerifyEmailWithBody(ctx context.Context, contentType string, bo
 
 func (c *Client) VerifyEmail(ctx context.Context, body VerifyEmailJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewVerifyEmailRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListMyIdentities(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListMyIdentitiesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteMyIdentity(ctx context.Context, identityId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteMyIdentityRequest(c.Server, identityId)
 	if err != nil {
 		return nil, err
 	}
@@ -1397,6 +1521,202 @@ func NewUpdateCurrentUserRequestWithBody(server string, contentType string, body
 	return req, nil
 }
 
+// NewCallbackOAuthRequest generates requests for CallbackOAuth
+func NewCallbackOAuthRequest(server string, provider string, params *CallbackOAuthParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "provider", runtime.ParamLocationPath, provider)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/auth/oauth/%s/callback", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "code", runtime.ParamLocationQuery, params.Code); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "state", runtime.ParamLocationQuery, params.State); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewStartOAuthRequest generates requests for StartOAuth
+func NewStartOAuthRequest(server string, provider string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "provider", runtime.ParamLocationPath, provider)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/auth/oauth/%s/start", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCallbackOIDCRequest generates requests for CallbackOIDC
+func NewCallbackOIDCRequest(server string, provider string, params *CallbackOIDCParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "provider", runtime.ParamLocationPath, provider)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/auth/oidc/%s/callback", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "code", runtime.ParamLocationQuery, params.Code); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "state", runtime.ParamLocationQuery, params.State); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewStartOIDCRequest generates requests for StartOIDC
+func NewStartOIDCRequest(server string, provider string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "provider", runtime.ParamLocationPath, provider)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/auth/oidc/%s/start", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewConfirmPasswordResetRequest calls the generic ConfirmPasswordReset builder with application/json body
 func NewConfirmPasswordResetRequest(server string, body ConfirmPasswordResetJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -1738,6 +2058,67 @@ func NewVerifyEmailRequestWithBody(server string, contentType string, body io.Re
 	return req, nil
 }
 
+// NewListMyIdentitiesRequest generates requests for ListMyIdentities
+func NewListMyIdentitiesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/me/identities")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDeleteMyIdentityRequest generates requests for DeleteMyIdentity
+func NewDeleteMyIdentityRequest(server string, identityId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "identityId", runtime.ParamLocationPath, identityId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/me/identities/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewPingRequest generates requests for Ping
 func NewPingRequest(server string) (*http.Request, error) {
 	var err error
@@ -1862,6 +2243,18 @@ type ClientWithResponsesInterface interface {
 
 	UpdateCurrentUserWithResponse(ctx context.Context, body UpdateCurrentUserJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateCurrentUserResponse, error)
 
+	// CallbackOAuthWithResponse request
+	CallbackOAuthWithResponse(ctx context.Context, provider string, params *CallbackOAuthParams, reqEditors ...RequestEditorFn) (*CallbackOAuthResponse, error)
+
+	// StartOAuthWithResponse request
+	StartOAuthWithResponse(ctx context.Context, provider string, reqEditors ...RequestEditorFn) (*StartOAuthResponse, error)
+
+	// CallbackOIDCWithResponse request
+	CallbackOIDCWithResponse(ctx context.Context, provider string, params *CallbackOIDCParams, reqEditors ...RequestEditorFn) (*CallbackOIDCResponse, error)
+
+	// StartOIDCWithResponse request
+	StartOIDCWithResponse(ctx context.Context, provider string, reqEditors ...RequestEditorFn) (*StartOIDCResponse, error)
+
 	// ConfirmPasswordResetWithBodyWithResponse request with any body
 	ConfirmPasswordResetWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfirmPasswordResetResponse, error)
 
@@ -1902,6 +2295,12 @@ type ClientWithResponsesInterface interface {
 	VerifyEmailWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*VerifyEmailResponse, error)
 
 	VerifyEmailWithResponse(ctx context.Context, body VerifyEmailJSONRequestBody, reqEditors ...RequestEditorFn) (*VerifyEmailResponse, error)
+
+	// ListMyIdentitiesWithResponse request
+	ListMyIdentitiesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListMyIdentitiesResponse, error)
+
+	// DeleteMyIdentityWithResponse request
+	DeleteMyIdentityWithResponse(ctx context.Context, identityId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteMyIdentityResponse, error)
 
 	// PingWithResponse request
 	PingWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PingResponse, error)
@@ -2071,6 +2470,96 @@ func (r UpdateCurrentUserResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r UpdateCurrentUserResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CallbackOAuthResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *BadRequest
+}
+
+// Status returns HTTPResponse.Status
+func (r CallbackOAuthResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CallbackOAuthResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type StartOAuthResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *BadRequest
+	JSON404      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r StartOAuthResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r StartOAuthResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CallbackOIDCResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *BadRequest
+}
+
+// Status returns HTTPResponse.Status
+func (r CallbackOIDCResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CallbackOIDCResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type StartOIDCResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *BadRequest
+	JSON404      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r StartOIDCResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r StartOIDCResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -2285,6 +2774,54 @@ func (r VerifyEmailResponse) StatusCode() int {
 	return 0
 }
 
+type ListMyIdentitiesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]ExternalIdentity
+	JSON401      *Unauthorized
+}
+
+// Status returns HTTPResponse.Status
+func (r ListMyIdentitiesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListMyIdentitiesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteMyIdentityResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *MessageResponse
+	JSON401      *Unauthorized
+	JSON404      *NotFound
+	JSON409      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteMyIdentityResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteMyIdentityResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type PingResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -2415,6 +2952,42 @@ func (c *ClientWithResponses) UpdateCurrentUserWithResponse(ctx context.Context,
 		return nil, err
 	}
 	return ParseUpdateCurrentUserResponse(rsp)
+}
+
+// CallbackOAuthWithResponse request returning *CallbackOAuthResponse
+func (c *ClientWithResponses) CallbackOAuthWithResponse(ctx context.Context, provider string, params *CallbackOAuthParams, reqEditors ...RequestEditorFn) (*CallbackOAuthResponse, error) {
+	rsp, err := c.CallbackOAuth(ctx, provider, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCallbackOAuthResponse(rsp)
+}
+
+// StartOAuthWithResponse request returning *StartOAuthResponse
+func (c *ClientWithResponses) StartOAuthWithResponse(ctx context.Context, provider string, reqEditors ...RequestEditorFn) (*StartOAuthResponse, error) {
+	rsp, err := c.StartOAuth(ctx, provider, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStartOAuthResponse(rsp)
+}
+
+// CallbackOIDCWithResponse request returning *CallbackOIDCResponse
+func (c *ClientWithResponses) CallbackOIDCWithResponse(ctx context.Context, provider string, params *CallbackOIDCParams, reqEditors ...RequestEditorFn) (*CallbackOIDCResponse, error) {
+	rsp, err := c.CallbackOIDC(ctx, provider, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCallbackOIDCResponse(rsp)
+}
+
+// StartOIDCWithResponse request returning *StartOIDCResponse
+func (c *ClientWithResponses) StartOIDCWithResponse(ctx context.Context, provider string, reqEditors ...RequestEditorFn) (*StartOIDCResponse, error) {
+	rsp, err := c.StartOIDC(ctx, provider, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStartOIDCResponse(rsp)
 }
 
 // ConfirmPasswordResetWithBodyWithResponse request with arbitrary body returning *ConfirmPasswordResetResponse
@@ -2552,6 +3125,24 @@ func (c *ClientWithResponses) VerifyEmailWithResponse(ctx context.Context, body 
 		return nil, err
 	}
 	return ParseVerifyEmailResponse(rsp)
+}
+
+// ListMyIdentitiesWithResponse request returning *ListMyIdentitiesResponse
+func (c *ClientWithResponses) ListMyIdentitiesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListMyIdentitiesResponse, error) {
+	rsp, err := c.ListMyIdentities(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListMyIdentitiesResponse(rsp)
+}
+
+// DeleteMyIdentityWithResponse request returning *DeleteMyIdentityResponse
+func (c *ClientWithResponses) DeleteMyIdentityWithResponse(ctx context.Context, identityId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteMyIdentityResponse, error) {
+	rsp, err := c.DeleteMyIdentity(ctx, identityId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteMyIdentityResponse(rsp)
 }
 
 // PingWithResponse request returning *PingResponse
@@ -2842,6 +3433,124 @@ func ParseUpdateCurrentUserResponse(rsp *http.Response) (*UpdateCurrentUserRespo
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCallbackOAuthResponse parses an HTTP response from a CallbackOAuthWithResponse call
+func ParseCallbackOAuthResponse(rsp *http.Response) (*CallbackOAuthResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CallbackOAuthResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseStartOAuthResponse parses an HTTP response from a StartOAuthWithResponse call
+func ParseStartOAuthResponse(rsp *http.Response) (*StartOAuthResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &StartOAuthResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCallbackOIDCResponse parses an HTTP response from a CallbackOIDCWithResponse call
+func ParseCallbackOIDCResponse(rsp *http.Response) (*CallbackOIDCResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CallbackOIDCResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseStartOIDCResponse parses an HTTP response from a StartOIDCWithResponse call
+func ParseStartOIDCResponse(rsp *http.Response) (*StartOIDCResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &StartOIDCResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	}
 
@@ -3146,6 +3855,86 @@ func ParseVerifyEmailResponse(rsp *http.Response) (*VerifyEmailResponse, error) 
 			return nil, err
 		}
 		response.JSON400 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListMyIdentitiesResponse parses an HTTP response from a ListMyIdentitiesWithResponse call
+func ParseListMyIdentitiesResponse(rsp *http.Response) (*ListMyIdentitiesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListMyIdentitiesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []ExternalIdentity
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteMyIdentityResponse parses an HTTP response from a DeleteMyIdentityWithResponse call
+func ParseDeleteMyIdentityResponse(rsp *http.Response) (*DeleteMyIdentityResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteMyIdentityResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MessageResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
 
 	}
 

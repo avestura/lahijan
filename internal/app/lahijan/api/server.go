@@ -13,9 +13,13 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/api/middleware"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/audit"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/email"
+	"github.com/avestura/lahijan/internal/app/lahijan/auth/idp"
+	"github.com/avestura/lahijan/internal/app/lahijan/auth/oauth"
+	"github.com/avestura/lahijan/internal/app/lahijan/auth/oidc"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/pat"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/secrets"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/session"
+	"github.com/avestura/lahijan/internal/app/lahijan/auth/state"
 	"github.com/avestura/lahijan/internal/app/lahijan/database"
 	"github.com/avestura/lahijan/internal/app/lahijan/i18n"
 	"github.com/avestura/lahijan/internal/app/lahijan/version"
@@ -47,6 +51,16 @@ type Server struct {
 	// WS-08: audit query API deps.
 	audit        *database.AuditLogRepository
 	auditEmitter audit.Emitter
+
+	// WS-07a: external identity-provider deps. Any of these may be nil when
+	// the corresponding feature is disabled in config; the handlers degrade
+	// gracefully (returning a localised "feature disabled" envelope).
+	idpSvc          *idp.Service
+	idpOAuth        *oauth.Registry
+	idpOIDC         *oidc.Registry
+	stateSigner     *state.Signer
+	idpCookies      ExternalIDPCookies
+	idpRedirectHome string
 }
 
 // ServerDeps carries the dependencies NewServer requires. Wire it once from
@@ -66,21 +80,35 @@ type ServerDeps struct {
 	// to function; pass nil only in tests that don't exercise those routes.
 	Audit        *database.AuditLogRepository
 	AuditEmitter audit.Emitter
+
+	// WS-07a: external IdP deps. Nil-appropriate when the feature is disabled.
+	IDPSvc          *idp.Service
+	IDPOAuth        *oauth.Registry
+	IDPOIDC         *oidc.Registry
+	StateSigner     *state.Signer
+	IDPCookies      ExternalIDPCookies
+	IDPRedirectHome string
 }
 
 // NewServer builds the API server with the given dependencies.
 func NewServer(deps ServerDeps) *Server {
 	s := &Server{
-		tracer:       deps.Tracer,
-		users:        deps.Users,
-		sessions:     deps.Sessions,
-		sessionSvc:   deps.SessionSvc,
-		patSvc:       deps.PATSvc,
-		emailSvc:     deps.EmailSvc,
-		signer:       deps.Signer,
-		cookies:      deps.Cookies,
-		audit:        deps.Audit,
-		auditEmitter: deps.AuditEmitter,
+		tracer:          deps.Tracer,
+		users:           deps.Users,
+		sessions:        deps.Sessions,
+		sessionSvc:      deps.SessionSvc,
+		patSvc:          deps.PATSvc,
+		emailSvc:        deps.EmailSvc,
+		signer:          deps.Signer,
+		cookies:         deps.Cookies,
+		audit:           deps.Audit,
+		auditEmitter:    deps.AuditEmitter,
+		idpSvc:          deps.IDPSvc,
+		idpOAuth:        deps.IDPOAuth,
+		idpOIDC:         deps.IDPOIDC,
+		stateSigner:     deps.StateSigner,
+		idpCookies:      deps.IDPCookies,
+		idpRedirectHome: deps.IDPRedirectHome,
 	}
 	if s.tracer == nil {
 		s.tracer = Tracer()
@@ -90,6 +118,11 @@ func NewServer(deps ServerDeps) *Server {
 		// guards in every code path. Tests that assert on audit rows pass a
 		// capturing emitter instead.
 		s.auditEmitter = audit.NoopEmitter{}
+	}
+	if s.idpCookies.State == "" && (deps.IDPSvc != nil || deps.IDPOAuth != nil || deps.IDPOIDC != nil) {
+		// Default cookie names when the IdP feature is on but the caller did
+		// not override the names.
+		s.idpCookies = DefaultExternalIDPCookies
 	}
 	return s
 }

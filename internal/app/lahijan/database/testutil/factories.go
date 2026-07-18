@@ -107,3 +107,32 @@ func NewAuditLog(
 	require.NoError(t, err, "create audit log")
 	return a
 }
+
+// NewOAuthIdentity inserts and returns a fresh external-identity link for the
+// given user. Provider is "google" by default; pass a different value to test
+// other IdPs. The tokens are stored as opaque ciphertext in production (the
+// app layer encrypts); for tests we store a fake string.
+func NewOAuthIdentity(
+	ctx context.Context,
+	t *testing.T,
+	db gen.DBTX,
+	userID uuid.UUID,
+	provider string,
+) gen.UserOauthIdentity {
+	t.Helper()
+	if provider == "" {
+		provider = "google"
+	}
+	subject := "sub-" + uuid.NewString()[:12]
+	token := "enc::fake-token::" + uuid.NewString()[:8]
+	row, err := querier(db).CreateOAuthIdentity(ctx, gen.CreateOAuthIdentityParams{
+		UserID:       userID,
+		Provider:     provider,
+		Subject:      subject,
+		AccessToken:  &token,
+		RefreshToken: &token,
+		Scopes:       []string{"openid", "email"},
+	})
+	require.NoError(t, err, "create oauth identity")
+	return row
+}

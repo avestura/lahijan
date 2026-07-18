@@ -21,4 +21,5 @@ type (
 	Permission          = gen.Permission
 	AuditLog            = gen.AuditLog
 	AuditLogOutcome     = gen.AuditLogOutcome
+	UserOauthIdentity   = gen.UserOauthIdentity
 )

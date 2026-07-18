@@ -55,6 +55,22 @@
   "auth.msg_password_changed": { "other": "گذرواژهٔ شما تغییر کرد." },
   "auth.msg_profile_updated": { "other": "نمایهٔ شما به‌روز شد." },
   "auth.msg_pat_revoked": { "other": "نشانهٔ دسترسی شخصی باطل شد." },
+  "auth.msg_identity_unlinked": { "other": "ارائه‌دهندهٔ هویت از حساب شما جدا شد." },
+
+  "auth.err_idp_disabled": { "other": "ارائه‌دهنده‌های هویت بیرونی روی این کارساز فعال نیستند." },
+  "auth.err_idp_unknown": {
+    "description": "هنگامی که مسیر {provider} با ارائه‌دهندهٔ پیکربندی‌شده‌ای همخوان نباشد. {{.Provider}} کلید ناشناخته است.",
+    "other": "ارائه‌دهندهٔ هویت ناشناخته: {{.Provider}}."
+  },
+  "auth.err_idp_state_invalid": { "other": "نشست ورود منقضی یا دستکاری شده است. لطفاً دوباره تلاش کنید." },
+  "auth.err_idp_exchange_failed": { "other": "ارائه‌دهندهٔ هویت کد ورود را رد کرد. لطفاً دوباره تلاش کنید." },
+  "auth.err_idp_already_linked": { "other": "این هویت از پیش به حسابی متصل است." },
+  "auth.err_idp_linked_elsewhere": { "other": "این هویت به حساب دیگری متصل است." },
+  "auth.err_idp_not_found": { "other": "هویت یافت نشد." },
+  "auth.err_idp_last_auth_method": {
+    "description": "هنگامی که حذف هویت، کاربر را بدون راهی برای ورود می‌گذارد.",
+    "other": "شما نمی‌توانید تنها راه ورود خود را حذف کنید. ابتدا یک گذرواژه یا هویت دیگری بیفزایید."
+  },
 
   "rbac.err_tenant_scope_required": {
     "description": "هنگامی که یک پایانهٔ ممتاز بدون سرتیتر X-Tenant-Id فراخوانی شود.",
@@ -85,6 +101,10 @@
   "audit.action_auth_pat_create": { "other": "نشانهٔ دسترسی شخصی ساخته شد" },
   "audit.action_auth_pat_revoke": { "other": "نشانهٔ دسترسی شخصی باطل شد" },
   "audit.action_auth_pat_use": { "other": "نشانهٔ دسترسی شخصی به‌کار رفت" },
+
+  "audit.action_auth_idp_link": { "other": "ارائه‌دهندهٔ هویت متصل شد" },
+  "audit.action_auth_idp_login": { "other": "ورود از طریق ارائه‌دهندهٔ هویت" },
+  "audit.action_auth_idp_unlink": { "other": "ارائه‌دهندهٔ هویت جدا شد" },
 
   "audit.action_audit_export": { "other": "گزارش ممیزی برون‌برداری شد" },
   "audit.action_rbac_role_update": { "other": "نقاب به‌روز شد" },

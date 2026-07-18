@@ -61,7 +61,7 @@ yarn-error.log*
 # Secrets
 *.pem
 *.key
-secrets/
+/secrets/
 
 # Logs (especially the WS runner logs)
 logs/

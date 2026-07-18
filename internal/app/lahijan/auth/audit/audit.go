@@ -51,6 +51,13 @@ const (
 	ActionPATRevoke          = "auth.pat.revoke"
 	ActionPATUse             = "auth.pat.use"
 
+	// External IdP actions (WS-07a). Linked = a new (provider, subject)
+	// row was bound to a user; Login = an existing identity was used to
+	// log in; Unlink = a row was removed.
+	ActionIdpLink   = "auth.idp.link"
+	ActionIdpLogin  = "auth.idp.login"
+	ActionIdpUnlink = "auth.idp.unlink"
+
 	// Audit subsystem actions (the audit query API itself emits these).
 	ActionAuditExport = "audit.export"
 	ActionRBACRoleOps = "rbac.role.update"

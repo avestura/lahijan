@@ -13,6 +13,7 @@ package database
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -22,3 +23,18 @@ import (
 // their own sentinel (e.g. pat.ErrNotFound) rather than letting it bubble up
 // to the API envelope as a 500.
 func IsNoRows(err error) bool { return errors.Is(err, pgx.ErrNoRows) }
+
+// IsUniqueViolation reports whether err is a Postgres unique-violation (SQL
+// state 23505). The check is string-based (matches against the error's
+// Error() text) so the rest of the codebase does not need to import
+// pgconn. This is the same trick auth/session uses for isUniqueViolationEmail;
+// centralising it here so both call sites use the same shape.
+func IsUniqueViolation(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	// 23505 is the SQLSTATE for unique_violation; the constraint name often
+	// appears as "uq_<table>_<col>". Either signal is enough.
+	return strings.Contains(msg, "23505") || strings.Contains(msg, "unique constraint")
+}

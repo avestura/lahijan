@@ -184,3 +184,23 @@ type User struct {
 	// Preferred locale code (en, fa, ...). Default en.
 	Locale string `json:"locale"`
 }
+
+// Links a user to an external identity provider; global, tokens encrypted at rest.
+type UserOauthIdentity struct {
+	ID     uuid.UUID `json:"id"`
+	UserID uuid.UUID `json:"user_id"`
+	// Provider key: google | github | oidc:<config_key>.
+	Provider string `json:"provider"`
+	// IdP-stable subject identifier (sub claim for OIDC).
+	Subject string `json:"subject"`
+	// AES-GCM ciphertext of the access token; NULL when the IdP returned none.
+	AccessToken *string `json:"access_token"`
+	// AES-GCM ciphertext of the refresh token; NULL when the IdP returned none.
+	RefreshToken *string `json:"refresh_token"`
+	// Scopes the IdP granted at issue/refresh time; informational.
+	Scopes []string `json:"scopes"`
+	// When the access_token expires; NULL when non-expiring.
+	ExpiresAt *time.Time `json:"expires_at"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+}
