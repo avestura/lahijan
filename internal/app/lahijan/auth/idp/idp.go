@@ -96,6 +96,11 @@ type Service struct {
 	idps     *database.OAuthIdentitiesRepository
 	samlIdps *database.SamlIdentitiesRepository
 	session  SessionOpener
+
+	// jitEnabled is the per-instance copy of the package-level jitEnabled
+	// toggle, captured at New() time so tests with parallel services can
+	// have independent JIT settings without racing on the package var.
+	jitEnabled bool
 }
 
 // SessionOpener opens a Lahijan session once an identity has been resolved.
@@ -130,6 +135,10 @@ type RefreshIssue struct {
 // New builds the IdP service. The SamlIdentitiesRepository on repos may be
 // nil when SAML is disabled; LinkSAML / ListSAMLIdentities / UnlinkSAML
 // must not be called in that case (the api handler short-circuits).
+//
+// The per-instance JIT toggle is captured from the package-level default
+// at construction time; program.Start sets the default from conf before
+// building the service.
 func New(
 	repos *database.Repos,
 	crypto *secrets.Crypto,
@@ -137,15 +146,22 @@ func New(
 	session SessionOpener,
 ) *Service {
 	return &Service{
-		repos:    repos,
-		crypto:   crypto,
-		audit:    auditEmitter,
-		users:    repos.Users,
-		idps:     repos.OAuthIdentities,
-		samlIdps: repos.SamlIdentities,
-		session:  session,
+		repos:      repos,
+		crypto:     crypto,
+		audit:      auditEmitter,
+		users:      repos.Users,
+		idps:       repos.OAuthIdentities,
+		samlIdps:   repos.SamlIdentities,
+		session:    session,
+		jitEnabled: jitEnabled,
 	}
 }
+
+// SetJITEnabledInstance flips this service's JIT toggle at runtime. Used by
+// tests that construct a Service and then need to exercise both JIT paths
+// without rebuilding. Production code uses the package-level SetJITEnabled
+// before New() is called.
+func (s *Service) SetJITEnabledInstance(on bool) { s.jitEnabled = on }
 
 // LinkInput carries the data the api handler collects from the callback
 // before calling Link. All fields are required except LinkUserID (which is

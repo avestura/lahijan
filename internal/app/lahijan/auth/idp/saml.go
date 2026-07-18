@@ -164,7 +164,7 @@ func (s *Service) resolveNewSAMLIdentity(ctx context.Context, in SAMLLinkInput) 
 	if in.LinkUserID != nil {
 		userID = *in.LinkUserID
 	} else {
-		if !jitEnabled {
+		if !s.jitEnabled {
 			s.auditFail(ctx, audit.ActionIdpLink, nil, map[string]any{
 				"provider": in.Provider, "name_id": in.NameID, "reason": "jit_disabled",
 			})
@@ -292,19 +292,14 @@ func (s *Service) UnlinkSAML(ctx context.Context, userID, identityID uuid.UUID) 
 // your operator to be pre-registered" message.
 var ErrJITDisabled = errors.New("idp: just-in-time user creation is disabled for this provider")
 
-// jitEnabled is the package-level JIT toggle. The api bootstrap flips this
-// based on conf.auth.saml.jit.enabled. Tests flip it directly to exercise
-// both paths.
-//
-// The toggle is process-wide (not per-provider) for MVP; a future WS can
-// move it onto a per-provider struct if granular control is needed.
-//
-// Using a bool field on the Service would require changing the constructor
-// signature; using a package-level var here keeps the change minimal and
-// matches the "configurable policy" framing of the WS-07b doc.
-var jitEnabled = false
-
-// SetJITEnabled flips the package-level JIT toggle. Called once from
-// program.Start after conf is loaded. Tests call this directly to exercise
-// both paths.
+// SetJITEnabled flips the package-level default JIT toggle. Called once
+// from program.Start after conf is loaded; the Service constructor also
+// accepts a per-instance toggle (Service.JITEnabled) so tests with parallel
+// services can have independent JIT settings without the race a package-
+// level var would introduce.
 func SetJITEnabled(on bool) { jitEnabled = on }
+
+// jitEnabled is the package-level default JIT toggle. The Service struct
+// carries its own copy (initialized from this default at New time) so
+// per-test instances can override without racing.
+var jitEnabled = false
