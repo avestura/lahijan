@@ -34,4 +34,9 @@ type (
 	ComputeProfile       = gen.ComputeProfile
 	ComputeNetwork       = gen.ComputeNetwork
 	ComputeStorageVolume = gen.ComputeStorageVolume
+
+	// DNSZone / DnsRecord are the row aliases (WS-12, WS-15). Services
+	// reference these (e.g. database.DNSZone) instead of gen.DnsZone.
+	DNSZone   = gen.DnsZone
+	DnsRecord = gen.DnsRecord
 )
