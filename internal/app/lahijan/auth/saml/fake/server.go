@@ -161,6 +161,17 @@ func New() *Server {
 // Close stops the fake's httptest server.
 func (s *Server) Close() { s.HTTP.Close() }
 
+// ServeIDPInitiatedHTTP exposes the underlying crewjam IdP's
+// ServeIDPInitiated handler so unit tests can drive the IdP-initiated SSO
+// flow without spinning up the HTTP server. serviceProviderID is the SP's
+// entity ID (must be registered via SetSPMetadata first); relayState is
+// optional and round-trips through the auto-submit form unchanged.
+//
+// Used by the WS-07b DoD row "IdP-initiated login works against a test IdP".
+func (s *Server) ServeIDPInitiatedHTTP(w http.ResponseWriter, r *http.Request, serviceProviderID, relayState string) {
+	s.idp.ServeIDPInitiated(w, r, serviceProviderID, relayState)
+}
+
 // MetadataXML returns the IdP's metadata as raw XML. Tests pass this as
 // ProviderConfig.IdPMetadataXML so the SP is bound to the fake without an
 // HTTP fetch.

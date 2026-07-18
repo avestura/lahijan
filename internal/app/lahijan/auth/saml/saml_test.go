@@ -303,3 +303,67 @@ func TestProvider_VerifyState_RealSignerAcceptsPairedToken(t *testing.T) {
 	err = env.sp.VerifyState(token, "wrong-nonce", "")
 	assert.ErrorIs(t, err, state.ErrInvalid)
 }
+
+// TestProvider_AllowIDPInitiated_AcceptsResponseWithoutInResponseTo proves
+// that when AllowIDPInitiated is true, the SP accepts a SAML Response that
+// has no InResponseTo (the IdP-initiated SSO flow). The fake IdP's
+// ServeIDPInitiated endpoint produces such a response.
+func TestProvider_AllowIDPInitiated_AcceptsResponseWithoutInResponseTo(t *testing.T) {
+	t.Parallel()
+	// Build a fake + SP pair where AllowIDPInitiated is true.
+	fake := samlfake.New()
+	t.Cleanup(fake.Close)
+	spCreds := generateSPCredentials(t)
+	spEntityID := "https://app.test/api/v1/auth/saml/metadata"
+	spACS := "https://app.test/api/v1/auth/saml/test/acs"
+	spMetaURL := "https://app.test/api/v1/auth/saml/metadata"
+
+	p, err := saml.NewProvider(saml.ProviderConfig{
+		Key:               "test",
+		EntityID:          spEntityID,
+		ACSURL:            spACS,
+		MetadataURL:       spMetaURL,
+		IDPMetadataXML:    string(fake.MetadataXML()),
+		AllowIDPInitiated: true,
+	}, spCreds, noopVerifier)
+	require.NoError(t, err)
+	fake.SetSPMetadata(buildSPMetadata(t, p, spEntityID, spACS, spMetaURL, spCreds))
+	fake.Subject = "nameid-idp-init"
+
+	// Drive the IdP-initiated flow via the fake's ServeIDPInitiated method.
+	// The method writes an HTML auto-submit form to the response that POSTs
+	// the SAMLResponse back to the SP's ACS URL with no InResponseTo.
+	recorder := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/idp-initiated", nil)
+	fake.ServeIDPInitiatedHTTP(recorder, req, spEntityID, "")
+	body := recorder.Body.String()
+	samlResponse, _ := samlfake.ExtractSAMLResponse(body)
+	require.NotEmpty(t, samlResponse, "IdP-initiated fake must produce a SAMLResponse")
+
+	acsReq := makeACSRequest(t, samlResponse, "")
+	prof, err := p.ProcessResponse(context.Background(), acsReq, "")
+	require.NoError(t, err, "IdP-initiated response must verify when AllowIDPInitiated is true")
+	assert.Equal(t, "nameid-idp-init", prof.Subject)
+}
+
+// TestProvider_NoIDPInitiated_RejectsResponseWithoutInResponseTo proves
+// that when AllowIDPInitiated is false (the default), the SP rejects a
+// response that carries no InResponseTo.
+func TestProvider_NoIDPInitiated_RejectsResponseWithoutInResponseTo(t *testing.T) {
+	t.Parallel()
+	env := newSPTestEnv(t, noopVerifier) // default: AllowIDPInitiated=false
+	env.fake.Subject = "nameid-no-idp-init"
+
+	// Drive an IdP-initiated flow against the SP that does NOT allow it.
+	recorder := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/idp-initiated", nil)
+	env.fake.ServeIDPInitiatedHTTP(recorder, req, "https://app.test/api/v1/auth/saml/metadata", "")
+	body := recorder.Body.String()
+	samlResponse, _ := samlfake.ExtractSAMLResponse(body)
+	require.NotEmpty(t, samlResponse)
+
+	acsReq := makeACSRequest(t, samlResponse, "")
+	_, err := env.sp.ProcessResponse(context.Background(), acsReq, "")
+	require.Error(t, err, "IdP-initiated must reject when AllowIDPInitiated is false")
+	assert.ErrorIs(t, err, saml.ErrAssertion)
+}

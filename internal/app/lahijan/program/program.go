@@ -7,10 +7,17 @@ package program
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
+	"encoding/pem"
 	"errors"
+	"fmt"
 	"log"
+	"math/big"
 	"net/netip"
 	"strings"
 	"time"
@@ -553,49 +560,59 @@ func buildSamlDeps(ctx context.Context, a *authDeps, stateSigner *state.Signer) 
 }
 
 // buildSAMLCredentials loads the SP signing key + cert from conf. In dev an
-// empty key falls back to a derived warning value so local dev "just works";
-// production rejects an empty key. The cert is required in every environment
-// because the SP metadata MUST publish a real x509 cert the IdP will pin.
+// empty key falls back to a freshly-generated RSA keypair so local dev "just
+// works" without requiring the deployer to mint a cert; production rejects
+// an empty key. The cert is required in every environment because the SP
+// metadata MUST publish a real x509 cert the IdP will pin.
+//
+// The key is HIGH-SENSITIVITY material. It is sourced from env
+// LAHIJAN_AUTH_SAML_SP_SIGNING_KEY (or a file path in
+// LAHIJAN_AUTH_SAML_SP_SIGNING_KEY_FILE, read by the bootstrap), loaded once
+// into process memory, and NEVER persisted to the database. "Encrypted at
+// rest" is satisfied by the deployment secret management that backs the env
+// var / file (typically Docker secrets, Kubernetes secrets, or Vault).
 func buildSAMLCredentials() (saml.SPCredentials, error) {
 	keyPEM := conf.GetAuthSAMLSPSigningKey()
-	if keyPEM == "" {
-		if !isDev(conf.GetEnvironment()) {
-			return saml.SPCredentials{}, errors.New("auth.saml.spSigningKey must be set in any non-dev environment")
-		}
-		fiberlog.Warn("auth.saml.spSigningKey is empty in dev; using a derived warning value. Set it in any non-dev environment.")
-		derived := sha256.Sum256([]byte("DEV-ONLY-INSECURE-CHANGE-ME-lahijan-saml-signing-key"))
-		// Turn the derived 32 bytes into a real RSA private key by using them
-		// as the seed for a deterministic keygen. In dev this keeps the SP
-		// metadata stable across restarts without requiring the deployer to
-		// generate a key; production MUST supply a real PEM-encoded key.
-		keyPEM = devDerivedRSAKeyPEM(derived[:])
-	}
 	certPEM := conf.GetAuthSAMLSPSigningCert()
-	if certPEM == "" {
+	if keyPEM == "" || certPEM == "" {
 		if !isDev(conf.GetEnvironment()) {
+			if keyPEM == "" {
+				return saml.SPCredentials{}, errors.New("auth.saml.spSigningKey must be set in any non-dev environment")
+			}
 			return saml.SPCredentials{}, errors.New("auth.saml.spSigningCert must be set in any non-dev environment")
 		}
-		// In dev, derive the cert from the same seed so the key+cert pair
-		// is self-consistent.
-		derived := sha256.Sum256([]byte("DEV-ONLY-INSECURE-CHANGE-ME-lahijan-saml-signing-key"))
-		certPEM = devDerivedRSACertPEM(derived[:])
+		fiberlog.Warn("auth.saml.spSigningKey/ spSigningCert are empty in dev; generating a fresh keypair. Set both in any non-dev environment.")
+		kp, err := generateDevSAMLKeyPair()
+		if err != nil {
+			return saml.SPCredentials{}, fmt.Errorf("saml dev keypair: %w", err)
+		}
+		return kp, nil
 	}
 	return saml.SPCredentials{KeyPEM: []byte(keyPEM), CertPEM: []byte(certPEM)}, nil
 }
 
-// devDerivedRSAKeyPEM + devDerivedRSACertPEM are stubs kept here as TODOs
-// for the dev-mode key derivation. Today they return the empty string, which
-// forces saml.NewProvider to surface a clean "no PEM block" error in dev —
-// better than silently shipping a derived key whose distribution we'd then
-// have to reason about. The dev fallback for the SAML signing key is
-// therefore: deployer MUST set both keys even in dev. (Real production
-// paths must do the same.)
-//
-// These stubs exist so the function names appear in the source for future
-// implementers; they are not called today.
-func devDerivedRSAKeyPEM(_ []byte) string  { return "" }
-func devDerivedRSACertPEM(_ []byte) string { return "" }
-
-// encodingBase64 is re-exported so future dev-mode key derivation can reuse
-// the encoder without re-importing.
-var _ = base64.StdEncoding
+// generateDevSAMLKeyPair mints a fresh RSA-2048 keypair + self-signed cert
+// for dev-mode SAML. The keypair is regenerated on every process restart,
+// so the SP metadata changes; that is acceptable for dev but not for prod.
+func generateDevSAMLKeyPair() (saml.SPCredentials, error) {
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return saml.SPCredentials{}, fmt.Errorf("rsa keygen: %w", err)
+	}
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "lahijan-saml-dev-sp"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(24 * time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}
+	der, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+	if err != nil {
+		return saml.SPCredentials{}, fmt.Errorf("x509 create: %w", err)
+	}
+	return saml.SPCredentials{
+		KeyPEM:  pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)}),
+		CertPEM: pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}),
+	}, nil
+}
