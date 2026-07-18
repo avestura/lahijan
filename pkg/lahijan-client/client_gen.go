@@ -95,6 +95,59 @@ const (
 	ComputeInstanceCreateRequestTypeVirtualMachine ComputeInstanceCreateRequestType = "virtual-machine"
 )
 
+// Defines values for DNSRecordCreateRequestType.
+const (
+	DNSRecordCreateRequestTypeA     DNSRecordCreateRequestType = "A"
+	DNSRecordCreateRequestTypeAAAA  DNSRecordCreateRequestType = "AAAA"
+	DNSRecordCreateRequestTypeCAA   DNSRecordCreateRequestType = "CAA"
+	DNSRecordCreateRequestTypeCNAME DNSRecordCreateRequestType = "CNAME"
+	DNSRecordCreateRequestTypeDS    DNSRecordCreateRequestType = "DS"
+	DNSRecordCreateRequestTypeMX    DNSRecordCreateRequestType = "MX"
+	DNSRecordCreateRequestTypeNS    DNSRecordCreateRequestType = "NS"
+	DNSRecordCreateRequestTypePTR   DNSRecordCreateRequestType = "PTR"
+	DNSRecordCreateRequestTypeSOA   DNSRecordCreateRequestType = "SOA"
+	DNSRecordCreateRequestTypeSRV   DNSRecordCreateRequestType = "SRV"
+	DNSRecordCreateRequestTypeTLSA  DNSRecordCreateRequestType = "TLSA"
+	DNSRecordCreateRequestTypeTXT   DNSRecordCreateRequestType = "TXT"
+)
+
+// Defines values for DNSTemplateRecordType.
+const (
+	DNSTemplateRecordTypeA     DNSTemplateRecordType = "A"
+	DNSTemplateRecordTypeAAAA  DNSTemplateRecordType = "AAAA"
+	DNSTemplateRecordTypeCAA   DNSTemplateRecordType = "CAA"
+	DNSTemplateRecordTypeCNAME DNSTemplateRecordType = "CNAME"
+	DNSTemplateRecordTypeDS    DNSTemplateRecordType = "DS"
+	DNSTemplateRecordTypeMX    DNSTemplateRecordType = "MX"
+	DNSTemplateRecordTypeNS    DNSTemplateRecordType = "NS"
+	DNSTemplateRecordTypePTR   DNSTemplateRecordType = "PTR"
+	DNSTemplateRecordTypeSOA   DNSTemplateRecordType = "SOA"
+	DNSTemplateRecordTypeSRV   DNSTemplateRecordType = "SRV"
+	DNSTemplateRecordTypeTLSA  DNSTemplateRecordType = "TLSA"
+	DNSTemplateRecordTypeTXT   DNSTemplateRecordType = "TXT"
+)
+
+// Defines values for DNSZoneKind.
+const (
+	DNSZoneKindMaster DNSZoneKind = "Master"
+	DNSZoneKindNative DNSZoneKind = "Native"
+	DNSZoneKindSlave  DNSZoneKind = "Slave"
+)
+
+// Defines values for DNSZoneCreateRequestKind.
+const (
+	DNSZoneCreateRequestKindMaster DNSZoneCreateRequestKind = "Master"
+	DNSZoneCreateRequestKindNative DNSZoneCreateRequestKind = "Native"
+	DNSZoneCreateRequestKindSlave  DNSZoneCreateRequestKind = "Slave"
+)
+
+// Defines values for DNSZoneUpdateRequestKind.
+const (
+	DNSZoneUpdateRequestKindMaster DNSZoneUpdateRequestKind = "Master"
+	DNSZoneUpdateRequestKindNative DNSZoneUpdateRequestKind = "Native"
+	DNSZoneUpdateRequestKindSlave  DNSZoneUpdateRequestKind = "Slave"
+)
+
 // Defines values for HealthStatus.
 const (
 	HealthStatusDegraded HealthStatus = "degraded"
@@ -328,6 +381,18 @@ type AdminPluginUpgradeResult struct {
 
 	// PreservedGrants Grants carried forward from the prior version.
 	PreservedGrants []string `json:"preservedGrants"`
+}
+
+// ApplyDNSTemplateRequest defines model for ApplyDNSTemplateRequest.
+type ApplyDNSTemplateRequest struct {
+	// TemplateId The template id from GET /api/v1/dns/templates.
+	TemplateId string `json:"templateId"`
+}
+
+// ApplyDNSTemplateResult defines model for ApplyDNSTemplateResult.
+type ApplyDNSTemplateResult struct {
+	// Applied Number of records upserted by the template.
+	Applied int `json:"applied"`
 }
 
 // AuditEvent defines model for AuditEvent.
@@ -617,6 +682,143 @@ type CreatePersonalAccessTokenRequest struct {
 	// Scopes Permission slugs (scope.action) the PAT grants.
 	Scopes *[]string `json:"scopes,omitempty"`
 }
+
+// DNSRecord defines model for DNSRecord.
+type DNSRecord struct {
+	// Content Zone-file wire form.
+	Content   string    `json:"content"`
+	CreatedAt time.Time `json:"createdAt"`
+
+	// Disabled When true the record is served commented-out.
+	Disabled *bool              `json:"disabled,omitempty"`
+	Id       openapi_types.UUID `json:"id"`
+
+	// Name Canonical record name with trailing dot.
+	Name string `json:"name"`
+
+	// Prio Priority for MX / SRV; 0 for types with no priority.
+	Prio     *int               `json:"prio,omitempty"`
+	TenantId openapi_types.UUID `json:"tenantId"`
+
+	// Ttl TTL in seconds.
+	Ttl int `json:"ttl"`
+
+	// Type DNS record type.
+	Type      string             `json:"type"`
+	UpdatedAt *time.Time         `json:"updatedAt,omitempty"`
+	ZoneId    openapi_types.UUID `json:"zoneId"`
+}
+
+// DNSRecordCreateRequest defines model for DNSRecordCreateRequest.
+type DNSRecordCreateRequest struct {
+	// Content Zone-file wire form. Validated per-type.
+	Content  string `json:"content"`
+	Disabled *bool  `json:"disabled,omitempty"`
+
+	// Name Canonical record name with trailing dot; must belong to the zone.
+	Name string `json:"name"`
+
+	// Ttl TTL in seconds; clamped to [300, 86400].
+	Ttl *int `json:"ttl,omitempty"`
+
+	// Type DNS record type. Validated per-type.
+	Type DNSRecordCreateRequestType `json:"type"`
+}
+
+// DNSRecordCreateRequestType DNS record type. Validated per-type.
+type DNSRecordCreateRequestType string
+
+// DNSRecordPage defines model for DNSRecordPage.
+type DNSRecordPage struct {
+	Items  []DNSRecord `json:"items"`
+	Limit  int         `json:"limit"`
+	Offset int         `json:"offset"`
+	Total  int         `json:"total"`
+}
+
+// DNSRecordUpdateRequest defines model for DNSRecordUpdateRequest.
+type DNSRecordUpdateRequest struct {
+	Content  *string `json:"content,omitempty"`
+	Disabled *bool   `json:"disabled,omitempty"`
+	Ttl      *int    `json:"ttl,omitempty"`
+}
+
+// DNSTemplate defines model for DNSTemplate.
+type DNSTemplate struct {
+	Description string              `json:"description"`
+	Id          string              `json:"id"`
+	Name        string              `json:"name"`
+	Records     []DNSTemplateRecord `json:"records"`
+}
+
+// DNSTemplateRecord defines model for DNSTemplateRecord.
+type DNSTemplateRecord struct {
+	// Content Zone-file wire form. Same "%s"/"%w" expansion as Name.
+	Content string `json:"content"`
+
+	// Name Canonical record name. "%s" expands to the zone id; "%w" to the zone id without the trailing dot.
+	Name string                `json:"name"`
+	Ttl  *int                  `json:"ttl,omitempty"`
+	Type DNSTemplateRecordType `json:"type"`
+}
+
+// DNSTemplateRecordType defines model for DNSTemplateRecord.Type.
+type DNSTemplateRecordType string
+
+// DNSZone defines model for DNSZone.
+type DNSZone struct {
+	// CanonicalId The PDNS-assigned canonical id (typically the canonical name lowercased). Unique across the platform.
+	CanonicalId string             `json:"canonicalId"`
+	CreatedAt   time.Time          `json:"createdAt"`
+	Description *string            `json:"description,omitempty"`
+	Id          openapi_types.UUID `json:"id"`
+
+	// IsAxfrEnabled Cached AXFR state. Off by default per WS-12.
+	IsAxfrEnabled *bool `json:"isAxfrEnabled,omitempty"`
+
+	// IsDnssecEnabled Cached DNSSEC state. Flipped by the DNS service on enable/disable.
+	IsDnssecEnabled bool `json:"isDnssecEnabled"`
+
+	// Kind Zone topology. Lahijan uses Native by default.
+	Kind DNSZoneKind `json:"kind"`
+
+	// Name Canonical zone name with trailing dot ("example.com.").
+	Name      string             `json:"name"`
+	TenantId  openapi_types.UUID `json:"tenantId"`
+	UpdatedAt *time.Time         `json:"updatedAt,omitempty"`
+}
+
+// DNSZoneKind Zone topology. Lahijan uses Native by default.
+type DNSZoneKind string
+
+// DNSZoneCreateRequest defines model for DNSZoneCreateRequest.
+type DNSZoneCreateRequest struct {
+	Description *string                   `json:"description,omitempty"`
+	Kind        *DNSZoneCreateRequestKind `json:"kind,omitempty"`
+
+	// Name Canonical zone name; must end with a dot and be lowercase.
+	Name string `json:"name"`
+}
+
+// DNSZoneCreateRequestKind defines model for DNSZoneCreateRequest.Kind.
+type DNSZoneCreateRequestKind string
+
+// DNSZonePage defines model for DNSZonePage.
+type DNSZonePage struct {
+	Items  []DNSZone `json:"items"`
+	Limit  int       `json:"limit"`
+	Offset int       `json:"offset"`
+	Total  int       `json:"total"`
+}
+
+// DNSZoneUpdateRequest defines model for DNSZoneUpdateRequest.
+type DNSZoneUpdateRequest struct {
+	Description *string                   `json:"description,omitempty"`
+	Kind        *DNSZoneUpdateRequestKind `json:"kind,omitempty"`
+}
+
+// DNSZoneUpdateRequestKind defines model for DNSZoneUpdateRequest.Kind.
+type DNSZoneUpdateRequestKind string
 
 // EmailRequest defines model for EmailRequest.
 type EmailRequest struct {
@@ -950,6 +1152,9 @@ type Forbidden = Error
 // NotFound defines model for NotFound.
 type NotFound = Error
 
+// NotImplemented defines model for NotImplemented.
+type NotImplemented = Error
+
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = Error
 
@@ -1118,6 +1323,24 @@ type ListComputeStorageVolumesParams struct {
 	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
 }
 
+// ListDNSZonesParams defines parameters for ListDNSZones.
+type ListDNSZonesParams struct {
+	// Limit Maximum number of items to return (1..200).
+	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of items to skip for pagination.
+	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// ListDNSRecordsParams defines parameters for ListDNSRecords.
+type ListDNSRecordsParams struct {
+	// Limit Maximum number of items to return (1..200).
+	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of items to skip for pagination.
+	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
 // UploadAdminPluginMultipartRequestBody defines body for UploadAdminPlugin for multipart/form-data ContentType.
 type UploadAdminPluginMultipartRequestBody UploadAdminPluginMultipartBody
 
@@ -1177,6 +1400,21 @@ type CreateComputeProfileJSONRequestBody = ComputeProfileCreateRequest
 
 // CreateComputeStorageVolumeJSONRequestBody defines body for CreateComputeStorageVolume for application/json ContentType.
 type CreateComputeStorageVolumeJSONRequestBody = ComputeStorageVolumeCreateRequest
+
+// CreateDNSZoneJSONRequestBody defines body for CreateDNSZone for application/json ContentType.
+type CreateDNSZoneJSONRequestBody = DNSZoneCreateRequest
+
+// UpdateDNSZoneJSONRequestBody defines body for UpdateDNSZone for application/json ContentType.
+type UpdateDNSZoneJSONRequestBody = DNSZoneUpdateRequest
+
+// ApplyDNSTemplateJSONRequestBody defines body for ApplyDNSTemplate for application/json ContentType.
+type ApplyDNSTemplateJSONRequestBody = ApplyDNSTemplateRequest
+
+// CreateDNSRecordJSONRequestBody defines body for CreateDNSRecord for application/json ContentType.
+type CreateDNSRecordJSONRequestBody = DNSRecordCreateRequest
+
+// UpdateDNSRecordJSONRequestBody defines body for UpdateDNSRecord for application/json ContentType.
+type UpdateDNSRecordJSONRequestBody = DNSRecordUpdateRequest
 
 // DisableTOTPJSONRequestBody defines body for DisableTOTP for application/json ContentType.
 type DisableTOTPJSONRequestBody = MFADisableRequest
@@ -1492,6 +1730,55 @@ type ClientInterface interface {
 
 	// GetComputeStorageVolume request
 	GetComputeStorageVolume(ctx context.Context, volumeId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListDNSTemplates request
+	ListDNSTemplates(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListDNSZones request
+	ListDNSZones(ctx context.Context, params *ListDNSZonesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateDNSZoneWithBody request with any body
+	CreateDNSZoneWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateDNSZone(ctx context.Context, body CreateDNSZoneJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteDNSZone request
+	DeleteDNSZone(ctx context.Context, zoneId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetDNSZone request
+	GetDNSZone(ctx context.Context, zoneId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateDNSZoneWithBody request with any body
+	UpdateDNSZoneWithBody(ctx context.Context, zoneId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateDNSZone(ctx context.Context, zoneId openapi_types.UUID, body UpdateDNSZoneJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ApplyDNSTemplateWithBody request with any body
+	ApplyDNSTemplateWithBody(ctx context.Context, zoneId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	ApplyDNSTemplate(ctx context.Context, zoneId openapi_types.UUID, body ApplyDNSTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetDNSZoneDNSSEC request
+	SetDNSZoneDNSSEC(ctx context.Context, zoneId openapi_types.UUID, action string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListDNSRecords request
+	ListDNSRecords(ctx context.Context, zoneId openapi_types.UUID, params *ListDNSRecordsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateDNSRecordWithBody request with any body
+	CreateDNSRecordWithBody(ctx context.Context, zoneId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateDNSRecord(ctx context.Context, zoneId openapi_types.UUID, body CreateDNSRecordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteDNSRecord request
+	DeleteDNSRecord(ctx context.Context, zoneId openapi_types.UUID, recordId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetDNSRecord request
+	GetDNSRecord(ctx context.Context, zoneId openapi_types.UUID, recordId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateDNSRecordWithBody request with any body
+	UpdateDNSRecordWithBody(ctx context.Context, zoneId openapi_types.UUID, recordId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateDNSRecord(ctx context.Context, zoneId openapi_types.UUID, recordId openapi_types.UUID, body UpdateDNSRecordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListMyIdentities request
 	ListMyIdentities(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2510,6 +2797,222 @@ func (c *Client) DeleteComputeStorageVolume(ctx context.Context, volumeId openap
 
 func (c *Client) GetComputeStorageVolume(ctx context.Context, volumeId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetComputeStorageVolumeRequest(c.Server, volumeId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListDNSTemplates(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListDNSTemplatesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListDNSZones(ctx context.Context, params *ListDNSZonesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListDNSZonesRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateDNSZoneWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateDNSZoneRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateDNSZone(ctx context.Context, body CreateDNSZoneJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateDNSZoneRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteDNSZone(ctx context.Context, zoneId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteDNSZoneRequest(c.Server, zoneId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetDNSZone(ctx context.Context, zoneId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetDNSZoneRequest(c.Server, zoneId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateDNSZoneWithBody(ctx context.Context, zoneId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateDNSZoneRequestWithBody(c.Server, zoneId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateDNSZone(ctx context.Context, zoneId openapi_types.UUID, body UpdateDNSZoneJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateDNSZoneRequest(c.Server, zoneId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ApplyDNSTemplateWithBody(ctx context.Context, zoneId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewApplyDNSTemplateRequestWithBody(c.Server, zoneId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ApplyDNSTemplate(ctx context.Context, zoneId openapi_types.UUID, body ApplyDNSTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewApplyDNSTemplateRequest(c.Server, zoneId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) SetDNSZoneDNSSEC(ctx context.Context, zoneId openapi_types.UUID, action string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetDNSZoneDNSSECRequest(c.Server, zoneId, action)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListDNSRecords(ctx context.Context, zoneId openapi_types.UUID, params *ListDNSRecordsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListDNSRecordsRequest(c.Server, zoneId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateDNSRecordWithBody(ctx context.Context, zoneId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateDNSRecordRequestWithBody(c.Server, zoneId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateDNSRecord(ctx context.Context, zoneId openapi_types.UUID, body CreateDNSRecordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateDNSRecordRequest(c.Server, zoneId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteDNSRecord(ctx context.Context, zoneId openapi_types.UUID, recordId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteDNSRecordRequest(c.Server, zoneId, recordId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetDNSRecord(ctx context.Context, zoneId openapi_types.UUID, recordId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetDNSRecordRequest(c.Server, zoneId, recordId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateDNSRecordWithBody(ctx context.Context, zoneId openapi_types.UUID, recordId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateDNSRecordRequestWithBody(c.Server, zoneId, recordId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateDNSRecord(ctx context.Context, zoneId openapi_types.UUID, recordId openapi_types.UUID, body UpdateDNSRecordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateDNSRecordRequest(c.Server, zoneId, recordId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -5646,6 +6149,596 @@ func NewGetComputeStorageVolumeRequest(server string, volumeId openapi_types.UUI
 	return req, nil
 }
 
+// NewListDNSTemplatesRequest generates requests for ListDNSTemplates
+func NewListDNSTemplatesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/dns/templates")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListDNSZonesRequest generates requests for ListDNSZones
+func NewListDNSZonesRequest(server string, params *ListDNSZonesParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/dns/zones")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateDNSZoneRequest calls the generic CreateDNSZone builder with application/json body
+func NewCreateDNSZoneRequest(server string, body CreateDNSZoneJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateDNSZoneRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateDNSZoneRequestWithBody generates requests for CreateDNSZone with any type of body
+func NewCreateDNSZoneRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/dns/zones")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteDNSZoneRequest generates requests for DeleteDNSZone
+func NewDeleteDNSZoneRequest(server string, zoneId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "zoneId", runtime.ParamLocationPath, zoneId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/dns/zones/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetDNSZoneRequest generates requests for GetDNSZone
+func NewGetDNSZoneRequest(server string, zoneId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "zoneId", runtime.ParamLocationPath, zoneId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/dns/zones/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateDNSZoneRequest calls the generic UpdateDNSZone builder with application/json body
+func NewUpdateDNSZoneRequest(server string, zoneId openapi_types.UUID, body UpdateDNSZoneJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateDNSZoneRequestWithBody(server, zoneId, "application/json", bodyReader)
+}
+
+// NewUpdateDNSZoneRequestWithBody generates requests for UpdateDNSZone with any type of body
+func NewUpdateDNSZoneRequestWithBody(server string, zoneId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "zoneId", runtime.ParamLocationPath, zoneId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/dns/zones/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewApplyDNSTemplateRequest calls the generic ApplyDNSTemplate builder with application/json body
+func NewApplyDNSTemplateRequest(server string, zoneId openapi_types.UUID, body ApplyDNSTemplateJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewApplyDNSTemplateRequestWithBody(server, zoneId, "application/json", bodyReader)
+}
+
+// NewApplyDNSTemplateRequestWithBody generates requests for ApplyDNSTemplate with any type of body
+func NewApplyDNSTemplateRequestWithBody(server string, zoneId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "zoneId", runtime.ParamLocationPath, zoneId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/dns/zones/%s/apply-template", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewSetDNSZoneDNSSECRequest generates requests for SetDNSZoneDNSSEC
+func NewSetDNSZoneDNSSECRequest(server string, zoneId openapi_types.UUID, action string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "zoneId", runtime.ParamLocationPath, zoneId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "action", runtime.ParamLocationPath, action)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/dns/zones/%s/dnssec/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListDNSRecordsRequest generates requests for ListDNSRecords
+func NewListDNSRecordsRequest(server string, zoneId openapi_types.UUID, params *ListDNSRecordsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "zoneId", runtime.ParamLocationPath, zoneId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/dns/zones/%s/records", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateDNSRecordRequest calls the generic CreateDNSRecord builder with application/json body
+func NewCreateDNSRecordRequest(server string, zoneId openapi_types.UUID, body CreateDNSRecordJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateDNSRecordRequestWithBody(server, zoneId, "application/json", bodyReader)
+}
+
+// NewCreateDNSRecordRequestWithBody generates requests for CreateDNSRecord with any type of body
+func NewCreateDNSRecordRequestWithBody(server string, zoneId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "zoneId", runtime.ParamLocationPath, zoneId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/dns/zones/%s/records", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteDNSRecordRequest generates requests for DeleteDNSRecord
+func NewDeleteDNSRecordRequest(server string, zoneId openapi_types.UUID, recordId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "zoneId", runtime.ParamLocationPath, zoneId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "recordId", runtime.ParamLocationPath, recordId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/dns/zones/%s/records/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetDNSRecordRequest generates requests for GetDNSRecord
+func NewGetDNSRecordRequest(server string, zoneId openapi_types.UUID, recordId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "zoneId", runtime.ParamLocationPath, zoneId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "recordId", runtime.ParamLocationPath, recordId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/dns/zones/%s/records/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateDNSRecordRequest calls the generic UpdateDNSRecord builder with application/json body
+func NewUpdateDNSRecordRequest(server string, zoneId openapi_types.UUID, recordId openapi_types.UUID, body UpdateDNSRecordJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateDNSRecordRequestWithBody(server, zoneId, recordId, "application/json", bodyReader)
+}
+
+// NewUpdateDNSRecordRequestWithBody generates requests for UpdateDNSRecord with any type of body
+func NewUpdateDNSRecordRequestWithBody(server string, zoneId openapi_types.UUID, recordId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "zoneId", runtime.ParamLocationPath, zoneId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "recordId", runtime.ParamLocationPath, recordId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/dns/zones/%s/records/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListMyIdentitiesRequest generates requests for ListMyIdentities
 func NewListMyIdentitiesRequest(server string) (*http.Request, error) {
 	var err error
@@ -6382,6 +7475,55 @@ type ClientWithResponsesInterface interface {
 
 	// GetComputeStorageVolumeWithResponse request
 	GetComputeStorageVolumeWithResponse(ctx context.Context, volumeId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeStorageVolumeResponse, error)
+
+	// ListDNSTemplatesWithResponse request
+	ListDNSTemplatesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListDNSTemplatesResponse, error)
+
+	// ListDNSZonesWithResponse request
+	ListDNSZonesWithResponse(ctx context.Context, params *ListDNSZonesParams, reqEditors ...RequestEditorFn) (*ListDNSZonesResponse, error)
+
+	// CreateDNSZoneWithBodyWithResponse request with any body
+	CreateDNSZoneWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDNSZoneResponse, error)
+
+	CreateDNSZoneWithResponse(ctx context.Context, body CreateDNSZoneJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDNSZoneResponse, error)
+
+	// DeleteDNSZoneWithResponse request
+	DeleteDNSZoneWithResponse(ctx context.Context, zoneId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteDNSZoneResponse, error)
+
+	// GetDNSZoneWithResponse request
+	GetDNSZoneWithResponse(ctx context.Context, zoneId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetDNSZoneResponse, error)
+
+	// UpdateDNSZoneWithBodyWithResponse request with any body
+	UpdateDNSZoneWithBodyWithResponse(ctx context.Context, zoneId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateDNSZoneResponse, error)
+
+	UpdateDNSZoneWithResponse(ctx context.Context, zoneId openapi_types.UUID, body UpdateDNSZoneJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateDNSZoneResponse, error)
+
+	// ApplyDNSTemplateWithBodyWithResponse request with any body
+	ApplyDNSTemplateWithBodyWithResponse(ctx context.Context, zoneId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ApplyDNSTemplateResponse, error)
+
+	ApplyDNSTemplateWithResponse(ctx context.Context, zoneId openapi_types.UUID, body ApplyDNSTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*ApplyDNSTemplateResponse, error)
+
+	// SetDNSZoneDNSSECWithResponse request
+	SetDNSZoneDNSSECWithResponse(ctx context.Context, zoneId openapi_types.UUID, action string, reqEditors ...RequestEditorFn) (*SetDNSZoneDNSSECResponse, error)
+
+	// ListDNSRecordsWithResponse request
+	ListDNSRecordsWithResponse(ctx context.Context, zoneId openapi_types.UUID, params *ListDNSRecordsParams, reqEditors ...RequestEditorFn) (*ListDNSRecordsResponse, error)
+
+	// CreateDNSRecordWithBodyWithResponse request with any body
+	CreateDNSRecordWithBodyWithResponse(ctx context.Context, zoneId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDNSRecordResponse, error)
+
+	CreateDNSRecordWithResponse(ctx context.Context, zoneId openapi_types.UUID, body CreateDNSRecordJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDNSRecordResponse, error)
+
+	// DeleteDNSRecordWithResponse request
+	DeleteDNSRecordWithResponse(ctx context.Context, zoneId openapi_types.UUID, recordId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteDNSRecordResponse, error)
+
+	// GetDNSRecordWithResponse request
+	GetDNSRecordWithResponse(ctx context.Context, zoneId openapi_types.UUID, recordId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetDNSRecordResponse, error)
+
+	// UpdateDNSRecordWithBodyWithResponse request with any body
+	UpdateDNSRecordWithBodyWithResponse(ctx context.Context, zoneId openapi_types.UUID, recordId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateDNSRecordResponse, error)
+
+	UpdateDNSRecordWithResponse(ctx context.Context, zoneId openapi_types.UUID, recordId openapi_types.UUID, body UpdateDNSRecordJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateDNSRecordResponse, error)
 
 	// ListMyIdentitiesWithResponse request
 	ListMyIdentitiesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListMyIdentitiesResponse, error)
@@ -7962,6 +9104,346 @@ func (r GetComputeStorageVolumeResponse) StatusCode() int {
 	return 0
 }
 
+type ListDNSTemplatesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *struct {
+		Items []DNSTemplate `json:"items"`
+	}
+	JSON401 *Unauthorized
+	JSON403 *Forbidden
+}
+
+// Status returns HTTPResponse.Status
+func (r ListDNSTemplatesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListDNSTemplatesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListDNSZonesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *DNSZonePage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r ListDNSZonesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListDNSZonesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateDNSZoneResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *DNSZone
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON409      *Error
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateDNSZoneResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateDNSZoneResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteDNSZoneResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteDNSZoneResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteDNSZoneResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetDNSZoneResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *DNSZone
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r GetDNSZoneResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetDNSZoneResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpdateDNSZoneResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *DNSZone
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateDNSZoneResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateDNSZoneResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ApplyDNSTemplateResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ApplyDNSTemplateResult
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r ApplyDNSTemplateResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ApplyDNSTemplateResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type SetDNSZoneDNSSECResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r SetDNSZoneDNSSECResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetDNSZoneDNSSECResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListDNSRecordsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *DNSRecordPage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r ListDNSRecordsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListDNSRecordsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateDNSRecordResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *DNSRecord
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON409      *Error
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateDNSRecordResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateDNSRecordResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteDNSRecordResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteDNSRecordResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteDNSRecordResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetDNSRecordResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *DNSRecord
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r GetDNSRecordResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetDNSRecordResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpdateDNSRecordResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *DNSRecord
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateDNSRecordResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateDNSRecordResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type ListMyIdentitiesResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -8999,6 +10481,163 @@ func (c *ClientWithResponses) GetComputeStorageVolumeWithResponse(ctx context.Co
 		return nil, err
 	}
 	return ParseGetComputeStorageVolumeResponse(rsp)
+}
+
+// ListDNSTemplatesWithResponse request returning *ListDNSTemplatesResponse
+func (c *ClientWithResponses) ListDNSTemplatesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListDNSTemplatesResponse, error) {
+	rsp, err := c.ListDNSTemplates(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListDNSTemplatesResponse(rsp)
+}
+
+// ListDNSZonesWithResponse request returning *ListDNSZonesResponse
+func (c *ClientWithResponses) ListDNSZonesWithResponse(ctx context.Context, params *ListDNSZonesParams, reqEditors ...RequestEditorFn) (*ListDNSZonesResponse, error) {
+	rsp, err := c.ListDNSZones(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListDNSZonesResponse(rsp)
+}
+
+// CreateDNSZoneWithBodyWithResponse request with arbitrary body returning *CreateDNSZoneResponse
+func (c *ClientWithResponses) CreateDNSZoneWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDNSZoneResponse, error) {
+	rsp, err := c.CreateDNSZoneWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateDNSZoneResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateDNSZoneWithResponse(ctx context.Context, body CreateDNSZoneJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDNSZoneResponse, error) {
+	rsp, err := c.CreateDNSZone(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateDNSZoneResponse(rsp)
+}
+
+// DeleteDNSZoneWithResponse request returning *DeleteDNSZoneResponse
+func (c *ClientWithResponses) DeleteDNSZoneWithResponse(ctx context.Context, zoneId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteDNSZoneResponse, error) {
+	rsp, err := c.DeleteDNSZone(ctx, zoneId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteDNSZoneResponse(rsp)
+}
+
+// GetDNSZoneWithResponse request returning *GetDNSZoneResponse
+func (c *ClientWithResponses) GetDNSZoneWithResponse(ctx context.Context, zoneId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetDNSZoneResponse, error) {
+	rsp, err := c.GetDNSZone(ctx, zoneId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetDNSZoneResponse(rsp)
+}
+
+// UpdateDNSZoneWithBodyWithResponse request with arbitrary body returning *UpdateDNSZoneResponse
+func (c *ClientWithResponses) UpdateDNSZoneWithBodyWithResponse(ctx context.Context, zoneId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateDNSZoneResponse, error) {
+	rsp, err := c.UpdateDNSZoneWithBody(ctx, zoneId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateDNSZoneResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpdateDNSZoneWithResponse(ctx context.Context, zoneId openapi_types.UUID, body UpdateDNSZoneJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateDNSZoneResponse, error) {
+	rsp, err := c.UpdateDNSZone(ctx, zoneId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateDNSZoneResponse(rsp)
+}
+
+// ApplyDNSTemplateWithBodyWithResponse request with arbitrary body returning *ApplyDNSTemplateResponse
+func (c *ClientWithResponses) ApplyDNSTemplateWithBodyWithResponse(ctx context.Context, zoneId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ApplyDNSTemplateResponse, error) {
+	rsp, err := c.ApplyDNSTemplateWithBody(ctx, zoneId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseApplyDNSTemplateResponse(rsp)
+}
+
+func (c *ClientWithResponses) ApplyDNSTemplateWithResponse(ctx context.Context, zoneId openapi_types.UUID, body ApplyDNSTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*ApplyDNSTemplateResponse, error) {
+	rsp, err := c.ApplyDNSTemplate(ctx, zoneId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseApplyDNSTemplateResponse(rsp)
+}
+
+// SetDNSZoneDNSSECWithResponse request returning *SetDNSZoneDNSSECResponse
+func (c *ClientWithResponses) SetDNSZoneDNSSECWithResponse(ctx context.Context, zoneId openapi_types.UUID, action string, reqEditors ...RequestEditorFn) (*SetDNSZoneDNSSECResponse, error) {
+	rsp, err := c.SetDNSZoneDNSSEC(ctx, zoneId, action, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetDNSZoneDNSSECResponse(rsp)
+}
+
+// ListDNSRecordsWithResponse request returning *ListDNSRecordsResponse
+func (c *ClientWithResponses) ListDNSRecordsWithResponse(ctx context.Context, zoneId openapi_types.UUID, params *ListDNSRecordsParams, reqEditors ...RequestEditorFn) (*ListDNSRecordsResponse, error) {
+	rsp, err := c.ListDNSRecords(ctx, zoneId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListDNSRecordsResponse(rsp)
+}
+
+// CreateDNSRecordWithBodyWithResponse request with arbitrary body returning *CreateDNSRecordResponse
+func (c *ClientWithResponses) CreateDNSRecordWithBodyWithResponse(ctx context.Context, zoneId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDNSRecordResponse, error) {
+	rsp, err := c.CreateDNSRecordWithBody(ctx, zoneId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateDNSRecordResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateDNSRecordWithResponse(ctx context.Context, zoneId openapi_types.UUID, body CreateDNSRecordJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDNSRecordResponse, error) {
+	rsp, err := c.CreateDNSRecord(ctx, zoneId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateDNSRecordResponse(rsp)
+}
+
+// DeleteDNSRecordWithResponse request returning *DeleteDNSRecordResponse
+func (c *ClientWithResponses) DeleteDNSRecordWithResponse(ctx context.Context, zoneId openapi_types.UUID, recordId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteDNSRecordResponse, error) {
+	rsp, err := c.DeleteDNSRecord(ctx, zoneId, recordId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteDNSRecordResponse(rsp)
+}
+
+// GetDNSRecordWithResponse request returning *GetDNSRecordResponse
+func (c *ClientWithResponses) GetDNSRecordWithResponse(ctx context.Context, zoneId openapi_types.UUID, recordId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetDNSRecordResponse, error) {
+	rsp, err := c.GetDNSRecord(ctx, zoneId, recordId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetDNSRecordResponse(rsp)
+}
+
+// UpdateDNSRecordWithBodyWithResponse request with arbitrary body returning *UpdateDNSRecordResponse
+func (c *ClientWithResponses) UpdateDNSRecordWithBodyWithResponse(ctx context.Context, zoneId openapi_types.UUID, recordId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateDNSRecordResponse, error) {
+	rsp, err := c.UpdateDNSRecordWithBody(ctx, zoneId, recordId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateDNSRecordResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpdateDNSRecordWithResponse(ctx context.Context, zoneId openapi_types.UUID, recordId openapi_types.UUID, body UpdateDNSRecordJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateDNSRecordResponse, error) {
+	rsp, err := c.UpdateDNSRecord(ctx, zoneId, recordId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateDNSRecordResponse(rsp)
 }
 
 // ListMyIdentitiesWithResponse request returning *ListMyIdentitiesResponse
@@ -11904,6 +13543,710 @@ func ParseGetComputeStorageVolumeResponse(rsp *http.Response) (*GetComputeStorag
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListDNSTemplatesResponse parses an HTTP response from a ListDNSTemplatesWithResponse call
+func ParseListDNSTemplatesResponse(rsp *http.Response) (*ListDNSTemplatesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListDNSTemplatesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Items []DNSTemplate `json:"items"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListDNSZonesResponse parses an HTTP response from a ListDNSZonesWithResponse call
+func ParseListDNSZonesResponse(rsp *http.Response) (*ListDNSZonesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListDNSZonesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DNSZonePage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateDNSZoneResponse parses an HTTP response from a CreateDNSZoneWithResponse call
+func ParseCreateDNSZoneResponse(rsp *http.Response) (*CreateDNSZoneResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateDNSZoneResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest DNSZone
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteDNSZoneResponse parses an HTTP response from a DeleteDNSZoneWithResponse call
+func ParseDeleteDNSZoneResponse(rsp *http.Response) (*DeleteDNSZoneResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteDNSZoneResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetDNSZoneResponse parses an HTTP response from a GetDNSZoneWithResponse call
+func ParseGetDNSZoneResponse(rsp *http.Response) (*GetDNSZoneResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetDNSZoneResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DNSZone
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateDNSZoneResponse parses an HTTP response from a UpdateDNSZoneWithResponse call
+func ParseUpdateDNSZoneResponse(rsp *http.Response) (*UpdateDNSZoneResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateDNSZoneResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DNSZone
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseApplyDNSTemplateResponse parses an HTTP response from a ApplyDNSTemplateWithResponse call
+func ParseApplyDNSTemplateResponse(rsp *http.Response) (*ApplyDNSTemplateResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ApplyDNSTemplateResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ApplyDNSTemplateResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetDNSZoneDNSSECResponse parses an HTTP response from a SetDNSZoneDNSSECWithResponse call
+func ParseSetDNSZoneDNSSECResponse(rsp *http.Response) (*SetDNSZoneDNSSECResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetDNSZoneDNSSECResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListDNSRecordsResponse parses an HTTP response from a ListDNSRecordsWithResponse call
+func ParseListDNSRecordsResponse(rsp *http.Response) (*ListDNSRecordsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListDNSRecordsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DNSRecordPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateDNSRecordResponse parses an HTTP response from a CreateDNSRecordWithResponse call
+func ParseCreateDNSRecordResponse(rsp *http.Response) (*CreateDNSRecordResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateDNSRecordResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest DNSRecord
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteDNSRecordResponse parses an HTTP response from a DeleteDNSRecordWithResponse call
+func ParseDeleteDNSRecordResponse(rsp *http.Response) (*DeleteDNSRecordResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteDNSRecordResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetDNSRecordResponse parses an HTTP response from a GetDNSRecordWithResponse call
+func ParseGetDNSRecordResponse(rsp *http.Response) (*GetDNSRecordResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetDNSRecordResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DNSRecord
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateDNSRecordResponse parses an HTTP response from a UpdateDNSRecordWithResponse call
+func ParseUpdateDNSRecordResponse(rsp *http.Response) (*UpdateDNSRecordResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateDNSRecordResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DNSRecord
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
 
 	}
 

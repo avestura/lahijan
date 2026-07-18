@@ -201,8 +201,10 @@ func (s *Service) ReconcileZone(
 	}
 	enabled, errSec := s.provider.IsDNSSECEnabled(ctx, row.CanonicalID)
 	if errSec != nil {
-		// Daemon unreachable; return the cached row.
-		return row, nil
+		// Daemon unreachable; return the cached row. The error is
+		// intentionally swallowed: a flaky daemon should not 500 the
+		// API. Mirrors the compute service's reconcile-on-error path.
+		return row, nil //nolint:nilerr // best-effort reconcile; cache is the fallback
 	}
 	_ = s.repos.DNSZones.SetCachedDNSSEC(ctx, zoneID, enabled)
 	row.IsDnssecEnabled = enabled
@@ -265,12 +267,10 @@ func (s *Service) UpdateZone(
 	})
 
 	// Update PDNS first. We send only the fields the caller touched so
-	// the PATCH is minimal.
+	// the PATCH is minimal. PDNS has no description field; we keep the
+	// description on the dns_zones row only (below).
 	update := powerdns.ZoneUpdate{}
 	kindChanged := false
-	if params.Description != nil {
-		// PDNS has no description field; we keep it on the dns_zones row only.
-	}
 	if params.Kind != nil && *params.Kind != row.Kind {
 		update.Kind = *params.Kind
 		kindChanged = true

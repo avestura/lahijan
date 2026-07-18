@@ -12,6 +12,7 @@
 package dns
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -146,7 +147,7 @@ func validateAAAA(content string) error {
 // an operator chooses to.
 func validateCNAME(content, _ string) error {
 	if err := mustBeCanonicalName(content); err != nil {
-		return fmt.Errorf("%w: CNAME target %s", ErrInvalidRecordContent, err)
+		return fmt.Errorf("%w: CNAME target %w", ErrInvalidRecordContent, err)
 	}
 	return nil
 }
@@ -154,7 +155,7 @@ func validateCNAME(content, _ string) error {
 // validateNS enforces the target is a canonical DNS name.
 func validateNS(content string) error {
 	if err := mustBeCanonicalName(content); err != nil {
-		return fmt.Errorf("%w: NS target %s", ErrInvalidRecordContent, err)
+		return fmt.Errorf("%w: NS target %w", ErrInvalidRecordContent, err)
 	}
 	return nil
 }
@@ -162,7 +163,7 @@ func validateNS(content string) error {
 // validatePTR enforces the target is a canonical DNS name.
 func validatePTR(content string) error {
 	if err := mustBeCanonicalName(content); err != nil {
-		return fmt.Errorf("%w: PTR target %s", ErrInvalidRecordContent, err)
+		return fmt.Errorf("%w: PTR target %w", ErrInvalidRecordContent, err)
 	}
 	return nil
 }
@@ -180,7 +181,7 @@ func validateMX(content string) error {
 		return fmt.Errorf("%w: MX priority must be in [0, 65535], got %d", ErrInvalidRecordContent, prio)
 	}
 	if err := mustBeCanonicalName(rest); err != nil {
-		return fmt.Errorf("%w: MX target %s", ErrInvalidRecordContent, err)
+		return fmt.Errorf("%w: MX target %w", ErrInvalidRecordContent, err)
 	}
 	return nil
 }
@@ -208,7 +209,7 @@ func validateSRV(content string) error {
 		return fmt.Errorf("%w: SRV port must be in [0, 65535]", ErrInvalidRecordContent)
 	}
 	if err := mustBeCanonicalName(parts[3]); err != nil {
-		return fmt.Errorf("%w: SRV target %s", ErrInvalidRecordContent, err)
+		return fmt.Errorf("%w: SRV target %w", ErrInvalidRecordContent, err)
 	}
 	return nil
 }
@@ -341,10 +342,10 @@ func validateSOA(content string) error {
 		return fmt.Errorf("%w: SOA content must be \"<primary-ns> <contact> <serial> <refresh> <retry> <expire> <minimum>\"", ErrInvalidRecordContent)
 	}
 	if err := mustBeCanonicalName(parts[0]); err != nil {
-		return fmt.Errorf("%w: SOA primary-ns %s", ErrInvalidRecordContent, err)
+		return fmt.Errorf("%w: SOA primary-ns %w", ErrInvalidRecordContent, err)
 	}
 	if err := mustBeCanonicalName(parts[1]); err != nil {
-		return fmt.Errorf("%w: SOA contact %s", ErrInvalidRecordContent, err)
+		return fmt.Errorf("%w: SOA contact %w", ErrInvalidRecordContent, err)
 	}
 	serial, err := strconv.ParseUint(parts[2], 10, 32)
 	if err != nil {
@@ -368,7 +369,7 @@ func validateSOA(content string) error {
 // wrap it with record-type context.
 func mustBeCanonicalName(s string) error {
 	if s == "" {
-		return fmt.Errorf("must not be empty")
+		return errors.New("must not be empty")
 	}
 	if !strings.HasSuffix(s, ".") {
 		return fmt.Errorf("must end with a dot (canonical form): %q", s)

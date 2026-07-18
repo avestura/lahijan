@@ -2190,6 +2190,358 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  # ===========================================================================
+  # DNS module (WS-15)
+  # ===========================================================================
+
+  /api/v1/dns/zones:
+    get:
+      tags: [dns]
+      operationId: listDNSZones
+      summary: List DNS zones
+      description: |
+        Returns a paginated list of the caller's DNS zones within the tenant
+        in scope. The list reflects the cached state in the Lahijan DB; a
+        per-zone Reconcile call refreshes the DNSSEC flag from PDNS on
+        demand.
+      parameters:
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+      responses:
+        "200":
+          description: A page of zones.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DNSZonePage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+    post:
+      tags: [dns]
+      operationId: createDNSZone
+      summary: Create a DNS zone
+      description: |
+        Creates a new zone in the caller's tenant. The canonical name must
+        be globally unique (per WS-15 Open Question 3: per-tenant
+        uniqueness at the API, but two tenants cannot own the same
+        canonical id because the canonical_id column is globally unique).
+        The PowerDNS daemon is asked to bootstrap the zone with the
+        configured default nameservers; DNSSEC is off by default per
+        WS-12 Open Question 1.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DNSZoneCreateRequest" }
+      responses:
+        "201":
+          description: Zone created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DNSZone" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409":
+          description: Zone already exists (canonical id claimed by another tenant).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/dns/zones/{zoneId}:
+    get:
+      tags: [dns]
+      operationId: getDNSZone
+      summary: Get a DNS zone (reconciled)
+      description: |
+        Returns the zone, reconciling the cached DNSSEC flag with the live
+        PDNS state. A flaky daemon returns the cached state instead of
+        erroring so the UI does not 500 on a backend blip.
+      parameters:
+        - name: zoneId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The zone.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DNSZone" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+    patch:
+      tags: [dns]
+      operationId: updateDNSZone
+      summary: Update a DNS zone's settings
+      description: |
+        Replaces the zone's description and/or kind. The kind change also
+        propagates to PowerDNS so the daemon's view matches.
+      parameters:
+        - name: zoneId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DNSZoneUpdateRequest" }
+      responses:
+        "200":
+          description: The updated zone.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DNSZone" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+    delete:
+      tags: [dns]
+      operationId: deleteDNSZone
+      summary: Delete a DNS zone
+      description: |
+        Removes the zone from PowerDNS, drops every owned dns_records row,
+        and removes the dns_zones row. Idempotent on the daemon side: if
+        PDNS reports 404 we still proceed so the dns_zones row is removed.
+      parameters:
+        - name: zoneId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204": { description: Zone deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/dns/zones/{zoneId}/records:
+    get:
+      tags: [dns]
+      operationId: listDNSRecords
+      summary: List DNS records in a zone
+      description: |
+        Returns a paginated list of the records in the zone. The cache is
+        returned; reconciliation is implicit on every read because the
+        dns_records table is the source of truth on the Lahijan side.
+      parameters:
+        - name: zoneId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+      responses:
+        "200":
+          description: A page of records.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DNSRecordPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+    post:
+      tags: [dns]
+      operationId: createDNSRecord
+      summary: Create a DNS record
+      description: |
+        Creates a new record in the zone. The content is validated per
+        type before being submitted to PowerDNS; a malformed content
+        returns 400 with a per-type message. CNAME at the zone apex is
+        rejected per WS-15 Open Question 2 (strict RFC).
+      parameters:
+        - name: zoneId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DNSRecordCreateRequest" }
+      responses:
+        "201":
+          description: Record created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DNSRecord" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: A record with the same (name, type, content) already exists.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/dns/zones/{zoneId}/records/{recordId}:
+    get:
+      tags: [dns]
+      operationId: getDNSRecord
+      summary: Get a DNS record
+      parameters:
+        - name: zoneId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: recordId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The record.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DNSRecord" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+    patch:
+      tags: [dns]
+      operationId: updateDNSRecord
+      summary: Update a DNS record
+      description: |
+        Replaces the record's content / TTL / disabled flag. The name and
+        type are immutable — callers wanting a rename issue a delete +
+        create so the audit trail stays honest.
+      parameters:
+        - name: zoneId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: recordId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DNSRecordUpdateRequest" }
+      responses:
+        "200":
+          description: The updated record.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DNSRecord" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+    delete:
+      tags: [dns]
+      operationId: deleteDNSRecord
+      summary: Delete a DNS record
+      parameters:
+        - name: zoneId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: recordId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204": { description: Record deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/dns/zones/{zoneId}/dnssec/{action}:
+    parameters:
+      - name: zoneId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: action
+        in: path
+        required: true
+        schema: { type: string, enum: [enable, disable] }
+    post:
+      tags: [dns]
+      operationId: setDNSZoneDNSSEC
+      summary: Enable or disable DNSSEC for a zone
+      description: |
+        Turns DNSSEC on or off for the zone. Enable creates a combined
+        signing key (CSK) via PowerDNS; disable removes every cryptokey.
+        Both are idempotent: a double-click is safe.
+      responses:
+        "204": { description: DNSSEC toggle applied. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/dns/templates:
+    get:
+      tags: [dns]
+      operationId: listDNSTemplates
+      summary: List built-in zone templates
+      description: |
+        Returns the read-only catalog of predefined zone templates
+        (Google Workspace setup, Microsoft 365 setup, Google Search
+        Console verification, ...). Templates are pure data; apply via
+        POST /zones/{id}/apply-template.
+      responses:
+        "200":
+          description: The template catalog.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                additionalProperties: false
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/DNSTemplate" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/v1/dns/zones/{zoneId}/apply-template:
+    parameters:
+      - name: zoneId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [dns]
+      operationId: applyDNSTemplate
+      summary: Apply a predefined template to a zone
+      description: |
+        Upserts every record the template defines into the zone. Idempotent:
+        running the same template twice updates the records (REPLACE
+        semantics) rather than duplicating them.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ApplyDNSTemplateRequest" }
+      responses:
+        "200":
+          description: Template applied. Returns the count of records upserted.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApplyDNSTemplateResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
 # ---------------------------------------------------------------------------
 # Components
 # ---------------------------------------------------------------------------
@@ -3502,3 +3854,197 @@ components:
         config:
           type: object
           additionalProperties: { type: string }
+
+    # =========================================================================
+    # DNS module schemas (WS-15)
+    # =========================================================================
+
+    DNSZone:
+      type: object
+      required: [id, tenantId, name, canonicalId, kind, isDnssecEnabled, createdAt]
+      additionalProperties: false
+      properties:
+        id:             { type: string, format: uuid }
+        tenantId:       { type: string, format: uuid }
+        canonicalId:
+          type: string
+          description: The PDNS-assigned canonical id (typically the canonical name lowercased). Unique across the platform.
+        name:
+          type: string
+          description: Canonical zone name with trailing dot ("example.com.").
+        kind:
+          type: string
+          enum: [Native, Master, Slave]
+          description: Zone topology. Lahijan uses Native by default.
+        description:    { type: string }
+        isDnssecEnabled:
+          type: boolean
+          description: Cached DNSSEC state. Flipped by the DNS service on enable/disable.
+        isAxfrEnabled:
+          type: boolean
+          description: Cached AXFR state. Off by default per WS-12.
+        createdAt:      { type: string, format: date-time }
+        updatedAt:      { type: string, format: date-time }
+
+    DNSZonePage:
+      type: object
+      required: [items, total, limit, offset]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/DNSZone" }
+        total:  { type: integer }
+        limit:  { type: integer }
+        offset: { type: integer }
+
+    DNSZoneCreateRequest:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: Canonical zone name; must end with a dot and be lowercase.
+        description: { type: string }
+        kind:
+          type: string
+          enum: [Native, Master, Slave]
+          default: Native
+
+    DNSZoneUpdateRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        description: { type: string }
+        kind:
+          type: string
+          enum: [Native, Master, Slave]
+
+    DNSRecord:
+      type: object
+      required: [id, tenantId, zoneId, name, type, content, ttl, createdAt]
+      additionalProperties: false
+      properties:
+        id:       { type: string, format: uuid }
+        tenantId: { type: string, format: uuid }
+        zoneId:   { type: string, format: uuid }
+        name:
+          type: string
+          description: Canonical record name with trailing dot.
+        type:
+          type: string
+          description: DNS record type.
+        content:
+          type: string
+          description: Zone-file wire form.
+        ttl:
+          type: integer
+          description: TTL in seconds.
+        prio:
+          type: integer
+          description: Priority for MX / SRV; 0 for types with no priority.
+        disabled:
+          type: boolean
+          description: When true the record is served commented-out.
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    DNSRecordPage:
+      type: object
+      required: [items, total, limit, offset]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/DNSRecord" }
+        total:  { type: integer }
+        limit:  { type: integer }
+        offset: { type: integer }
+
+    DNSRecordCreateRequest:
+      type: object
+      required: [name, type, content]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: Canonical record name with trailing dot; must belong to the zone.
+        type:
+          type: string
+          enum: [A, AAAA, CAA, CNAME, DS, MX, NS, PTR, SOA, SRV, TLSA, TXT]
+          description: DNS record type. Validated per-type.
+        content:
+          type: string
+          description: Zone-file wire form. Validated per-type.
+        ttl:
+          type: integer
+          minimum: 300
+          maximum: 86400
+          default: 3600
+          description: TTL in seconds; clamped to [300, 86400].
+        disabled:
+          type: boolean
+          default: false
+
+    DNSRecordUpdateRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        content: { type: string }
+        ttl:
+          type: integer
+          minimum: 300
+          maximum: 86400
+        disabled: { type: boolean }
+
+    DNSTemplate:
+      type: object
+      required: [id, name, description, records]
+      additionalProperties: false
+      properties:
+        id:          { type: string }
+        name:        { type: string }
+        description: { type: string }
+        records:
+          type: array
+          items: { $ref: "#/components/schemas/DNSTemplateRecord" }
+
+    DNSTemplateRecord:
+      type: object
+      required: [name, type, content]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          description: Canonical record name. "%s" expands to the zone id; "%w" to the zone id without the trailing dot.
+        type:
+          type: string
+          enum: [A, AAAA, CAA, CNAME, DS, MX, NS, PTR, SOA, SRV, TLSA, TXT]
+        content:
+          type: string
+          description: Zone-file wire form. Same "%s"/"%w" expansion as Name.
+        ttl:
+          type: integer
+          minimum: 300
+          maximum: 86400
+
+    ApplyDNSTemplateRequest:
+      type: object
+      required: [templateId]
+      additionalProperties: false
+      properties:
+        templateId:
+          type: string
+          description: The template id from GET /api/v1/dns/templates.
+
+    ApplyDNSTemplateResult:
+      type: object
+      required: [applied]
+      additionalProperties: false
+      properties:
+        applied:
+          type: integer
+          description: Number of records upserted by the template.

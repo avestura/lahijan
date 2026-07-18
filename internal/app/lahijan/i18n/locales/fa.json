@@ -481,6 +481,21 @@
   "compute.err_insufficient_balance": {
     "other": "موجودی برای انجام این عمل کافی نیست."
   },
+  "dns.err_disabled": {
+    "other": "زیرسامانهٔ دی‌ان‌اس روی این کارساز فعال نیست."
+  },
+  "dns.err_not_found": {
+    "other": "منبع دی‌ان‌اس یافت نشد."
+  },
+  "dns.err_already_exists": {
+    "other": "منبع دی‌ان‌اس با این نام از پیش وجود دارد."
+  },
+  "dns.err_template_not_found": {
+    "other": "قالب دی‌ان‌اس یافت نشد."
+  },
+  "dns.err_bad_request": {
+    "other": "درخواست دی‌ان‌اس نادرست بود."
+  },
   "audit.action_compute_instance_freeze": {
     "other": "نمونهٔ محاسباتی یخ‌زده شد"
   },
@@ -513,5 +528,32 @@
   },
   "audit.action_compute_storage_volume_delete": {
     "other": "حجم ذخیره‌سازی محاسباتی حذف شد"
+  },
+  "audit.action_dns_zone_create": {
+    "other": "ناحیهٔ دی‌ان‌اس ساخته شد"
+  },
+  "audit.action_dns_zone_update": {
+    "other": "ناحیهٔ دی‌ان‌اس به‌روزرسانی شد"
+  },
+  "audit.action_dns_zone_delete": {
+    "other": "ناحیهٔ دی‌ان‌اس حذف شد"
+  },
+  "audit.action_dns_record_create": {
+    "other": "رکورد دی‌ان‌اس ساخته شد"
+  },
+  "audit.action_dns_record_update": {
+    "other": "رکورد دی‌ان‌اس به‌روزرسانی شد"
+  },
+  "audit.action_dns_record_delete": {
+    "other": "رکورد دی‌ان‌اس حذف شد"
+  },
+  "audit.action_dns_zone_dnssec_enable": {
+    "other": "دی‌ان‌اس‌سک برای ناحیه فعال شد"
+  },
+  "audit.action_dns_zone_dnssec_disable": {
+    "other": "دی‌ان‌اس‌سک برای ناحیه غیرفعال شد"
+  },
+  "audit.action_dns_zone_template_apply": {
+    "other": "قالب دی‌ان‌اس روی ناحیه اعمال شد"
   }
 }

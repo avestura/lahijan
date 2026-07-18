@@ -61,50 +61,56 @@ func (s *Service) CreateRecord(
 	tenantID, userID uuid.UUID,
 	zoneID uuid.UUID,
 	params RecordCreateParams,
-) (database.DnsRecord, error) {
+) (database.DNSRecord, error) {
 	if s.provider == nil {
-		return database.DnsRecord{}, ErrProviderDisabled
+		return database.DNSRecord{}, ErrProviderDisabled
 	}
 	zone, err := s.lookupZoneForCaller(ctx, zoneID)
 	if err != nil {
-		return database.DnsRecord{}, err
+		return database.DNSRecord{}, err
 	}
 
 	// 1) Validate name + type + content + TTL.
-	if err := validateRecordName(params.Name, zone.CanonicalID); err != nil {
-		return database.DnsRecord{}, err
+	if vErr := validateRecordName(params.Name, zone.CanonicalID); vErr != nil {
+		return database.DNSRecord{}, vErr
 	}
 	if !IsSupportedRecordType(params.Type) {
-		return database.DnsRecord{}, fmt.Errorf("%w: %q", ErrInvalidRecordType, params.Type)
+		return database.DNSRecord{}, fmt.Errorf("%w: %q", ErrInvalidRecordType, params.Type)
 	}
 	if params.Type == TypeCNAME && params.Name == zone.CanonicalID {
-		return database.DnsRecord{}, ErrCNAMEAtApex
+		return database.DNSRecord{}, ErrCNAMEAtApex
 	}
-	if err := ValidateRecordContent(params.Type, params.Content, zone.CanonicalID); err != nil {
-		return database.DnsRecord{}, err
+	if vErr := ValidateRecordContent(params.Type, params.Content, zone.CanonicalID); vErr != nil {
+		return database.DNSRecord{}, vErr
 	}
 	ttl := params.TTL
 	if ttl == 0 {
 		ttl = s.config.DefaultTTL
 	}
-	if err := ValidateTTL(ttl); err != nil {
-		return database.DnsRecord{}, err
+	if vErr := ValidateTTL(ttl); vErr != nil {
+		return database.DNSRecord{}, vErr
 	}
 
 	// 2) Quota check (per-tenant record cap). Zero means unlimited.
 	if s.config.MaxRecordsPerTenant > 0 {
 		current, errCount := s.repos.DNSRecords.CountForTenant(ctx)
 		if errCount != nil {
-			return database.DnsRecord{}, fmt.Errorf("dns: count records for quota: %w", errCount)
+			return database.DNSRecord{}, fmt.Errorf("dns: count records for quota: %w", errCount)
 		}
 		if int(current) >= s.config.MaxRecordsPerTenant {
-			return database.DnsRecord{}, fmt.Errorf("dns: per-tenant record cap reached (%d)", s.config.MaxRecordsPerTenant)
+			return database.DNSRecord{}, fmt.Errorf("dns: per-tenant record cap reached (%d)", s.config.MaxRecordsPerTenant)
 		}
 	}
 
-	// 3) Short-circuit duplicate (zone, name, type, content).
-	if existing, errLookup := s.repos.DNSRecords.GetByIdentity(ctx, zoneID, params.Name, params.Type, params.Content); errLookup == nil && existing.ID != uuid.Nil {
-		return database.DnsRecord{}, fmt.Errorf("%w: %s %s %s", ErrRecordAlreadyExists, params.Name, params.Type, params.Content)
+	// 3) Short-circuit duplicate (zone, name, type, content). Best-effort:
+	// a parallel caller can race us and the unique constraint on the row
+	// insert below is the real guard.
+	if existing, lErr := s.repos.DNSRecords.GetByIdentity(
+		ctx, zoneID, params.Name, params.Type, params.Content,
+	); lErr == nil && existing.ID != uuid.Nil {
+		return database.DNSRecord{}, fmt.Errorf(
+			"%w: %s %s %s", ErrRecordAlreadyExists, params.Name, params.Type, params.Content,
+		)
 	}
 
 	prio := recordPriority(params.Type, params.Content)
@@ -127,7 +133,7 @@ func (s *Service) CreateRecord(
 	})
 
 	// 5) PDNS REPLACE.
-	if err := s.provider.ReplaceRRset(ctx, powerdns.RRsetUpsertParams{
+	if rErr := s.provider.ReplaceRRset(ctx, powerdns.RRsetUpsertParams{
 		ZoneID: zone.CanonicalID,
 		Name:   params.Name,
 		Type:   powerdns.RecordType(params.Type),
@@ -136,11 +142,11 @@ func (s *Service) CreateRecord(
 			Content:  params.Content,
 			Disabled: params.Disabled,
 		}},
-	}); err != nil {
+	}); rErr != nil {
 		_ = s.audit.MarkOutcome(ctx, auditID, audit.Outcome{Status: audit.StatusFailure, Details: map[string]any{
-			"error": err.Error(),
+			"error": rErr.Error(),
 		}})
-		return database.DnsRecord{}, fmt.Errorf("dns: pdns replace rrset: %w", err)
+		return database.DNSRecord{}, fmt.Errorf("dns: pdns replace rrset: %w", rErr)
 	}
 
 	// 6) dns_records row insert. Content is canonicalised for IPs so two
@@ -163,7 +169,7 @@ func (s *Service) CreateRecord(
 		_ = s.audit.MarkOutcome(ctx, auditID, audit.Outcome{Status: audit.StatusFailure, Details: map[string]any{
 			"error": err.Error(),
 		}})
-		return database.DnsRecord{}, fmt.Errorf("dns: create record row: %w", err)
+		return database.DNSRecord{}, fmt.Errorf("dns: create record row: %w", err)
 	}
 
 	// 7) Event bus emit (dns.record.created).
@@ -187,17 +193,17 @@ func (s *Service) GetRecord(
 	ctx context.Context,
 	_ uuid.UUID,
 	zoneID, recordID uuid.UUID,
-) (database.DnsRecord, error) {
+) (database.DNSRecord, error) {
 	row, err := s.repos.DNSRecords.Get(ctx, recordID)
 	if err != nil {
 		if database.IsNoRows(err) {
-			return database.DnsRecord{}, ErrRecordNotFound
+			return database.DNSRecord{}, ErrRecordNotFound
 		}
-		return database.DnsRecord{}, fmt.Errorf("dns: get record: %w", err)
+		return database.DNSRecord{}, fmt.Errorf("dns: get record: %w", err)
 	}
 	if row.ZoneID != zoneID {
 		// Cross-zone lookup within the same tenant — treat as not found.
-		return database.DnsRecord{}, ErrRecordNotFound
+		return database.DNSRecord{}, ErrRecordNotFound
 	}
 	return row, nil
 }
@@ -208,7 +214,7 @@ func (s *Service) ListRecords(
 	_ uuid.UUID,
 	zoneID uuid.UUID,
 	limit, offset int32,
-) ([]database.DnsRecord, error) {
+) ([]database.DNSRecord, error) {
 	rows, err := s.repos.DNSRecords.List(ctx, zoneID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("dns: list records: %w", err)
@@ -237,30 +243,30 @@ type RecordUpdateParams struct {
 	Disabled *bool
 }
 
-// Update replaces content / TTL / disabled for the record. The PDNS side
+// UpdateRecord replaces content / TTL / disabled for the record. The PDNS side
 // is updated via a REPLACE so the live RRset matches.
 func (s *Service) UpdateRecord(
 	ctx context.Context,
 	tenantID, userID uuid.UUID,
 	zoneID, recordID uuid.UUID,
 	params RecordUpdateParams,
-) (database.DnsRecord, error) {
+) (database.DNSRecord, error) {
 	if s.provider == nil {
-		return database.DnsRecord{}, ErrProviderDisabled
+		return database.DNSRecord{}, ErrProviderDisabled
 	}
 	zone, err := s.lookupZoneForCaller(ctx, zoneID)
 	if err != nil {
-		return database.DnsRecord{}, err
+		return database.DNSRecord{}, err
 	}
 	row, err := s.repos.DNSRecords.Get(ctx, recordID)
 	if err != nil {
 		if database.IsNoRows(err) {
-			return database.DnsRecord{}, ErrRecordNotFound
+			return database.DNSRecord{}, ErrRecordNotFound
 		}
-		return database.DnsRecord{}, fmt.Errorf("dns: get record: %w", err)
+		return database.DNSRecord{}, fmt.Errorf("dns: get record: %w", err)
 	}
 	if row.ZoneID != zoneID {
-		return database.DnsRecord{}, ErrRecordNotFound
+		return database.DNSRecord{}, ErrRecordNotFound
 	}
 
 	// Build the merged shape so we can validate the post-update content.
@@ -269,7 +275,7 @@ func (s *Service) UpdateRecord(
 		newContent = *params.Content
 	}
 	if err := ValidateRecordContent(row.Type, newContent, zone.CanonicalID); err != nil {
-		return database.DnsRecord{}, err
+		return database.DNSRecord{}, err
 	}
 	newContent = canonicalisedContent(row.Type, newContent)
 
@@ -278,7 +284,7 @@ func (s *Service) UpdateRecord(
 		newTTL = *params.TTL
 	}
 	if err := ValidateTTL(newTTL); err != nil {
-		return database.DnsRecord{}, err
+		return database.DNSRecord{}, err
 	}
 	newDisabled := row.Disabled
 	if params.Disabled != nil {
@@ -310,7 +316,7 @@ func (s *Service) UpdateRecord(
 		_ = s.audit.MarkOutcome(ctx, auditID, audit.Outcome{Status: audit.StatusFailure, Details: map[string]any{
 			"error": err.Error(),
 		}})
-		return database.DnsRecord{}, fmt.Errorf("dns: pdns replace rrset: %w", err)
+		return database.DNSRecord{}, fmt.Errorf("dns: pdns replace rrset: %w", err)
 	}
 
 	// Row update.
@@ -323,7 +329,7 @@ func (s *Service) UpdateRecord(
 		_ = s.audit.MarkOutcome(ctx, auditID, audit.Outcome{Status: audit.StatusFailure, Details: map[string]any{
 			"error": err.Error(),
 		}})
-		return database.DnsRecord{}, fmt.Errorf("dns: update record row: %w", err)
+		return database.DNSRecord{}, fmt.Errorf("dns: update record row: %w", err)
 	}
 	row.Content = newContent
 	row.Ttl = int32(newTTL)

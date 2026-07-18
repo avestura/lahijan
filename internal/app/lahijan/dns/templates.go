@@ -17,6 +17,7 @@ package dns
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -113,7 +114,7 @@ var builtinTemplates = []Template{
 	{
 		ID:          "verify-google",
 		Name:        "Google Search Console verification",
-		Description: "Adds a placeholder TXT record for Google Search Console domain verification. Replace the content with the token Google shows in the verification wizard.",
+		Description: "Adds a placeholder TXT record for Google Search Console verification. Replace with the token from the verification wizard.",
 		Records: []TemplateRecord{
 			{
 				Name:    "%s",
@@ -268,5 +269,5 @@ func isAlreadyExists(err error) bool {
 	if err == nil {
 		return false
 	}
-	return err == ErrRecordAlreadyExists
+	return errors.Is(err, ErrRecordAlreadyExists)
 }
