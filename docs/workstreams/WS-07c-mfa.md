@@ -1,7 +1,7 @@
 # WS-07c · Multi-Factor Authentication
 
 ```
-Status: pending
+Status: in-progress
 Phase: 1
 Depends on WS-06
 Unblocks: —
