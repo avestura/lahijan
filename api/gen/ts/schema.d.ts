@@ -840,6 +840,95 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List queued / running / failed jobs
+         * @description Returns a filtered, paginated page of jobs from the durable job
+         *     queue (River). The caller MUST hold the platform.jobs.read
+         *     permission (i.e. be a platform.admin). Cross-tenant by design:
+         *     jobs are global; the platform admin can see every tenant's work.
+         */
+        get: operations["listAdminJobs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/jobs/{jobId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fetch a single job by id
+         * @description Returns the full job row (state, args, attempt history, errors) for
+         *     the given id. Requires platform.jobs.read.
+         */
+        get: operations["getAdminJob"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/jobs/{jobId}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Manually retry a discarded (DLQ'd) job
+         * @description Re-queues a discarded job for an immediate retry. Requires the
+         *     platform.jobs.retry permission. The action is recorded as an audit
+         *     event (action: platform.job.retry).
+         */
+        post: operations["retryAdminJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/jobs/{jobId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a queued or running job
+         * @description Marks the job as cancelled. Already-running jobs get a cancellation
+         *     signal via context. Requires the platform.jobs.cancel permission.
+         *     The action is recorded as an audit event (action:
+         *     platform.job.cancel).
+         */
+        post: operations["cancelAdminJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1120,6 +1209,54 @@ export interface components {
              * Format: int64
              * @description Total events matching the filter (for pagination UI).
              */
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        AdminJob: {
+            /**
+             * Format: int64
+             * @description The River job id (bigserial).
+             */
+            id: number;
+            /** @description The stable "scope.action" job kind. */
+            kind: string;
+            /** @enum {string} */
+            state: "available" | "pending" | "retryable" | "running" | "scheduled" | "completed" | "cancelled" | "discarded";
+            queue: string;
+            priority: number;
+            /** @description The current attempt number (0 before the first run). */
+            attempt: number;
+            maxAttempts: number;
+            /** @description The decoded job payload (JobArgs). */
+            args?: {
+                [key: string]: unknown;
+            };
+            attemptedBy?: string[];
+            /** @description Per-attempt error trail, earliest first. */
+            errors?: components["schemas"]["AdminJobError"][];
+            tags?: string[];
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            scheduledAt: string;
+            /** Format: date-time */
+            attemptedAt?: string | null;
+            /** Format: date-time */
+            finalizedAt?: string | null;
+        };
+        AdminJobError: {
+            attempt: number;
+            /** Format: date-time */
+            at: string;
+            message: string;
+        };
+        AdminJobPage: {
+            items: components["schemas"]["AdminJob"][];
+            /** Format: int64 */
             total: number;
             limit: number;
             offset: number;
@@ -2422,6 +2559,136 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    listAdminJobs: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of items to return (1..200). */
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Number of items to skip for pagination. */
+                offset?: components["parameters"]["PageOffset"];
+                /**
+                 * @description Filter by job state. When omitted, every state is returned.
+                 *     Multiple values are OR'd together.
+                 */
+                state?: ("available" | "pending" | "retryable" | "running" | "scheduled" | "completed" | "cancelled" | "discarded")[];
+                /** @description Filter by exact job kind (e.g. "billing.usage.rollup"). */
+                kind?: string;
+                /** @description Filter by queue name. */
+                queue?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of jobs. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminJobPage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getAdminJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The River job id (a bigserial, not a UUID). */
+                jobId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The job row. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminJob"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    retryAdminJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The job was re-queued; the updated row is returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminJob"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The job is not in a retryable state (e.g. still running). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    cancelAdminJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The job was cancelled; the updated row is returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminJob"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The job is already in a terminal state. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
 }

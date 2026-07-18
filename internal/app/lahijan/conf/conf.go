@@ -520,3 +520,59 @@ func sortedProviderKeys(path string) []string {
 	sort.Strings(out)
 	return out
 }
+
+// ---------------------------------------------------------------------------
+// Jobs subsystem (WS-09). Every getter reads a key under jobs.*.
+// ---------------------------------------------------------------------------
+
+// GetJobsEnabled reports whether the durable-job subsystem (River) is wired
+// into this process. When false, program.Start skips building the client +
+// supervisor and the admin jobs API degrades to 501. Useful for tests and
+// for very small deployments that do not need a queue.
+func GetJobsEnabled() bool {
+	return viper.GetBool("jobs.enabled")
+}
+
+// GetJobsAdminUIEnabled reports whether the River web UI is mounted at
+// /admin/jobs/ui. The UI is admin-only via RequirePerm; this flag lets
+// operators disable it without disabling the queue itself.
+func GetJobsAdminUIEnabled() bool {
+	return viper.GetBool("jobs.adminUI.enabled")
+}
+
+// GetJobsAdminUIPath returns the path the River web UI is mounted under.
+// Defaults to /admin/jobs/ui.
+func GetJobsAdminUIPath() string {
+	return viper.GetString("jobs.adminUI.path")
+}
+
+// GetJobsSoftStopTimeoutSeconds returns the max wait for in-flight jobs to
+// finish during a graceful shutdown before escalating to a hard cancel.
+func GetJobsSoftStopTimeoutSeconds() int {
+	return viper.GetInt("jobs.softStopTimeoutSeconds")
+}
+
+// GetJobsMaxAttempts returns the default retry budget for jobs that do not
+// pin their own MaxAttempts at insert time.
+func GetJobsMaxAttempts() int {
+	return viper.GetInt("jobs.maxAttempts")
+}
+
+// GetJobsJobTimeoutSeconds returns the default per-job wall-clock timeout
+// applied at the client level. A job can override this via its worker's
+// Timeout() method.
+func GetJobsJobTimeoutSeconds() int {
+	return viper.GetInt("jobs.jobTimeoutSeconds")
+}
+
+// GetJobsDefaultMaxWorkersPerQueue returns the per-queue MaxWorkers when the
+// queue is not explicitly listed in jobs.queues.*.
+func GetJobsDefaultMaxWorkersPerQueue() int {
+	return viper.GetInt("jobs.defaultMaxWorkersPerQueue")
+}
+
+// GetJobsPollOnly reports whether the River client should run in poll-only
+// mode (no LISTEN/NOTIFY). Useful behind PgBouncer transaction pooling.
+func GetJobsPollOnly() bool {
+	return viper.GetBool("jobs.pollOnly")
+}
