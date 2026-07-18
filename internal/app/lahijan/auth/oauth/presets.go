@@ -29,11 +29,22 @@ type PresetConfig struct {
 	Scopes       []string
 }
 
-// stateVerifier is the signature auth/state.Signer.Verify satisfies; the
+// StateVerifier is the signature auth/state.Signer.Verify satisfies; the
 // presets accept it so they do not import auth/state directly (avoids a
 // cycle when state imports secrets, which secrets does not import but
 // conventionally we keep each preset decoupled from the signing source).
-type stateVerifier func(stateToken, cookieNonce, provider, linkUserID string) error
+type StateVerifier = func(stateToken, cookieNonce, provider, linkUserID string) error
+
+// NoopStateVerifier is a StateVerifier that always returns nil. Useful for
+// tests that exercise the OAuth plumbing without driving the state-token
+// verification path. Production callers wire auth/state.Signer.Verify.
+func NoopStateVerifier(stateToken, cookieNonce, provider, linkUserID string) error {
+	_ = stateToken
+	_ = cookieNonce
+	_ = provider
+	_ = linkUserID
+	return nil
+}
 
 // NewGoogle builds the Google OAuth2 provider preset.
 //
@@ -41,7 +52,7 @@ type stateVerifier func(stateToken, cookieNonce, provider, linkUserID string) er
 // which returns a stable `sub` (the subject we persist), email,
 // email_verified, and name. Email_verified is always true for verified
 // Google accounts; unverified emails (rare) are surfaced as such.
-func NewGoogle(cfg PresetConfig, verifier stateVerifier) Provider {
+func NewGoogle(cfg PresetConfig, verifier StateVerifier) Provider {
 	scopes := cfg.Scopes
 	if len(scopes) == 0 {
 		scopes = []string{"openid", "email", "profile"}
@@ -97,7 +108,7 @@ func fetchGoogleProfile(ctx context.Context, tok Tokens) (Profile, error) {
 // primary verified one. If neither path yields an email, Email is left
 // blank and EmailVerified stays false — the link/login flow treats that as
 // "insufficient profile info" and rejects the callback.
-func NewGitHub(cfg PresetConfig, verifier stateVerifier) Provider {
+func NewGitHub(cfg PresetConfig, verifier StateVerifier) Provider {
 	scopes := cfg.Scopes
 	if len(scopes) == 0 {
 		scopes = []string{"read:user", "user:email"}
@@ -186,7 +197,7 @@ func fetchGitHubProfile(ctx context.Context, tok Tokens) (Profile, error) {
 // This preset is intended for IdPs that are not OIDC-compliant but do follow
 // the OAuth2 + Bearer-userinfo pattern. For full OIDC compliance (discovery,
 // id_token verification), use the auth/oidc package instead.
-func NewGeneric(cfg PresetConfig, verifier stateVerifier, endpoints PresetEndpoints) Provider {
+func NewGeneric(cfg PresetConfig, verifier StateVerifier, endpoints PresetEndpoints) Provider {
 	scopes := cfg.Scopes
 	if len(scopes) == 0 {
 		scopes = []string{"openid", "email", "profile"}
@@ -248,7 +259,7 @@ func makeGenericProfileFetcher(userinfoURL string) func(context.Context, Tokens)
 	}
 }
 
-// Verify stateVerifier signature matches auth/state.Signer.Verify at compile
+// Verify StateVerifier signature matches auth/state.Signer.Verify at compile
 // time. This guards against drift: if state.Signer.Verify's signature ever
 // changes, this build breaks before the provider presets silently break.
-var _ stateVerifier = (*state.Signer)(nil).Verify
+var _ StateVerifier = (*state.Signer)(nil).Verify
