@@ -160,19 +160,23 @@ func (s *Server) ListComputeInstances(c *fiber.Ctx, params apigen.ListComputeIns
 
 // CreateComputeInstance handles POST /api/v1/compute/instances.
 func (s *Server) CreateComputeInstance(c *fiber.Ctx) error {
-	if s.computeSvc == nil {
-		return SendError(c, fiber.StatusNotImplemented, CodeNotImplemented, computeDisabledMsg(c), nil)
-	}
-	tid, uid, ok := s.computeTenantAndUser(c)
-	if !ok {
-		return nil
-	}
+	// Validate body shape BEFORE the svc check so a missing-name or
+	// missing-imageAlias returns 400 (not 501) even when the Incus
+	// provider is disabled. The 501 path is reserved for "the body is
+	// valid but the daemon isn't wired".
 	var req apigen.ComputeInstanceCreateRequest
 	if err := c.BodyParser(&req); err != nil {
 		return SendBadRequest(c, i18n.T(c.UserContext(), "auth.err_bad_request", nil), nil)
 	}
 	if req.Name == "" || req.ImageAlias == "" {
 		return SendBadRequest(c, i18n.T(c.UserContext(), "compute.err_bad_request", nil), nil)
+	}
+	if s.computeSvc == nil {
+		return SendError(c, fiber.StatusNotImplemented, CodeNotImplemented, computeDisabledMsg(c), nil)
+	}
+	tid, uid, ok := s.computeTenantAndUser(c)
+	if !ok {
+		return nil
 	}
 	row, err := s.computeSvc.CreateInstance(c.UserContext(), tid, uid, compute.InstanceCreateParams{
 		Name:        req.Name,
