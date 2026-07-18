@@ -2456,7 +2456,7 @@ components:
             path:
               type: string
               description: Subdirectory under the marketplace root (repo=local).
-            gitUrl:
+            gitURL:
               type: string
               format: uri
             gitRef:

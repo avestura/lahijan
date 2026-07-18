@@ -90,7 +90,7 @@ type Service struct {
 	// Optional side-channel repos for the Upgrade flow. Each is nil-
 	// appropriate when the WS-10b tables are not wired; Upgrade degrades
 	// to "best effort, no side cleanup" in that case.
-	handlers     *database.PluginHTTPHandlersRepository
+	handlers      *database.PluginHTTPHandlersRepository
 	subscriptions *database.PluginEventSubscriptionsRepository
 }
 

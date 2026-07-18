@@ -254,25 +254,25 @@ func Start() error {
 	// /api/v1/audit/*, ...). The audit gate runs RequirePerm for the audit
 	// endpoints; everything else passes through to the handler.
 	api.RegisterRoutes(app, api.NewServer(api.ServerDeps{
-		Users:        authDeps.repos.Users,
-		Sessions:     authDeps.repos.Sessions,
-		SessionSvc:   authDeps.sessionSvc,
-		PATSvc:       authDeps.patSvc,
-		EmailSvc:     authDeps.emailSvc,
-		Signer:       authDeps.signer,
-		Cookies:      authDeps.cookies,
-		Audit:        authDeps.repos.AuditLog,
-		AuditEmitter: authDeps.audit,
-		IDPSvc:       idpDeps.svc,
-		IDPOAuth:     idpDeps.oauthReg,
-		IDPOIDC:      idpDeps.oidcReg,
-		StateSigner:  idpDeps.stateSigner,
-		IDPCookies:   api.DefaultExternalIDPCookies,
-		IDPSAML:      samlDeps.registry,
-		MFASvc:       mfaDeps.svc,
-		Jobs:         jobDeps.client,
-		PluginsRepo:   wasmDeps.pluginsRepo,
-		PluginSvc:     wasmDeps.svc,
+		Users:          authDeps.repos.Users,
+		Sessions:       authDeps.repos.Sessions,
+		SessionSvc:     authDeps.sessionSvc,
+		PATSvc:         authDeps.patSvc,
+		EmailSvc:       authDeps.emailSvc,
+		Signer:         authDeps.signer,
+		Cookies:        authDeps.cookies,
+		Audit:          authDeps.repos.AuditLog,
+		AuditEmitter:   authDeps.audit,
+		IDPSvc:         idpDeps.svc,
+		IDPOAuth:       idpDeps.oauthReg,
+		IDPOIDC:        idpDeps.oidcReg,
+		StateSigner:    idpDeps.stateSigner,
+		IDPCookies:     api.DefaultExternalIDPCookies,
+		IDPSAML:        samlDeps.registry,
+		MFASvc:         mfaDeps.svc,
+		Jobs:           jobDeps.client,
+		PluginsRepo:    wasmDeps.pluginsRepo,
+		PluginSvc:      wasmDeps.svc,
 		MarketplaceSvc: wasmDeps.marketplace,
 	}), policy)
 
@@ -979,11 +979,11 @@ func registerPluginInvokeWorker(
 // conf.wasm.enabled is false the bundle is zero-value, the api handlers
 // degrade to 501, and no runtime is built.
 type wasmDeps struct {
-	runtime       *wasmruntime.Runtime
-	pluginsRepo   *database.PluginsRepository
-	svc           *installer.Service
-	bus           *eventbus.Bus
-	marketplace   *marketplace.Service
+	runtime     *wasmruntime.Runtime
+	pluginsRepo *database.PluginsRepository
+	svc         *installer.Service
+	bus         *eventbus.Bus
+	marketplace *marketplace.Service
 }
 
 // buildWasmDeps wires the wazero runtime + permission enforcer + installer

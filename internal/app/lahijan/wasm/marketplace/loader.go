@@ -72,9 +72,9 @@ func (l *LocalIndexLoader) Load(ctx context.Context) (*Index, error) {
 // conf.wasm.marketplace.url is set to an HTTP(S) endpoint. The remote
 // server must serve plugins-marketplace.yaml verbatim.
 type HTTPIndexLoader struct {
-	url  string
-	ttl  time.Duration
-	hc   *http.Client
+	url    string
+	ttl    time.Duration
+	hc     *http.Client
 	cached *Index
 	loaded time.Time
 }

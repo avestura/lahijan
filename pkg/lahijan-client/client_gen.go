@@ -211,7 +211,7 @@ type AdminMarketplaceEntry struct {
 	Source struct {
 		// GitRef Pinned git ref (branch, tag, or commit).
 		GitRef *string `json:"gitRef,omitempty"`
-		GitUrl *string `json:"gitUrl,omitempty"`
+		GitURL *string `json:"gitURL,omitempty"`
 
 		// Path Subdirectory under the marketplace root (repo=local).
 		Path *string `json:"path,omitempty"`

@@ -1589,7 +1589,7 @@ export interface components {
                 /** @description Subdirectory under the marketplace root (repo=local). */
                 path?: string;
                 /** Format: uri */
-                gitUrl?: string;
+                gitURL?: string;
                 /** @description Pinned git ref (branch, tag, or commit). */
                 gitRef?: string;
             };

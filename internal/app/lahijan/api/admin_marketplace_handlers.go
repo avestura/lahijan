@@ -128,9 +128,9 @@ func toMarketplaceEntryDTO(e *marketplace.Entry) apigen.AdminMarketplaceEntry {
 		Version: e.Version,
 		Sha256:  e.SHA256,
 		Source: struct {
-			GitRef *string `json:"gitRef,omitempty"`
-			GitUrl *string `json:"gitUrl,omitempty"`
-			Path   *string `json:"path,omitempty"`
+			GitRef *string                                `json:"gitRef,omitempty"`
+			GitURL *string                                `json:"gitURL,omitempty"`
+			Path   *string                                `json:"path,omitempty"`
 			Repo   apigen.AdminMarketplaceEntrySourceRepo `json:"repo"`
 		}{
 			Repo: apigen.AdminMarketplaceEntrySourceRepo(e.Source.Repo),
@@ -162,7 +162,7 @@ func toMarketplaceEntryDTO(e *marketplace.Entry) apigen.AdminMarketplaceEntry {
 	}
 	if e.Source.GitURL != "" {
 		u := e.Source.GitURL
-		out.Source.GitUrl = &u
+		out.Source.GitURL = &u
 	}
 	if e.Source.GitRef != "" {
 		r := e.Source.GitRef

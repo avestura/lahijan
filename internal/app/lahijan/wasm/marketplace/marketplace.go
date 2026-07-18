@@ -29,9 +29,9 @@ package marketplace
 // Every field is plain-vanilla YAML so the file is hand-editable. The
 // schema is documented in examples/plugins/marketplace/README.md.
 type Index struct {
-	Version   int       `yaml:"version"`
-	UpdatedAt string    `yaml:"updated_at"`
-	Plugins   []Entry   `yaml:"plugins"`
+	Version   int     `yaml:"version"`
+	UpdatedAt string  `yaml:"updated_at"`
+	Plugins   []Entry `yaml:"plugins"`
 }
 
 // Entry is one plugin's row in the marketplace index.
