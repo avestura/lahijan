@@ -1,0 +1,27 @@
+name: autoscaler-stub
+version: 1.0.0
+description: "Stub autoscaler: counts CPU-high events and emits an audit comment."
+author: "Lahijan Maintainers <lahijan@example.dev>"
+license: Apache-2.0
+homepage: https://github.com/avestura/lahijan/tree/main/examples/plugins/autoscaler-stub
+
+permissions:
+  - "events.listen:compute.instance.cpu_high"
+  - "kv.read:metrics"
+  - "kv.write:metrics"
+  - "events.emit"
+
+config_schema:
+  type: object
+  properties:
+    threshold:
+      type: integer
+      default: 3
+      description: "Number of CPU-high events inside the TTL window before a tick is emitted."
+    window_seconds:
+      type: integer
+      default: 300
+      description: "Sliding window length the counter covers."
+
+entrypoints:
+  - on_event

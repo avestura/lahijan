@@ -1,0 +1,43 @@
+# Lahijan plugin manifest. The schema is documented in
+# internal/app/lahijan/wasm/manifest/manifest.go and in
+# docs/architecture/plugins.md. Every permission here MUST appear in the
+# catalog (internal/app/lahijan/wasm/permission); the upload API rejects
+# unknown slugs at parse time.
+
+name: <your-plugin-name>           # kebab-case, <= 64 chars
+version: 0.1.0                     # semver MAJOR.MINOR.PATCH
+description: "One-line description of what this plugin does."
+author: "Your Name <you@example.com>"
+license: Apache-2.0                # SPDX identifier
+homepage: https://example.com/your-plugin
+
+# Permissions the plugin requests. The admin must grant each one at
+# install time; an ungranted permission fails closed at runtime.
+permissions:
+  - "kv.read:state"                # example: read your own KV namespace
+  - "kv.write:state"               # example: write your own KV namespace
+  - "events.listen:dns.record.*"   # example: react to DNS record changes
+
+# Admin-set config keys. The admin populates these via the
+# /api/v1/admin/plugins/{id}/config endpoints; the plugin reads them
+# through the config_get host function. Mark secret keys with
+# `secret: true` so the value is encrypted at rest and never surfaced
+# back through the admin API.
+config_schema:
+  type: object
+  properties:
+    target_url:
+      type: string
+      format: uri
+      description: "The URL the plugin posts to."
+    api_token:
+      type: string
+      secret: true
+      description: "Bearer token used by outbound requests."
+
+# Entrypoints the runtime is allowed to call. A function exported by
+# main.go that does not appear here will not be invoked by the host.
+# `on_event` is called for every matching event subscription; the event
+# payload arrives in the plugin's linear memory.
+entrypoints:
+  - on_event

@@ -1,0 +1,27 @@
+name: slack-notifier
+version: 1.0.0
+description: "Posts compute.instance.* events to a Slack webhook."
+author: "Lahijan Maintainers <lahijan@example.dev>"
+license: Apache-2.0
+homepage: https://github.com/avestura/lahijan/tree/main/examples/plugins/slack-notifier
+
+permissions:
+  - "events.listen:compute.instance.*"
+  - "network.outbound:hooks.slack.com"
+  - "config.read:slack-notifier"
+
+config_schema:
+  type: object
+  properties:
+    webhook_url:
+      type: string
+      format: uri
+      secret: true
+      description: "The Slack incoming-webhook URL the plugin posts to."
+    channel:
+      type: string
+      default: "#alerts"
+      description: "Override the channel; empty uses the webhook's default."
+
+entrypoints:
+  - on_event
