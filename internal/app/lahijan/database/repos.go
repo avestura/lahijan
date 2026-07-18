@@ -23,6 +23,7 @@ type Repos struct {
 	Sessions        *SessionsRepository
 	EmailTokens     *EmailTokensRepository
 	OAuthIdentities *OAuthIdentitiesRepository
+	SamlIdentities  *SamlIdentitiesRepository
 }
 
 // NewRepos builds the aggregate repository from a pool or transaction. The
@@ -39,5 +40,6 @@ func NewRepos(db DBTX) *Repos {
 		Sessions:        NewSessionsRepository(q),
 		EmailTokens:     NewEmailTokensRepository(q),
 		OAuthIdentities: NewOAuthIdentitiesRepository(q),
+		SamlIdentities:  NewSamlIdentitiesRepository(q),
 	}
 }

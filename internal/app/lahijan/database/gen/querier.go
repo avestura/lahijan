@@ -24,6 +24,7 @@ type Querier interface {
 	//: tenant-scoped
 	CountMembershipsForTenant(ctx context.Context, tenantID uuid.UUID) (int64, error)
 	CountOAuthIdentitiesForUser(ctx context.Context, userID uuid.UUID) (int64, error)
+	CountSAMLIdentitiesForUser(ctx context.Context, userID uuid.UUID) (int64, error)
 	CountTenants(ctx context.Context) (int64, error)
 	CountUsers(ctx context.Context) (int64, error)
 	// Audit log: append-only. tenant_id is nullable for system-level events.
@@ -65,6 +66,11 @@ type Querier interface {
 	// All global. Policy enforcement ships in WS-08; this WS only persists data.
 	// Optional fields use explicit params; the repository wrapper supplies defaults.
 	CreateRole(ctx context.Context, arg CreateRoleParams) (Role, error)
+	// user_saml_identities: links between users and external SAML 2.0 identity
+	// providers (WS-07b). Global table. The attributes_json column carries a
+	// snapshot of the IdP's attribute statement from the most recent login; this
+	// query file treats it as opaque JSONB and never inspects its contents.
+	CreateSAMLIdentity(ctx context.Context, arg CreateSAMLIdentityParams) (UserSamlIdentity, error)
 	// Sessions: a logical login session (WS-06). Global, backed by an opaque
 	// signed cookie whose SHA-256 hash matches sessions.token_hash.
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
@@ -81,6 +87,11 @@ type Querier interface {
 	// auth method remaining" check happens in the service layer (it counts
 	// password_hash + other identities + SAML links before calling this).
 	DeleteOAuthIdentity(ctx context.Context, arg DeleteOAuthIdentityParams) error
+	// Unlink: removes the (user, provider) SAML link entirely. Enforced "at least
+	// one auth method remaining" check happens in the service layer (it counts
+	// password_hash + OAuth/OIDC identities + other SAML identities before
+	// calling this).
+	DeleteSAMLIdentity(ctx context.Context, arg DeleteSAMLIdentityParams) error
 	GetAuditLog(ctx context.Context, id uuid.UUID) (AuditLog, error)
 	//: tenant-scoped; single-row read for the GET /audit/{id} handler. Returns the
 	//: row if it belongs to the tenant in ctx, OR is a system-level event (NULL
@@ -110,6 +121,13 @@ type Querier interface {
 	GetRefreshTokenByHash(ctx context.Context, tokenHash string) (RefreshToken, error)
 	GetRoleByID(ctx context.Context, id uuid.UUID) (Role, error)
 	GetRoleBySlug(ctx context.Context, slug string) (Role, error)
+	GetSAMLIdentity(ctx context.Context, id uuid.UUID) (UserSamlIdentity, error)
+	// Lookup by (provider, name_id): the path the ACS handler takes after the
+	// IdP posts back a signed assertion whose NameID we use to find an existing
+	// identity.
+	GetSAMLIdentityByProviderNameID(ctx context.Context, arg GetSAMLIdentityByProviderNameIDParams) (UserSamlIdentity, error)
+	// Lookup by (user_id, provider): the path the link/unlink endpoints take.
+	GetSAMLIdentityForUser(ctx context.Context, arg GetSAMLIdentityForUserParams) (UserSamlIdentity, error)
 	GetSession(ctx context.Context, id uuid.UUID) (Session, error)
 	GetSessionByTokenHash(ctx context.Context, tokenHash string) (Session, error)
 	GetTenantByID(ctx context.Context, id uuid.UUID) (Tenant, error)
@@ -144,6 +162,7 @@ type Querier interface {
 	ListPermissionsForUser(ctx context.Context, arg ListPermissionsForUserParams) ([]Permission, error)
 	ListPersonalAccessTokensForUser(ctx context.Context, userID uuid.UUID) ([]PersonalAccessToken, error)
 	ListRoles(ctx context.Context) ([]Role, error)
+	ListSAMLIdentitiesForUser(ctx context.Context, userID uuid.UUID) ([]UserSamlIdentity, error)
 	ListSessionsForUser(ctx context.Context, userID uuid.UUID) ([]Session, error)
 	ListTenants(ctx context.Context, arg ListTenantsParams) ([]Tenant, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
@@ -171,6 +190,10 @@ type Querier interface {
 	// Rotates the stored tokens (and scopes + expiry) on every login or refresh.
 	// Called by the IdP service when the IdP hands back a fresh access_token.
 	UpdateOAuthIdentityTokens(ctx context.Context, arg UpdateOAuthIdentityTokensParams) error
+	// Refreshes the attribute snapshot on every login. Called by the IdP service
+	// on every successful ACS so the user's profile reflects the latest claims
+	// the IdP asserted.
+	UpdateSAMLIdentityAttributes(ctx context.Context, arg UpdateSAMLIdentityAttributesParams) error
 	UpdateUserEmail(ctx context.Context, arg UpdateUserEmailParams) error
 	UpdateUserLocale(ctx context.Context, arg UpdateUserLocaleParams) error
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error

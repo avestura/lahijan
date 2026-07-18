@@ -204,3 +204,19 @@ type UserOauthIdentity struct {
 	CreatedAt time.Time  `json:"created_at"`
 	UpdatedAt time.Time  `json:"updated_at"`
 }
+
+// Links a user to an external SAML 2.0 IdP; global, no tokens stored (assertions are short-lived).
+type UserSamlIdentity struct {
+	ID     uuid.UUID `json:"id"`
+	UserID uuid.UUID `json:"user_id"`
+	// Provider key: saml:<config_key>.
+	Provider string `json:"provider"`
+	// SAML NameID the IdP asserted; stable across logins.
+	NameID string `json:"name_id"`
+	// The IdP entity ID (Issuer element). Stored to disambiguate if IdPs ever reuse a name_id.
+	IdpEntityID string `json:"idp_entity_id"`
+	// Snapshot of the attribute statement from the most recent login: {attr: [values]}.
+	AttributesJson json.RawMessage `json:"attributes_json"`
+	CreatedAt      time.Time       `json:"created_at"`
+	UpdatedAt      time.Time       `json:"updated_at"`
+}
