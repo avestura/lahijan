@@ -576,3 +576,34 @@ func GetJobsDefaultMaxWorkersPerQueue() int {
 func GetJobsPollOnly() bool {
 	return viper.GetBool("jobs.pollOnly")
 }
+
+// ---------------------------------------------------------------------------
+// WASM plugin subsystem (WS-10a). Every getter reads a key under wasm.*.
+// ---------------------------------------------------------------------------
+
+// GetWasmEnabled reports whether the WASM plugin subsystem is wired into
+// this process. When false, program.Start skips building the wazero runtime
+// and the admin plugin API degrades to 501. Useful for tests and for
+// deployments that do not want the plugin surface at all.
+func GetWasmEnabled() bool {
+	return viper.GetBool("wasm.enabled")
+}
+
+// GetWasmMaxMemoryPerPlugin returns the per-instance memory cap in bytes.
+// Modules whose declared memory max exceeds this are rejected at compile
+// time so a single plugin cannot reserve gigabytes of address space.
+func GetWasmMaxMemoryPerPlugin() int {
+	return viper.GetInt("wasm.maxMemoryPerPlugin")
+}
+
+// GetWasmExecTimeoutMs returns the per-call wall-clock timeout in
+// milliseconds. A plugin call that exceeds this is cancelled via context.
+func GetWasmExecTimeoutMs() int {
+	return viper.GetInt("wasm.execTimeoutMs")
+}
+
+// GetWasmMaxModuleSize returns the max accepted .wasm upload size in bytes.
+// The admin upload handler rejects anything larger at the multipart boundary.
+func GetWasmMaxModuleSize() int {
+	return viper.GetInt("wasm.maxModuleSize")
+}
