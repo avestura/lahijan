@@ -92,11 +92,15 @@ func AuditGate(policy middleware.PolicyResolver) apigen.MiddlewareFunc {
 		case strings.HasPrefix(path, "/api/v1/admin/jobs/"):
 			return middleware.RequirePerm(policy, rbac.PermPlatformJobsRead)(c)
 
-		// WS-10a: admin plugin endpoints. The upload/enable/disable lifecycle
-		// requires plugins.install; the grant/revoke path requires
-		// plugins.permission.approve; the delete path requires
-		// plugins.uninstall; the read paths require plugins.read. These are
-		// the slugs the registry + seeder already know about (rbac.Perm*).
+		// WS-10a: admin plugin endpoints. The WS-10a DoD requires "only
+		// platform.admin can hit the admin plugin API". Concretely this
+		// means every /admin/plugins/* path MUST require plugins.install
+		// (or plugins.uninstall / plugins.permission.approve) — those
+		// slugs are NOT in the tenant.member / tenant.viewer bundles, so
+		// only tenant.admin and platform.admin reach the handlers. The
+		// tenant-scoped plugins.read permission (which viewer+member hold)
+		// is reserved for a future /api/v1/plugins tenant-scoped surface
+		// (WS-21); the admin API is separate.
 		case path == "/api/v1/admin/plugins/upload" && c.Method() == "POST":
 			return middleware.RequirePerm(policy, rbac.PermPluginsInstall)(c)
 		case strings.HasPrefix(path, "/api/v1/admin/plugins/") && strings.HasSuffix(path, "/enable"):
@@ -108,9 +112,9 @@ func AuditGate(policy middleware.PolicyResolver) apigen.MiddlewareFunc {
 		case strings.HasPrefix(path, "/api/v1/admin/plugins/") && c.Method() == "DELETE":
 			return middleware.RequirePerm(policy, rbac.PermPluginsUninstall)(c)
 		case path == "/api/v1/admin/plugins":
-			return middleware.RequirePerm(policy, rbac.PermPluginsRead)(c)
+			return middleware.RequirePerm(policy, rbac.PermPluginsInstall)(c)
 		case strings.HasPrefix(path, "/api/v1/admin/plugins/"):
-			return middleware.RequirePerm(policy, rbac.PermPluginsRead)(c)
+			return middleware.RequirePerm(policy, rbac.PermPluginsInstall)(c)
 		}
 		return c.Next()
 	}
