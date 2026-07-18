@@ -53,6 +53,10 @@ func RegisterRoutes(app *fiber.App, server *Server, policy middleware.PolicyReso
 //	/api/v1/audit/export   -> audit.export
 //	/api/v1/audit/{id}     -> audit.read
 //	/api/v1/audit          -> audit.read
+//	/api/v1/admin/jobs/*/retry  -> platform.jobs.retry
+//	/api/v1/admin/jobs/*/cancel -> platform.jobs.cancel
+//	/api/v1/admin/jobs/{id}     -> platform.jobs.read
+//	/api/v1/admin/jobs          -> platform.jobs.read
 //
 // Everything else: c.Next() (no enforcement; routes that need it must add
 // their own per-route RequirePerm or be gated through this same function as
@@ -61,12 +65,26 @@ func AuditGate(policy middleware.PolicyResolver) apigen.MiddlewareFunc {
 	return func(c *fiber.Ctx) error {
 		path := c.Path()
 		switch {
+		// WS-08: audit log endpoints.
 		case path == "/api/v1/audit/export":
 			return middleware.RequirePerm(policy, rbac.PermAuditExport)(c)
 		case path == "/api/v1/audit":
 			return middleware.RequirePerm(policy, rbac.PermAuditRead)(c)
 		case strings.HasPrefix(path, "/api/v1/audit/"):
 			return middleware.RequirePerm(policy, rbac.PermAuditRead)(c)
+
+		// WS-09: admin job system endpoints. These are platform-only; only
+		// the platform.admin role (auto-bypass in the evaluator) holds the
+		// platform.jobs.* permissions, so tenant-scoped admins cannot reach
+		// another tenant's jobs.
+		case strings.HasPrefix(path, "/api/v1/admin/jobs/") && strings.HasSuffix(path, "/retry"):
+			return middleware.RequirePerm(policy, rbac.PermPlatformJobsRetry)(c)
+		case strings.HasPrefix(path, "/api/v1/admin/jobs/") && strings.HasSuffix(path, "/cancel"):
+			return middleware.RequirePerm(policy, rbac.PermPlatformJobsCancel)(c)
+		case path == "/api/v1/admin/jobs":
+			return middleware.RequirePerm(policy, rbac.PermPlatformJobsRead)(c)
+		case strings.HasPrefix(path, "/api/v1/admin/jobs/"):
+			return middleware.RequirePerm(policy, rbac.PermPlatformJobsRead)(c)
 		}
 		return c.Next()
 	}

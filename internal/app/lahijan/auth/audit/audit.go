@@ -75,6 +75,13 @@ const (
 	// Audit subsystem actions (the audit query API itself emits these).
 	ActionAuditExport = "audit.export"
 	ActionRBACRoleOps = "rbac.role.update"
+
+	// Platform-admin job system actions (WS-09). Emitted by the admin jobs
+	// API when an admin retries or cancels a job. The audit row carries the
+	// job_id, the pre- and post-action states, and the request_id so the
+	// action is fully traceable.
+	ActionPlatformJobRetry  = "platform.job.retry"
+	ActionPlatformJobCancel = "platform.job.cancel"
 )
 
 // Standard statuses recorded on audit_log.status and audit_log_outcomes.status.
@@ -104,6 +111,7 @@ const (
 	ResourceAudit   = "audit_log"
 	ResourceRole    = "role"
 	ResourceTenant  = "tenant"
+	ResourceJob     = "job"
 )
 
 // Event is the data an emitter records. TenantID is nil for system-level auth

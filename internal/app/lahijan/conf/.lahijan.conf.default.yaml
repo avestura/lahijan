@@ -297,3 +297,37 @@ smtp:
   # base URL prepended to email links (verify-email, password-reset). Should be
   # the public dashboard origin, e.g. https://app.example.com
   appBaseURL: "http://localhost:3000"
+
+# Durable job queue (WS-09). Wraps River (chosen in ADR-0008); every async
+# task in Lahijan goes through this queue. Disable for dev / test runs that
+# do not need a queue; the admin jobs API degrades to 501 in that case.
+jobs:
+  # toggles the durable job queue. When false, the River client + supervisor
+  # are NOT built and the admin jobs API returns 501.
+  enabled: false
+  # default retry budget for jobs that do not pin their own MaxAttempts.
+  # 5 matches River upstream.
+  maxAttempts: 5
+  # default per-job wall-clock timeout, in seconds. A worker can override
+  # this via its Timeout() method.
+  jobTimeoutSeconds: 60
+  # graceful shutdown window in seconds: how long the supervisor waits for
+  # in-flight jobs to finish during a soft stop before escalating to a hard
+  # cancel.
+  softStopTimeoutSeconds: 30
+  # per-queue MaxWorkers when the queue is not explicitly listed in queues.*.
+  # 10 is a small-host-friendly default; production should raise it.
+  defaultMaxWorkersPerQueue: 10
+  # poll-only mode disables LISTEN/NOTIFY and falls back to periodic polling
+  # for new jobs. Set to true behind PgBouncer transaction pooling.
+  pollOnly: false
+  # per-queue MaxWorkers overrides. Keys are queue names; values are the
+  # max in-flight workers. Empty means "use defaultMaxWorkersPerQueue for
+  # every queue derived from the registry".
+  queues: {}
+  # admin web UI (River's built-in SPA). Mounted at adminUI.path and gated
+  # by platform.jobs.read. The UI ships its own REST API under the same
+  # prefix; the same Fiber-level auth applies.
+  adminUI:
+    enabled: true
+    path: "/admin/jobs/ui"

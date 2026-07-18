@@ -42,6 +42,8 @@ tags:
     description: Authentication and the current user.
   - name: audit
     description: The append-only audit trail of privileged actions.
+  - name: admin
+    description: Platform-admin endpoints (cross-tenant; platform.admin role only).
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -1164,6 +1166,147 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
+  # -------------------------------------------------------------------------
+  # Admin: job system (WS-09). Platform-admin-only endpoints for inspecting
+  # and controlling River's durable job queue. Every privileged action also
+  # emits an audit event (action: platform.job.retry | platform.job.cancel).
+  # River's built-in web UI is mounted at /admin/jobs/ui (NOT under /api/v1/
+  # because it ships its own REST API); the same platform.jobs.read
+  # permission gates both.
+  # -------------------------------------------------------------------------
+
+  /api/v1/admin/jobs:
+    get:
+      tags: [admin]
+      operationId: listAdminJobs
+      summary: List queued / running / failed jobs
+      description: |
+        Returns a filtered, paginated page of jobs from the durable job
+        queue (River). The caller MUST hold the platform.jobs.read
+        permission (i.e. be a platform.admin). Cross-tenant by design:
+        jobs are global; the platform admin can see every tenant's work.
+      parameters:
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+        - name: state
+          in: query
+          description: |
+            Filter by job state. When omitted, every state is returned.
+            Multiple values are OR'd together.
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [available, pending, retryable, running, scheduled, completed, cancelled, discarded]
+        - name: kind
+          in: query
+          description: Filter by exact job kind (e.g. "billing.usage.rollup").
+          schema:
+            type: string
+        - name: queue
+          in: query
+          description: Filter by queue name.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A page of jobs.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminJobPage"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/v1/admin/jobs/{jobId}:
+    get:
+      tags: [admin]
+      operationId: getAdminJob
+      summary: Fetch a single job by id
+      description: |
+        Returns the full job row (state, args, attempt history, errors) for
+        the given id. Requires platform.jobs.read.
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          description: The River job id (a bigserial, not a UUID).
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: The job row.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminJob" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/admin/jobs/{jobId}/retry:
+    post:
+      tags: [admin]
+      operationId: retryAdminJob
+      summary: Manually retry a discarded (DLQ'd) job
+      description: |
+        Re-queues a discarded job for an immediate retry. Requires the
+        platform.jobs.retry permission. The action is recorded as an audit
+        event (action: platform.job.retry).
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: The job was re-queued; the updated row is returned.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminJob" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: The job is not in a retryable state (e.g. still running).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/admin/jobs/{jobId}/cancel:
+    post:
+      tags: [admin]
+      operationId: cancelAdminJob
+      summary: Cancel a queued or running job
+      description: |
+        Marks the job as cancelled. Already-running jobs get a cancellation
+        signal via context. Requires the platform.jobs.cancel permission.
+        The action is recorded as an audit event (action:
+        platform.job.cancel).
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: The job was cancelled; the updated row is returned.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminJob" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: The job is already in a terminal state.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
 # ---------------------------------------------------------------------------
 # Components
 # ---------------------------------------------------------------------------
@@ -1702,6 +1845,101 @@ components:
           type: integer
           format: int64
           description: Total events matching the filter (for pagination UI).
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    # ---------------------------------------------------------------------
+    # Admin job schemas (WS-09). Mirror River's river_job row shape, with a
+    # few omissions (unique_key, unique_states) the admin UI doesn't need.
+    # ---------------------------------------------------------------------
+
+    AdminJob:
+      type: object
+      required: [id, kind, state, queue, priority, attempt, maxAttempts, createdAt, scheduledAt]
+      additionalProperties: false
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: The River job id (bigserial).
+        kind:
+          type: string
+          description: The stable "scope.action" job kind.
+        state:
+          type: string
+          enum: [available, pending, retryable, running, scheduled, completed, cancelled, discarded]
+        queue:
+          type: string
+        priority:
+          type: integer
+          minimum: 1
+          maximum: 4
+        attempt:
+          type: integer
+          description: The current attempt number (0 before the first run).
+        maxAttempts:
+          type: integer
+        args:
+          type: object
+          additionalProperties: true
+          description: The decoded job payload (JobArgs).
+        attemptedBy:
+          type: array
+          items:
+            type: string
+        errors:
+          type: array
+          description: Per-attempt error trail, earliest first.
+          items:
+            $ref: "#/components/schemas/AdminJobError"
+        tags:
+          type: array
+          items:
+            type: string
+        metadata:
+          type: object
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time
+        scheduledAt:
+          type: string
+          format: date-time
+        attemptedAt:
+          type: string
+          format: date-time
+          nullable: true
+        finalizedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    AdminJobError:
+      type: object
+      required: [attempt, at, message]
+      additionalProperties: false
+      properties:
+        attempt:
+          type: integer
+        at:
+          type: string
+          format: date-time
+        message:
+          type: string
+
+    AdminJobPage:
+      type: object
+      required: [items, total, limit, offset]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/AdminJob" }
+        total:
+          type: integer
+          format: int64
         limit:
           type: integer
         offset:

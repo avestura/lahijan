@@ -19,6 +19,18 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for AdminJobState.
+const (
+	AdminJobStateAvailable AdminJobState = "available"
+	AdminJobStateCancelled AdminJobState = "cancelled"
+	AdminJobStateCompleted AdminJobState = "completed"
+	AdminJobStateDiscarded AdminJobState = "discarded"
+	AdminJobStatePending   AdminJobState = "pending"
+	AdminJobStateRetryable AdminJobState = "retryable"
+	AdminJobStateRunning   AdminJobState = "running"
+	AdminJobStateScheduled AdminJobState = "scheduled"
+)
+
 // Defines values for AuditEventActorType.
 const (
 	AuditEventActorTypePlugin AuditEventActorType = "plugin"
@@ -65,6 +77,18 @@ const (
 	ExportFormatJson ExportFormat = "json"
 )
 
+// Defines values for ListAdminJobsParamsState.
+const (
+	ListAdminJobsParamsStateAvailable ListAdminJobsParamsState = "available"
+	ListAdminJobsParamsStateCancelled ListAdminJobsParamsState = "cancelled"
+	ListAdminJobsParamsStateCompleted ListAdminJobsParamsState = "completed"
+	ListAdminJobsParamsStateDiscarded ListAdminJobsParamsState = "discarded"
+	ListAdminJobsParamsStatePending   ListAdminJobsParamsState = "pending"
+	ListAdminJobsParamsStateRetryable ListAdminJobsParamsState = "retryable"
+	ListAdminJobsParamsStateRunning   ListAdminJobsParamsState = "running"
+	ListAdminJobsParamsStateScheduled ListAdminJobsParamsState = "scheduled"
+)
+
 // Defines values for ListAuditParamsStatus.
 const (
 	ListAuditParamsStatusFailure ListAuditParamsStatus = "failure"
@@ -98,6 +122,53 @@ const (
 	ExportAuditParamsActorTypeSystem ExportAuditParamsActorType = "system"
 	ExportAuditParamsActorTypeUser   ExportAuditParamsActorType = "user"
 )
+
+// AdminJob defines model for AdminJob.
+type AdminJob struct {
+	// Args The decoded job payload (JobArgs).
+	Args *map[string]interface{} `json:"args,omitempty"`
+
+	// Attempt The current attempt number (0 before the first run).
+	Attempt     int        `json:"attempt"`
+	AttemptedAt *time.Time `json:"attemptedAt"`
+	AttemptedBy *[]string  `json:"attemptedBy,omitempty"`
+	CreatedAt   time.Time  `json:"createdAt"`
+
+	// Errors Per-attempt error trail, earliest first.
+	Errors      *[]AdminJobError `json:"errors,omitempty"`
+	FinalizedAt *time.Time       `json:"finalizedAt"`
+
+	// Id The River job id (bigserial).
+	Id int64 `json:"id"`
+
+	// Kind The stable "scope.action" job kind.
+	Kind        string                  `json:"kind"`
+	MaxAttempts int                     `json:"maxAttempts"`
+	Metadata    *map[string]interface{} `json:"metadata,omitempty"`
+	Priority    int                     `json:"priority"`
+	Queue       string                  `json:"queue"`
+	ScheduledAt time.Time               `json:"scheduledAt"`
+	State       AdminJobState           `json:"state"`
+	Tags        *[]string               `json:"tags,omitempty"`
+}
+
+// AdminJobState defines model for AdminJob.State.
+type AdminJobState string
+
+// AdminJobError defines model for AdminJobError.
+type AdminJobError struct {
+	At      time.Time `json:"at"`
+	Attempt int       `json:"attempt"`
+	Message string    `json:"message"`
+}
+
+// AdminJobPage defines model for AdminJobPage.
+type AdminJobPage struct {
+	Items  []AdminJob `json:"items"`
+	Limit  int        `json:"limit"`
+	Offset int        `json:"offset"`
+	Total  int64      `json:"total"`
+}
 
 // AuditEvent defines model for AuditEvent.
 type AuditEvent struct {
@@ -508,6 +579,28 @@ type NotFound = Error
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = Error
 
+// ListAdminJobsParams defines parameters for ListAdminJobs.
+type ListAdminJobsParams struct {
+	// Limit Maximum number of items to return (1..200).
+	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of items to skip for pagination.
+	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// State Filter by job state. When omitted, every state is returned.
+	// Multiple values are OR'd together.
+	State *[]ListAdminJobsParamsState `form:"state,omitempty" json:"state,omitempty"`
+
+	// Kind Filter by exact job kind (e.g. "billing.usage.rollup").
+	Kind *string `form:"kind,omitempty" json:"kind,omitempty"`
+
+	// Queue Filter by queue name.
+	Queue *string `form:"queue,omitempty" json:"queue,omitempty"`
+}
+
+// ListAdminJobsParamsState defines parameters for ListAdminJobs.
+type ListAdminJobsParamsState string
+
 // ListAuditParams defines parameters for ListAudit.
 type ListAuditParams struct {
 	// Limit Maximum number of items to return (1..200).
@@ -700,6 +793,18 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// ListAdminJobs request
+	ListAdminJobs(ctx context.Context, params *ListAdminJobsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAdminJob request
+	GetAdminJob(ctx context.Context, jobId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CancelAdminJob request
+	CancelAdminJob(ctx context.Context, jobId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RetryAdminJob request
+	RetryAdminJob(ctx context.Context, jobId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListAudit request
 	ListAudit(ctx context.Context, params *ListAuditParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -849,6 +954,54 @@ type ClientInterface interface {
 
 	// GetHealth request
 	GetHealth(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+func (c *Client) ListAdminJobs(ctx context.Context, params *ListAdminJobsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAdminJobsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetAdminJob(ctx context.Context, jobId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAdminJobRequest(c.Server, jobId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CancelAdminJob(ctx context.Context, jobId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCancelAdminJobRequest(c.Server, jobId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) RetryAdminJob(ctx context.Context, jobId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRetryAdminJobRequest(c.Server, jobId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 func (c *Client) ListAudit(ctx context.Context, params *ListAuditParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -1521,6 +1674,221 @@ func (c *Client) GetHealth(ctx context.Context, reqEditors ...RequestEditorFn) (
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+// NewListAdminJobsRequest generates requests for ListAdminJobs
+func NewListAdminJobsRequest(server string, params *ListAdminJobsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/jobs")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.State != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "state", runtime.ParamLocationQuery, *params.State); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Kind != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "kind", runtime.ParamLocationQuery, *params.Kind); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Queue != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "queue", runtime.ParamLocationQuery, *params.Queue); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetAdminJobRequest generates requests for GetAdminJob
+func NewGetAdminJobRequest(server string, jobId int64) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "jobId", runtime.ParamLocationPath, jobId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/jobs/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCancelAdminJobRequest generates requests for CancelAdminJob
+func NewCancelAdminJobRequest(server string, jobId int64) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "jobId", runtime.ParamLocationPath, jobId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/jobs/%s/cancel", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRetryAdminJobRequest generates requests for RetryAdminJob
+func NewRetryAdminJobRequest(server string, jobId int64) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "jobId", runtime.ParamLocationPath, jobId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/jobs/%s/retry", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }
 
 // NewListAuditRequest generates requests for ListAudit
@@ -3240,6 +3608,18 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+	// ListAdminJobsWithResponse request
+	ListAdminJobsWithResponse(ctx context.Context, params *ListAdminJobsParams, reqEditors ...RequestEditorFn) (*ListAdminJobsResponse, error)
+
+	// GetAdminJobWithResponse request
+	GetAdminJobWithResponse(ctx context.Context, jobId int64, reqEditors ...RequestEditorFn) (*GetAdminJobResponse, error)
+
+	// CancelAdminJobWithResponse request
+	CancelAdminJobWithResponse(ctx context.Context, jobId int64, reqEditors ...RequestEditorFn) (*CancelAdminJobResponse, error)
+
+	// RetryAdminJobWithResponse request
+	RetryAdminJobWithResponse(ctx context.Context, jobId int64, reqEditors ...RequestEditorFn) (*RetryAdminJobResponse, error)
+
 	// ListAuditWithResponse request
 	ListAuditWithResponse(ctx context.Context, params *ListAuditParams, reqEditors ...RequestEditorFn) (*ListAuditResponse, error)
 
@@ -3389,6 +3769,107 @@ type ClientWithResponsesInterface interface {
 
 	// GetHealthWithResponse request
 	GetHealthWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetHealthResponse, error)
+}
+
+type ListAdminJobsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AdminJobPage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+}
+
+// Status returns HTTPResponse.Status
+func (r ListAdminJobsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListAdminJobsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetAdminJobResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AdminJob
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAdminJobResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAdminJobResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CancelAdminJobResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AdminJob
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON409      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r CancelAdminJobResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CancelAdminJobResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type RetryAdminJobResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AdminJob
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON409      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r RetryAdminJobResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RetryAdminJobResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
 }
 
 type ListAuditResponse struct {
@@ -4279,6 +4760,42 @@ func (r GetHealthResponse) StatusCode() int {
 	return 0
 }
 
+// ListAdminJobsWithResponse request returning *ListAdminJobsResponse
+func (c *ClientWithResponses) ListAdminJobsWithResponse(ctx context.Context, params *ListAdminJobsParams, reqEditors ...RequestEditorFn) (*ListAdminJobsResponse, error) {
+	rsp, err := c.ListAdminJobs(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListAdminJobsResponse(rsp)
+}
+
+// GetAdminJobWithResponse request returning *GetAdminJobResponse
+func (c *ClientWithResponses) GetAdminJobWithResponse(ctx context.Context, jobId int64, reqEditors ...RequestEditorFn) (*GetAdminJobResponse, error) {
+	rsp, err := c.GetAdminJob(ctx, jobId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAdminJobResponse(rsp)
+}
+
+// CancelAdminJobWithResponse request returning *CancelAdminJobResponse
+func (c *ClientWithResponses) CancelAdminJobWithResponse(ctx context.Context, jobId int64, reqEditors ...RequestEditorFn) (*CancelAdminJobResponse, error) {
+	rsp, err := c.CancelAdminJob(ctx, jobId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCancelAdminJobResponse(rsp)
+}
+
+// RetryAdminJobWithResponse request returning *RetryAdminJobResponse
+func (c *ClientWithResponses) RetryAdminJobWithResponse(ctx context.Context, jobId int64, reqEditors ...RequestEditorFn) (*RetryAdminJobResponse, error) {
+	rsp, err := c.RetryAdminJob(ctx, jobId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRetryAdminJobResponse(rsp)
+}
+
 // ListAuditWithResponse request returning *ListAuditResponse
 func (c *ClientWithResponses) ListAuditWithResponse(ctx context.Context, params *ListAuditParams, reqEditors ...RequestEditorFn) (*ListAuditResponse, error) {
 	rsp, err := c.ListAudit(ctx, params, reqEditors...)
@@ -4763,6 +5280,201 @@ func (c *ClientWithResponses) GetHealthWithResponse(ctx context.Context, reqEdit
 		return nil, err
 	}
 	return ParseGetHealthResponse(rsp)
+}
+
+// ParseListAdminJobsResponse parses an HTTP response from a ListAdminJobsWithResponse call
+func ParseListAdminJobsResponse(rsp *http.Response) (*ListAdminJobsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListAdminJobsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AdminJobPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetAdminJobResponse parses an HTTP response from a GetAdminJobWithResponse call
+func ParseGetAdminJobResponse(rsp *http.Response) (*GetAdminJobResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAdminJobResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AdminJob
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCancelAdminJobResponse parses an HTTP response from a CancelAdminJobWithResponse call
+func ParseCancelAdminJobResponse(rsp *http.Response) (*CancelAdminJobResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CancelAdminJobResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AdminJob
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRetryAdminJobResponse parses an HTTP response from a RetryAdminJobWithResponse call
+func ParseRetryAdminJobResponse(rsp *http.Response) (*RetryAdminJobResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RetryAdminJobResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AdminJob
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
 }
 
 // ParseListAuditResponse parses an HTTP response from a ListAuditWithResponse call

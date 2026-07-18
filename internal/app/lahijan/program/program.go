@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"math/big"
 	"net/netip"
 	"strings"
@@ -45,11 +46,14 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/conf"
 	"github.com/avestura/lahijan/internal/app/lahijan/conf/computeddefault"
 	"github.com/avestura/lahijan/internal/app/lahijan/database"
+	"github.com/avestura/lahijan/internal/app/lahijan/jobs"
 	notifyemail "github.com/avestura/lahijan/internal/app/lahijan/notify/email"
 	"github.com/gofiber/fiber/v2"
 	fiberlog "github.com/gofiber/fiber/v2/log"
+	"github.com/gofiber/fiber/v2/middleware/adaptor"
 	"github.com/gofiber/fiber/v2/middleware/healthcheck"
 	"github.com/google/uuid"
+	riverui "riverqueue.com/riverui"
 )
 
 func init() {
@@ -121,6 +125,33 @@ func Start() error {
 		log.Fatalf("failed to build mfa deps: %s", err.Error())
 	}
 
+	// WS-09: build the durable job queue (River). Returns a zero-value
+	// jobDeps (all nil) when conf.jobs.enabled is false; the api handlers
+	// degrade to a 501 "feature disabled" envelope in that case. The
+	// supervisor is started in the background after this block and is
+	// stopped on shutdown via defer.
+	jobDeps, err := buildJobDeps(context.Background(), authDeps.repos)
+	if err != nil {
+		log.Fatalf("failed to build job deps: %s", err.Error())
+	}
+	if jobDeps.supervisor != nil {
+		// Start workers in the background so bootstrap is not blocked on
+		// River's leadership election (which can take a few seconds).
+		startCtx, startCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer startCancel()
+		if err := jobDeps.supervisor.Start(startCtx); err != nil {
+			log.Fatalf("failed to start job supervisor: %s", err.Error())
+		}
+		defer func() {
+			stopCtx, stopCancel := context.WithTimeout(context.Background(),
+				time.Duration(conf.GetJobsSoftStopTimeoutSeconds())*time.Second)
+			defer stopCancel()
+			if err := jobDeps.supervisor.Stop(stopCtx); err != nil {
+				fiberlog.Error("job supervisor stop: %s", err.Error())
+			}
+		}()
+	}
+
 	// Flip the idp service's JIT toggle from config. The toggle is
 	// process-wide today (not per-provider); a future WS can move it onto
 	// the per-provider struct if granular control is needed.
@@ -190,7 +221,18 @@ func Start() error {
 		IDPCookies:   api.DefaultExternalIDPCookies,
 		IDPSAML:      samlDeps.registry,
 		MFASvc:       mfaDeps.svc,
+		Jobs:         jobDeps.client,
 	}), policy)
+
+	// WS-09: mount River's built-in web UI (admin-only). The UI ships its
+	// own REST API under the same prefix; the same platform.jobs.read
+	// RequirePerm wraps both. Skipped when jobs are disabled or when the
+	// admin UI flag is off.
+	if jobDeps.client != nil && conf.GetJobsAdminUIEnabled() {
+		if err := mountJobsAdminUI(app, jobDeps.client, policy); err != nil {
+			log.Fatalf("failed to mount jobs admin ui: %s", err.Error())
+		}
+	}
 
 	if err := app.Listen(conf.GetHTTPServerAddress()); err != nil {
 		return errors.Join(errors.New("fiber server stopped"), err)
@@ -730,4 +772,111 @@ func buildMFADeps(ctx context.Context, a *authDeps) (mfaDeps, error) {
 	_ = totp.DefaultConfig
 	_ = recovery.DefaultConfig
 	return mfaDeps{svc: svc}, nil
+}
+
+// jobDeps bundles the WS-09 job-subsystem dependencies built at bootstrap.
+// Every field is nil-appropriate: when conf.jobs.enabled is false the bundle
+// is zero-value, the api handlers degrade to 501, and no supervisor is
+// started. The cleanup func is invoked at process shutdown to drain the
+// queue before the DB pool closes.
+type jobDeps struct {
+	registry  *jobs.Registry
+	client    *jobs.Client
+	supervisor *jobs.Supervisor
+}
+
+// buildJobDeps wires the River client + supervisor + example workers from
+// config. Returns an empty jobDeps (all nil) when jobs.enabled is false so
+// the api handlers degrade cleanly. The supervisor is returned WITHOUT
+// having been started — program.Start starts it in the background so
+// bootstrap is not blocked on leadership election.
+func buildJobDeps(_ context.Context, _ *database.Repos) (jobDeps, error) {
+	if !conf.GetJobsEnabled() {
+		fiberlog.Debug("jobs subsystem is disabled; skipping river client setup")
+		return jobDeps{}, nil
+	}
+
+	// Reuse the authDeps pool — one pgxpool per process is the recommended
+	// pattern (River is transactional with the data it touches).
+	pool, err := database.NewPool(context.Background())
+	if err != nil {
+		return jobDeps{}, errors.Join(errors.New("open db pool for jobs deps"), err)
+	}
+
+	registry := jobs.NewRegistry()
+	// Register the four WS-09 example workers so the queue has something
+	// to execute end-to-end before any domain module ships. Domain modules
+	// (WS-14, WS-17, ...) will add their own workers via jobs.Register in
+	// their own Setup functions.
+	jobs.RegisterExamples(registry, slog.Default())
+
+	cfg := jobs.Config{
+		Logger:                    slog.Default(),
+		JobTimeout:                time.Duration(conf.GetJobsJobTimeoutSeconds()) * time.Second,
+		MaxAttempts:               conf.GetJobsMaxAttempts(),
+		PollOnly:                  conf.GetJobsPollOnly(),
+		DefaultMaxWorkersPerQueue: conf.GetJobsDefaultMaxWorkersPerQueue(),
+	}
+	client, err := jobs.NewClient(pool, registry, cfg)
+	if err != nil {
+		pool.Close()
+		return jobDeps{}, errors.Join(errors.New("build river client"), err)
+	}
+
+	supervisor, err := jobs.NewSupervisor(client,
+		time.Duration(conf.GetJobsSoftStopTimeoutSeconds())*time.Second)
+	if err != nil {
+		pool.Close()
+		return jobDeps{}, errors.Join(errors.New("build river supervisor"), err)
+	}
+
+	return jobDeps{
+		registry:   registry,
+		client:     client,
+		supervisor: supervisor,
+	}, nil
+}
+
+// mountJobsAdminUI mounts River's built-in web UI on the given Fiber app.
+// The UI is wrapped in a RequirePerm(platform.jobs.read) gate so only
+// platform admins can reach it; the same gate covers the UI's own REST API
+// (River ships /api/* routes alongside the SPA assets).
+func mountJobsAdminUI(app *fiber.App, client *jobs.Client, policy middleware.PolicyResolver) error {
+	if client == nil {
+		return nil
+	}
+	prefix := conf.GetJobsAdminUIPath()
+	if prefix == "" {
+		prefix = "/admin/jobs/ui"
+	}
+
+	endpoints := riverui.NewEndpoints(client.River(), nil)
+	uiHandler, err := riverui.NewHandler(&riverui.HandlerOpts{
+		Endpoints: endpoints,
+		Logger:    slog.Default(),
+		Prefix:    prefix,
+		DevMode:   isDev(conf.GetEnvironment()),
+	})
+	if err != nil {
+		return errors.Join(errors.New("build riverui handler"), err)
+	}
+
+	// Start the UI's background services (caching + status polling). The
+	// services live for the rest of the process; we tie them to a
+	// process-lifetime context that is never cancelled explicitly (the OS
+	// reaps the goroutines on exit). The supervisor's Stop drains the
+	// queue before the process exits; the UI's services do not need
+	// graceful shutdown.
+	if err := uiHandler.Start(context.Background()); err != nil {
+		return errors.Join(errors.New("start riverui handler"), err)
+	}
+
+	// Wrap the http.Handler with adaptor.HTTPHandler so Fiber can serve it.
+	// The RequirePerm gate runs first; only platform.admin (the only role
+	// that holds platform.jobs.read) reaches the UI.
+	httpHandler := adaptor.HTTPHandler(uiHandler)
+	gate := middleware.RequirePerm(policy, rbac.PermPlatformJobsRead)
+	app.Use(prefix, gate, httpHandler)
+	fiberlog.Info("jobs admin ui mounted", "path", prefix)
+	return nil
 }

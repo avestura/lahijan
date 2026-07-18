@@ -115,6 +115,14 @@ const (
 	PermPlatformUserList     = "platform.user.list"
 	PermPlatformTenantCreate = "platform.tenant.create"
 	PermPlatformTenantDelete = "platform.tenant.delete"
+
+	// --- platform jobs (WS-09) — admin-only River queue inspection/control.
+	// Granted to platform.admin via allPermissionSlugs(); every other role
+	// is excluded via allPermissionSlugsExceptGlobal so tenant-local admins
+	// cannot retry/cancel jobs from other tenants. ---
+	PermPlatformJobsRead   = "platform.jobs.read"
+	PermPlatformJobsRetry  = "platform.jobs.retry"
+	PermPlatformJobsCancel = "platform.jobs.cancel"
 )
 
 // allPermissions is the single source of truth for the permissions table seed.
@@ -199,6 +207,9 @@ var allPermissions = []Permission{
 	{Slug: PermPluginsUninstall, Description: "Uninstall a plugin."},
 
 	// platform
+	{Slug: PermPlatformJobsCancel, Description: "Cancel any queued or running job (platform admin)."},
+	{Slug: PermPlatformJobsRead, Description: "Inspect every queued/running/failed job across tenants (platform admin)."},
+	{Slug: PermPlatformJobsRetry, Description: "Manually retry a discarded/DLQ'd job (platform admin)."},
 	{Slug: PermPlatformTenantCreate, Description: "Create a tenant (platform admin)."},
 	{Slug: PermPlatformTenantDelete, Description: "Delete any tenant (platform admin)."},
 	{Slug: PermPlatformUserList, Description: "List all users (platform admin)."},

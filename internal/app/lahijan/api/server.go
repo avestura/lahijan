@@ -74,6 +74,12 @@ type Server struct {
 	// (dev without auth.mfa.webauthn config); the handlers degrade to a
 	// 501 "feature disabled" envelope via mfaDisabled().
 	mfaSvc *mfa.Service
+
+	// WS-09: admin jobs deps. jobs is the River client the admin jobs API
+	// talks to (list/get/retry/cancel). Nil-appropriate when the job
+	// subsystem is disabled (dev/test without River wired); the handlers
+	// degrade to a 501 "feature disabled" envelope.
+	jobs JobsClient
 }
 
 // ServerDeps carries the dependencies NewServer requires. Wire it once from
@@ -110,6 +116,11 @@ type ServerDeps struct {
 	// (dev without auth.mfa.webauthn config); the handlers degrade to a
 	// 501 "feature disabled" envelope.
 	MFASvc *mfa.Service
+
+	// WS-09: admin jobs deps. Jobs is the River client (or any JobsClient
+	// fake) the admin jobs API talks to. Nil-appropriate when the job
+	// subsystem is disabled; the handlers degrade to a 501 envelope.
+	Jobs JobsClient
 }
 
 // NewServer builds the API server with the given dependencies.
@@ -133,6 +144,7 @@ func NewServer(deps ServerDeps) *Server {
 		idpRedirectHome: deps.IDPRedirectHome,
 		idpSAML:         deps.IDPSAML,
 		mfaSvc:          deps.MFASvc,
+		jobs:            deps.Jobs,
 	}
 	if s.tracer == nil {
 		s.tracer = Tracer()
