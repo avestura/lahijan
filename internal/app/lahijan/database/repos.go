@@ -14,21 +14,25 @@ type DBTX = gen.DBTX
 // Repos is the aggregate of all repositories. Wire it into services once at
 // bootstrap (program.Start) and pass the same instance to every handler.
 type Repos struct {
-	Tenants         *TenantsRepository
-	Users           *UsersRepository
-	RBAC            *RBACRepository
-	Memberships     *MembershipsRepository
-	AuditLog        *AuditLogRepository
-	Tokens          *TokensRepository
-	Sessions        *SessionsRepository
-	EmailTokens     *EmailTokensRepository
-	OAuthIdentities *OAuthIdentitiesRepository
-	SamlIdentities  *SamlIdentitiesRepository
-	TOTPSecrets     *TOTPSecretsRepository
-	WebauthnCreds   *WebauthnCredentialsRepository
-	RecoveryCodes   *RecoveryCodesRepository
-	MFAPending      *MFAPendingSessionsRepository
-	Plugins         *PluginsRepository
+	Tenants             *TenantsRepository
+	Users               *UsersRepository
+	RBAC                *RBACRepository
+	Memberships         *MembershipsRepository
+	AuditLog            *AuditLogRepository
+	Tokens              *TokensRepository
+	Sessions            *SessionsRepository
+	EmailTokens         *EmailTokensRepository
+	OAuthIdentities     *OAuthIdentitiesRepository
+	SamlIdentities      *SamlIdentitiesRepository
+	TOTPSecrets         *TOTPSecretsRepository
+	WebauthnCreds       *WebauthnCredentialsRepository
+	RecoveryCodes       *RecoveryCodesRepository
+	MFAPending          *MFAPendingSessionsRepository
+	Plugins             *PluginsRepository
+	PluginKV            *PluginKVRepository
+	PluginConfig        *PluginConfigRepository
+	PluginSubscriptions *PluginEventSubscriptionsRepository
+	PluginHTTPHandlers  *PluginHTTPHandlersRepository
 }
 
 // NewRepos builds the aggregate repository from a pool or transaction. The
@@ -36,20 +40,24 @@ type Repos struct {
 func NewRepos(db DBTX) *Repos {
 	q := gen.New(db)
 	return &Repos{
-		Tenants:         NewTenantsRepository(q),
-		Users:           NewUsersRepository(q),
-		RBAC:            NewRBACRepository(q),
-		Memberships:     NewMembershipsRepository(q),
-		AuditLog:        NewAuditLogRepository(q),
-		Tokens:          NewTokensRepository(q),
-		Sessions:        NewSessionsRepository(q),
-		EmailTokens:     NewEmailTokensRepository(q),
-		OAuthIdentities: NewOAuthIdentitiesRepository(q),
-		SamlIdentities:  NewSamlIdentitiesRepository(q),
-		TOTPSecrets:     NewTOTPSecretsRepository(q),
-		WebauthnCreds:   NewWebauthnCredentialsRepository(q),
-		RecoveryCodes:   NewRecoveryCodesRepository(q),
-		MFAPending:      NewMFAPendingSessionsRepository(q),
-		Plugins:         NewPluginsRepository(q),
+		Tenants:             NewTenantsRepository(q),
+		Users:               NewUsersRepository(q),
+		RBAC:                NewRBACRepository(q),
+		Memberships:         NewMembershipsRepository(q),
+		AuditLog:            NewAuditLogRepository(q),
+		Tokens:              NewTokensRepository(q),
+		Sessions:            NewSessionsRepository(q),
+		EmailTokens:         NewEmailTokensRepository(q),
+		OAuthIdentities:     NewOAuthIdentitiesRepository(q),
+		SamlIdentities:      NewSamlIdentitiesRepository(q),
+		TOTPSecrets:         NewTOTPSecretsRepository(q),
+		WebauthnCreds:       NewWebauthnCredentialsRepository(q),
+		RecoveryCodes:       NewRecoveryCodesRepository(q),
+		MFAPending:          NewMFAPendingSessionsRepository(q),
+		Plugins:             NewPluginsRepository(q),
+		PluginKV:            NewPluginKVRepository(q),
+		PluginConfig:        NewPluginConfigRepository(q),
+		PluginSubscriptions: NewPluginEventSubscriptionsRepository(q),
+		PluginHTTPHandlers:  NewPluginHTTPHandlersRepository(q),
 	}
 }
