@@ -95,7 +95,7 @@ func (p *Provider) CreateZone(ctx context.Context, params CreateZoneParams) (*Zo
 		RRsets:      params.RRsets,
 	}
 	var created Zone
-	if err := p.do(ctx, "POST", "servers/localhost/zones", body, &created); err != nil {
+	if err := p.do(ctx, "POST", serverPath+"/zones", body, &created); err != nil {
 		setStatus(span, err)
 		return nil, err
 	}
@@ -137,7 +137,7 @@ func (p *Provider) ListZones(ctx context.Context) ([]Zone, error) {
 	defer span.End()
 
 	var zones []Zone
-	if err := p.do(ctx, "GET", "servers/localhost/zones", nil, &zones); err != nil {
+	if err := p.do(ctx, "GET", serverPath+"/zones", nil, &zones); err != nil {
 		setStatus(span, err)
 		return nil, err
 	}
@@ -214,7 +214,7 @@ func (p *Provider) SetAXFR(ctx context.Context, zoneID string, allow bool, from 
 
 // zonePath builds the zone REST path.
 func zonePath(zoneID string) string {
-	return "servers/localhost/zones/" + url.PathEscape(zoneID)
+	return serverPath + "/zones/" + url.PathEscape(zoneID)
 }
 
 // validateCanonicalName returns an error if the name is not a canonical DNS

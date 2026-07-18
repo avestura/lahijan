@@ -121,10 +121,10 @@ func TestRRset_Validation_UnsupportedType(t *testing.T) {
 
 	zoneID := seedZone(t, p, ctx, "rrset-type")
 	err := p.ReplaceRRset(ctx, powerdns.RRsetUpsertParams{
-		ZoneID: zoneID,
-		Name:   "x.rrset-type.example.com.",
-		Type:   powerdns.RecordType("NAPTR"),
-		TTL:    60,
+		ZoneID:  zoneID,
+		Name:    "x.rrset-type.example.com.",
+		Type:    powerdns.RecordType("NAPTR"),
+		TTL:     60,
 		Records: []powerdns.Record{{Content: "junk"}},
 	})
 	require.Error(t, err, "unsupported record types must be rejected client-side")
@@ -139,10 +139,10 @@ func TestRRset_Validation_NameNotInZone(t *testing.T) {
 
 	zoneID := seedZone(t, p, ctx, "rrset-zone")
 	err := p.ReplaceRRset(ctx, powerdns.RRsetUpsertParams{
-		ZoneID: zoneID,
-		Name:   "www.different-zone.example.com.",
-		Type:   powerdns.TypeA,
-		TTL:    60,
+		ZoneID:  zoneID,
+		Name:    "www.different-zone.example.com.",
+		Type:    powerdns.TypeA,
+		TTL:     60,
 		Records: []powerdns.Record{{Content: "192.0.2.1"}},
 	})
 	require.Error(t, err, "name outside the zone must be rejected client-side")

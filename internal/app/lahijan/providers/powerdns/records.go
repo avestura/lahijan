@@ -14,6 +14,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 )
 
@@ -240,7 +241,7 @@ func ReverseZoneName(cidr string) (string, error) {
 func ipv4ReverseZone(ip net.IP, ones int) string {
 	ip = ip.To4()
 	// Round down to the nearest octet boundary that is fully covered.
-	octets := (ones) / 8
+	octets := ones / 8
 	if octets < 1 {
 		octets = 1
 	}
@@ -248,7 +249,7 @@ func ipv4ReverseZone(ip net.IP, ones int) string {
 	for i := 0; i < octets; i++ {
 		// Reverse byte order: the first octet in the label is the
 		// highest-order octet of the address that the zone covers.
-		parts[i] = fmt.Sprintf("%d", ip[octets-1-i])
+		parts[i] = strconv.FormatUint(uint64(ip[octets-1-i]), 10)
 	}
 	return strings.Join(parts, ".") + ".in-addr.arpa."
 }
@@ -279,10 +280,15 @@ func ipv6ReverseZone(ip net.IP, ones int) string {
 		} else {
 			nibble = ip[byteIdx] & 0x0f
 		}
-		out = append(out, fmt.Sprintf("%x", nibble))
+		out = append(out, string(hexDigits[nibble]))
 	}
 	return strings.Join(out, ".") + ".ip6.arpa."
 }
+
+// hexDigits is the lowercase hex digit table used by the reverse-zone
+// helpers. Kept package-level (rather than inline `const`) so both
+// ipv6ReverseZone and PTRName share it.
+const hexDigits = "0123456789abcdef"
 
 // PTRName returns the canonical PTR record name for the given IP. Used by
 // the DNS service when an instance gets a public IP and the operator has a
@@ -298,10 +304,12 @@ func PTRName(ipStr string) (string, error) {
 		return "", fmt.Errorf("powerdns: ptr name: invalid ip %q", ipStr)
 	}
 	if v4 := ip.To4(); v4 != nil {
-		return fmt.Sprintf("%d.%d.%d.%d.in-addr.arpa.", v4[3], v4[2], v4[1], v4[0]), nil
+		return strconv.FormatUint(uint64(v4[3]), 10) + "." +
+			strconv.FormatUint(uint64(v4[2]), 10) + "." +
+			strconv.FormatUint(uint64(v4[1]), 10) + "." +
+			strconv.FormatUint(uint64(v4[0]), 10) + ".in-addr.arpa.", nil
 	}
 	// IPv6: reverse nibble order.
-	const hexDigits = "0123456789abcdef"
 	parts := make([]string, 0, 32)
 	// Walk nibbles in reverse (lowest-order first).
 	for i := len(ip) - 1; i >= 0; i-- {

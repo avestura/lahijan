@@ -186,7 +186,7 @@ func NewClient(cfg Config) (*Provider, error) {
 //
 // Every call opens an OTel span named "powerdns.http.<method>" so the
 // upstream area-specific spans have a child HTTP-level span.
-func (p *Provider) do(ctx context.Context, method, path string, body any, out any) error {
+func (p *Provider) do(ctx context.Context, method, path string, body, out any) error {
 	ctx, span := startSpan(ctx, "http."+strings.ToLower(method),
 		attribute.String("powerdns.path", path))
 	defer span.End()

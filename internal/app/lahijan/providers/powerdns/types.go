@@ -9,10 +9,11 @@ package powerdns
 
 import "encoding/json"
 
-// serverID is the path segment PDNS exposes for the "default" local server.
-// PDNS' API URL shape is /api/v1/servers/<server-id>/zones; the daemon always
-// answers as "localhost" when run as a single-node authoritative server.
-const serverID = "localhost"
+// serverPath is the REST path segment PDNS exposes for the "default" local
+// server. PDNS' API URL shape is /api/v1/servers/<server-id>/zones; the
+// daemon always answers as "localhost" when run as a single-node
+// authoritative server.
+const serverPath = "servers/localhost"
 
 // Zone is a PDNS authoritative zone (a Lahijan DNS zone). Mirrors the JSON
 // returned by GET /api/v1/servers/localhost/zones/<canonical>.
@@ -74,11 +75,11 @@ type Zone struct {
 // ZoneCreate is the body of POST /api/v1/servers/localhost/zones. Name is
 // the canonical zone name (must end with a dot); Type is "Native" by default.
 type ZoneCreate struct {
-	Name       string  `json:"name"`
-	Kind       string  `json:"kind"`
-	SOAEditAPI string  `json:"soa_edit_api,omitempty"`
-	SOAEdit    string  `json:"soa_edit,omitempty"`
-	Account    string  `json:"account,omitempty"`
+	Name       string `json:"name"`
+	Kind       string `json:"kind"`
+	SOAEditAPI string `json:"soa_edit_api,omitempty"`
+	SOAEdit    string `json:"soa_edit,omitempty"`
+	Account    string `json:"account,omitempty"`
 	// Nameservers is the list of NS target names written into the initial
 	// SOA + NS RRsets. Each entry must be a canonical name with a trailing
 	// dot. Required when the PDNS API is asked to bootstrap the zone.
@@ -239,12 +240,6 @@ type server struct {
 
 	// ZonesURL is the URL of the zones endpoint.
 	ZonesURL string `json:"zones_url"`
-}
-
-// apiErrorEnvelope is the shape of PDNS' non-2xx response body.
-// Kept unexported; callers see *APIError via decodeAPIError.
-type apiErrorEnvelope struct {
-	Error string `json:"error,omitempty"`
 }
 
 // asRawJSON marshals v to a json.RawMessage; on marshal error it returns
