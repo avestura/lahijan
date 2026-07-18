@@ -52,7 +52,7 @@ The ws-implementer subagent (`.opencode/agent/ws-implementer.md`) and the
 |----|-------|--------|------------|
 | [WS-09](./WS-09-job-system.md) | Job System (River) | done | WS-03 |
 | [WS-10a](./WS-10a-wasm-runtime-permissions.md) | WASM Runtime + Permission System | done | WS-05, WS-08 |
-| [WS-10b](./WS-10b-wasm-host-functions-event-bus.md) | WASM Host Functions + Event Bus | pending | WS-10a |
+| [WS-10b](./WS-10b-wasm-host-functions-event-bus.md) | WASM Host Functions + Event Bus | done | WS-10a |
 | [WS-10c](./WS-10c-wasm-sample-plugins-marketplace.md) | WASM Sample Plugins + Marketplace Scaffolding | pending | WS-10b |
 
 ## Phase 3 — Infrastructure Providers

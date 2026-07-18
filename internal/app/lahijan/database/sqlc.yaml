@@ -31,6 +31,10 @@ sql:
       - "queries/recovery_codes.sql"
       - "queries/mfa_pending_sessions.sql"
       - "queries/plugins.sql"
+      - "queries/plugin_kv.sql"
+      - "queries/plugin_config.sql"
+      - "queries/plugin_event_subscriptions.sql"
+      - "queries/plugin_http_handlers.sql"
     schema:
       - "migrations/*.up.sql"
     gen:

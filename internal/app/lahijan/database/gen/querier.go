@@ -87,6 +87,17 @@ type Querier interface {
 	// plugins
 	// ===========================================================================
 	CreatePlugin(ctx context.Context, arg CreatePluginParams) (Plugin, error)
+	// plugin_event_subscriptions (WS-10b). The event bus consults this table
+	// at emit time to find the match list for a topic; subscriptions persist
+	// across process restarts so events emitted while the plugin is disabled
+	// are queued and delivered on resume.
+	// Idempotent on (plugin_id, topic_pattern, handler).
+	CreatePluginEventSubscription(ctx context.Context, arg CreatePluginEventSubscriptionParams) (PluginEventSubscription, error)
+	// plugin_http_handlers (WS-10b). The api layer consults this table on
+	// every request to /api/v1/plugins/<plugin-slug>/... to find the
+	// handler; on a hit it instantiates the plugin and calls the named export.
+	// Idempotent on (plugin_id, method, path).
+	CreatePluginHTTPHandler(ctx context.Context, arg CreatePluginHTTPHandlerParams) (PluginHttpHandler, error)
 	// user_recovery_codes: per-user single-use recovery codes (WS-07c). The
 	// code_hash column carries the SHA-256 hex of the raw code; the raw code
 	// is never stored.
@@ -133,6 +144,9 @@ type Querier interface {
 	CreateWebauthnCredential(ctx context.Context, arg CreateWebauthnCredentialParams) (UserWebauthnCredential, error)
 	// Used before regenerating a fresh batch: every old code is invalidated.
 	DeleteAllRecoveryCodesForUser(ctx context.Context, userID uuid.UUID) error
+	// Bulk-delete every expired row. The cleanup job (post-MVP) calls this
+	// periodically; the rowsize is small so a single bulk delete is fine.
+	DeleteExpiredPluginKV(ctx context.Context) (int64, error)
 	DeleteMFAPendingSessionsForUser(ctx context.Context, userID uuid.UUID) error
 	// Unlink: removes the (user, provider) link entirely. Enforced "at least one
 	// auth method remaining" check happens in the service layer (it counts
@@ -141,6 +155,17 @@ type Querier interface {
 	// Hard delete. Used by the admin uninstall endpoint. CASCADE removes the
 	// associated plugin_permissions rows (FK ON DELETE CASCADE).
 	DeletePlugin(ctx context.Context, id uuid.UUID) error
+	DeletePluginConfig(ctx context.Context, arg DeletePluginConfigParams) error
+	// Remove a single subscription. Missing rows are a no-op.
+	DeletePluginEventSubscription(ctx context.Context, arg DeletePluginEventSubscriptionParams) error
+	// Used when a plugin is uninstalled so its subscriptions do not
+	// linger. CASCADE on plugin_id already covers plugin deletes; this
+	// query covers the "admin force-unsubscribe" path.
+	DeletePluginEventSubscriptionsForPlugin(ctx context.Context, pluginID uuid.UUID) (int64, error)
+	DeletePluginHTTPHandler(ctx context.Context, arg DeletePluginHTTPHandlerParams) error
+	DeletePluginHTTPHandlersForPlugin(ctx context.Context, pluginID uuid.UUID) (int64, error)
+	// Remove a single (plugin_id, key) row. Missing rows are a no-op.
+	DeletePluginKV(ctx context.Context, arg DeletePluginKVParams) error
 	// Unlink: removes the (user, provider) SAML link entirely. Enforced "at least
 	// one auth method remaining" check happens in the service layer (it counts
 	// password_hash + OAuth/OIDC identities + other SAML identities before
@@ -148,6 +173,10 @@ type Querier interface {
 	DeleteSAMLIdentity(ctx context.Context, arg DeleteSAMLIdentityParams) error
 	DeleteTOTPSecret(ctx context.Context, userID uuid.UUID) error
 	DeleteWebauthnCredential(ctx context.Context, arg DeleteWebauthnCredentialParams) error
+	// Single-row lookup the router uses per request. The router further
+	// filters by tenant visibility (the tenant_id on the row must match
+	// the request's tenant OR be NULL for platform-wide plugins).
+	FindPluginHTTPHandler(ctx context.Context, arg FindPluginHTTPHandlerParams) (PluginHttpHandler, error)
 	GetAuditLog(ctx context.Context, id uuid.UUID) (AuditLog, error)
 	//: tenant-scoped; single-row read for the GET /audit/{id} handler. Returns the
 	//: row if it belongs to the tenant in ctx, OR is a system-level event (NULL
@@ -178,11 +207,19 @@ type Querier interface {
 	// Lookup by id; works for both tenant-scoped and platform-wide plugins.
 	// The repository wrapper enforces tenant scoping for non-platform callers.
 	GetPlugin(ctx context.Context, id uuid.UUID) (Plugin, error)
+	// Read a single (plugin_id, key) row. The repository wrapper applies
+	// the is_secret filter for plugin-facing reads (config_get returns
+	// only non-secret values).
+	GetPluginConfig(ctx context.Context, arg GetPluginConfigParams) (PluginConfig, error)
 	//: tenant-scoped; returns the row if it belongs to the tenant in ctx, OR is
 	//: platform-wide (tenant_id IS NULL) so tenants can read platform-wide
 	//: plugins they did not install. This mirrors the audit_log rule for
 	//: system-level events.
 	GetPluginForTenant(ctx context.Context, arg GetPluginForTenantParams) (Plugin, error)
+	// Read a single (plugin_id, key) row. The repo wrapper applies the
+	// expiry filter (expires_at IS NULL OR expires_at > now()) so callers
+	// never see stale data.
+	GetPluginKV(ctx context.Context, arg GetPluginKVParams) (PluginKv, error)
 	// Single-row lookup used by the enforcer's fast path before falling back to
 	// the prefix-match loop. Returns the row when the plugin holds an exact
 	// grant for the permission string.
@@ -222,6 +259,10 @@ type Querier interface {
 	// Bumps the failure counter; the caller checks if it crosses the threshold
 	// and calls RevokeMFAPendingSession to lock the user out.
 	IncMFAPendingSessionFailures(ctx context.Context, id uuid.UUID) error
+	// Every subscription across every plugin. The bus uses this at emit
+	// time to find every plugin that matches the topic; the per-plugin
+	// filter then enqueues the dispatch.
+	ListAllPluginEventSubscriptions(ctx context.Context) ([]PluginEventSubscription, error)
 	//: tenant-scoped
 	ListAuditLogForTenant(ctx context.Context, arg ListAuditLogForTenantParams) ([]AuditLog, error)
 	//: tenant-scoped; filtered + paginated read for GET /audit.
@@ -248,6 +289,17 @@ type Querier interface {
 	// in the given tenant. Used by RBAC policy enforcement (WS-08).
 	ListPermissionsForUser(ctx context.Context, arg ListPermissionsForUserParams) ([]Permission, error)
 	ListPersonalAccessTokensForUser(ctx context.Context, userID uuid.UUID) ([]PersonalAccessToken, error)
+	// Every row for the plugin, including secrets (the admin UI shows
+	// these). The plugin-facing read (config_get) uses a filtered path.
+	ListPluginConfig(ctx context.Context, pluginID uuid.UUID) ([]PluginConfig, error)
+	// Every non-secret row for the plugin. This is the path config_get
+	// uses; is_secret = true rows are deliberately excluded.
+	ListPluginConfigPublic(ctx context.Context, pluginID uuid.UUID) ([]PluginConfig, error)
+	// Every subscription held by the plugin. The bus uses this to drive
+	// the per-plugin dispatch path; the admin detail UI uses it to show
+	// what the plugin is listening to.
+	ListPluginEventSubscriptions(ctx context.Context, pluginID uuid.UUID) ([]PluginEventSubscription, error)
+	ListPluginHTTPHandlers(ctx context.Context, pluginID uuid.UUID) ([]PluginHttpHandler, error)
 	// Every grant held by the plugin; used by the enforcer + the admin detail
 	// endpoint.
 	ListPluginPermissions(ctx context.Context, pluginID uuid.UUID) ([]PluginPermission, error)
@@ -304,6 +356,19 @@ type Querier interface {
 	// Bumps the sign counter on every successful assertion; the RP rejects any
 	// future assertion whose count is not strictly greater.
 	UpdateWebauthnSignCount(ctx context.Context, arg UpdateWebauthnSignCountParams) error
+	// plugin_config (WS-10b). One row per (plugin_id, key); the admin sets
+	// these via the admin plugin API and the plugin reads them through the
+	// config_get host function. Rows flagged is_secret = true are NEVER
+	// surfaced through config_get.
+	UpsertPluginConfig(ctx context.Context, arg UpsertPluginConfigParams) (PluginConfig, error)
+	// plugin_kv (WS-10b). The (plugin_id, key) pair is the natural key; the
+	// repository wrapper enforces plugin scoping by always passing plugin_id
+	// from the host-function context. Reads filter out expired rows.
+	// Idempotent insert-or-update by (plugin_id, key). On conflict, the
+	// value + expires_at are replaced and updated_at is bumped. The
+	// repository wrapper wraps this in a SELECT-after-INSERT for callers
+	// that need the row; the conflict target is the unique index.
+	UpsertPluginKV(ctx context.Context, arg UpsertPluginKVParams) (PluginKv, error)
 	VerifyUserEmail(ctx context.Context, id uuid.UUID) error
 }
 

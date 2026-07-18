@@ -18,6 +18,13 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+// ErrNoSecretVisible is returned by plugin config reads when the row is
+// marked is_secret. Treated the same as "not found" from the caller's
+// perspective so the plugin cannot distinguish a secret row from a missing
+// one. Wraps pgx.ErrNoRows so callers that use IsNoRows still see it as a
+// soft not-found.
+var ErrNoSecretVisible = errors.Join(pgx.ErrNoRows, errors.New("plugin_config: row is secret"))
+
 // IsNoRows reports whether err is the pgx/sqlc "no rows in result set"
 // error. Callers should treat this as a soft "not found" and translate it to
 // their own sentinel (e.g. pat.ErrNotFound) rather than letting it bubble up

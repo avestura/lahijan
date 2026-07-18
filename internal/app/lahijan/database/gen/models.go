@@ -188,6 +188,61 @@ type Plugin struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// Admin-set per-plugin config; backs config_get host function (WS-10b).
+type PluginConfig struct {
+	ID       uuid.UUID       `json:"id"`
+	TenantID *uuid.UUID      `json:"tenant_id"`
+	PluginID uuid.UUID       `json:"plugin_id"`
+	Key      string          `json:"key"`
+	Value    json.RawMessage `json:"value"`
+	// When true, the value is never returned to the plugin via config_get.
+	IsSecret  bool      `json:"is_secret"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// Durable event subscriptions; backs the events host function (WS-10b).
+type PluginEventSubscription struct {
+	ID       uuid.UUID  `json:"id"`
+	TenantID *uuid.UUID `json:"tenant_id"`
+	PluginID uuid.UUID  `json:"plugin_id"`
+	// Exact topic or prefix wildcard ending in ".*". Matched by eventbus.TopicPattern.Match.
+	TopicPattern string `json:"topic_pattern"`
+	// WASM export called when a matching event fires.
+	Handler   string    `json:"handler"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// HTTP handler mounts registered by plugins; backs api.register_handler (WS-10b).
+type PluginHttpHandler struct {
+	ID       uuid.UUID  `json:"id"`
+	TenantID *uuid.UUID `json:"tenant_id"`
+	PluginID uuid.UUID  `json:"plugin_id"`
+	// HTTP method (uppercase).
+	Method string `json:"method"`
+	// Sub-path under /api/v1/plugins/<plugin-slug>/; must start with /.
+	Path string `json:"path"`
+	// WASM export called for each matching request.
+	Handler   string    `json:"handler"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// Per-plugin durable KV store; backs the kv_* host functions (WS-10b).
+type PluginKv struct {
+	ID uuid.UUID `json:"id"`
+	// NULL for rows owned by platform-wide plugins; otherwise the scoping tenant.
+	TenantID *uuid.UUID `json:"tenant_id"`
+	// Owning plugin; CASCADE on plugins.id delete.
+	PluginID uuid.UUID `json:"plugin_id"`
+	Key      string    `json:"key"`
+	// Opaque bytes; the host function does not interpret the contents.
+	Value []byte `json:"value"`
+	// Absolute expiry; NULL = no TTL. Reads filter expired rows.
+	ExpiresAt *time.Time `json:"expires_at"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+}
+
 // Admin-approved grants a plugin holds; consulted by the WS-10a enforcer on every host call.
 type PluginPermission struct {
 	PluginID uuid.UUID `json:"plugin_id"`

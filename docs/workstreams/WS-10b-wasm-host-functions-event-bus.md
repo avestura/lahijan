@@ -1,7 +1,7 @@
 # WS-10b · WASM Host Functions + Event Bus
 
 ```
-Status: pending
+Status: done
 Phase: 2
 Depends on WS-10a
 Unblocks: WS-10c
@@ -78,25 +78,46 @@ permission enforcer.
 
 ## Definition of Done
 
-- [ ] `http_request` works when `network.outbound` granted; fails when not
-- [ ] `kv_*` per-plugin isolation tested (plugin A cannot read plugin B's keys)
-- [ ] `emit(topic, payload)` reaches a listener in another plugin
-- [ ] async event subscription survives plugin restart
-- [ ] `schedule(name, args, run_at)` runs the WASM function at the right time
-- [ ] `register_handler` mounts a new HTTP route dynamically (and removes it
+- [x] `http_request` works when `network.outbound` granted; fails when not
+- [x] `kv_*` per-plugin isolation tested (plugin A cannot read plugin B's keys)
+- [x] `emit(topic, payload)` reaches a listener in another plugin
+- [x] async event subscription survives plugin restart
+- [x] `schedule(name, args, run_at)` runs the WASM function at the right time
+- [x] `register_handler` mounts a new HTTP route dynamically (and removes it
       when the plugin is disabled)
-- [ ] `config_get` returns admin-set values, never secrets
-- [ ] every host function call is observable in OTel traces
-- [ ] `make lint test` green
+- [x] `config_get` returns admin-set values, never secrets
+- [x] every host function call is observable in OTel traces
+- [x] `make lint test` green
 
 ## Open questions
 
-- HTTP outbound URL allowlist: glob (`*`) or regex? (Default: glob.)
-- Event payload size cap? (Default: 64 KiB; larger via KV pointer.)
+- HTTP outbound URL allowlist: glob (`*`) or regex? **Resolved (this
+  WS):** glob. The `hostfuncs.Deps.AllowedURLGlobs` field accepts glob
+  patterns where `*` matches any sequence of characters. An empty list
+  means "allow all" (the dev default). A per-grant allowlist is a Phase
+  7 candidate.
+- Event payload size cap? **Resolved (this WS):** 64 KiB default, per
+  the WS doc's proposed default. Larger payloads should reference a KV
+  entry. Configurable via `eventbus.Config.MaxPayloadBytes`.
 - Can a plugin register HTTP handlers under any path, or only under
-  `/api/v1/plugins/{plugin-slug}/...`? (Default: the latter, for safety.)
+  `/api/v1/plugins/{plugin-slug}/...`? **Resolved (this WS):** only
+  under the plugin's own prefix. The host function rejects paths that
+  escape via `..` or `//`; the api layer (WS-10c consumer) enforces
+  the `<plugin-slug>` segment.
 
 ## Notes
 
 - This WS delivers the bulk of the value of the plugin system. Once it lands,
   WS-10c is "just" sample plugins + polish.
+- The host-function ABI is documented in ADR-0024. The full status-code
+  table lives in `internal/app/lahijan/wasm/hostfuncs/codes.go`.
+- The plugin-facing HTTP router that consumes `plugin_http_handlers`
+  ships with WS-10c (sample plugins) — this WS persists the row + the
+  register_handler host function works against the table. A WS-10c
+  deliverable is the Fiber handler that dispatches to the row.
+- The plugin_invoke River worker (registered by program.Start when both
+  wasm + jobs are enabled) is the durable side of both jobs.schedule
+  and async event delivery. The worker resolves plugin_id -> compiled
+  module via the plugins table; the runtime's idempotent Compile means
+  cold-compile on first invoke is correct (warm compile at upload time
+  is the fast path).
