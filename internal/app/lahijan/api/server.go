@@ -26,6 +26,7 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/i18n"
 	"github.com/avestura/lahijan/internal/app/lahijan/version"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/installer"
+	"github.com/avestura/lahijan/internal/app/lahijan/wasm/marketplace"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	openapi_types "github.com/oapi-codegen/runtime/types"
@@ -90,6 +91,12 @@ type Server struct {
 	// (conf.wasm.enabled=false); the handlers degrade to 501.
 	pluginsRepo *database.PluginsRepository
 	pluginSvc   *installer.Service
+
+	// WS-10c: marketplace deps. marketplaceSvc is the entrypoint the
+	// admin marketplace API talks to; it wraps the installer + the
+	// configured marketplace index + asset loaders. Nil-appropriate when
+	// the WASM subsystem is disabled; the handlers degrade to 501.
+	marketplaceSvc *marketplace.Service
 }
 
 // ServerDeps carries the dependencies NewServer requires. Wire it once from
@@ -138,6 +145,11 @@ type ServerDeps struct {
 	// handlers degrade to a 501 envelope.
 	PluginsRepo *database.PluginsRepository
 	PluginSvc   *installer.Service
+
+	// WS-10c: marketplace deps. MarketplaceSvc is the entrypoint the
+	// admin marketplace API talks to. Nil-appropriate when the WASM
+	// subsystem is disabled; the handlers degrade to a 501 envelope.
+	MarketplaceSvc *marketplace.Service
 }
 
 // NewServer builds the API server with the given dependencies.
@@ -164,6 +176,7 @@ func NewServer(deps ServerDeps) *Server {
 		jobs:            deps.Jobs,
 		pluginsRepo:     deps.PluginsRepo,
 		pluginSvc:       deps.PluginSvc,
+		marketplaceSvc:  deps.MarketplaceSvc,
 	}
 	if s.tracer == nil {
 		s.tracer = Tracer()

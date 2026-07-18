@@ -61,6 +61,10 @@ func RegisterRoutes(app *fiber.App, server *Server, policy middleware.PolicyReso
 //	/api/v1/admin/plugins/*/enable  -> plugins.install
 //	/api/v1/admin/plugins/*/disable -> plugins.install
 //	/api/v1/admin/plugins/*/permissions/*/* -> plugins.permission.approve
+//	/api/v1/admin/plugins/install/*  -> plugins.install     (WS-10c marketplace)
+//	/api/v1/admin/plugins/upgrade/*  -> plugins.install     (WS-10c marketplace)
+//	/api/v1/admin/marketplace        -> plugins.read        (WS-10c marketplace)
+//	/api/v1/admin/marketplace/*      -> plugins.read        (WS-10c marketplace)
 //	/api/v1/admin/plugins/{id}     -> plugins.read  (GET) / plugins.uninstall (DELETE)
 //	/api/v1/admin/plugins          -> plugins.read
 //
@@ -91,6 +95,20 @@ func AuditGate(policy middleware.PolicyResolver) apigen.MiddlewareFunc {
 			return middleware.RequirePerm(policy, rbac.PermPlatformJobsRead)(c)
 		case strings.HasPrefix(path, "/api/v1/admin/jobs/"):
 			return middleware.RequirePerm(policy, rbac.PermPlatformJobsRead)(c)
+
+		// WS-10c: marketplace endpoints. The browse paths (GET
+		// /marketplace, GET /marketplace/{name}) require plugins.read
+		// so tenant admins can see what's available. The install +
+		// upgrade paths require plugins.install because they persist
+		// rows + emit audit events.
+		case path == "/api/v1/admin/marketplace":
+			return middleware.RequirePerm(policy, rbac.PermPluginsRead)(c)
+		case strings.HasPrefix(path, "/api/v1/admin/marketplace/"):
+			return middleware.RequirePerm(policy, rbac.PermPluginsRead)(c)
+		case strings.HasPrefix(path, "/api/v1/admin/plugins/install/"):
+			return middleware.RequirePerm(policy, rbac.PermPluginsInstall)(c)
+		case strings.HasPrefix(path, "/api/v1/admin/plugins/upgrade/"):
+			return middleware.RequirePerm(policy, rbac.PermPluginsInstall)(c)
 
 		// WS-10a: admin plugin endpoints. The WS-10a DoD requires "only
 		// platform.admin can hit the admin plugin API". Concretely this

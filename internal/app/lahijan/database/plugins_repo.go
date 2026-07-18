@@ -139,6 +139,28 @@ func (r *PluginsRepository) CountGlobal(ctx context.Context) (int64, error) {
 	return r.q.CountPluginsGlobal(ctx)
 }
 
+// FindByNameGlobal returns every plugin row with the given name across every
+// tenant, newest first. Used by the marketplace upgrade flow to locate the
+// previously-installed version before swapping it.
+func (r *PluginsRepository) FindByNameGlobal(ctx context.Context, name string) ([]gen.Plugin, error) {
+	return r.q.FindPluginsByNameGlobal(ctx, name)
+}
+
+// FindByNameForTenant returns every plugin row with the given name visible to
+// the tenant in ctx (the tenant's own + platform-wide), newest first. Used
+// by the tenant-scoped marketplace upgrade flow.
+func (r *PluginsRepository) FindByNameForTenant(ctx context.Context, name string) ([]gen.Plugin, error) {
+	tenantID, err := TenantFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	t := &tenantID
+	return r.q.FindPluginsByNameForTenant(ctx, gen.FindPluginsByNameForTenantParams{
+		TenantID: t,
+		Name:     name,
+	})
+}
+
 // SetStatus updates a plugin's status. Use PluginStatus* constants. The DB's
 // CHECK constraint rejects unknown values.
 func (r *PluginsRepository) SetStatus(ctx context.Context, id uuid.UUID, status string) error {

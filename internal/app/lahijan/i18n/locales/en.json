@@ -194,6 +194,16 @@
   "plugins.err_module_rejected":   { "other": "The runtime rejected the .wasm module." },
   "plugins.msg_deleted":           { "other": "Plugin deleted." },
 
+  "marketplace.err_not_found":         { "other": "Plugin not found in the marketplace index." },
+  "marketplace.err_hash_mismatch":     { "other": "The downloaded .wasm does not match the marketplace sha256 pin (index is stale or compromised)." },
+  "marketplace.err_not_installed":     { "other": "No prior installation of this plugin exists; install instead of upgrading." },
+  "marketplace.err_same_version":      { "other": "The plugin is already at this version." },
+  "marketplace.err_downgrade":         { "other": "Downgrade is not supported; uninstall and install the older version instead." },
+
+  "audit.action_plugins_marketplace_install": { "other": "Plugin installed from marketplace" },
+  "audit.action_plugins_marketplace_upgrade": { "other": "Plugin upgraded from marketplace" },
+  "audit.action_plugins_upgrade":             { "other": "Plugin upgraded" },
+
   "audit.action_platform_job_retry": { "other": "Job manually retried" },
   "audit.action_platform_job_cancel": { "other": "Job cancelled" },
 

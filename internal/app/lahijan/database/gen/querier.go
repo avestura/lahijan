@@ -177,6 +177,15 @@ type Querier interface {
 	// filters by tenant visibility (the tenant_id on the row must match
 	// the request's tenant OR be NULL for platform-wide plugins).
 	FindPluginHTTPHandler(ctx context.Context, arg FindPluginHTTPHandlerParams) (PluginHttpHandler, error)
+	//: tenant-scoped; every row visible to the tenant in ctx with the given
+	//: name (the tenant's own + platform-wide). Used by the tenant-scoped
+	//: marketplace upgrade flow.
+	FindPluginsByNameForTenant(ctx context.Context, arg FindPluginsByNameForTenantParams) ([]Plugin, error)
+	//: admin-only; every row across every tenant with the given name. Used by
+	//: the marketplace upgrade flow to locate the previous version(s) of a
+	//: plugin before swapping it for the new one. Ordered by created_at DESC
+	//: so the newest prior version comes first.
+	FindPluginsByNameGlobal(ctx context.Context, name string) ([]Plugin, error)
 	GetAuditLog(ctx context.Context, id uuid.UUID) (AuditLog, error)
 	//: tenant-scoped; single-row read for the GET /audit/{id} handler. Returns the
 	//: row if it belongs to the tenant in ctx, OR is a system-level event (NULL

@@ -1,0 +1,23 @@
+name: dns-record-hook
+version: 1.0.0
+description: "Forwards dns.record.* events to an external webhook."
+author: "Lahijan Maintainers <lahijan@example.dev>"
+license: Apache-2.0
+homepage: https://github.com/avestura/lahijan/tree/main/examples/plugins/dns-record-hook
+
+permissions:
+  - "events.listen:dns.record.*"
+  - "network.outbound:example.com"
+  - "config.read:dns-record-hook"
+
+config_schema:
+  type: object
+  properties:
+    webhook_url:
+      type: string
+      format: uri
+      secret: true
+      description: "External webhook URL that receives dns.record.* payloads."
+
+entrypoints:
+  - on_event

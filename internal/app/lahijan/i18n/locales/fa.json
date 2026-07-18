@@ -194,6 +194,16 @@
   "plugins.err_module_rejected":   { "other": "زمان‌اجرای افزونه ماژول .wasm را رد کرد." },
   "plugins.msg_deleted":           { "other": "افزونه حذف شد." },
 
+  "marketplace.err_not_found":         { "other": "افزونه در نمایهٔ بازارچه یافت نشد." },
+  "marketplace.err_hash_mismatch":     { "other": "هش sha256 ماژول دریافت‌شده با pin بازارچه همخوانی ندارد (نمایه قدیمی یا دستکاری شده است)." },
+  "marketplace.err_not_installed":     { "other": "هیچ نصب پیشینی از این افزونه وجود ندارد؛ به‌جای ارتقا، آن را نصب کنید." },
+  "marketplace.err_same_version":      { "other": "افزونه از پیش در این نسخه است." },
+  "marketplace.err_downgrade":         { "other": "پایین‌گرد پشتیبانی نمی‌شود؛ ابتدا حذف و سپس نسخهٔ قدیمی‌تر را نصب کنید." },
+
+  "audit.action_plugins_marketplace_install": { "other": "افزونه از بازارچه نصب شد" },
+  "audit.action_plugins_marketplace_upgrade": { "other": "افزونه از بازارچه ارتقا یافت" },
+  "audit.action_plugins_upgrade":             { "other": "افزونه ارتقا یافت" },
+
   "audit.action_platform_job_retry": { "other": "کار به‌صورت دستی دوباره اجرا شد" },
   "audit.action_platform_job_cancel": { "other": "کار لغو شد" },
 

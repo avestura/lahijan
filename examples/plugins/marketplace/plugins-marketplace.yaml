@@ -1,0 +1,63 @@
+# Lahijan default plugin marketplace index (WS-10c).
+#
+# This file is the source of truth for the in-repo marketplace. The
+# admin marketplace API (GET /api/v1/admin/marketplace) serves its
+# contents verbatim. Operators may replace it or point
+# wasm.marketplace.url at a remote URL serving the same shape.
+#
+# Format documented in examples/plugins/marketplace/README.md.
+#
+# The sha256 of each plugin.wasm is the contract between the marketplace
+# and the installer: the installer downloads the .wasm, hashes it, and
+# rejects on mismatch. The hash therefore pins the artifact the admin
+# gets on `install/{name}`; bumping the version requires bumping the
+# hash. Use `sha256sum <name>/plugin.wasm` to recompute after a rebuild.
+
+version: 1
+updated_at: "2026-07-18T00:00:00Z"
+plugins:
+  - name: slack-notifier
+    version: 1.0.0
+    description: "Posts compute.instance.* events to a Slack webhook."
+    author: "Lahijan Maintainers <lahijan@example.dev>"
+    license: Apache-2.0
+    homepage: "https://github.com/avestura/lahijan/tree/main/examples/plugins/slack-notifier"
+    permissions:
+      - "events.listen:compute.instance.*"
+      - "network.outbound:hooks.slack.com"
+      - "config.read:slack-notifier"
+    source:
+      repo: local
+      path: slack-notifier
+    sha256: "REPLACE_ME_AFTER_BUILD"
+
+  - name: autoscaler-stub
+    version: 1.0.0
+    description: "Counts CPU-high events and emits an audit comment."
+    author: "Lahijan Maintainers <lahijan@example.dev>"
+    license: Apache-2.0
+    homepage: "https://github.com/avestura/lahijan/tree/main/examples/plugins/autoscaler-stub"
+    permissions:
+      - "events.listen:compute.instance.cpu_high"
+      - "kv.read:metrics"
+      - "kv.write:metrics"
+      - "events.emit"
+    source:
+      repo: local
+      path: autoscaler-stub
+    sha256: "REPLACE_ME_AFTER_BUILD"
+
+  - name: dns-record-hook
+    version: 1.0.0
+    description: "Forwards dns.record.* events to an external webhook."
+    author: "Lahijan Maintainers <lahijan@example.dev>"
+    license: Apache-2.0
+    homepage: "https://github.com/avestura/lahijan/tree/main/examples/plugins/dns-record-hook"
+    permissions:
+      - "events.listen:dns.record.*"
+      - "network.outbound:example.com"
+      - "config.read:dns-record-hook"
+    source:
+      repo: local
+      path: dns-record-hook
+    sha256: "REPLACE_ME_AFTER_BUILD"

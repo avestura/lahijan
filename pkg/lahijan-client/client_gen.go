@@ -31,6 +31,12 @@ const (
 	AdminJobStateScheduled AdminJobState = "scheduled"
 )
 
+// Defines values for AdminMarketplaceEntrySourceRepo.
+const (
+	AdminMarketplaceEntrySourceRepoGit   AdminMarketplaceEntrySourceRepo = "git"
+	AdminMarketplaceEntrySourceRepoLocal AdminMarketplaceEntrySourceRepo = "local"
+)
+
 // Defines values for AdminPluginStatus.
 const (
 	AdminPluginStatusActive   AdminPluginStatus = "active"
@@ -183,6 +189,53 @@ type AdminJobPage struct {
 	Total  int64      `json:"total"`
 }
 
+// AdminMarketplaceEntry defines model for AdminMarketplaceEntry.
+type AdminMarketplaceEntry struct {
+	Author      *string `json:"author,omitempty"`
+	Description *string `json:"description,omitempty"`
+	Homepage    *string `json:"homepage,omitempty"`
+
+	// License SPDX identifier (Apache-2.0, MIT, ...).
+	License *string `json:"license,omitempty"`
+
+	// Name Kebab-case plugin name (matches the manifest).
+	Name string `json:"name"`
+
+	// Permissions Permission slugs the plugin requests. The admin must grant
+	// each one at install time; the upload parser rejects unknown
+	// slugs.
+	Permissions *[]string `json:"permissions,omitempty"`
+
+	// Sha256 sha256 hex of the .wasm bytes; the installer verifies the download matches.
+	Sha256 string `json:"sha256"`
+	Source struct {
+		// GitRef Pinned git ref (branch, tag, or commit).
+		GitRef *string `json:"gitRef,omitempty"`
+		GitURL *string `json:"gitURL,omitempty"`
+
+		// Path Subdirectory under the marketplace root (repo=local).
+		Path *string `json:"path,omitempty"`
+
+		// Repo `local` = the .wasm + manifest live under the marketplace
+		// root; `git` = clone the pinned git URL (future WS;
+		// signature verification required).
+		Repo AdminMarketplaceEntrySourceRepo `json:"repo"`
+	} `json:"source"`
+
+	// Version Semver version (matches the manifest).
+	Version string `json:"version"`
+}
+
+// AdminMarketplaceEntrySourceRepo `local` = the .wasm + manifest live under the marketplace
+// root; `git` = clone the pinned git URL (future WS;
+// signature verification required).
+type AdminMarketplaceEntrySourceRepo string
+
+// AdminMarketplacePage defines model for AdminMarketplacePage.
+type AdminMarketplacePage struct {
+	Items []AdminMarketplaceEntry `json:"items"`
+}
+
 // AdminPlugin defines model for AdminPlugin.
 type AdminPlugin struct {
 	CreatedAt   time.Time          `json:"createdAt"`
@@ -219,6 +272,32 @@ type AdminPluginPage struct {
 	Limit  int           `json:"limit"`
 	Offset int           `json:"offset"`
 	Total  int64         `json:"total"`
+}
+
+// AdminPluginUpgradeResult The result bundle returned by the marketplace upgrade endpoint.
+// The admin uses `newPermissions` to decide whether to grant each
+// one (per WS-10c DoD "upgrade adds a permission -> admin is
+// prompted to grant it"). `droppedGrants` are surfaced for
+// visibility but cannot be undone — the new manifest no longer
+// requests them.
+type AdminPluginUpgradeResult struct {
+	// DroppedGrants Grants no longer requested by the new manifest (silently dropped).
+	DroppedGrants []string `json:"droppedGrants"`
+
+	// NewPermissions New manifest permissions the prior version did not have. The
+	// admin MUST grant each one (POST
+	// /api/v1/admin/plugins/{pluginId}/permissions/{perm}/grant)
+	// before calling /enable.
+	NewPermissions []string `json:"newPermissions"`
+
+	// OldId The id of the previous plugin row (now hard-deleted).
+	OldId openapi_types.UUID `json:"oldId"`
+
+	// Plugin The newly-installed plugin row (status=pending).
+	Plugin AdminPlugin `json:"plugin"`
+
+	// PreservedGrants Grants carried forward from the prior version.
+	PreservedGrants []string `json:"preservedGrants"`
 }
 
 // AuditEvent defines model for AuditEvent.
@@ -877,8 +956,20 @@ type ClientInterface interface {
 	// RetryAdminJob request
 	RetryAdminJob(ctx context.Context, jobId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListAdminMarketplace request
+	ListAdminMarketplace(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAdminMarketplaceEntry request
+	GetAdminMarketplaceEntry(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListAdminPlugins request
 	ListAdminPlugins(ctx context.Context, params *ListAdminPluginsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// InstallAdminPluginFromMarketplace request
+	InstallAdminPluginFromMarketplace(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpgradeAdminPluginFromMarketplace request
+	UpgradeAdminPluginFromMarketplace(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// UploadAdminPluginWithBody request with any body
 	UploadAdminPluginWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -1097,8 +1188,56 @@ func (c *Client) RetryAdminJob(ctx context.Context, jobId int64, reqEditors ...R
 	return c.Client.Do(req)
 }
 
+func (c *Client) ListAdminMarketplace(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAdminMarketplaceRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetAdminMarketplaceEntry(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAdminMarketplaceEntryRequest(c.Server, name)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) ListAdminPlugins(ctx context.Context, params *ListAdminPluginsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListAdminPluginsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) InstallAdminPluginFromMarketplace(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewInstallAdminPluginFromMarketplaceRequest(c.Server, name)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpgradeAdminPluginFromMarketplace(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpgradeAdminPluginFromMarketplaceRequest(c.Server, name)
 	if err != nil {
 		return nil, err
 	}
@@ -2068,6 +2207,67 @@ func NewRetryAdminJobRequest(server string, jobId int64) (*http.Request, error) 
 	return req, nil
 }
 
+// NewListAdminMarketplaceRequest generates requests for ListAdminMarketplace
+func NewListAdminMarketplaceRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/marketplace")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetAdminMarketplaceEntryRequest generates requests for GetAdminMarketplaceEntry
+func NewGetAdminMarketplaceEntryRequest(server string, name string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "name", runtime.ParamLocationPath, name)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/marketplace/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListAdminPluginsRequest generates requests for ListAdminPlugins
 func NewListAdminPluginsRequest(server string, params *ListAdminPluginsParams) (*http.Request, error) {
 	var err error
@@ -2126,6 +2326,74 @@ func NewListAdminPluginsRequest(server string, params *ListAdminPluginsParams) (
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewInstallAdminPluginFromMarketplaceRequest generates requests for InstallAdminPluginFromMarketplace
+func NewInstallAdminPluginFromMarketplaceRequest(server string, name string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "name", runtime.ParamLocationPath, name)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/plugins/install/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpgradeAdminPluginFromMarketplaceRequest generates requests for UpgradeAdminPluginFromMarketplace
+func NewUpgradeAdminPluginFromMarketplaceRequest(server string, name string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "name", runtime.ParamLocationPath, name)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/plugins/upgrade/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -4075,8 +4343,20 @@ type ClientWithResponsesInterface interface {
 	// RetryAdminJobWithResponse request
 	RetryAdminJobWithResponse(ctx context.Context, jobId int64, reqEditors ...RequestEditorFn) (*RetryAdminJobResponse, error)
 
+	// ListAdminMarketplaceWithResponse request
+	ListAdminMarketplaceWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListAdminMarketplaceResponse, error)
+
+	// GetAdminMarketplaceEntryWithResponse request
+	GetAdminMarketplaceEntryWithResponse(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*GetAdminMarketplaceEntryResponse, error)
+
 	// ListAdminPluginsWithResponse request
 	ListAdminPluginsWithResponse(ctx context.Context, params *ListAdminPluginsParams, reqEditors ...RequestEditorFn) (*ListAdminPluginsResponse, error)
+
+	// InstallAdminPluginFromMarketplaceWithResponse request
+	InstallAdminPluginFromMarketplaceWithResponse(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*InstallAdminPluginFromMarketplaceResponse, error)
+
+	// UpgradeAdminPluginFromMarketplaceWithResponse request
+	UpgradeAdminPluginFromMarketplaceWithResponse(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*UpgradeAdminPluginFromMarketplaceResponse, error)
 
 	// UploadAdminPluginWithBodyWithResponse request with any body
 	UploadAdminPluginWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UploadAdminPluginResponse, error)
@@ -4348,6 +4628,57 @@ func (r RetryAdminJobResponse) StatusCode() int {
 	return 0
 }
 
+type ListAdminMarketplaceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AdminMarketplacePage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON501      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r ListAdminMarketplaceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListAdminMarketplaceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetAdminMarketplaceEntryResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AdminMarketplaceEntry
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAdminMarketplaceEntryResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAdminMarketplaceEntryResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type ListAdminPluginsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -4366,6 +4697,64 @@ func (r ListAdminPluginsResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r ListAdminPluginsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type InstallAdminPluginFromMarketplaceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *AdminPlugin
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *Error
+	JSON409      *Error
+	JSON422      *Error
+	JSON501      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r InstallAdminPluginFromMarketplaceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r InstallAdminPluginFromMarketplaceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpgradeAdminPluginFromMarketplaceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AdminPluginUpgradeResult
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *Error
+	JSON409      *Error
+	JSON422      *Error
+	JSON501      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r UpgradeAdminPluginFromMarketplaceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpgradeAdminPluginFromMarketplaceResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -5449,6 +5838,24 @@ func (c *ClientWithResponses) RetryAdminJobWithResponse(ctx context.Context, job
 	return ParseRetryAdminJobResponse(rsp)
 }
 
+// ListAdminMarketplaceWithResponse request returning *ListAdminMarketplaceResponse
+func (c *ClientWithResponses) ListAdminMarketplaceWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListAdminMarketplaceResponse, error) {
+	rsp, err := c.ListAdminMarketplace(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListAdminMarketplaceResponse(rsp)
+}
+
+// GetAdminMarketplaceEntryWithResponse request returning *GetAdminMarketplaceEntryResponse
+func (c *ClientWithResponses) GetAdminMarketplaceEntryWithResponse(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*GetAdminMarketplaceEntryResponse, error) {
+	rsp, err := c.GetAdminMarketplaceEntry(ctx, name, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAdminMarketplaceEntryResponse(rsp)
+}
+
 // ListAdminPluginsWithResponse request returning *ListAdminPluginsResponse
 func (c *ClientWithResponses) ListAdminPluginsWithResponse(ctx context.Context, params *ListAdminPluginsParams, reqEditors ...RequestEditorFn) (*ListAdminPluginsResponse, error) {
 	rsp, err := c.ListAdminPlugins(ctx, params, reqEditors...)
@@ -5456,6 +5863,24 @@ func (c *ClientWithResponses) ListAdminPluginsWithResponse(ctx context.Context, 
 		return nil, err
 	}
 	return ParseListAdminPluginsResponse(rsp)
+}
+
+// InstallAdminPluginFromMarketplaceWithResponse request returning *InstallAdminPluginFromMarketplaceResponse
+func (c *ClientWithResponses) InstallAdminPluginFromMarketplaceWithResponse(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*InstallAdminPluginFromMarketplaceResponse, error) {
+	rsp, err := c.InstallAdminPluginFromMarketplace(ctx, name, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseInstallAdminPluginFromMarketplaceResponse(rsp)
+}
+
+// UpgradeAdminPluginFromMarketplaceWithResponse request returning *UpgradeAdminPluginFromMarketplaceResponse
+func (c *ClientWithResponses) UpgradeAdminPluginFromMarketplaceWithResponse(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*UpgradeAdminPluginFromMarketplaceResponse, error) {
+	rsp, err := c.UpgradeAdminPluginFromMarketplace(ctx, name, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpgradeAdminPluginFromMarketplaceResponse(rsp)
 }
 
 // UploadAdminPluginWithBodyWithResponse request with arbitrary body returning *UploadAdminPluginResponse
@@ -6193,6 +6618,107 @@ func ParseRetryAdminJobResponse(rsp *http.Response) (*RetryAdminJobResponse, err
 	return response, nil
 }
 
+// ParseListAdminMarketplaceResponse parses an HTTP response from a ListAdminMarketplaceWithResponse call
+func ParseListAdminMarketplaceResponse(rsp *http.Response) (*ListAdminMarketplaceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListAdminMarketplaceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AdminMarketplacePage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetAdminMarketplaceEntryResponse parses an HTTP response from a GetAdminMarketplaceEntryWithResponse call
+func ParseGetAdminMarketplaceEntryResponse(rsp *http.Response) (*GetAdminMarketplaceEntryResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAdminMarketplaceEntryResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AdminMarketplaceEntry
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListAdminPluginsResponse parses an HTTP response from a ListAdminPluginsWithResponse call
 func ParseListAdminPluginsResponse(rsp *http.Response) (*ListAdminPluginsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -6227,6 +6753,156 @@ func ParseListAdminPluginsResponse(rsp *http.Response) (*ListAdminPluginsRespons
 			return nil, err
 		}
 		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseInstallAdminPluginFromMarketplaceResponse parses an HTTP response from a InstallAdminPluginFromMarketplaceWithResponse call
+func ParseInstallAdminPluginFromMarketplaceResponse(rsp *http.Response) (*InstallAdminPluginFromMarketplaceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &InstallAdminPluginFromMarketplaceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest AdminPlugin
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpgradeAdminPluginFromMarketplaceResponse parses an HTTP response from a UpgradeAdminPluginFromMarketplaceWithResponse call
+func ParseUpgradeAdminPluginFromMarketplaceResponse(rsp *http.Response) (*UpgradeAdminPluginFromMarketplaceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpgradeAdminPluginFromMarketplaceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AdminPluginUpgradeResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
 
 	}
 

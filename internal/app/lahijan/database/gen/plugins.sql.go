@@ -135,6 +135,99 @@ func (q *Queries) DeletePlugin(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const findPluginsByNameForTenant = `-- name: FindPluginsByNameForTenant :many
+SELECT id, tenant_id, name, version, description, wasm_hash, wasm_bytes, wasm_size, manifest_json, status, signature, created_at, updated_at FROM plugins
+WHERE name = $2
+  AND (tenant_id = $1 OR tenant_id IS NULL)
+ORDER BY created_at DESC
+`
+
+type FindPluginsByNameForTenantParams struct {
+	TenantID *uuid.UUID `json:"tenant_id"`
+	Name     string     `json:"name"`
+}
+
+// : tenant-scoped; every row visible to the tenant in ctx with the given
+// : name (the tenant's own + platform-wide). Used by the tenant-scoped
+// : marketplace upgrade flow.
+func (q *Queries) FindPluginsByNameForTenant(ctx context.Context, arg FindPluginsByNameForTenantParams) ([]Plugin, error) {
+	rows, err := q.db.Query(ctx, findPluginsByNameForTenant, arg.TenantID, arg.Name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Plugin{}
+	for rows.Next() {
+		var i Plugin
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.Name,
+			&i.Version,
+			&i.Description,
+			&i.WasmHash,
+			&i.WasmBytes,
+			&i.WasmSize,
+			&i.ManifestJson,
+			&i.Status,
+			&i.Signature,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const findPluginsByNameGlobal = `-- name: FindPluginsByNameGlobal :many
+SELECT id, tenant_id, name, version, description, wasm_hash, wasm_bytes, wasm_size, manifest_json, status, signature, created_at, updated_at FROM plugins
+WHERE name = $1
+ORDER BY created_at DESC
+`
+
+// : admin-only; every row across every tenant with the given name. Used by
+// : the marketplace upgrade flow to locate the previous version(s) of a
+// : plugin before swapping it for the new one. Ordered by created_at DESC
+// : so the newest prior version comes first.
+func (q *Queries) FindPluginsByNameGlobal(ctx context.Context, name string) ([]Plugin, error) {
+	rows, err := q.db.Query(ctx, findPluginsByNameGlobal, name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Plugin{}
+	for rows.Next() {
+		var i Plugin
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.Name,
+			&i.Version,
+			&i.Description,
+			&i.WasmHash,
+			&i.WasmBytes,
+			&i.WasmSize,
+			&i.ManifestJson,
+			&i.Status,
+			&i.Signature,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getPlugin = `-- name: GetPlugin :one
 SELECT id, tenant_id, name, version, description, wasm_hash, wasm_bytes, wasm_size, manifest_json, status, signature, created_at, updated_at FROM plugins WHERE id = $1
 `

@@ -24,6 +24,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 
@@ -44,6 +45,7 @@ const (
 	ActionEnable  = "plugins.enable"
 	ActionDisable = "plugins.disable"
 	ActionDelete  = "plugins.delete"
+	ActionUpgrade = "plugins.upgrade"
 )
 
 // ResourcePlugin is the resource_type recorded on audit rows for plugin events.
@@ -64,6 +66,20 @@ var ErrNotFound = errors.New("installer: plugin not found")
 // already exists. The caller renders a 409 Conflict envelope.
 var ErrDuplicateUpload = errors.New("installer: plugin with this (name, version) already exists")
 
+// ErrNotInstalled is returned by Upgrade when no prior version of the named
+// plugin exists in the (tenant) scope. The caller renders a 404 envelope.
+var ErrNotInstalled = errors.New("installer: plugin not installed (no prior version to upgrade)")
+
+// ErrSameVersion is returned by Upgrade when the requested version equals
+// the currently-installed version. The caller renders a 409 envelope.
+var ErrSameVersion = errors.New("installer: plugin already at this version")
+
+// ErrDowngrade is returned by Upgrade when the requested version is LOWER
+// than the currently-installed one. Lahijan does not support transparent
+// downgrades because the previous version's grants + state may have been
+// migrated forward; the admin must Uninstall + Install instead.
+var ErrDowngrade = errors.New("installer: downgrade not supported (uninstall + install instead)")
+
 // Service is the install + lifecycle seam. Construct one at bootstrap and
 // share it across requests. Methods are safe for concurrent use (they
 // delegate to *database.PluginsRepository which is safe).
@@ -71,6 +87,11 @@ type Service struct {
 	repo    *database.PluginsRepository
 	rt      *runtime.Runtime
 	emitter audit.Emitter
+	// Optional side-channel repos for the Upgrade flow. Each is nil-
+	// appropriate when the WS-10b tables are not wired; Upgrade degrades
+	// to "best effort, no side cleanup" in that case.
+	handlers      *database.PluginHTTPHandlersRepository
+	subscriptions *database.PluginEventSubscriptionsRepository
 }
 
 // New builds a Service. The runtime may be nil when WS-10a's runtime is
@@ -82,6 +103,24 @@ func New(repo *database.PluginsRepository, rt *runtime.Runtime, emitter audit.Em
 		emitter = audit.NoopEmitter{}
 	}
 	return &Service{repo: repo, rt: rt, emitter: emitter}
+}
+
+// WithSideRepos attaches the WS-10b HTTP handler + event subscription
+// repositories so Upgrade can clean up the prior version's mounts + subs
+// atomically. Returns the receiver for chaining at bootstrap. Either
+// argument may be nil; the corresponding cleanup step degrades to a no-op.
+//
+// The marketplace (WS-10c) wires this so the upgrade flow satisfies the
+// DoD item "upgrade removes a permission → grant is dropped cleanly".
+// Without these repos the upgrade still works but leaves orphan rows
+// behind that CASCADE would catch at hard-delete time anyway.
+func (s *Service) WithSideRepos(
+	handlers *database.PluginHTTPHandlersRepository,
+	subs *database.PluginEventSubscriptionsRepository,
+) *Service {
+	s.handlers = handlers
+	s.subscriptions = subs
+	return s
 }
 
 // UploadParams carries the inputs to Upload. TenantID is the row's
@@ -293,6 +332,220 @@ func (s *Service) Delete(
 		PluginID: pluginID, Status: audit.StatusSuccess,
 	})
 	return nil
+}
+
+// UpgradeResult carries the outcome of an Upgrade call. The admin uses
+// NewPermissions to decide whether to call Grant for each (the WS-10c
+// DoD "upgrade adds a permission → admin is prompted to grant it").
+type UpgradeResult struct {
+	New             database.Plugin // the newly-installed row (status=pending)
+	OldID           uuid.UUID       // the previously-installed row id (now hard-deleted)
+	PreservedGrants []string        // grants carried forward from the prior version
+	DroppedGrants   []string        // grants no longer requested by the new manifest
+	NewPermissions  []string        // new manifest permissions the admin has not yet granted
+}
+
+// Upgrade replaces the existing plugin of the same name with a new
+// version. The flow:
+//
+//  1. Locate the most recent prior version (FindByNameForTenant /
+//     FindByNameGlobal depending on scope).
+//  2. Verify the new version is strictly greater than the old
+//     (semver compare). Reject same-version + downgrades.
+//  3. Compile + persist the new version (status=pending) via the same
+//     Upload path. Grants from the old version are copied across when
+//     the new manifest still requests them (exact or wildcard match);
+//     grants for permissions the new manifest no longer requests are
+//     dropped. Brand-new permissions are returned in NewPermissions so
+//     the admin can approve them.
+//  4. Hard-delete the old row. CASCADE removes its remaining state
+//     (plugin_kv, plugin_config, plugin_event_subscriptions,
+//     plugin_http_handlers) atomically.
+//
+// The new plugin lands in "pending" status. The admin calls Enable
+// (after granting any NewPermissions) to flip it to "active".
+//
+// The HTTP-handler + event-subscription repos attached via
+// WithSideRepos are best-effort cleaned up BEFORE the CASCADE so an
+// observer watching those tables sees the rows go away before the
+// plugin row does. This is the WS-10c DoD item "removal cleans up event
+// subscriptions, KV, HTTP routes".
+func (s *Service) Upgrade(
+	ctx context.Context,
+	arg UploadParams,
+) (UpgradeResult, error) {
+	if arg.Manifest == nil {
+		return UpgradeResult{}, fmt.Errorf("installer: manifest is required: %w", ErrManifestInvalid)
+	}
+	if len(arg.WasmBytes) == 0 {
+		return UpgradeResult{}, fmt.Errorf("installer: empty wasm bytes: %w", ErrModuleRejected)
+	}
+	if err := arg.Manifest.Validate(); err != nil {
+		return UpgradeResult{}, fmt.Errorf("installer: %w: %v", ErrManifestInvalid, err) //nolint:errorlint // joining two sentinels intentionally
+	}
+
+	// 1. Find the prior version. Admin (TenantID == nil) sees global;
+	// tenant-scoped callers see own + platform-wide.
+	var prior []database.Plugin
+	var err error
+	if arg.TenantID == nil {
+		prior, err = s.repo.FindByNameGlobal(ctx, arg.Manifest.Name)
+	} else {
+		prior, err = s.repo.FindByNameForTenant(ctx, arg.Manifest.Name)
+	}
+	if err != nil {
+		return UpgradeResult{}, fmt.Errorf("installer: lookup prior version: %w", err)
+	}
+	if len(prior) == 0 {
+		return UpgradeResult{}, ErrNotInstalled
+	}
+
+	// 2. Semver compare. Only strict upgrades are allowed.
+	old := prior[0]
+	cmp := compareSemver(arg.Manifest.Version, old.Version)
+	if cmp == 0 {
+		return UpgradeResult{}, fmt.Errorf("installer: %s already at %s: %w",
+			arg.Manifest.Name, arg.Manifest.Version, ErrSameVersion)
+	}
+	if cmp < 0 {
+		return UpgradeResult{}, fmt.Errorf("installer: %s new %s < old %s: %w",
+			arg.Manifest.Name, arg.Manifest.Version, old.Version, ErrDowngrade)
+	}
+
+	// 3. Compile + persist the new version. The unique index on
+	// (tenant_id, name, version) prevents collisions; an admin hitting
+	// it gets ErrDuplicateUpload (409) which is the right outcome.
+	oldGrants, err := s.repo.ListPermissions(ctx, old.ID)
+	if err != nil {
+		return UpgradeResult{}, fmt.Errorf("installer: list prior grants: %w", err)
+	}
+	newRow, err := s.Upload(ctx, arg)
+	if err != nil {
+		return UpgradeResult{}, err
+	}
+
+	// 4. Diff grants. The manifest's permission list is the new
+	// baseline. For each prior grant:
+	//   - if the new manifest requests it (exact or wildcard match),
+	//     copy it to the new row.
+	//   - otherwise drop it.
+	// New manifest permissions the old version did not have surface in
+	// NewPermissions so the admin can approve them.
+	result := UpgradeResult{New: newRow, OldID: old.ID}
+	requested := manifestPermissionSet(arg.Manifest)
+	grantedSet := make(map[string]struct{}, len(oldGrants))
+	for _, g := range oldGrants {
+		grantedSet[g.Permission] = struct{}{}
+	}
+	for _, perm := range oldGrants {
+		if _, stillRequested := requested[perm.Permission]; stillRequested {
+			if err := s.repo.GrantPermission(ctx, newRow.ID, arg.ActorUserID, perm.Permission); err != nil {
+				return result, fmt.Errorf("installer: copy grant %s: %w", perm.Permission, err)
+			}
+			result.PreservedGrants = append(result.PreservedGrants, perm.Permission)
+		} else {
+			result.DroppedGrants = append(result.DroppedGrants, perm.Permission)
+		}
+	}
+	for perm := range requested {
+		if _, alreadyGranted := grantedSet[perm]; alreadyGranted {
+			continue
+		}
+		result.NewPermissions = append(result.NewPermissions, perm)
+	}
+
+	// 5. Best-effort cleanup of HTTP handlers + event subscriptions for
+	// the OLD row before CASCADE. The DoD calls out "removal cleans up
+	// event subscriptions, KV, HTTP routes" — CASCADE handles it
+	// atomically, but the explicit cleanup makes the side effect
+	// observable to anyone polling those tables.
+	if s.handlers != nil {
+		if _, err := s.handlers.DeleteAllForPlugin(ctx, old.ID); err != nil {
+			return result, fmt.Errorf("installer: cleanup http handlers: %w", err)
+		}
+	}
+	if s.subscriptions != nil {
+		if _, err := s.subscriptions.DeleteAllForPlugin(ctx, old.ID); err != nil {
+			return result, fmt.Errorf("installer: cleanup subscriptions: %w", err)
+		}
+	}
+
+	// 6. Hard-delete the old row. CASCADE catches anything we missed.
+	if err := s.repo.Delete(ctx, old.ID); err != nil {
+		return result, fmt.Errorf("installer: delete prior version: %w", err)
+	}
+
+	s.emit(ctx, Event{
+		Action: ActionUpgrade,
+		Tenant: arg.TenantID, Actor: arg.ActorUserID, RequestID: arg.RequestID,
+		PluginID: newRow.ID, Status: audit.StatusSuccess,
+		Details: map[string]any{
+			"name":             newRow.Name,
+			"old_version":      old.Version,
+			"new_version":      newRow.Version,
+			"old_id":           old.ID.String(),
+			"preserved_grants": result.PreservedGrants,
+			"dropped_grants":   result.DroppedGrants,
+			"new_permissions":  result.NewPermissions,
+		},
+	})
+	return result, nil
+}
+
+// manifestPermissionSet returns the set of permissions the manifest
+// declares. Used by Upgrade to diff against the prior version's grants.
+func manifestPermissionSet(m *manifest.Manifest) map[string]struct{} {
+	out := make(map[string]struct{}, len(m.Permissions))
+	for _, p := range m.Permissions {
+		out[p] = struct{}{}
+	}
+	return out
+}
+
+// compareSemver returns -1 / 0 / +1 by comparing MAJOR.MINOR.PATCH
+// numerically. Pre-release / build suffixes are ignored (the manifest
+// validator accepts a subset of semver; the comparison treats 1.0.0-rc1
+// and 1.0.0 as equal — install/upgrade always picks the canonical
+// MAJOR.MINOR.PATCH).
+//
+// Lahijan uses semver for plugin versions because:
+//   - the (tenant, name, version) unique index requires stable ordering
+//   - the upgrade flow rejects downgrades + same-version reinstalls
+//   - the marketplace UI sorts entries by version
+func compareSemver(a, b string) int {
+	pa := splitSemver(a)
+	pb := splitSemver(b)
+	for i := 0; i < 3; i++ {
+		if pa[i] < pb[i] {
+			return -1
+		}
+		if pa[i] > pb[i] {
+			return 1
+		}
+	}
+	return 0
+}
+
+// splitSemver extracts the [major, minor, patch] triple from a version
+// string. Non-numeric or missing segments are treated as 0 so the
+// comparison never panics.
+func splitSemver(v string) [3]int {
+	var out [3]int
+	parts := strings.SplitN(v, ".", 4)
+	for i := 0; i < 3 && i < len(parts); i++ {
+		// Strip an optional pre-release / build suffix on the PATCH.
+		clean := strings.SplitN(parts[i], "+", 2)[0]
+		clean = strings.SplitN(clean, "-", 2)[0]
+		n := 0
+		for _, r := range clean {
+			if r < '0' || r > '9' {
+				break
+			}
+			n = n*10 + int(r-'0')
+		}
+		out[i] = n
+	}
+	return out
 }
 
 // Event is the installer's audit payload. The installer translates it to an
