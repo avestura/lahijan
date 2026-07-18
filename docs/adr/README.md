@@ -32,6 +32,7 @@ Accepted; corrections land as new ADRs that supersede prior ones.
 | [0022](./0022-river-migrations-bundled.md) | River migrations bundled into golang-migrate (split at enum boundary) | Accepted | 2026-07-18 |
 | [0023](./0023-wasm-target-wasi-preview2.md) | WASM plugin target — plain `wasm32-unknown-unknown` (no WASI) for MVP | Accepted | 2026-07-18 |
 | [0024](./0024-wasm-host-function-abi.md) | WASM Host Function ABI — flat i32 pointer-passing | Accepted | 2026-07-18 |
+| [0025](./0025-incus-client-library-choice.md) | Incus client library — thin internal REST client over the Incus REST API | Accepted | 2026-07-18 |
 
 ## How to write a new ADR
 
