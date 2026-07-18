@@ -89,12 +89,18 @@ type ProviderLookup interface {
 // Service orchestrates account linking and login-with-IdP flows. Construct
 // one at bootstrap and share it across requests.
 type Service struct {
-	repos   *database.Repos
-	crypto  *secrets.Crypto
-	audit   audit.Emitter
-	users   *database.UsersRepository
-	idps    *database.OAuthIdentitiesRepository
-	session SessionOpener
+	repos    *database.Repos
+	crypto   *secrets.Crypto
+	audit    audit.Emitter
+	users    *database.UsersRepository
+	idps     *database.OAuthIdentitiesRepository
+	samlIdps *database.SamlIdentitiesRepository
+	session  SessionOpener
+
+	// jitEnabled is the per-instance copy of the package-level jitEnabled
+	// toggle, captured at New() time so tests with parallel services can
+	// have independent JIT settings without racing on the package var.
+	jitEnabled bool
 }
 
 // SessionOpener opens a Lahijan session once an identity has been resolved.
@@ -126,7 +132,13 @@ type RefreshIssue struct {
 	ExpiresAt time.Time
 }
 
-// New builds the IdP service.
+// New builds the IdP service. The SamlIdentitiesRepository on repos may be
+// nil when SAML is disabled; LinkSAML / ListSAMLIdentities / UnlinkSAML
+// must not be called in that case (the api handler short-circuits).
+//
+// The per-instance JIT toggle is captured from the package-level default
+// at construction time; program.Start sets the default from conf before
+// building the service.
 func New(
 	repos *database.Repos,
 	crypto *secrets.Crypto,
@@ -134,14 +146,22 @@ func New(
 	session SessionOpener,
 ) *Service {
 	return &Service{
-		repos:   repos,
-		crypto:  crypto,
-		audit:   auditEmitter,
-		users:   repos.Users,
-		idps:    repos.OAuthIdentities,
-		session: session,
+		repos:      repos,
+		crypto:     crypto,
+		audit:      auditEmitter,
+		users:      repos.Users,
+		idps:       repos.OAuthIdentities,
+		samlIdps:   repos.SamlIdentities,
+		session:    session,
+		jitEnabled: jitEnabled,
 	}
 }
+
+// SetJITEnabledInstance flips this service's JIT toggle at runtime. Used by
+// tests that construct a Service and then need to exercise both JIT paths
+// without rebuilding. Production code uses the package-level SetJITEnabled
+// before New() is called.
+func (s *Service) SetJITEnabledInstance(on bool) { s.jitEnabled = on }
 
 // LinkInput carries the data the api handler collects from the callback
 // before calling Link. All fields are required except LinkUserID (which is
@@ -409,14 +429,23 @@ func (s *Service) encryptTokens(tokens Tokens) (*string, *string, error) {
 	return encAccess, encRefresh, nil
 }
 
-// Unlink removes a (user, provider) identity row. The "at least one auth
-// method remaining" invariant is enforced: removing the last identity while
-// the user has no password_hash is rejected with ErrLastAuthMethod.
+// Unlink removes a (user, provider) OAuth/OIDC identity row. The "at least
+// one auth method remaining" invariant is enforced: removing the last
+// identity while the user has no password_hash AND no SAML identities is
+// rejected with ErrLastAuthMethod.
+//
+// SAML identities live in a separate table; use UnlinkSAML for those.
 func (s *Service) Unlink(ctx context.Context, userID, identityID uuid.UUID) error {
 	// Load the identity first so we can scope the delete to (id, user_id).
 	row, err := s.idps.Get(ctx, identityID)
 	if err != nil {
 		if database.IsNoRows(err) {
+			// Fall through to SAML if the OAuth repo did not find it; this
+			// lets the api handler dispatch by identity id without knowing
+			// which table the row lives in.
+			if s.samlIdps != nil {
+				return s.UnlinkSAML(ctx, userID, identityID)
+			}
 			return ErrNotFound
 		}
 		return fmt.Errorf("idp: load identity for unlink: %w", err)
@@ -427,22 +456,8 @@ func (s *Service) Unlink(ctx context.Context, userID, identityID uuid.UUID) erro
 		return ErrNotFound
 	}
 
-	// Enforce "at least one auth method remaining": count the user's other
-	// identities + their password_hash. A user with 1 identity and no
-	// password cannot unlink.
-	user, err := s.users.GetByID(ctx, userID)
-	if err != nil {
-		return fmt.Errorf("idp: load user for unlink: %w", err)
-	}
-	idCount, err := s.idps.CountForUser(ctx, userID)
-	if err != nil {
-		return fmt.Errorf("idp: count identities for unlink: %w", err)
-	}
-	if user.PasswordHash == nil && idCount <= 1 {
-		s.auditFail(ctx, audit.ActionIdpUnlink, &userID, map[string]any{
-			"identity_id": identityID, "reason": "last_auth_method",
-		})
-		return ErrLastAuthMethod
+	if err := s.assertCanRemoveAuthMethod(ctx, userID); err != nil {
+		return err
 	}
 
 	if err := s.idps.Delete(ctx, identityID, userID); err != nil {
@@ -460,6 +475,36 @@ func (s *Service) Unlink(ctx context.Context, userID, identityID uuid.UUID) erro
 			"identity_id": identityID, "provider": row.Provider,
 		},
 	})
+	return nil
+}
+
+// assertCanRemoveAuthMethod enforces the "at least one auth method remaining"
+// invariant across BOTH OAuth/OIDC and SAML identity tables. Returns
+// ErrLastAuthMethod when removing one more identity would leave the user
+// with no way to log in (no password AND only the identity being removed).
+func (s *Service) assertCanRemoveAuthMethod(ctx context.Context, userID uuid.UUID) error {
+	user, err := s.users.GetByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("idp: load user for unlink: %w", err)
+	}
+	oauthCount, err := s.idps.CountForUser(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("idp: count oauth identities for unlink: %w", err)
+	}
+	samlCount := int64(0)
+	if s.samlIdps != nil {
+		samlCount, err = s.samlIdps.CountForUser(ctx, userID)
+		if err != nil {
+			return fmt.Errorf("idp: count saml identities for unlink: %w", err)
+		}
+	}
+	totalExternal := oauthCount + samlCount
+	if user.PasswordHash == nil && totalExternal <= 1 {
+		s.auditFail(ctx, audit.ActionIdpUnlink, &userID, map[string]any{
+			"reason": "last_auth_method",
+		})
+		return ErrLastAuthMethod
+	}
 	return nil
 }
 

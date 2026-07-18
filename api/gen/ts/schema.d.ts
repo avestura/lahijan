@@ -389,6 +389,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/saml/metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * SAML service-provider metadata
+         * @description Serves the SP metadata XML the IdP registers Lahijan under. The
+         *     metadata carries the SP's entity ID, the ACS URL (POST binding), and
+         *     the SP's signing certificate so the IdP can verify signed
+         *     AuthnRequests.
+         *
+         *     When no SAML provider is configured, returns a 501 with a localised
+         *     "feature disabled" envelope.
+         */
+        get: operations["metadataSAML"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/saml/{provider}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Begin a SAML 2.0 service-provider flow
+         * @description Mints a signed SAML AuthnRequest, sets a signed CSRF state token as a
+         *     short-lived cookie, and 302s the browser to the IdP's SSO endpoint
+         *     (HTTP-Redirect binding).
+         *
+         *     When called from an authenticated session (the user is linking a new
+         *     SAML IdP to their existing account) the response also sets a
+         *     lahijan_link_uid cookie carrying the user's id; the ACS enforces the
+         *     link against the user who started the flow.
+         */
+        get: operations["startSAML"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/saml/{provider}/acs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * SAML Assertion Consumer Service
+         * @description Consumes the IdP's POSTed SAML response (form fields SAMLResponse +
+         *     RelayState), verifies the state token against the cookie nonce,
+         *     verifies the signed assertion (signature via the IdP's published
+         *     certificate, audience, recipient, conditions, InResponseTo replay
+         *     check), and either:
+         *       - logs the user in (sets the session + refresh cookies), or
+         *       - links the SAML identity to the logged-in user (when
+         *         lahijan_link_uid is set), or
+         *       - returns a "completion required" envelope when the (provider,
+         *         name_id) is unknown and just-in-time user creation is disabled.
+         *
+         *     On success the browser is redirected to the dashboard root (`/`);
+         *     on failure it is redirected to the login page with an error query.
+         */
+        post: operations["assertionConsumerServiceSAML"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/identities": {
         parameters: {
             query?: never;
@@ -672,17 +757,35 @@ export interface components {
              */
             id: string;
             /**
-             * @description The provider key: a configured OAuth preset (google, github) or
-             *     "oidc:<config_key>" for an OIDC IdP.
+             * @description The provider key: a configured OAuth preset (google, github),
+             *     "oidc:<config_key>" for an OIDC IdP, or "saml:<config_key>" for
+             *     a SAML 2.0 IdP.
              */
             provider: string;
-            /** @description The IdP-stable subject identifier. */
+            /**
+             * @description The IdP-stable subject identifier. For OAuth/OIDC this is the
+             *     `sub` claim; for SAML it is the NameID.
+             */
             subject: string;
-            /** @description Scope strings the IdP granted at issue/refresh time. */
+            /**
+             * @description Scope strings the IdP granted at issue/refresh time. Empty for
+             *     SAML identities (SAML has no notion of scopes).
+             */
             scopes: string[];
             /**
+             * @description SAML-only: snapshot of the attribute statement from the most
+             *     recent assertion. Each key is a SAML attribute name (typically a
+             *     URI like http://schemas.xmlsoap.org/ws/2005/05/identity/claims/
+             *     emailaddress); each value is an array of strings (SAML attributes
+             *     are multi-valued). NULL/absent for OAuth/OIDC identities.
+             */
+            attributes?: {
+                [key: string]: string[];
+            };
+            /**
              * Format: date-time
-             * @description When the access_token expires; NULL when non-expiring.
+             * @description When the access_token expires; NULL when non-expiring or for
+             *     SAML identities (SAML assertions are short-lived and not stored).
              */
             expiresAt?: string | null;
             /** Format: date-time */
@@ -1371,6 +1474,99 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Redirect to the dashboard or login page. */
+            302: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    metadataSAML: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description SP metadata XML. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/xml": string;
+                };
+            };
+            /** @description SAML is not enabled on this server. */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    startSAML: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The configured SAML provider key (e.g. entra, okta). */
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirect to the IdP SSO URL. */
+            302: {
+                headers: {
+                    /** @description The absolute IdP SSO URL carrying SAMLRequest + RelayState. */
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description The provider key is not configured or not enabled. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    assertionConsumerServiceSAML: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/x-www-form-urlencoded": {
+                    /** @description Base64-encoded SAML Response XML the IdP signed. */
+                    SAMLResponse: string;
+                    /** @description The relay state the SP emitted on /start (carries the CSRF token). */
+                    RelayState?: string;
+                };
+            };
+        };
         responses: {
             /** @description Redirect to the dashboard or login page. */
             302: {

@@ -56,6 +56,10 @@
   "auth.msg_profile_updated": { "other": "Your profile has been updated." },
   "auth.msg_pat_revoked": { "other": "The personal access token has been revoked." },
   "auth.msg_identity_unlinked": { "other": "The identity provider has been unlinked from your account." },
+  "auth.action_login_with_sso": {
+    "description": "Button label / link text the dashboard renders for the SAML SP-initiated login flow.",
+    "other": "Log in with SSO"
+  },
 
   "auth.err_idp_disabled": { "other": "External identity providers are not enabled on this server." },
   "auth.err_idp_unknown": {
@@ -70,6 +74,10 @@
   "auth.err_idp_last_auth_method": {
     "description": "Returned when removing the identity would leave the user with no way to log in.",
     "other": "You cannot remove your last remaining way to log in. Add a password or another identity first."
+  },
+  "auth.err_idp_jit_disabled": {
+    "description": "Returned when a SAML login resolves an unknown (provider, name_id) and just-in-time user creation is disabled.",
+    "other": "This account is not yet linked to your organisation's login. Contact your operator to be added."
   },
 
   "rbac.err_tenant_scope_required": {

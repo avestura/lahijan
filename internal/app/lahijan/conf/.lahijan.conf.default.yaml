@@ -183,6 +183,55 @@ auth:
     # Same shape as oauth.redirectBase above.
     redirectBase: ""
 
+  # SAML 2.0 service-provider config (WS-07b). Any SAML-compliant IdP
+  # (Microsoft Entra / Azure AD, Okta, OneLogin, Shibboleth, Google
+  # Workspace SAML) is configured here under a stable key. The key is
+  # namespaced in user_saml_identities as "saml:<key>" so it never collides
+  # with the OAuth presets above or the OIDC providers.
+  saml:
+    # PEM-encoded RSA private key the SP uses to sign AuthnRequests + the SP
+    # metadata. Leave empty in dev (the bootstrap derives a deterministic
+    # warning value); MUST be set in any non-dev environment. Source via env
+    # LAHIJAN_AUTH_SAML_SP_SIGNING_KEY or LAHIJAN_AUTH_SAML_SP_SIGNING_KEY_FILE
+    # (the file variant is read by the bootstrap so the key never appears in
+    # a process-listing-visible arg).
+    spSigningKey: ""
+    # PEM-encoded x509 certificate matching spSigningKey. Published in the SP
+    # metadata so the IdP can verify signed AuthnRequests.
+    spSigningCert: ""
+    # The base URL the SP advertises for its ACS + metadata endpoints. Leave
+    # empty in dev to derive from the request Host header. Should be the
+    # public dashboard origin in prod, e.g. https://app.example.com.
+    redirectBase: ""
+    # Just-in-time user creation: when an unknown (provider, name_id) logs in
+    # via SAML, create a fresh user from the IdP-asserted attributes. Default
+    # false — production deployments that require admin pre-registration keep
+    # this off; homelab / small-team deployments turn it on.
+    jit:
+      enabled: false
+    providers:
+      entra:
+        enabled: false
+        # The SP's entity ID (the value placed in <Issuer> of AuthnRequests
+        # and in the SP metadata). Typically the SP's metadata URL.
+        entityId: ""
+        # Inline IdP metadata XML. When non-empty, idpMetadataURL is ignored.
+        # Multi-line YAML strings work here; paste the <EntityDescriptor>...
+        # XML the IdP publishes at its metadata endpoint.
+        idpMetadataXML: ""
+        # IdP metadata URL the SP fetches at startup. Used when the deployer
+        # does not want to paste the XML inline; fetched once at bootstrap.
+        idpMetadataURL: ""
+        # Accept SAML responses that carry no InResponseTo (IdP-initiated
+        # SSO). Default false: allowing IdP-initiated without an allow-list
+        # of trusted IdPs is a known SAML CSRF vector.
+        allowIdpInitiated: false
+        # Override the SAML attribute names used to populate the user's email
+        # + display name. Empty = use the WS-Federation standard claim URIs
+        # that Entra, Okta, and most IdPs use by default.
+        emailAttribute: ""
+        nameAttribute: ""
+
 # SMTP for outgoing auth emails (WS-06). In dev, point this at MailHog
 # (see deployments/docker-compose.dev.yml). Disable to drop emails silently
 # (useful in tests).

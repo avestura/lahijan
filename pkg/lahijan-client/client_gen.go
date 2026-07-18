@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"net/http"
@@ -182,22 +183,32 @@ type Error struct {
 
 // ExternalIdentity defines model for ExternalIdentity.
 type ExternalIdentity struct {
-	CreatedAt time.Time `json:"createdAt"`
+	// Attributes SAML-only: snapshot of the attribute statement from the most
+	// recent assertion. Each key is a SAML attribute name (typically a
+	// URI like http://schemas.xmlsoap.org/ws/2005/05/identity/claims/
+	// emailaddress); each value is an array of strings (SAML attributes
+	// are multi-valued). NULL/absent for OAuth/OIDC identities.
+	Attributes *map[string][]string `json:"attributes,omitempty"`
+	CreatedAt  time.Time            `json:"createdAt"`
 
-	// ExpiresAt When the access_token expires; NULL when non-expiring.
+	// ExpiresAt When the access_token expires; NULL when non-expiring or for
+	// SAML identities (SAML assertions are short-lived and not stored).
 	ExpiresAt *time.Time `json:"expiresAt"`
 
 	// Id The identity row id.
 	Id openapi_types.UUID `json:"id"`
 
-	// Provider The provider key: a configured OAuth preset (google, github) or
-	// "oidc:<config_key>" for an OIDC IdP.
+	// Provider The provider key: a configured OAuth preset (google, github),
+	// "oidc:<config_key>" for an OIDC IdP, or "saml:<config_key>" for
+	// a SAML 2.0 IdP.
 	Provider string `json:"provider"`
 
-	// Scopes Scope strings the IdP granted at issue/refresh time.
+	// Scopes Scope strings the IdP granted at issue/refresh time. Empty for
+	// SAML identities (SAML has no notion of scopes).
 	Scopes []string `json:"scopes"`
 
-	// Subject The IdP-stable subject identifier.
+	// Subject The IdP-stable subject identifier. For OAuth/OIDC this is the
+	// `sub` claim; for SAML it is the NameID.
 	Subject   string     `json:"subject"`
 	UpdatedAt *time.Time `json:"updatedAt,omitempty"`
 }
@@ -398,6 +409,15 @@ type CallbackOIDCParams struct {
 	State string `form:"state" json:"state"`
 }
 
+// AssertionConsumerServiceSAMLFormdataBody defines parameters for AssertionConsumerServiceSAML.
+type AssertionConsumerServiceSAMLFormdataBody struct {
+	// RelayState The relay state the SP emitted on /start (carries the CSRF token).
+	RelayState *string `form:"RelayState,omitempty" json:"RelayState,omitempty"`
+
+	// SAMLResponse Base64-encoded SAML Response XML the IdP signed.
+	SAMLResponse string `form:"SAMLResponse" json:"SAMLResponse"`
+}
+
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
 
@@ -424,6 +444,9 @@ type RegisterJSONRequestBody = RegisterRequest
 
 // ResendVerificationJSONRequestBody defines body for ResendVerification for application/json ContentType.
 type ResendVerificationJSONRequestBody = EmailRequest
+
+// AssertionConsumerServiceSAMLFormdataRequestBody defines body for AssertionConsumerServiceSAML for application/x-www-form-urlencoded ContentType.
+type AssertionConsumerServiceSAMLFormdataRequestBody AssertionConsumerServiceSAMLFormdataBody
 
 // VerifyEmailJSONRequestBody defines body for VerifyEmail for application/json ContentType.
 type VerifyEmailJSONRequestBody = TokenRequest
@@ -575,6 +598,17 @@ type ClientInterface interface {
 	ResendVerificationWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	ResendVerification(ctx context.Context, body ResendVerificationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// MetadataSAML request
+	MetadataSAML(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AssertionConsumerServiceSAMLWithBody request with any body
+	AssertionConsumerServiceSAMLWithBody(ctx context.Context, provider string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	AssertionConsumerServiceSAMLWithFormdataBody(ctx context.Context, provider string, body AssertionConsumerServiceSAMLFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// StartSAML request
+	StartSAML(ctx context.Context, provider string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// VerifyEmailWithBody request with any body
 	VerifyEmailWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -920,6 +954,54 @@ func (c *Client) ResendVerificationWithBody(ctx context.Context, contentType str
 
 func (c *Client) ResendVerification(ctx context.Context, body ResendVerificationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewResendVerificationRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) MetadataSAML(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMetadataSAMLRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AssertionConsumerServiceSAMLWithBody(ctx context.Context, provider string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAssertionConsumerServiceSAMLRequestWithBody(c.Server, provider, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AssertionConsumerServiceSAMLWithFormdataBody(ctx context.Context, provider string, body AssertionConsumerServiceSAMLFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAssertionConsumerServiceSAMLRequestWithFormdataBody(c.Server, provider, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) StartSAML(ctx context.Context, provider string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStartSAMLRequest(c.Server, provider)
 	if err != nil {
 		return nil, err
 	}
@@ -2018,6 +2100,114 @@ func NewResendVerificationRequestWithBody(server string, contentType string, bod
 	return req, nil
 }
 
+// NewMetadataSAMLRequest generates requests for MetadataSAML
+func NewMetadataSAMLRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/auth/saml/metadata")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAssertionConsumerServiceSAMLRequestWithFormdataBody calls the generic AssertionConsumerServiceSAML builder with application/x-www-form-urlencoded body
+func NewAssertionConsumerServiceSAMLRequestWithFormdataBody(server string, provider string, body AssertionConsumerServiceSAMLFormdataRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	bodyStr, err := runtime.MarshalForm(body, nil)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = strings.NewReader(bodyStr.Encode())
+	return NewAssertionConsumerServiceSAMLRequestWithBody(server, provider, "application/x-www-form-urlencoded", bodyReader)
+}
+
+// NewAssertionConsumerServiceSAMLRequestWithBody generates requests for AssertionConsumerServiceSAML with any type of body
+func NewAssertionConsumerServiceSAMLRequestWithBody(server string, provider string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "provider", runtime.ParamLocationPath, provider)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/auth/saml/%s/acs", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewStartSAMLRequest generates requests for StartSAML
+func NewStartSAMLRequest(server string, provider string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "provider", runtime.ParamLocationPath, provider)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/auth/saml/%s/start", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewVerifyEmailRequest calls the generic VerifyEmail builder with application/json body
 func NewVerifyEmailRequest(server string, body VerifyEmailJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -2290,6 +2480,17 @@ type ClientWithResponsesInterface interface {
 	ResendVerificationWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ResendVerificationResponse, error)
 
 	ResendVerificationWithResponse(ctx context.Context, body ResendVerificationJSONRequestBody, reqEditors ...RequestEditorFn) (*ResendVerificationResponse, error)
+
+	// MetadataSAMLWithResponse request
+	MetadataSAMLWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*MetadataSAMLResponse, error)
+
+	// AssertionConsumerServiceSAMLWithBodyWithResponse request with any body
+	AssertionConsumerServiceSAMLWithBodyWithResponse(ctx context.Context, provider string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AssertionConsumerServiceSAMLResponse, error)
+
+	AssertionConsumerServiceSAMLWithFormdataBodyWithResponse(ctx context.Context, provider string, body AssertionConsumerServiceSAMLFormdataRequestBody, reqEditors ...RequestEditorFn) (*AssertionConsumerServiceSAMLResponse, error)
+
+	// StartSAMLWithResponse request
+	StartSAMLWithResponse(ctx context.Context, provider string, reqEditors ...RequestEditorFn) (*StartSAMLResponse, error)
 
 	// VerifyEmailWithBodyWithResponse request with any body
 	VerifyEmailWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*VerifyEmailResponse, error)
@@ -2751,6 +2952,74 @@ func (r ResendVerificationResponse) StatusCode() int {
 	return 0
 }
 
+type MetadataSAMLResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	XML200       *string
+	JSON501      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r MetadataSAMLResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r MetadataSAMLResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type AssertionConsumerServiceSAMLResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *BadRequest
+}
+
+// Status returns HTTPResponse.Status
+func (r AssertionConsumerServiceSAMLResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AssertionConsumerServiceSAMLResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type StartSAMLResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *BadRequest
+	JSON404      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r StartSAMLResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r StartSAMLResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type VerifyEmailResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3108,6 +3377,41 @@ func (c *ClientWithResponses) ResendVerificationWithResponse(ctx context.Context
 		return nil, err
 	}
 	return ParseResendVerificationResponse(rsp)
+}
+
+// MetadataSAMLWithResponse request returning *MetadataSAMLResponse
+func (c *ClientWithResponses) MetadataSAMLWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*MetadataSAMLResponse, error) {
+	rsp, err := c.MetadataSAML(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMetadataSAMLResponse(rsp)
+}
+
+// AssertionConsumerServiceSAMLWithBodyWithResponse request with arbitrary body returning *AssertionConsumerServiceSAMLResponse
+func (c *ClientWithResponses) AssertionConsumerServiceSAMLWithBodyWithResponse(ctx context.Context, provider string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AssertionConsumerServiceSAMLResponse, error) {
+	rsp, err := c.AssertionConsumerServiceSAMLWithBody(ctx, provider, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAssertionConsumerServiceSAMLResponse(rsp)
+}
+
+func (c *ClientWithResponses) AssertionConsumerServiceSAMLWithFormdataBodyWithResponse(ctx context.Context, provider string, body AssertionConsumerServiceSAMLFormdataRequestBody, reqEditors ...RequestEditorFn) (*AssertionConsumerServiceSAMLResponse, error) {
+	rsp, err := c.AssertionConsumerServiceSAMLWithFormdataBody(ctx, provider, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAssertionConsumerServiceSAMLResponse(rsp)
+}
+
+// StartSAMLWithResponse request returning *StartSAMLResponse
+func (c *ClientWithResponses) StartSAMLWithResponse(ctx context.Context, provider string, reqEditors ...RequestEditorFn) (*StartSAMLResponse, error) {
+	rsp, err := c.StartSAML(ctx, provider, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStartSAMLResponse(rsp)
 }
 
 // VerifyEmailWithBodyWithResponse request with arbitrary body returning *VerifyEmailResponse
@@ -3822,6 +4126,98 @@ func ParseResendVerificationResponse(rsp *http.Response) (*ResendVerificationRes
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseMetadataSAMLResponse parses an HTTP response from a MetadataSAMLWithResponse call
+func ParseMetadataSAMLResponse(rsp *http.Response) (*MetadataSAMLResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &MetadataSAMLResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "xml") && rsp.StatusCode == 200:
+		var dest string
+		if err := xml.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.XML200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAssertionConsumerServiceSAMLResponse parses an HTTP response from a AssertionConsumerServiceSAMLWithResponse call
+func ParseAssertionConsumerServiceSAMLResponse(rsp *http.Response) (*AssertionConsumerServiceSAMLResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AssertionConsumerServiceSAMLResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseStartSAMLResponse parses an HTTP response from a StartSAMLWithResponse call
+func ParseStartSAMLResponse(rsp *http.Response) (*StartSAMLResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &StartSAMLResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	}
 

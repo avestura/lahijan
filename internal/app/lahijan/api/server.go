@@ -17,6 +17,7 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/oauth"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/oidc"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/pat"
+	"github.com/avestura/lahijan/internal/app/lahijan/auth/saml"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/secrets"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/session"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/state"
@@ -61,6 +62,12 @@ type Server struct {
 	stateSigner     *state.Signer
 	idpCookies      ExternalIDPCookies
 	idpRedirectHome string
+
+	// WS-07b: SAML deps. idpSAML is the *saml.Registry (nil when SAML is
+	// disabled). The idp service gains a SAML repo automatically when
+	// repos.SamlIdentities is non-nil; the api handlers short-circuit via
+	// idpSAML==nil when SAML is disabled.
+	idpSAML *saml.Registry
 }
 
 // ServerDeps carries the dependencies NewServer requires. Wire it once from
@@ -88,6 +95,10 @@ type ServerDeps struct {
 	StateSigner     *state.Signer
 	IDPCookies      ExternalIDPCookies
 	IDPRedirectHome string
+
+	// WS-07b: SAML deps. IDPSAML is the *saml.Registry (nil-appropriate when
+	// SAML is disabled in config).
+	IDPSAML *saml.Registry
 }
 
 // NewServer builds the API server with the given dependencies.
@@ -109,6 +120,7 @@ func NewServer(deps ServerDeps) *Server {
 		stateSigner:     deps.StateSigner,
 		idpCookies:      deps.IDPCookies,
 		idpRedirectHome: deps.IDPRedirectHome,
+		idpSAML:         deps.IDPSAML,
 	}
 	if s.tracer == nil {
 		s.tracer = Tracer()

@@ -7,10 +7,17 @@ package program
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
+	"encoding/pem"
 	"errors"
+	"fmt"
 	"log"
+	"math/big"
 	"net/netip"
 	"strings"
 	"time"
@@ -27,6 +34,7 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/password"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/pat"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/rbac"
+	"github.com/avestura/lahijan/internal/app/lahijan/auth/saml"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/secrets"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/session"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/state"
@@ -90,6 +98,20 @@ func Start() error {
 		log.Fatalf("failed to build idp deps: %s", err.Error())
 	}
 
+	// WS-07b: build the SAML SP stack (per-provider ServiceProvider instances
+	// sharing one process-wide signing key + cert). Returns a zero-value
+	// samlDeps (registry nil) when no SAML provider is enabled; the handlers
+	// degrade to "feature disabled" envelopes.
+	samlDeps, err := buildSamlDeps(context.Background(), authDeps, idpDeps.stateSigner)
+	if err != nil {
+		log.Fatalf("failed to build saml deps: %s", err.Error())
+	}
+
+	// Flip the idp service's JIT toggle from config. The toggle is
+	// process-wide today (not per-provider); a future WS can move it onto
+	// the per-provider struct if granular control is needed.
+	idp.SetJITEnabled(conf.GetAuthSAMLJITEnabled())
+
 	// Seed the RBAC catalog (permissions + default roles + grants). Idempotent
 	// so it is safe to run on every bootstrap. Fail-fast on error: without the
 	// seed, every privileged route returns 403.
@@ -152,6 +174,7 @@ func Start() error {
 		IDPOIDC:      idpDeps.oidcReg,
 		StateSigner:  idpDeps.stateSigner,
 		IDPCookies:   api.DefaultExternalIDPCookies,
+		IDPSAML:      samlDeps.registry,
 	}), policy)
 
 	if err := app.Listen(conf.GetHTTPServerAddress()); err != nil {
@@ -467,5 +490,129 @@ func (a *sessionOpenerAdapter) OpenForExistingUser(
 			FamilyID:  sess.Refresh.FamilyID,
 			ExpiresAt: sess.Refresh.ExpiresAt,
 		},
+	}, nil
+}
+
+// samlDeps bundles the SAML SP (WS-07b) dependencies built at bootstrap. The
+// registry is nil when no SAML provider is enabled, so the api handlers can
+// short-circuit cleanly.
+type samlDeps struct {
+	registry *saml.Registry
+}
+
+// buildSamlDeps wires the SAML ServiceProvider registry from config. Returns
+// an empty samlDeps when no provider is enabled, so the api handlers can
+// short-circuit cleanly. The shared stateSigner from WS-07a is reused so the
+// SAML state-token carries the same HMAC signing key as OAuth/OIDC.
+//
+// Failures here are loud (log.Fatalf) because a misconfigured SAML provider
+// that the deployer turned on should not silently degrade to "no SAML" at
+// runtime.
+func buildSamlDeps(ctx context.Context, a *authDeps, stateSigner *state.Signer) (samlDeps, error) {
+	if stateSigner == nil {
+		stateSigner = state.NewSigner(a.signer)
+	}
+	names := conf.ListAuthSAMLProviderNames()
+	if len(names) == 0 {
+		return samlDeps{}, nil
+	}
+
+	creds, err := buildSAMLCredentials()
+	if err != nil {
+		return samlDeps{}, err
+	}
+
+	redirectBase := conf.GetAuthSAMLRedirectBase()
+	providers := make([]saml.Provider, 0, len(names))
+	for _, name := range names {
+		cfg := conf.GetAuthSAMLProvider(name)
+		if !cfg.Enabled {
+			continue
+		}
+		metadataURL := buildRedirectURL(redirectBase, "/api/v1/auth/saml/metadata")
+		acsURL := buildRedirectURL(redirectBase, "/api/v1/auth/saml/"+name+"/acs")
+		entityID := cfg.EntityID
+		if entityID == "" {
+			entityID = metadataURL
+		}
+		p, err := saml.NewProvider(saml.ProviderConfig{
+			Key:               name,
+			EntityID:          entityID,
+			ACSURL:            acsURL,
+			MetadataURL:       metadataURL,
+			IDPMetadataXML:    cfg.IDPMetadataXML,
+			IDPMetadataURL:    cfg.IDPMetadataURL,
+			AllowIDPInitiated: cfg.AllowIDPInitiated,
+			AttributeMap: saml.AttributeMap{
+				Email: cfg.EmailAttribute,
+				Name:  cfg.NameAttribute,
+			},
+		}, creds, stateSigner.Verify)
+		if err != nil {
+			return samlDeps{}, errors.Join(errors.New("saml provider "+name), err)
+		}
+		providers = append(providers, p)
+	}
+	if len(providers) == 0 {
+		return samlDeps{}, nil
+	}
+	return samlDeps{registry: saml.NewRegistry(providers...)}, nil
+}
+
+// buildSAMLCredentials loads the SP signing key + cert from conf. In dev an
+// empty key falls back to a freshly-generated RSA keypair so local dev "just
+// works" without requiring the deployer to mint a cert; production rejects
+// an empty key. The cert is required in every environment because the SP
+// metadata MUST publish a real x509 cert the IdP will pin.
+//
+// The key is HIGH-SENSITIVITY material. It is sourced from env
+// LAHIJAN_AUTH_SAML_SP_SIGNING_KEY (or a file path in
+// LAHIJAN_AUTH_SAML_SP_SIGNING_KEY_FILE, read by the bootstrap), loaded once
+// into process memory, and NEVER persisted to the database. "Encrypted at
+// rest" is satisfied by the deployment secret management that backs the env
+// var / file (typically Docker secrets, Kubernetes secrets, or Vault).
+func buildSAMLCredentials() (saml.SPCredentials, error) {
+	keyPEM := conf.GetAuthSAMLSPSigningKey()
+	certPEM := conf.GetAuthSAMLSPSigningCert()
+	if keyPEM == "" || certPEM == "" {
+		if !isDev(conf.GetEnvironment()) {
+			if keyPEM == "" {
+				return saml.SPCredentials{}, errors.New("auth.saml.spSigningKey must be set in any non-dev environment")
+			}
+			return saml.SPCredentials{}, errors.New("auth.saml.spSigningCert must be set in any non-dev environment")
+		}
+		fiberlog.Warn("auth.saml.spSigningKey/ spSigningCert are empty in dev; generating a fresh keypair. Set both in any non-dev environment.")
+		kp, err := generateDevSAMLKeyPair()
+		if err != nil {
+			return saml.SPCredentials{}, fmt.Errorf("saml dev keypair: %w", err)
+		}
+		return kp, nil
+	}
+	return saml.SPCredentials{KeyPEM: []byte(keyPEM), CertPEM: []byte(certPEM)}, nil
+}
+
+// generateDevSAMLKeyPair mints a fresh RSA-2048 keypair + self-signed cert
+// for dev-mode SAML. The keypair is regenerated on every process restart,
+// so the SP metadata changes; that is acceptable for dev but not for prod.
+func generateDevSAMLKeyPair() (saml.SPCredentials, error) {
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return saml.SPCredentials{}, fmt.Errorf("rsa keygen: %w", err)
+	}
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "lahijan-saml-dev-sp"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(24 * time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}
+	der, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+	if err != nil {
+		return saml.SPCredentials{}, fmt.Errorf("x509 create: %w", err)
+	}
+	return saml.SPCredentials{
+		KeyPEM:  pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)}),
+		CertPEM: pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}),
 	}, nil
 }
