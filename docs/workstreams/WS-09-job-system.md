@@ -1,7 +1,7 @@
 # WS-09 · Job System (River)
 
 ```
-Status: pending
+Status: done
 Phase: 2
 Depends on: WS-03
 Unblocks: WS-17 (billing metering), WS-25 (snapshot scheduling), every async WS
@@ -66,22 +66,41 @@ inspectable in an admin UI.
 
 ## Definition of Done
 
-- [ ] `make dev-up` starts the system with River ready
-- [ ] queueing a job survives a process restart (integration test)
-- [ ] a failing job retries with exponential backoff, then lands in DLQ
-- [ ] DLQ jobs can be retried via the admin API
-- [ ] every job execution emits an OTel span
-- [ ] admin API requires `platform.admin` permission
-- [ ] every privileged admin action emits an audit event
-- [ ] `make lint test` green
+- [x] `make dev-up` starts the system with River ready
+- [x] queueing a job survives a process restart (integration test)
+- [x] a failing job retries with exponential backoff, then lands in DLQ
+- [x] DLQ jobs can be retried via the admin API
+- [x] every job execution emits an OTel span
+- [x] admin API requires `platform.admin` permission
+- [x] every privileged admin action emits an audit event
+- [x] `make lint test` green
 
 ## Open questions
 
-- Concurrency limits per job kind? (Default: yes, configurable via registry.)
-- Periodic scheduling via River's cron-like API, or do we use a separate
-  scheduler? (Default: River's periodic jobs.)
+Both resolved by this WS, defaults adopted as proposed:
+
+- **Concurrency limits per job kind?** Yes, configurable via the registry:
+  `KindSpec.Concurrency` overrides the per-queue MaxWorkers for the kind's
+  queue. Zero (the common case) inherits the queue's MaxWorkers.
+- **Periodic scheduling via River's cron-like API, or do we use a separate
+  scheduler?** River's periodic jobs. The supervisor wires
+  `river.Config.PeriodicJobs` and the registry will gain a
+  `RegisterPeriodic` helper when the first domain periodic job lands
+  (WS-17 will be the first consumer).
 
 ## Notes
 
-- River requires its schema in the `lahijan` DB. Add as paired migrations.
+- River requires its schema in the `lahijan` DB. The schema is installed
+  by migrations `0018_river_schema_base` (which carries the
+  `ALTER TYPE ... ADD VALUE 'pending'` as its LAST statement so Postgres
+  commits the new value before any constraint change tries to use it)
+  and `0019_river_schema_rest` (the constraint change + later upstream
+  migrations + the marker rows in `river_migration`). Both apply cleanly
+  forward and reverse; the reversibility test in
+  `database/migrations_integration_test.go` is updated to assert at
+  least version 19.
 - This WS is small but blocking for WS-17 (billing) — schedule accordingly.
+- River's `Client.Start` ties the client's lifetime to the supplied
+  context: a timeout context stops the workers after the timeout. The
+  supervisor and `program.Start` therefore pass `context.Background()` and
+  rely on `Stop` for graceful drain.

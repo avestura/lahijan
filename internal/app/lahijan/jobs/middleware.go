@@ -143,7 +143,8 @@ func (m *otelMiddleware) Work(
 			outcome = outcomeError
 		}
 		outcomeAttr := attribute.String(attrOutcome, outcome)
-		m.doneCounter.Add(ctx, 1,
+		m.doneCounter.Add(
+			ctx, 1,
 			metric.WithAttributes(attrs...),
 			metric.WithAttributes(outcomeAttr),
 		)
