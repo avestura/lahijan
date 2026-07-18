@@ -30,6 +30,7 @@ sql:
       - "queries/webauthn_credentials.sql"
       - "queries/recovery_codes.sql"
       - "queries/mfa_pending_sessions.sql"
+      - "queries/plugins.sql"
     schema:
       - "migrations/*.up.sql"
     gen:

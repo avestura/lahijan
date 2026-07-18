@@ -35,6 +35,12 @@ type Querier interface {
 	//: tenant-scoped
 	CountMembershipsForTenant(ctx context.Context, tenantID uuid.UUID) (int64, error)
 	CountOAuthIdentitiesForUser(ctx context.Context, userID uuid.UUID) (int64, error)
+	// Number of grants held by the plugin; surfaced in the admin detail view.
+	CountPluginPermissions(ctx context.Context, pluginID uuid.UUID) (int64, error)
+	//: tenant-scoped; pagination counterpart to ListPluginsForTenant.
+	CountPluginsForTenant(ctx context.Context, tenantID *uuid.UUID) (int64, error)
+	//: admin-only; pagination counterpart to ListPluginsGlobal.
+	CountPluginsGlobal(ctx context.Context) (int64, error)
 	CountSAMLIdentitiesForUser(ctx context.Context, userID uuid.UUID) (int64, error)
 	CountTenants(ctx context.Context) (int64, error)
 	CountUnusedRecoveryCodesForUser(ctx context.Context, userID uuid.UUID) (int64, error)
@@ -69,6 +75,18 @@ type Querier interface {
 	CreateOAuthIdentity(ctx context.Context, arg CreateOAuthIdentityParams) (UserOauthIdentity, error)
 	CreatePermission(ctx context.Context, arg CreatePermissionParams) (Permission, error)
 	CreatePersonalAccessToken(ctx context.Context, arg CreatePersonalAccessTokenParams) (PersonalAccessToken, error)
+	// plugins + plugin_permissions (WS-10a). The plugins table is the install
+	// record; plugin_permissions is the grant table the enforcer consults at
+	// every host call. tenant_id is nullable on plugins so the same table can
+	// hold tenant-scoped AND platform-wide plugins (see migration 0020).
+	//
+	// The repository wrapper (database/plugins_repo.go) handles the NULLable
+	// tenant_id at the Go seam; queries here are explicit about whether they
+	// pass it.
+	// ===========================================================================
+	// plugins
+	// ===========================================================================
+	CreatePlugin(ctx context.Context, arg CreatePluginParams) (Plugin, error)
 	// user_recovery_codes: per-user single-use recovery codes (WS-07c). The
 	// code_hash column carries the SHA-256 hex of the raw code; the raw code
 	// is never stored.
@@ -120,6 +138,9 @@ type Querier interface {
 	// auth method remaining" check happens in the service layer (it counts
 	// password_hash + other identities + SAML links before calling this).
 	DeleteOAuthIdentity(ctx context.Context, arg DeleteOAuthIdentityParams) error
+	// Hard delete. Used by the admin uninstall endpoint. CASCADE removes the
+	// associated plugin_permissions rows (FK ON DELETE CASCADE).
+	DeletePlugin(ctx context.Context, id uuid.UUID) error
 	// Unlink: removes the (user, provider) SAML link entirely. Enforced "at least
 	// one auth method remaining" check happens in the service layer (it counts
 	// password_hash + OAuth/OIDC identities + other SAML identities before
@@ -154,6 +175,18 @@ type Querier interface {
 	GetPermissionBySlug(ctx context.Context, slug string) (Permission, error)
 	GetPersonalAccessTokenByHash(ctx context.Context, tokenHash string) (PersonalAccessToken, error)
 	GetPersonalAccessTokenByID(ctx context.Context, id uuid.UUID) (PersonalAccessToken, error)
+	// Lookup by id; works for both tenant-scoped and platform-wide plugins.
+	// The repository wrapper enforces tenant scoping for non-platform callers.
+	GetPlugin(ctx context.Context, id uuid.UUID) (Plugin, error)
+	//: tenant-scoped; returns the row if it belongs to the tenant in ctx, OR is
+	//: platform-wide (tenant_id IS NULL) so tenants can read platform-wide
+	//: plugins they did not install. This mirrors the audit_log rule for
+	//: system-level events.
+	GetPluginForTenant(ctx context.Context, arg GetPluginForTenantParams) (Plugin, error)
+	// Single-row lookup used by the enforcer's fast path before falling back to
+	// the prefix-match loop. Returns the row when the plugin holds an exact
+	// grant for the permission string.
+	GetPluginPermission(ctx context.Context, arg GetPluginPermissionParams) (PluginPermission, error)
 	// Lookup path: SHA-256 the user-supplied code, find a row scoped by
 	// (user_id, hash) where used_at IS NULL.
 	GetRecoveryCodeByUserAndHash(ctx context.Context, arg GetRecoveryCodeByUserAndHashParams) (UserRecoveryCode, error)
@@ -180,6 +213,12 @@ type Querier interface {
 	// the RP needs to verify the signature.
 	GetWebauthnCredentialByUserAndID(ctx context.Context, arg GetWebauthnCredentialByUserAndIDParams) (UserWebauthnCredential, error)
 	GrantPermissionToRole(ctx context.Context, arg GrantPermissionToRoleParams) error
+	// ===========================================================================
+	// plugin_permissions
+	// ===========================================================================
+	// Idempotent: ON CONFLICT DO NOTHING so re-granting an already-held
+	// permission is a no-op (the audit row still records the action).
+	GrantPluginPermission(ctx context.Context, arg GrantPluginPermissionParams) error
 	// Bumps the failure counter; the caller checks if it crosses the threshold
 	// and calls RevokeMFAPendingSession to lock the user out.
 	IncMFAPendingSessionFailures(ctx context.Context, id uuid.UUID) error
@@ -209,6 +248,13 @@ type Querier interface {
 	// in the given tenant. Used by RBAC policy enforcement (WS-08).
 	ListPermissionsForUser(ctx context.Context, arg ListPermissionsForUserParams) ([]Permission, error)
 	ListPersonalAccessTokensForUser(ctx context.Context, userID uuid.UUID) ([]PersonalAccessToken, error)
+	// Every grant held by the plugin; used by the enforcer + the admin detail
+	// endpoint.
+	ListPluginPermissions(ctx context.Context, pluginID uuid.UUID) ([]PluginPermission, error)
+	//: tenant-scoped; the tenant's own plugins plus platform-wide plugins.
+	ListPluginsForTenant(ctx context.Context, arg ListPluginsForTenantParams) ([]Plugin, error)
+	//: admin-only; platform-wide listing across every tenant.
+	ListPluginsGlobal(ctx context.Context, arg ListPluginsGlobalParams) ([]Plugin, error)
 	ListRecoveryCodesForUser(ctx context.Context, userID uuid.UUID) ([]UserRecoveryCode, error)
 	ListRoles(ctx context.Context) ([]Role, error)
 	ListSAMLIdentitiesForUser(ctx context.Context, userID uuid.UUID) ([]UserSamlIdentity, error)
@@ -224,6 +270,9 @@ type Querier interface {
 	RevokeMFAPendingSession(ctx context.Context, id uuid.UUID) error
 	RevokePersonalAccessToken(ctx context.Context, tokenHash string) error
 	RevokePersonalAccessTokenByID(ctx context.Context, arg RevokePersonalAccessTokenByIDParams) error
+	// Removes a grant. The next host call that needs this permission will be
+	// rejected by the enforcer; if the plugin is mid-execution it is cancelled.
+	RevokePluginPermission(ctx context.Context, arg RevokePluginPermissionParams) error
 	RevokeRefreshToken(ctx context.Context, tokenHash string) error
 	// Reuse detection: revoke every token in the family, regardless of state.
 	RevokeRefreshTokenFamily(ctx context.Context, familyID uuid.UUID) error
@@ -231,6 +280,9 @@ type Querier interface {
 	RevokeSession(ctx context.Context, id uuid.UUID) error
 	//: tenant-scoped
 	SetMembershipRole(ctx context.Context, arg SetMembershipRoleParams) error
+	// Promote a plugin from pending -> active, or active -> disabled. The
+	// CHECK constraint on the column rejects any other value at the DB layer.
+	SetPluginStatus(ctx context.Context, arg SetPluginStatusParams) error
 	SetTenantActive(ctx context.Context, arg SetTenantActiveParams) error
 	//: tenant-scoped
 	SoftDeleteMembership(ctx context.Context, arg SoftDeleteMembershipParams) error
