@@ -156,6 +156,86 @@ services:
       retries: 12
       start_period: 15s
 
+  # SeaweedFS object storage (WS-13). In dev the stack runs `weed mini`
+  # (single process) so the deploy is one container and one volume. The
+  # Filer is configured to store metadata in the shared Postgres `seaweed`
+  # logical DB (ADR-0007); the S3 server reads its admin credentials from
+  # the mounted s3.json (which carries the dev defaults baked in) and
+  # picks up per-user IAM identities the driver writes via the Filer.
+  #
+  # In prod the topology splits into master + volume + filer + s3 containers
+  # (still in one compose stack); WS-23 will land the prod split. The dev
+  # topology is functionally equivalent for every code path the driver
+  # exercises — the only difference is HA.
+  seaweedfs:
+    image: chrislusf/seaweedfs:3.61
+    container_name: lahijan-seaweedfs-dev
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command:
+      - "mini"
+      # Bind on the compose service name so siblings + the host can reach.
+      - "-ip=seaweedfs"
+      # Turn on the S3 subsystem with the mounted config; the S3 admin
+      # identity lives in /etc/seaweedfs/s3.json.
+      - "-s3"
+      - "-s3.config=/etc/seaweedfs/s3.json"
+      # Filer listens on 8888 + stores metadata in the shared Postgres
+      # `seaweed` database (ADR-0007).
+      - "-filer=true"
+      # Postgres-backed Filer store. SeaweedFS reads PG_* / WEED_*
+      # env vars; we pass the connection via -filer.postgres.* flags
+      # below so the same env shape works in dev + prod.
+      - "-filer.postgres"
+      - "-filer.postgres.hostname=postgres"
+      - "-filer.postgres.port=5432"
+      - "-filer.postgres.database=${SEAWEED_DATABASE_NAME:-seaweed}"
+      - "-filer.postgres.username=${SEAWEED_DATABASE_USER:-seaweed}"
+      - "-filer.postgres.password=${SEAWEED_DATABASE_PASSWORD:-seaweed}"
+      # Pinned ports (master 9333, volume 8080, filer 8888, s3 8333).
+      - "-master.port=9333"
+      - "-volume.port=8080"
+      - "-filer.port=8888"
+      - "-s3.port=8333"
+      # Disable SSL for dev; the Lahijan app + the S3 client talk plain
+      # HTTP inside the compose network. WS-23 will flip TLS on for prod.
+      - "-volume.publicUrl=http://seaweedfs:8080"
+    environment:
+      # Admin S3 credentials the Lahijan driver sends. MUST match the
+      # access_key / secret_key in deployments/seaweedfs/s3.json. Used
+      # by the Lahijan driver; the S3 server itself reads them from the
+      # mounted s3.json (we don't envsubst the JSON because Docker
+      # volume mounts are read post-envsubst only with custom images).
+      SEAWEEDFS_S3_ACCESS_KEY: ${SEAWEEDFS_S3_ACCESS_KEY:-lahijan_dev_admin_key}
+      SEAWEEDFS_S3_SECRET_KEY: ${SEAWEEDFS_S3_SECRET_KEY:-lahijan_dev_admin_secret}
+    ports:
+      # S3 endpoint users hit directly (data plane).
+      - "${SEAWEEDFS_S3_PORT:-8333}:8333"
+      # Filer HTTP API the Lahijan driver talks to (control plane).
+      - "${SEAWEEDFS_FILER_PORT:-8888}:8888"
+      # Master + volume (admin / debugging; not used by Lahijan but
+      # documented here so the operator can reach the SeaweedFS UI).
+      - "${SEAWEEDFS_MASTER_PORT:-9333}:9333"
+      - "${SEAWEEDFS_VOLUME_PORT:-8080}:8080"
+    volumes:
+      # Per-bucket + identity + quota metadata lives under /etc/seaweedfs
+      # in the container; mounting it on a named volume preserves it
+      # across `docker compose down` cycles.
+      - seaweedfs_data:/data
+      - ./seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+    healthcheck:
+      # The SeaweedFS image ships wget (alpine-based); probe the Filer
+      # root status endpoint.
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://localhost:8888/ || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
+
 volumes:
   postgres_data:
     name: lahijan-postgres-data-dev
+  seaweedfs_data:
+    name: lahijan-seaweedfs-data-dev

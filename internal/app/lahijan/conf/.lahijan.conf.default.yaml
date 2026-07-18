@@ -489,3 +489,56 @@ providers:
     # bus attached.
     events:
       enabled: true
+
+  # SeaweedFS object storage backend (WS-13). Dev runs `weed mini` (one
+  # process) inside the compose stack; prod runs the master/volume/filer/s3
+  # split. The Filer stores metadata in the shared Postgres `seaweed` DB
+  # (ADR-0007); the S3 server is the data plane users hit directly with
+  # per-user credentials Lahijan mints. Per ADR-0011 the control plane
+  # (buckets, credentials, quotas) goes through Lahijan; the data plane
+  # (PUT/GET objects) goes direct from the user's S3 client to SeaweedFS.
+  seaweedfs:
+    # toggles the SeaweedFS driver. When false, program.Start skips
+    # building it and the storage module (WS-16) degrades to 501.
+    enabled: false
+    # S3 endpoint URL the AWS SDK client targets. The default targets the
+    # compose service on the internal S3 port (8333). For path-style
+    # addressing (SeaweedFS does not support virtual-hosted style), set
+    # usePathStyle=true (the default).
+    s3Endpoint: "http://seaweedfs:8333"
+    # toggles path-style S3 addressing (https://<host>/<bucket>/...).
+    # SeaweedFS requires path-style; setting this false breaks the driver.
+    usePathStyle: true
+    # AWS region the SDK presents on every request. SeaweedFS ignores the
+    # region for auth purposes but the SDK requires a non-empty value;
+    # "us-east-1" is the AWS-canonical default.
+    region: "us-east-1"
+    # admin access key the SeaweedFS S3 server recognises as the root
+    # account. Sourced from env LAHIJAN_PROVIDERS_SEAWEEDFS_ADMIN_ACCESS_KEY;
+    # never commit a real value. The same value MUST match the
+    # SEAWEEDFS_S3_ACCESS_KEY env var the compose stack hands to the
+    # `weed s3` container.
+    adminAccessKey: ""
+    # admin secret key paired with adminAccessKey. SENSITIVE — never logged.
+    # Sourced from env LAHIJAN_PROVIDERS_SEAWEEDFS_ADMIN_SECRET_KEY.
+    adminSecretKey: ""
+    # Filer HTTP API origin the driver uses for Filer metadata + IAM
+    # writes. Default targets the compose service on the internal Filer
+    # port (8888).
+    filerURL: "http://seaweedfs:8888"
+    # Per-request timeout in seconds for S3 + Filer HTTP calls.
+    requestTimeoutSeconds: 30
+    # Default TTL (seconds) for pre-signed URLs when the caller does not
+    # override it. 3600 (1 hour) is the AWS-recommended ceiling.
+    defaultPresignTTLSeconds: 3600
+    # Default per-bucket quota in mebibytes applied at bucket-create time
+    # when the caller does not override it. 0 means "no backend-side
+    # quota" (Lahijan enforces quotas in its metering layer instead).
+    defaultQuotaMiB: 0
+    # Events synthesis (WS-13). When enabled, every mutating driver call
+    # emits a BusEvent into the WASM event bus so plugins subscribed to
+    # "storage.bucket.*" / "storage.credential.*" see a uniform stream.
+    # SeaweedFS does NOT push events. Disable for dev runs that do not
+    # have a WASM bus attached.
+    events:
+      enabled: true

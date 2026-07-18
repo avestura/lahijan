@@ -798,3 +798,83 @@ func GetProvidersPowerDNSDefaultAXFRFrom() []string {
 func GetProvidersPowerDNSEventsEnabled() bool {
 	return viper.GetBool("providers.powerdns.events.enabled")
 }
+
+// ---------------------------------------------------------------------------
+// SeaweedFS provider (WS-13). Every getter reads a key under providers.seaweedfs.*.
+// ---------------------------------------------------------------------------
+
+// GetProvidersSeaweedFSEnabled reports whether the SeaweedFS object storage
+// driver (WS-13) is wired into this process. When false, program.Start
+// skips building the driver and the storage module (WS-16) degrades to
+// 501 "feature disabled".
+func GetProvidersSeaweedFSEnabled() bool {
+	return viper.GetBool("providers.seaweedfs.enabled")
+}
+
+// GetProvidersSeaweedFSS3Endpoint returns the S3 endpoint URL the AWS SDK
+// client targets. Default targets the compose service on port 8333.
+func GetProvidersSeaweedFSS3Endpoint() string {
+	return viper.GetString("providers.seaweedfs.s3Endpoint")
+}
+
+// GetProvidersSeaweedFSUsePathStyle reports whether the S3 client should
+// use path-style addressing. SeaweedFS requires path-style; setting this
+// to false breaks the driver.
+func GetProvidersSeaweedFSUsePathStyle() bool {
+	return viper.GetBool("providers.seaweedfs.usePathStyle")
+}
+
+// GetProvidersSeaweedFSRegion returns the AWS region the SDK presents on
+// every request. SeaweedFS ignores the region for auth purposes but the
+// SDK requires a non-empty value.
+func GetProvidersSeaweedFSRegion() string {
+	return viper.GetString("providers.seaweedfs.region")
+}
+
+// GetProvidersSeaweedFSAdminAccessKey returns the admin access key the
+// SeaweedFS S3 server recognises as the root account. SENSITIVE — never
+// logged. Sourced from env LAHIJAN_PROVIDERS_SEAWEEDFS_ADMIN_ACCESS_KEY.
+func GetProvidersSeaweedFSAdminAccessKey() string {
+	return viper.GetString("providers.seaweedfs.adminAccessKey")
+}
+
+// GetProvidersSeaweedFSAdminSecretKey returns the admin secret key paired
+// with the admin access key. SENSITIVE — never logged.
+func GetProvidersSeaweedFSAdminSecretKey() string {
+	return viper.GetString("providers.seaweedfs.adminSecretKey")
+}
+
+// GetProvidersSeaweedFSFilerURL returns the Filer HTTP API origin the
+// driver uses for Filer metadata + IAM writes. Default targets the
+// compose service on port 8888.
+func GetProvidersSeaweedFSFilerURL() string {
+	return viper.GetString("providers.seaweedfs.filerURL")
+}
+
+// GetProvidersSeaweedFSRequestTimeoutSeconds returns the per-call timeout
+// applied to every S3 + Filer HTTP request.
+func GetProvidersSeaweedFSRequestTimeoutSeconds() int {
+	return viper.GetInt("providers.seaweedfs.requestTimeoutSeconds")
+}
+
+// GetProvidersSeaweedFSDefaultPresignTTLSeconds returns the default
+// pre-signed URL lifetime in seconds when the caller does not override
+// it. 3600 (1 hour) is the AWS-recommended ceiling.
+func GetProvidersSeaweedFSDefaultPresignTTLSeconds() int {
+	return viper.GetInt("providers.seaweedfs.defaultPresignTTLSeconds")
+}
+
+// GetProvidersSeaweedFSDefaultQuotaMiB returns the default per-bucket
+// quota in mebibytes applied at bucket-create time. 0 means no backend
+// quota (Lahijan enforces via metering instead).
+func GetProvidersSeaweedFSDefaultQuotaMiB() int64 {
+	return viper.GetInt64("providers.seaweedfs.defaultQuotaMiB")
+}
+
+// GetProvidersSeaweedFSEventsEnabled reports whether the driver should
+// synthesize change events into the WASM event bus. SeaweedFS does not
+// push events itself; the driver emits one BusEvent per mutating call
+// when this is true and a bus is wired.
+func GetProvidersSeaweedFSEventsEnabled() bool {
+	return viper.GetBool("providers.seaweedfs.events.enabled")
+}
