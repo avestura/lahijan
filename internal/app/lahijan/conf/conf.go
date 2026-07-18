@@ -457,6 +457,56 @@ func GetAuthSAMLJITEnabled() bool {
 	return viper.GetBool("auth.saml.jit.enabled")
 }
 
+// GetAuthMFAPendingTTLSeconds returns the pending MFA session lifetime in
+// seconds (WS-07c). Default 300 (5 minutes).
+func GetAuthMFAPendingTTLSeconds() int {
+	return viper.GetInt("auth.mfa.pendingTTLSeconds")
+}
+
+// GetAuthMFAMaxAttempts returns the maximum number of consecutive failed
+// MFA challenges before a pending session is revoked (WS-07c). Default 5.
+func GetAuthMFAMaxAttempts() int {
+	return viper.GetInt("auth.mfa.maxAttempts")
+}
+
+// GetAuthMFATOTPIssuer returns the human-readable platform name shown in
+// the user's authenticator app alongside the account name. Defaults to
+// "Lahijan".
+func GetAuthMFATOTPIssuer() string {
+	return viper.GetString("auth.mfa.totp.issuer")
+}
+
+// GetAuthMFARecoveryCount returns the number of recovery codes per batch
+// (WS-07c). Default 10.
+func GetAuthMFARecoveryCount() int {
+	return viper.GetInt("auth.mfa.recovery.count")
+}
+
+// GetAuthMFAWebauthnRPID returns the WebAuthn relying-party id (the
+// registrable domain). Empty when WebAuthn is disabled (the api handler
+// short-circuits with a "feature disabled" envelope).
+func GetAuthMFAWebauthnRPID() string {
+	return viper.GetString("auth.mfa.webauthn.rpId")
+}
+
+// GetAuthMFAWebauthnRPDisplayName returns the human-friendly name shown
+// in the browser prompt. Defaults to "Lahijan".
+func GetAuthMFAWebauthnRPDisplayName() string {
+	return viper.GetString("auth.mfa.webauthn.rpDisplayName")
+}
+
+// GetAuthMFAWebauthnRPOrigins returns the list of permitted WebAuthn
+// origins (full scheme + host + optional port).
+func GetAuthMFAWebauthnRPOrigins() []string {
+	return viper.GetStringSlice("auth.mfa.webauthn.rpOrigins")
+}
+
+// GetAuthMFAWebauthnRPTopOrigins returns the optional list of permitted
+// top origins for Level 3 cross-iframe flows. Empty when not configured.
+func GetAuthMFAWebauthnRPTopOrigins() []string {
+	return viper.GetStringSlice("auth.mfa.webauthn.rpTopOrigins")
+}
+
 // sortedProviderKeys returns the immediate child keys of the providers map at
 // the given viper path. Viper exposes nested maps via GetStringMap; the keys
 // are returned sorted so callers iterate deterministically (useful for tests

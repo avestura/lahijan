@@ -14,6 +14,7 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/audit"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/email"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/idp"
+	"github.com/avestura/lahijan/internal/app/lahijan/auth/mfa"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/oauth"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/oidc"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/pat"
@@ -68,6 +69,11 @@ type Server struct {
 	// repos.SamlIdentities is non-nil; the api handlers short-circuit via
 	// idpSAML==nil when SAML is disabled.
 	idpSAML *saml.Registry
+
+	// WS-07c: MFA deps. mfaSvc is nil-appropriate when MFA is not wired
+	// (dev without auth.mfa.webauthn config); the handlers degrade to a
+	// 501 "feature disabled" envelope via mfaDisabled().
+	mfaSvc *mfa.Service
 }
 
 // ServerDeps carries the dependencies NewServer requires. Wire it once from
@@ -99,6 +105,11 @@ type ServerDeps struct {
 	// WS-07b: SAML deps. IDPSAML is the *saml.Registry (nil-appropriate when
 	// SAML is disabled in config).
 	IDPSAML *saml.Registry
+
+	// WS-07c: MFA deps. MFASvc is nil-appropriate when MFA is not wired
+	// (dev without auth.mfa.webauthn config); the handlers degrade to a
+	// 501 "feature disabled" envelope.
+	MFASvc *mfa.Service
 }
 
 // NewServer builds the API server with the given dependencies.
@@ -121,6 +132,7 @@ func NewServer(deps ServerDeps) *Server {
 		idpCookies:      deps.IDPCookies,
 		idpRedirectHome: deps.IDPRedirectHome,
 		idpSAML:         deps.IDPSAML,
+		mfaSvc:          deps.MFASvc,
 	}
 	if s.tracer == nil {
 		s.tracer = Tracer()

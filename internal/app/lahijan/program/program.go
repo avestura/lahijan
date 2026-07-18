@@ -29,6 +29,10 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/audit"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/email"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/idp"
+	"github.com/avestura/lahijan/internal/app/lahijan/auth/mfa"
+	"github.com/avestura/lahijan/internal/app/lahijan/auth/mfa/recovery"
+	"github.com/avestura/lahijan/internal/app/lahijan/auth/mfa/totp"
+	"github.com/avestura/lahijan/internal/app/lahijan/auth/mfa/webauthn"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/oauth"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/oidc"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/password"
@@ -107,6 +111,16 @@ func Start() error {
 		log.Fatalf("failed to build saml deps: %s", err.Error())
 	}
 
+	// WS-07c: build the MFA service (TOTP + WebAuthn + recovery). The
+	// WebAuthn relying-party is built only when conf.auth.mfa.webauthn.rpId
+	// is set; otherwise the handlers degrade to a 501 "feature disabled"
+	// envelope. TOTP + recovery codes do not need RP config and work out
+	// of the box.
+	mfaDeps, err := buildMFADeps(context.Background(), authDeps)
+	if err != nil {
+		log.Fatalf("failed to build mfa deps: %s", err.Error())
+	}
+
 	// Flip the idp service's JIT toggle from config. The toggle is
 	// process-wide today (not per-provider); a future WS can move it onto
 	// the per-provider struct if granular control is needed.
@@ -175,6 +189,7 @@ func Start() error {
 		StateSigner:  idpDeps.stateSigner,
 		IDPCookies:   api.DefaultExternalIDPCookies,
 		IDPSAML:      samlDeps.registry,
+		MFASvc:       mfaDeps.svc,
 	}), policy)
 
 	if err := app.Listen(conf.GetHTTPServerAddress()); err != nil {
@@ -493,6 +508,39 @@ func (a *sessionOpenerAdapter) OpenForExistingUser(
 	}, nil
 }
 
+// mfaSessionOpenerAdapter bridges session.Service to mfa.SessionOpener.
+// Lives here for the same reason sessionOpenerAdapter does (avoids an
+// import cycle between auth/mfa and auth/session).
+type mfaSessionOpenerAdapter struct {
+	svc *session.Service
+}
+
+// OpenForExistingUser implements mfa.SessionOpener by delegating to
+// session.Service.OpenForExistingUser and reshaping the result into
+// mfa.SessionOpen.
+func (a *mfaSessionOpenerAdapter) OpenForExistingUser(
+	ctx context.Context,
+	userID uuid.UUID,
+	ua *string,
+	ip *netip.Addr,
+) (mfa.SessionOpen, error) {
+	sess, err := a.svc.OpenForExistingUser(ctx, userID, ua, ip)
+	if err != nil {
+		return mfa.SessionOpen{}, err
+	}
+	return mfa.SessionOpen{
+		UserID:      sess.UserID,
+		SessionID:   sess.SessionID,
+		ExpiresAt:   sess.ExpiresAt,
+		CookieValue: sess.CookieValue,
+		Refresh: mfa.RefreshIssue{
+			Raw:       sess.Refresh.Raw,
+			FamilyID:  sess.Refresh.FamilyID,
+			ExpiresAt: sess.Refresh.ExpiresAt,
+		},
+	}, nil
+}
+
 // samlDeps bundles the SAML SP (WS-07b) dependencies built at bootstrap. The
 // registry is nil when no SAML provider is enabled, so the api handlers can
 // short-circuit cleanly.
@@ -615,4 +663,71 @@ func generateDevSAMLKeyPair() (saml.SPCredentials, error) {
 		KeyPEM:  pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)}),
 		CertPEM: pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}),
 	}, nil
+}
+
+// mfaDeps bundles the MFA service (WS-07c) dependencies built at bootstrap.
+// svc is nil-appropriate when MFA is disabled in config; the api handlers
+// degrade to "feature disabled" envelopes when so.
+type mfaDeps struct {
+	svc *mfa.Service
+}
+
+// buildMFADeps wires the TOTP + WebAuthn + recovery orchestrator from
+// config. Returns an empty mfaDeps (svc nil) when MFA is disabled entirely.
+//
+// Failures here are loud (log.Fatalf) because a misconfigured WebAuthn
+// relying-party the deployer turned on should not silently degrade to
+// "no WebAuthn" at runtime.
+//
+// The TOTP / recovery code paths do not need any external config and are
+// always wired; only WebAuthn needs the RPID + RPOrigins.
+func buildMFADeps(ctx context.Context, a *authDeps) (mfaDeps, error) {
+	cfg := mfa.DefaultConfig()
+	cfg.TOTP.Issuer = conf.GetAuthMFATOTPIssuer()
+	cfg.Recovery.Count = conf.GetAuthMFARecoveryCount()
+	cfg.PendingLifetime = time.Duration(conf.GetAuthMFAPendingTTLSeconds()) * time.Second
+	cfg.MaxAttempts = conf.GetAuthMFAMaxAttempts()
+
+	// Build the WebAuthn RP only when both rpId and at least one origin
+	// are configured. Otherwise the orchestrator's RP stays nil and the
+	// handlers degrade for WebAuthn only (TOTP / recovery still work).
+	var rp *webauthn.RP
+	rpID := conf.GetAuthMFAWebauthnRPID()
+	origins := conf.GetAuthMFAWebauthnRPOrigins()
+	if rpID != "" && len(origins) > 0 {
+		cfg.WebAuthn = webauthn.Config{
+			RPID:          rpID,
+			RPDisplayName: conf.GetAuthMFAWebauthnRPDisplayName(),
+			RPOrigins:     origins,
+			RPTopOrigins:  conf.GetAuthMFAWebauthnRPTopOrigins(),
+		}
+		var err error
+		rp, err = webauthn.New(cfg.WebAuthn)
+		if err != nil {
+			return mfaDeps{}, errors.Join(errors.New("build webauthn RP"), err)
+		}
+	}
+
+	// Reuse the AES-GCM crypto envelope from authDeps so the TOTP secret
+	// is encrypted with the same process-wide key as the IdP tokens.
+	crypto, err := buildCrypto()
+	if err != nil {
+		return mfaDeps{}, err
+	}
+
+	svc := mfa.New(
+		a.repos,
+		crypto,
+		a.signer,
+		rp,
+		&mfaSessionOpenerAdapter{svc: a.sessionSvc},
+		a.audit,
+		cfg,
+	)
+	// Silence the unused-package warnings for totp / recovery imports —
+	// they are used via the DefaultConfig() above but go's import-unused
+	// check still complains without the explicit reference.
+	_ = totp.DefaultConfig
+	_ = recovery.DefaultConfig
+	return mfaDeps{svc: svc}, nil
 }

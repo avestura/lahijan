@@ -232,6 +232,50 @@ auth:
         emailAttribute: ""
         nameAttribute: ""
 
+  # Multi-factor authentication config (WS-07c). TOTP + recovery codes
+  # work out of the box; WebAuthn requires the RPID + RPOrigins to be
+  # set to the dashboard's domain so the browser accepts the ceremony.
+  mfa:
+    # Short-lived, single-use pending session lifetime in seconds. The
+    # pending_session_token issued at login (when MFA is required) expires
+    # after this many seconds. 300s (5 min) is the OWASP-recommended default.
+    pendingTTLSeconds: 300
+    # Maximum number of consecutive failed MFA challenges against the same
+    # pending session before it is revoked (brute-force lockout). 5 is the
+    # sweet spot between user typo tolerance and protection against a
+    # 6-digit-code brute force (10^6 / 5 attempts = at most 1.4e-3 chance
+    # of guessing one code in 5 tries).
+    maxAttempts: 5
+    # TOTP parameters. Defaults follow the RFC 6238 + authenticator-app
+    # conventions (SHA-1, 30s period, 6 digits, ±1 step skew). The
+    # algorithm + secret length are NOT configurable here because every
+    # authenticator app the user might pick assumes them.
+    totp:
+      # Human-readable platform name shown in the authenticator app
+      # alongside the account name. Defaults to "Lahijan".
+      issuer: "Lahijan"
+    # Recovery code parameters. Defaults follow the WS-07c scope: 10 codes
+    # per batch, 6 dash-separated groups of 5 base32 characters each.
+    recovery:
+      # Number of recovery codes per batch. Default 10.
+      count: 10
+    # WebAuthn relying-party parameters. RPID + RPOrigins MUST be set in
+    # any environment where the dashboard is reached on a real domain
+    # (i.e. anything but localhost dev). Leave empty in dev to disable
+    # WebAuthn entirely (the api handler returns "feature disabled").
+    webauthn:
+      # Relying-party id (registrable domain, e.g. "app.example.com").
+      # MUST match the dashboard's domain or a registrable parent of it.
+      rpId: ""
+      # Display name shown in the browser prompt ("Lahijan" by default).
+      rpDisplayName: "Lahijan"
+      # List of permitted origins (full scheme + host + optional port).
+      # MUST include the dashboard's origin (e.g. https://app.example.com).
+      rpOrigins: []
+      # Optional list of permitted top origins for Level 3 cross-iframe
+      # flows. Leave empty to disable top-origin verification.
+      rpTopOrigins: []
+
 # SMTP for outgoing auth emails (WS-06). In dev, point this at MailHog
 # (see deployments/docker-compose.dev.yml). Disable to drop emails silently
 # (useful in tests).

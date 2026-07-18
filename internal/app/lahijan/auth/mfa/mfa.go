@@ -777,6 +777,32 @@ func (s *Service) verifyFactor(ctx context.Context, userID uuid.UUID, in Challen
 // PendingTokenByteLen exposes the configured byte length for tests.
 func (s *Service) PendingTokenByteLen() int { return 32 }
 
+// WebAuthnEnabled reports whether the WebAuthn relying-party is wired.
+// The api handler uses this to short-circuit with a 501 "feature disabled"
+// envelope when WebAuthn is not configured (dev without RPID).
+func (s *Service) WebAuthnEnabled() bool { return s.rp != nil }
+
+// HasTOTP reports whether the user has a CONFIRMED TOTP factor. Used by
+// the login flow to populate enrolledFactors in the 202 response so the
+// dashboard can pick the right default challenge UI.
+func (s *Service) HasTOTP(ctx context.Context, userID uuid.UUID) bool {
+	row, err := s.repos.TOTPSecrets.Get(ctx, userID)
+	if err != nil {
+		return false
+	}
+	return row.ConfirmedAt != nil
+}
+
+// HasWebAuthn reports whether the user has any WebAuthn credential. Used
+// by the login flow to populate enrolledFactors in the 202 response.
+func (s *Service) HasWebAuthn(ctx context.Context, userID uuid.UUID) bool {
+	count, err := s.repos.WebauthnCreds.CountForUser(ctx, userID)
+	if err != nil {
+		return false
+	}
+	return count > 0
+}
+
 // auditEmit is the best-effort audit emit; failures are logged but do not
 // block the MFA flow. Extracted as a helper so callers stay readable.
 func auditEmit(s *Service, ctx context.Context, ev audit.Event) {
