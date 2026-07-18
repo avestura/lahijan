@@ -31,7 +31,7 @@ func TestDNSZones_CreateAndGet(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	repos := testutil.Repos()
-	tenant := testutil.NewTenant(ctx, t, testutil.Pool(), "")
+	tenant := testutil.NewTenant(ctx, t, testutil.Pool())
 
 	zone, err := repos.DNSZones.Create(withTenant(ctx, tenant.ID), database.CreateDNSZoneParams{
 		CanonicalID: "create-and-get.example.com.",
@@ -59,8 +59,8 @@ func TestDNSZones_TenantIsolation(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	repos := testutil.Repos()
-	tenantA := testutil.NewTenant(ctx, t, testutil.Pool(), "")
-	tenantB := testutil.NewTenant(ctx, t, testutil.Pool(), "")
+	tenantA := testutil.NewTenant(ctx, t, testutil.Pool())
+	tenantB := testutil.NewTenant(ctx, t, testutil.Pool())
 
 	zone, err := repos.DNSZones.Create(withTenant(ctx, tenantA.ID), database.CreateDNSZoneParams{
 		CanonicalID: "iso.example.com.",
@@ -99,8 +99,8 @@ func TestDNSZones_CanonicalIDGloballyUnique(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	repos := testutil.Repos()
-	tenantA := testutil.NewTenant(ctx, t, testutil.Pool(), "")
-	tenantB := testutil.NewTenant(ctx, t, testutil.Pool(), "")
+	tenantA := testutil.NewTenant(ctx, t, testutil.Pool())
+	tenantB := testutil.NewTenant(ctx, t, testutil.Pool())
 
 	_, err := repos.DNSZones.Create(withTenant(ctx, tenantA.ID), database.CreateDNSZoneParams{
 		CanonicalID: "unique.example.com.",
@@ -127,7 +127,7 @@ func TestDNSZones_SetCachedFlags(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	repos := testutil.Repos()
-	tenant := testutil.NewTenant(ctx, t, testutil.Pool(), "")
+	tenant := testutil.NewTenant(ctx, t, testutil.Pool())
 
 	zone, err := repos.DNSZones.Create(withTenant(ctx, tenant.ID), database.CreateDNSZoneParams{
 		CanonicalID: "cached.example.com.",
@@ -155,7 +155,7 @@ func TestDNSZones_DefaultKindIsNative(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	repos := testutil.Repos()
-	tenant := testutil.NewTenant(ctx, t, testutil.Pool(), "")
+	tenant := testutil.NewTenant(ctx, t, testutil.Pool())
 
 	zone, err := repos.DNSZones.Create(withTenant(ctx, tenant.ID), database.CreateDNSZoneParams{
 		CanonicalID: "default-kind.example.com.",
@@ -170,7 +170,7 @@ func TestDNSZones_Delete(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	repos := testutil.Repos()
-	tenant := testutil.NewTenant(ctx, t, testutil.Pool(), "")
+	tenant := testutil.NewTenant(ctx, t, testutil.Pool())
 
 	zone, err := repos.DNSZones.Create(withTenant(ctx, tenant.ID), database.CreateDNSZoneParams{
 		CanonicalID: "delete-me.example.com.",
