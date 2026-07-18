@@ -34,6 +34,7 @@ type Repos struct {
 	PluginSubscriptions   *PluginEventSubscriptionsRepository
 	PluginHTTPHandlers    *PluginHTTPHandlersRepository
 	DNSZones              *DNSZonesRepository
+	DNSRecords            *DNSRecordsRepository
 	ComputeInstances      *ComputeInstancesRepository
 	ComputeImages         *ComputeImagesRepository
 	ComputeProfiles       *ComputeProfilesRepository
@@ -66,6 +67,7 @@ func NewRepos(db DBTX) *Repos {
 		PluginSubscriptions:   NewPluginEventSubscriptionsRepository(q),
 		PluginHTTPHandlers:    NewPluginHTTPHandlersRepository(q),
 		DNSZones:              NewDNSZonesRepository(q),
+		DNSRecords:            NewDNSRecordsRepository(q),
 		ComputeInstances:      NewComputeInstancesRepository(q),
 		ComputeImages:         NewComputeImagesRepository(q),
 		ComputeProfiles:       NewComputeProfilesRepository(q),

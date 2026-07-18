@@ -178,6 +178,28 @@ type ComputeStorageVolume struct {
 	DeletedAt   *time.Time      `json:"deleted_at"`
 }
 
+// Per-tenant DNS records. Mirrors PDNS RRsets; the DNS service (WS-15) upserts on every change.
+type DnsRecord struct {
+	ID       uuid.UUID `json:"id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+	// FK into dns_zones; cascades on zone delete.
+	ZoneID uuid.UUID `json:"zone_id"`
+	// Canonical record name with trailing dot; always lowercase.
+	Name string `json:"name"`
+	// DNS record type (A, AAAA, CNAME, MX, TXT, NS, SOA, SRV, CAA, PTR). Validated at the service layer.
+	Type string `json:"type"`
+	// Zone-file wire form. Validated per-type by the DNS service.
+	Content string `json:"content"`
+	// TTL in seconds; clamped to [300, 86400] by the service.
+	Ttl int32 `json:"ttl"`
+	// Priority for MX / SRV; 0 for types that have no priority.
+	Prio int32 `json:"prio"`
+	// When true, PDNS serves the record as commented-out.
+	Disabled  bool      `json:"disabled"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 // Tenant -> PDNS zone ownership mapping. Enforced by the DNS service (WS-15).
 type DnsZone struct {
 	ID       uuid.UUID `json:"id"`
