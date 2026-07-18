@@ -27,6 +27,7 @@ Accepted; corrections land as new ADRs that supersede prior ones.
 | [0017](./0017-i18n-from-day-one.md) | Full i18n from day 1 (en + fa, RTL) | Accepted | 2026-07-17 |
 | [0018](./0018-ws-06-auth-dependencies.md) | WS-06 auth dependency choices | Accepted | 2026-07-17 |
 | [0019](./0019-append-only-audit-outcomes.md) | Append-only audit outcome trail (MarkOutcome pattern) | Accepted | 2026-07-18 |
+| [0020](./0020-saml-library-choice.md) | SAML library choice — `crewjam/saml` | Accepted | 2026-07-18 |
 
 ## How to write a new ADR
 
