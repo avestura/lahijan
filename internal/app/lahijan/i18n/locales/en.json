@@ -174,6 +174,26 @@
   "audit.action_plugins_uninstall": { "other": "Plugin uninstalled" },
   "audit.action_plugins_permission_approve": { "other": "Plugin permissions approved" },
 
+  "audit.action_plugins_upload":  { "other": "Plugin uploaded" },
+  "audit.action_plugins_grant":   { "other": "Plugin permission granted" },
+  "audit.action_plugins_revoke":  { "other": "Plugin permission revoked" },
+  "audit.action_plugins_enable":  { "other": "Plugin enabled" },
+  "audit.action_plugins_disable": { "other": "Plugin disabled" },
+  "audit.action_plugins_delete":  { "other": "Plugin deleted" },
+
+  "plugins.err_disabled":          { "other": "The plugin system is not enabled on this server." },
+  "plugins.err_not_found":         { "other": "Plugin not found." },
+  "plugins.err_duplicate":         { "other": "A plugin with this name and version already exists." },
+  "plugins.err_missing_wasm":      { "other": "The .wasm module is required." },
+  "plugins.err_missing_manifest":  { "other": "The lahijan.manifest.yaml is required." },
+  "plugins.err_wasm_too_large":    { "description": "{{.Max}} is the maximum accepted module size in bytes.",
+                                     "other": "The .wasm module exceeds the maximum accepted size ({{.Max}} bytes)." },
+  "plugins.err_manifest_too_large": { "other": "The manifest exceeds the maximum accepted size." },
+  "plugins.err_bad_action":        { "description": "{{.Action}} is the unknown action verb.",
+                                     "other": "Unknown action {{.Action}}." },
+  "plugins.err_module_rejected":   { "other": "The runtime rejected the .wasm module." },
+  "plugins.msg_deleted":           { "other": "Plugin deleted." },
+
   "audit.action_platform_job_retry": { "other": "Job manually retried" },
   "audit.action_platform_job_cancel": { "other": "Job cancelled" },
 

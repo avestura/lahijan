@@ -31,6 +31,13 @@ const (
 	AdminJobStateScheduled AdminJobState = "scheduled"
 )
 
+// Defines values for AdminPluginStatus.
+const (
+	AdminPluginStatusActive   AdminPluginStatus = "active"
+	AdminPluginStatusDisabled AdminPluginStatus = "disabled"
+	AdminPluginStatusPending  AdminPluginStatus = "pending"
+)
+
 // Defines values for AuditEventActorType.
 const (
 	AuditEventActorTypePlugin AuditEventActorType = "plugin"
@@ -87,6 +94,12 @@ const (
 	ListAdminJobsParamsStateRetryable ListAdminJobsParamsState = "retryable"
 	ListAdminJobsParamsStateRunning   ListAdminJobsParamsState = "running"
 	ListAdminJobsParamsStateScheduled ListAdminJobsParamsState = "scheduled"
+)
+
+// Defines values for SetAdminPluginPermissionParamsAction.
+const (
+	SetAdminPluginPermissionParamsActionGrant  SetAdminPluginPermissionParamsAction = "grant"
+	SetAdminPluginPermissionParamsActionRevoke SetAdminPluginPermissionParamsAction = "revoke"
 )
 
 // Defines values for ListAuditParamsStatus.
@@ -168,6 +181,44 @@ type AdminJobPage struct {
 	Limit  int        `json:"limit"`
 	Offset int        `json:"offset"`
 	Total  int64      `json:"total"`
+}
+
+// AdminPlugin defines model for AdminPlugin.
+type AdminPlugin struct {
+	CreatedAt   time.Time          `json:"createdAt"`
+	Description *string            `json:"description,omitempty"`
+	Id          openapi_types.UUID `json:"id"`
+
+	// Manifest The parsed lahijan.manifest.yaml kept verbatim. Shape documented
+	// in internal/app/lahijan/wasm/manifest/manifest.go.
+	Manifest *map[string]interface{} `json:"manifest,omitempty"`
+	Name     string                  `json:"name"`
+
+	// Permissions Granted permission slugs (admin-approved at install).
+	Permissions *[]string         `json:"permissions,omitempty"`
+	Status      AdminPluginStatus `json:"status"`
+
+	// TenantId NULL for platform-wide plugins.
+	TenantId  *openapi_types.UUID `json:"tenantId"`
+	UpdatedAt time.Time           `json:"updatedAt"`
+	Version   string              `json:"version"`
+
+	// WasmHash sha256 hex of wasmBytes; surfaced in the admin UI.
+	WasmHash string `json:"wasmHash"`
+
+	// WasmSize Size of the stored .wasm bytes.
+	WasmSize int64 `json:"wasmSize"`
+}
+
+// AdminPluginStatus defines model for AdminPlugin.Status.
+type AdminPluginStatus string
+
+// AdminPluginPage defines model for AdminPluginPage.
+type AdminPluginPage struct {
+	Items  []AdminPlugin `json:"items"`
+	Limit  int           `json:"limit"`
+	Offset int           `json:"offset"`
+	Total  int64         `json:"total"`
 }
 
 // AuditEvent defines model for AuditEvent.
@@ -601,6 +652,24 @@ type ListAdminJobsParams struct {
 // ListAdminJobsParamsState defines parameters for ListAdminJobs.
 type ListAdminJobsParamsState string
 
+// ListAdminPluginsParams defines parameters for ListAdminPlugins.
+type ListAdminPluginsParams struct {
+	// Limit Maximum number of items to return (1..200).
+	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of items to skip for pagination.
+	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// UploadAdminPluginMultipartBody defines parameters for UploadAdminPlugin.
+type UploadAdminPluginMultipartBody struct {
+	Manifest string             `json:"manifest"`
+	Wasm     openapi_types.File `json:"wasm"`
+}
+
+// SetAdminPluginPermissionParamsAction defines parameters for SetAdminPluginPermission.
+type SetAdminPluginPermissionParamsAction string
+
 // ListAuditParams defines parameters for ListAudit.
 type ListAuditParams struct {
 	// Limit Maximum number of items to return (1..200).
@@ -665,6 +734,9 @@ type AssertionConsumerServiceSAMLFormdataBody struct {
 	// SAMLResponse Base64-encoded SAML Response XML the IdP signed.
 	SAMLResponse string `form:"SAMLResponse" json:"SAMLResponse"`
 }
+
+// UploadAdminPluginMultipartRequestBody defines body for UploadAdminPlugin for multipart/form-data ContentType.
+type UploadAdminPluginMultipartRequestBody UploadAdminPluginMultipartBody
 
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
@@ -804,6 +876,27 @@ type ClientInterface interface {
 
 	// RetryAdminJob request
 	RetryAdminJob(ctx context.Context, jobId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListAdminPlugins request
+	ListAdminPlugins(ctx context.Context, params *ListAdminPluginsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UploadAdminPluginWithBody request with any body
+	UploadAdminPluginWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteAdminPlugin request
+	DeleteAdminPlugin(ctx context.Context, pluginId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAdminPlugin request
+	GetAdminPlugin(ctx context.Context, pluginId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DisableAdminPlugin request
+	DisableAdminPlugin(ctx context.Context, pluginId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// EnableAdminPlugin request
+	EnableAdminPlugin(ctx context.Context, pluginId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetAdminPluginPermission request
+	SetAdminPluginPermission(ctx context.Context, pluginId openapi_types.UUID, permission string, action SetAdminPluginPermissionParamsAction, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListAudit request
 	ListAudit(ctx context.Context, params *ListAuditParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -994,6 +1087,90 @@ func (c *Client) CancelAdminJob(ctx context.Context, jobId int64, reqEditors ...
 
 func (c *Client) RetryAdminJob(ctx context.Context, jobId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRetryAdminJobRequest(c.Server, jobId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListAdminPlugins(ctx context.Context, params *ListAdminPluginsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAdminPluginsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UploadAdminPluginWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUploadAdminPluginRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteAdminPlugin(ctx context.Context, pluginId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteAdminPluginRequest(c.Server, pluginId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetAdminPlugin(ctx context.Context, pluginId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAdminPluginRequest(c.Server, pluginId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DisableAdminPlugin(ctx context.Context, pluginId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDisableAdminPluginRequest(c.Server, pluginId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) EnableAdminPlugin(ctx context.Context, pluginId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewEnableAdminPluginRequest(c.Server, pluginId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) SetAdminPluginPermission(ctx context.Context, pluginId openapi_types.UUID, permission string, action SetAdminPluginPermissionParamsAction, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetAdminPluginPermissionRequest(c.Server, pluginId, permission, action)
 	if err != nil {
 		return nil, err
 	}
@@ -1874,6 +2051,284 @@ func NewRetryAdminJobRequest(server string, jobId int64) (*http.Request, error) 
 	}
 
 	operationPath := fmt.Sprintf("/api/v1/admin/jobs/%s/retry", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListAdminPluginsRequest generates requests for ListAdminPlugins
+func NewListAdminPluginsRequest(server string, params *ListAdminPluginsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/plugins")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUploadAdminPluginRequestWithBody generates requests for UploadAdminPlugin with any type of body
+func NewUploadAdminPluginRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/plugins/upload")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteAdminPluginRequest generates requests for DeleteAdminPlugin
+func NewDeleteAdminPluginRequest(server string, pluginId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "pluginId", runtime.ParamLocationPath, pluginId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/plugins/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetAdminPluginRequest generates requests for GetAdminPlugin
+func NewGetAdminPluginRequest(server string, pluginId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "pluginId", runtime.ParamLocationPath, pluginId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/plugins/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDisableAdminPluginRequest generates requests for DisableAdminPlugin
+func NewDisableAdminPluginRequest(server string, pluginId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "pluginId", runtime.ParamLocationPath, pluginId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/plugins/%s/disable", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewEnableAdminPluginRequest generates requests for EnableAdminPlugin
+func NewEnableAdminPluginRequest(server string, pluginId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "pluginId", runtime.ParamLocationPath, pluginId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/plugins/%s/enable", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetAdminPluginPermissionRequest generates requests for SetAdminPluginPermission
+func NewSetAdminPluginPermissionRequest(server string, pluginId openapi_types.UUID, permission string, action SetAdminPluginPermissionParamsAction) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "pluginId", runtime.ParamLocationPath, pluginId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "permission", runtime.ParamLocationPath, permission)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "action", runtime.ParamLocationPath, action)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/plugins/%s/permissions/%s/%s", pathParam0, pathParam1, pathParam2)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -3620,6 +4075,27 @@ type ClientWithResponsesInterface interface {
 	// RetryAdminJobWithResponse request
 	RetryAdminJobWithResponse(ctx context.Context, jobId int64, reqEditors ...RequestEditorFn) (*RetryAdminJobResponse, error)
 
+	// ListAdminPluginsWithResponse request
+	ListAdminPluginsWithResponse(ctx context.Context, params *ListAdminPluginsParams, reqEditors ...RequestEditorFn) (*ListAdminPluginsResponse, error)
+
+	// UploadAdminPluginWithBodyWithResponse request with any body
+	UploadAdminPluginWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UploadAdminPluginResponse, error)
+
+	// DeleteAdminPluginWithResponse request
+	DeleteAdminPluginWithResponse(ctx context.Context, pluginId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteAdminPluginResponse, error)
+
+	// GetAdminPluginWithResponse request
+	GetAdminPluginWithResponse(ctx context.Context, pluginId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetAdminPluginResponse, error)
+
+	// DisableAdminPluginWithResponse request
+	DisableAdminPluginWithResponse(ctx context.Context, pluginId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DisableAdminPluginResponse, error)
+
+	// EnableAdminPluginWithResponse request
+	EnableAdminPluginWithResponse(ctx context.Context, pluginId openapi_types.UUID, reqEditors ...RequestEditorFn) (*EnableAdminPluginResponse, error)
+
+	// SetAdminPluginPermissionWithResponse request
+	SetAdminPluginPermissionWithResponse(ctx context.Context, pluginId openapi_types.UUID, permission string, action SetAdminPluginPermissionParamsAction, reqEditors ...RequestEditorFn) (*SetAdminPluginPermissionResponse, error)
+
 	// ListAuditWithResponse request
 	ListAuditWithResponse(ctx context.Context, params *ListAuditParams, reqEditors ...RequestEditorFn) (*ListAuditResponse, error)
 
@@ -3866,6 +4342,183 @@ func (r RetryAdminJobResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r RetryAdminJobResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListAdminPluginsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AdminPluginPage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+}
+
+// Status returns HTTPResponse.Status
+func (r ListAdminPluginsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListAdminPluginsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UploadAdminPluginResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *AdminPlugin
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON409      *Error
+	JSON413      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r UploadAdminPluginResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UploadAdminPluginResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteAdminPluginResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *MessageResponse
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteAdminPluginResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteAdminPluginResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetAdminPluginResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AdminPlugin
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAdminPluginResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAdminPluginResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DisableAdminPluginResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AdminPlugin
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r DisableAdminPluginResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DisableAdminPluginResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type EnableAdminPluginResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AdminPlugin
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r EnableAdminPluginResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r EnableAdminPluginResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type SetAdminPluginPermissionResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]string
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r SetAdminPluginPermissionResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetAdminPluginPermissionResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -4796,6 +5449,69 @@ func (c *ClientWithResponses) RetryAdminJobWithResponse(ctx context.Context, job
 	return ParseRetryAdminJobResponse(rsp)
 }
 
+// ListAdminPluginsWithResponse request returning *ListAdminPluginsResponse
+func (c *ClientWithResponses) ListAdminPluginsWithResponse(ctx context.Context, params *ListAdminPluginsParams, reqEditors ...RequestEditorFn) (*ListAdminPluginsResponse, error) {
+	rsp, err := c.ListAdminPlugins(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListAdminPluginsResponse(rsp)
+}
+
+// UploadAdminPluginWithBodyWithResponse request with arbitrary body returning *UploadAdminPluginResponse
+func (c *ClientWithResponses) UploadAdminPluginWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UploadAdminPluginResponse, error) {
+	rsp, err := c.UploadAdminPluginWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUploadAdminPluginResponse(rsp)
+}
+
+// DeleteAdminPluginWithResponse request returning *DeleteAdminPluginResponse
+func (c *ClientWithResponses) DeleteAdminPluginWithResponse(ctx context.Context, pluginId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteAdminPluginResponse, error) {
+	rsp, err := c.DeleteAdminPlugin(ctx, pluginId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteAdminPluginResponse(rsp)
+}
+
+// GetAdminPluginWithResponse request returning *GetAdminPluginResponse
+func (c *ClientWithResponses) GetAdminPluginWithResponse(ctx context.Context, pluginId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetAdminPluginResponse, error) {
+	rsp, err := c.GetAdminPlugin(ctx, pluginId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAdminPluginResponse(rsp)
+}
+
+// DisableAdminPluginWithResponse request returning *DisableAdminPluginResponse
+func (c *ClientWithResponses) DisableAdminPluginWithResponse(ctx context.Context, pluginId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DisableAdminPluginResponse, error) {
+	rsp, err := c.DisableAdminPlugin(ctx, pluginId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDisableAdminPluginResponse(rsp)
+}
+
+// EnableAdminPluginWithResponse request returning *EnableAdminPluginResponse
+func (c *ClientWithResponses) EnableAdminPluginWithResponse(ctx context.Context, pluginId openapi_types.UUID, reqEditors ...RequestEditorFn) (*EnableAdminPluginResponse, error) {
+	rsp, err := c.EnableAdminPlugin(ctx, pluginId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseEnableAdminPluginResponse(rsp)
+}
+
+// SetAdminPluginPermissionWithResponse request returning *SetAdminPluginPermissionResponse
+func (c *ClientWithResponses) SetAdminPluginPermissionWithResponse(ctx context.Context, pluginId openapi_types.UUID, permission string, action SetAdminPluginPermissionParamsAction, reqEditors ...RequestEditorFn) (*SetAdminPluginPermissionResponse, error) {
+	rsp, err := c.SetAdminPluginPermission(ctx, pluginId, permission, action, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetAdminPluginPermissionResponse(rsp)
+}
+
 // ListAuditWithResponse request returning *ListAuditResponse
 func (c *ClientWithResponses) ListAuditWithResponse(ctx context.Context, params *ListAuditParams, reqEditors ...RequestEditorFn) (*ListAuditResponse, error) {
 	rsp, err := c.ListAudit(ctx, params, reqEditors...)
@@ -5471,6 +6187,349 @@ func ParseRetryAdminJobResponse(rsp *http.Response) (*RetryAdminJobResponse, err
 			return nil, err
 		}
 		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListAdminPluginsResponse parses an HTTP response from a ListAdminPluginsWithResponse call
+func ParseListAdminPluginsResponse(rsp *http.Response) (*ListAdminPluginsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListAdminPluginsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AdminPluginPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUploadAdminPluginResponse parses an HTTP response from a UploadAdminPluginWithResponse call
+func ParseUploadAdminPluginResponse(rsp *http.Response) (*UploadAdminPluginResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UploadAdminPluginResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest AdminPlugin
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 413:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON413 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteAdminPluginResponse parses an HTTP response from a DeleteAdminPluginWithResponse call
+func ParseDeleteAdminPluginResponse(rsp *http.Response) (*DeleteAdminPluginResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteAdminPluginResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MessageResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetAdminPluginResponse parses an HTTP response from a GetAdminPluginWithResponse call
+func ParseGetAdminPluginResponse(rsp *http.Response) (*GetAdminPluginResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAdminPluginResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AdminPlugin
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDisableAdminPluginResponse parses an HTTP response from a DisableAdminPluginWithResponse call
+func ParseDisableAdminPluginResponse(rsp *http.Response) (*DisableAdminPluginResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DisableAdminPluginResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AdminPlugin
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseEnableAdminPluginResponse parses an HTTP response from a EnableAdminPluginWithResponse call
+func ParseEnableAdminPluginResponse(rsp *http.Response) (*EnableAdminPluginResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &EnableAdminPluginResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AdminPlugin
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetAdminPluginPermissionResponse parses an HTTP response from a SetAdminPluginPermissionWithResponse call
+func ParseSetAdminPluginPermissionResponse(rsp *http.Response) (*SetAdminPluginPermissionResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetAdminPluginPermissionResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	}
 

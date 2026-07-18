@@ -28,6 +28,7 @@ type Repos struct {
 	WebauthnCreds   *WebauthnCredentialsRepository
 	RecoveryCodes   *RecoveryCodesRepository
 	MFAPending      *MFAPendingSessionsRepository
+	Plugins         *PluginsRepository
 }
 
 // NewRepos builds the aggregate repository from a pool or transaction. The
@@ -49,5 +50,6 @@ func NewRepos(db DBTX) *Repos {
 		WebauthnCreds:   NewWebauthnCredentialsRepository(q),
 		RecoveryCodes:   NewRecoveryCodesRepository(q),
 		MFAPending:      NewMFAPendingSessionsRepository(q),
+		Plugins:         NewPluginsRepository(q),
 	}
 }

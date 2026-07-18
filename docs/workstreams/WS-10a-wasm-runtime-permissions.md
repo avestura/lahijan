@@ -1,7 +1,7 @@
 # WS-10a · WASM Runtime + Permission System
 
 ```
-Status: pending
+Status: done
 Phase: 2
 Depends on: WS-05, WS-08
 Unblocks: WS-10b, WS-10c
@@ -78,21 +78,31 @@ yet — those are WS-10b).
 
 ## Definition of Done
 
-- [ ] uploading a `.wasm` parses the manifest and lists requested permissions
-- [ ] admin can grant/deny each permission individually
-- [ ] a plugin with no granted permissions loads but cannot call any host func
-- [ ] memory + time limits are enforced (a plugin that loops is killed)
-- [ ] every install/grant/revoke/enable/disable/delete emits an audit event
-- [ ] only `platform.admin` can hit the admin plugin API
-- [ ] `make lint test` green
+- [x] uploading a `.wasm` parses the manifest and lists requested permissions
+- [x] admin can grant/deny each permission individually
+- [x] a plugin with no granted permissions loads but cannot call any host func
+- [x] memory + time limits are enforced (a plugin that loops is killed)
+- [x] every install/grant/revoke/enable/disable/delete emits an audit event
+- [x] only `platform.admin` can hit the admin plugin API
+- [x] `make lint test` green
 
 ## Open questions
 
-- WASM target: `wasm32-unknown-unknown` vs. `wasm32-wasi`? (Default:
-  wasi-preview2 for richer host interop, but this affects what languages can
-  target it. Write an ADR.)
-- Do we sign `.wasm` modules (cosign/sigstore)? (Default: optional; admin can
-  upload a signed manifest, we verify it.)
+- WASM target: `wasm32-unknown-unknown` vs. `wasm32-wasi`? **Resolved
+  (this WS, ADR-0023):** plain `wasm32-unknown-unknown` for MVP. Plugins
+  do NOT get WASI imports; every ambient capability must be a Lahijan host
+  function (WS-10b), and every host function is gated through the
+  permission enforcer. The manifest permission list IS the full import
+  list, so the manifest is the only source of truth. WASI Preview 2 is a
+  future candidate once wazero's component-model support stabilises;
+  migrating will be purely additive (layer P2 on top of the existing
+  permission-gated host-function surface).
+- Do we sign `.wasm` modules (cosign/sigstore)? **Resolved (this WS):
+  deferred.** The plugins table carries an optional `signature` BYTEA
+  column so the install flow can accept and store a signed-manifest blob
+  without a schema change. Verification (against a pinned public key) is
+  intentionally out of scope for WS-10a; it will land alongside the
+  WS-10c marketplace (where signed modules become a hard requirement).
 
 ## Notes
 

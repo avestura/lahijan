@@ -23,4 +23,6 @@ type (
 	AuditLogOutcome     = gen.AuditLogOutcome
 	UserOauthIdentity   = gen.UserOauthIdentity
 	UserSamlIdentity    = gen.UserSamlIdentity
+	Plugin              = gen.Plugin
+	PluginPermission    = gen.PluginPermission
 )

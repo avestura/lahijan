@@ -162,3 +162,52 @@ func NewSAMLIdentity(
 	require.NoError(t, err, "create saml identity")
 	return row
 }
+
+// NewPlugin inserts and returns a fresh plugin row scoped to the given
+// tenant (pass nil tenantID for a platform-wide plugin). The wasm bytes are
+// a tiny placeholder; tests that exercise the runtime build their own
+// modules via wasm/runtime.
+func NewPlugin(
+	ctx context.Context,
+	t *testing.T,
+	db gen.DBTX,
+	tenantID *uuid.UUID,
+	name string,
+) gen.Plugin {
+	t.Helper()
+	if name == "" {
+		name = "plugin-" + uuid.NewString()[:8]
+	}
+	row, err := querier(db).CreatePlugin(ctx, gen.CreatePluginParams{
+		TenantID:     tenantID,
+		Name:         name,
+		Version:      "0.0.1",
+		Description:  "test plugin",
+		WasmHash:     uuid.NewString(), // any unique hex string
+		WasmBytes:    []byte("\x00asm\x01\x00\x00\x00"),
+		WasmSize:     8,
+		ManifestJson: json.RawMessage(`{"name":"` + name + `","version":"0.0.1"}`),
+		Status:       "pending",
+	})
+	require.NoError(t, err, "create plugin")
+	return row
+}
+
+// NewPluginPermission inserts a grant for the given plugin. The permission
+// string is opaque at this layer; the enforcer (wasm/permission) does
+// prefix matching.
+func NewPluginPermission(
+	ctx context.Context,
+	t *testing.T,
+	db gen.DBTX,
+	pluginID, grantedByUserID uuid.UUID,
+	permission string,
+) {
+	t.Helper()
+	err := querier(db).GrantPluginPermission(ctx, gen.GrantPluginPermissionParams{
+		PluginID:        pluginID,
+		Permission:      permission,
+		GrantedByUserID: grantedByUserID,
+	})
+	require.NoError(t, err, "grant plugin permission")
+}

@@ -82,6 +82,18 @@ const (
 	// action is fully traceable.
 	ActionPlatformJobRetry  = "platform.job.retry"
 	ActionPlatformJobCancel = "platform.job.cancel"
+
+	// Plugin lifecycle actions (WS-10a). Emitted by the installer.Service
+	// on every state-changing privileged action. Each row carries the
+	// plugin_id, the actor, and (where relevant) the permission slug or
+	// status transition in metadata.
+	ActionPluginUpload  = "plugins.upload"
+	ActionPluginInstall = "plugins.install"
+	ActionPluginGrant   = "plugins.grant"
+	ActionPluginRevoke  = "plugins.revoke"
+	ActionPluginEnable  = "plugins.enable"
+	ActionPluginDisable = "plugins.disable"
+	ActionPluginDelete  = "plugins.delete"
 )
 
 // Standard statuses recorded on audit_log.status and audit_log_outcomes.status.
@@ -112,6 +124,7 @@ const (
 	ResourceRole    = "role"
 	ResourceTenant  = "tenant"
 	ResourceJob     = "job"
+	ResourcePlugin  = "plugin"
 )
 
 // Event is the data an emitter records. TenantID is nil for system-level auth

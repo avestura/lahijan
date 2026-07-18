@@ -331,3 +331,30 @@ jobs:
   adminUI:
     enabled: true
     path: "/admin/jobs/ui"
+
+# WASM plugin subsystem (WS-10a/b/c). When disabled, the admin plugin API
+# degrades to a 501 "feature disabled" envelope and the wazero runtime is NOT
+# built. The DB tables (plugins, plugin_permissions) still exist so a future
+# enable does not require a migration; the runtime is the only piece that
+# short-circuits. Per ADR-0012 every plugin runs inside a wazero sandbox with
+# per-call memory + time limits; the values below are the process-wide caps.
+# A specific plugin's effective limits are the SMALLER of these and anything
+# the plugin's manifest declares.
+wasm:
+  # toggles the WASM subsystem. When false, the admin plugin API returns 501
+  # and program.Start does not build the wazero runtime.
+  enabled: false
+  # max memory bytes a single plugin instance can allocate. The runtime
+  # rejects instantiation of a module whose declared memory max exceeds this.
+  # 32 MiB covers every sample plugin in WS-10c while leaving headroom for
+  # many concurrent instances on a small host.
+  maxMemoryPerPlugin: 33554432
+  # max wall-clock milliseconds a single host call into a plugin may take
+  # before the runtime cancels the context. The plugin receives a
+  # context.DeadlineExceeded-compatible error; long-running work belongs on
+  # the River queue (WS-09), not in a synchronous host call.
+  execTimeoutMs: 5000
+  # max size in bytes of an uploaded .wasm module. The admin upload endpoint
+  # rejects anything larger at the multipart boundary so a malicious admin
+  # cannot exhaust server memory.
+  maxModuleSize: 10485760

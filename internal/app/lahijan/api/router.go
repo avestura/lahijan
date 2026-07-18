@@ -50,13 +50,19 @@ func RegisterRoutes(app *fiber.App, server *Server, policy middleware.PolicyReso
 //
 // The gate inspects c.Path() and dispatches to the right RequirePerm slug:
 //
-//	/api/v1/audit/export   -> audit.export
-//	/api/v1/audit/{id}     -> audit.read
-//	/api/v1/audit          -> audit.read
-//	/api/v1/admin/jobs/*/retry  -> platform.jobs.retry
-//	/api/v1/admin/jobs/*/cancel -> platform.jobs.cancel
-//	/api/v1/admin/jobs/{id}     -> platform.jobs.read
-//	/api/v1/admin/jobs          -> platform.jobs.read
+//	/api/v1/audit/export           -> audit.export
+//	/api/v1/audit/{id}             -> audit.read
+//	/api/v1/audit                  -> audit.read
+//	/api/v1/admin/jobs/*/retry     -> platform.jobs.retry
+//	/api/v1/admin/jobs/*/cancel    -> platform.jobs.cancel
+//	/api/v1/admin/jobs/{id}        -> platform.jobs.read
+//	/api/v1/admin/jobs             -> platform.jobs.read
+//	/api/v1/admin/plugins/upload   -> plugins.install
+//	/api/v1/admin/plugins/*/enable  -> plugins.install
+//	/api/v1/admin/plugins/*/disable -> plugins.install
+//	/api/v1/admin/plugins/*/permissions/*/* -> plugins.permission.approve
+//	/api/v1/admin/plugins/{id}     -> plugins.read  (GET) / plugins.uninstall (DELETE)
+//	/api/v1/admin/plugins          -> plugins.read
 //
 // Everything else: c.Next() (no enforcement; routes that need it must add
 // their own per-route RequirePerm or be gated through this same function as
@@ -85,6 +91,30 @@ func AuditGate(policy middleware.PolicyResolver) apigen.MiddlewareFunc {
 			return middleware.RequirePerm(policy, rbac.PermPlatformJobsRead)(c)
 		case strings.HasPrefix(path, "/api/v1/admin/jobs/"):
 			return middleware.RequirePerm(policy, rbac.PermPlatformJobsRead)(c)
+
+		// WS-10a: admin plugin endpoints. The WS-10a DoD requires "only
+		// platform.admin can hit the admin plugin API". Concretely this
+		// means every /admin/plugins/* path MUST require plugins.install
+		// (or plugins.uninstall / plugins.permission.approve) — those
+		// slugs are NOT in the tenant.member / tenant.viewer bundles, so
+		// only tenant.admin and platform.admin reach the handlers. The
+		// tenant-scoped plugins.read permission (which viewer+member hold)
+		// is reserved for a future /api/v1/plugins tenant-scoped surface
+		// (WS-21); the admin API is separate.
+		case path == "/api/v1/admin/plugins/upload" && c.Method() == "POST":
+			return middleware.RequirePerm(policy, rbac.PermPluginsInstall)(c)
+		case strings.HasPrefix(path, "/api/v1/admin/plugins/") && strings.HasSuffix(path, "/enable"):
+			return middleware.RequirePerm(policy, rbac.PermPluginsInstall)(c)
+		case strings.HasPrefix(path, "/api/v1/admin/plugins/") && strings.HasSuffix(path, "/disable"):
+			return middleware.RequirePerm(policy, rbac.PermPluginsInstall)(c)
+		case strings.HasPrefix(path, "/api/v1/admin/plugins/") && strings.Contains(path, "/permissions/"):
+			return middleware.RequirePerm(policy, rbac.PermPluginsPermissionApprove)(c)
+		case strings.HasPrefix(path, "/api/v1/admin/plugins/") && c.Method() == "DELETE":
+			return middleware.RequirePerm(policy, rbac.PermPluginsUninstall)(c)
+		case path == "/api/v1/admin/plugins":
+			return middleware.RequirePerm(policy, rbac.PermPluginsInstall)(c)
+		case strings.HasPrefix(path, "/api/v1/admin/plugins/"):
+			return middleware.RequirePerm(policy, rbac.PermPluginsInstall)(c)
 		}
 		return c.Next()
 	}

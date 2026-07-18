@@ -5,12 +5,63 @@
 package gen
 
 import (
+	"database/sql/driver"
 	"encoding/json"
+	"fmt"
 	"net/netip"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+type RiverJobState string
+
+const (
+	RiverJobStateAvailable RiverJobState = "available"
+	RiverJobStateCancelled RiverJobState = "cancelled"
+	RiverJobStateCompleted RiverJobState = "completed"
+	RiverJobStateDiscarded RiverJobState = "discarded"
+	RiverJobStatePending   RiverJobState = "pending"
+	RiverJobStateRetryable RiverJobState = "retryable"
+	RiverJobStateRunning   RiverJobState = "running"
+	RiverJobStateScheduled RiverJobState = "scheduled"
+)
+
+func (e *RiverJobState) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = RiverJobState(s)
+	case string:
+		*e = RiverJobState(s)
+	default:
+		return fmt.Errorf("unsupported scan type for RiverJobState: %T", src)
+	}
+	return nil
+}
+
+type NullRiverJobState struct {
+	RiverJobState RiverJobState `json:"river_job_state"`
+	Valid         bool          `json:"valid"` // Valid is true if RiverJobState is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullRiverJobState) Scan(value interface{}) error {
+	if value == nil {
+		ns.RiverJobState, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.RiverJobState.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullRiverJobState) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.RiverJobState), nil
+}
 
 // Append-only audit trail; UPDATE and DELETE are rejected by trigger.
 type AuditLog struct {
@@ -114,6 +165,39 @@ type PersonalAccessToken struct {
 	Scopes []string `json:"scopes"`
 }
 
+// Installed WASM plugins; wazero-sandboxed, admin-approved permissions.
+type Plugin struct {
+	ID uuid.UUID `json:"id"`
+	// NULL for platform-wide plugins; otherwise the tenant the plugin is scoped to.
+	TenantID    *uuid.UUID `json:"tenant_id"`
+	Name        string     `json:"name"`
+	Version     string     `json:"version"`
+	Description string     `json:"description"`
+	// sha256 of wasm_bytes (hex); surfaced in the admin UI.
+	WasmHash string `json:"wasm_hash"`
+	// Compiled .wasm bytes; MVP stores inline, future WS may externalise to SeaweedFS.
+	WasmBytes []byte `json:"wasm_bytes"`
+	WasmSize  int64  `json:"wasm_size"`
+	// Parsed lahijan.manifest.yaml kept verbatim so the admin sees exactly what the plugin declared.
+	ManifestJson json.RawMessage `json:"manifest_json"`
+	// pending | active | disabled; only active plugins can be instantiated.
+	Status string `json:"status"`
+	// Optional signed-manifest blob (cosign / sigstore); verification lands post-WS-10a.
+	Signature []byte    `json:"signature"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// Admin-approved grants a plugin holds; consulted by the WS-10a enforcer on every host call.
+type PluginPermission struct {
+	PluginID uuid.UUID `json:"plugin_id"`
+	// scope.action[:qualifier] slug; qualifier may end with * for prefix match.
+	Permission string `json:"permission"`
+	// The admin who approved this grant at install time.
+	GrantedByUserID uuid.UUID `json:"granted_by_user_id"`
+	GrantedAt       time.Time `json:"granted_at"`
+}
+
 // Long-lived session refresh tokens; global, one user can have many.
 type RefreshToken struct {
 	ID     uuid.UUID `json:"id"`
@@ -130,6 +214,60 @@ type RefreshToken struct {
 	SessionID uuid.UUID `json:"session_id"`
 	// Rotation family: reusing any rotated token revokes the whole family + the session.
 	FamilyID uuid.UUID `json:"family_id"`
+}
+
+// River durable job queue. Owned by github.com/riverqueue/river; treat as external.
+type RiverJob struct {
+	ID           int64             `json:"id"`
+	State        RiverJobState     `json:"state"`
+	Attempt      int16             `json:"attempt"`
+	MaxAttempts  int16             `json:"max_attempts"`
+	AttemptedAt  *time.Time        `json:"attempted_at"`
+	CreatedAt    time.Time         `json:"created_at"`
+	FinalizedAt  *time.Time        `json:"finalized_at"`
+	ScheduledAt  time.Time         `json:"scheduled_at"`
+	Priority     int16             `json:"priority"`
+	Args         json.RawMessage   `json:"args"`
+	AttemptedBy  []string          `json:"attempted_by"`
+	Errors       []json.RawMessage `json:"errors"`
+	Kind         string            `json:"kind"`
+	Metadata     json.RawMessage   `json:"metadata"`
+	Queue        string            `json:"queue"`
+	Tags         []string          `json:"tags"`
+	UniqueKey    []byte            `json:"unique_key"`
+	UniqueStates pgtype.Bits       `json:"unique_states"`
+}
+
+// River leader-election table (unlogged). Owned by river.
+type RiverLeader struct {
+	ElectedAt time.Time `json:"elected_at"`
+	ExpiresAt time.Time `json:"expires_at"`
+	LeaderID  string    `json:"leader_id"`
+	Name      string    `json:"name"`
+}
+
+// River internal migration versioning (separate from schema_migrations). Owned by river.
+type RiverMigration struct {
+	ID        int64     `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	Version   int64     `json:"version"`
+}
+
+// River LISTEN/NOTIFY outbox. Owned by river.
+type RiverNotification struct {
+	ID        int64     `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	Payload   string    `json:"payload"`
+	Topic     string    `json:"topic"`
+}
+
+// River queue config (paused, metadata). Owned by river.
+type RiverQueue struct {
+	Name      string          `json:"name"`
+	CreatedAt time.Time       `json:"created_at"`
+	Metadata  json.RawMessage `json:"metadata"`
+	PausedAt  *time.Time      `json:"paused_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
 }
 
 // Named bundle of permissions; assigned to memberships.
