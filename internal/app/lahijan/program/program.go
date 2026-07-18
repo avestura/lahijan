@@ -52,6 +52,7 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/eventservice"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/hostfuncs"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/installer"
+	"github.com/avestura/lahijan/internal/app/lahijan/wasm/marketplace"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/permission"
 	wasmruntime "github.com/avestura/lahijan/internal/app/lahijan/wasm/runtime"
 	wasmworker "github.com/avestura/lahijan/internal/app/lahijan/wasm/worker"
@@ -270,8 +271,9 @@ func Start() error {
 		IDPSAML:      samlDeps.registry,
 		MFASvc:       mfaDeps.svc,
 		Jobs:         jobDeps.client,
-		PluginsRepo:  wasmDeps.pluginsRepo,
-		PluginSvc:    wasmDeps.svc,
+		PluginsRepo:   wasmDeps.pluginsRepo,
+		PluginSvc:     wasmDeps.svc,
+		MarketplaceSvc: wasmDeps.marketplace,
 	}), policy)
 
 	// WS-09: mount River's built-in web UI (admin-only). The UI ships its
@@ -972,15 +974,16 @@ func registerPluginInvokeWorker(
 		})
 }
 
-// wasmDeps bundles the WS-10a/WS-10b WASM plugin subsystem dependencies
-// built at bootstrap. Every field is nil-appropriate: when conf.wasm.enabled
-// is false the bundle is zero-value, the api handlers degrade to 501, and
-// no runtime is built.
+// wasmDeps bundles the WS-10a/WS-10b/WS-10c WASM plugin subsystem
+// dependencies built at bootstrap. Every field is nil-appropriate: when
+// conf.wasm.enabled is false the bundle is zero-value, the api handlers
+// degrade to 501, and no runtime is built.
 type wasmDeps struct {
-	runtime     *wasmruntime.Runtime
-	pluginsRepo *database.PluginsRepository
-	svc         *installer.Service
-	bus         *eventbus.Bus
+	runtime       *wasmruntime.Runtime
+	pluginsRepo   *database.PluginsRepository
+	svc           *installer.Service
+	bus           *eventbus.Bus
+	marketplace   *marketplace.Service
 }
 
 // buildWasmDeps wires the wazero runtime + permission enforcer + installer
@@ -990,6 +993,11 @@ type wasmDeps struct {
 // runtime.Config.HostFunctions so plugins that declare those imports can
 // call them; every host function routes its permission check through the
 // enforcer built here.
+//
+// WS-10c additionally builds the marketplace service when
+// wasm.marketplace.{path,url} resolves to a parseable index. The
+// marketplace service is nil-appropriate when the index is missing;
+// the api handlers degrade to 501.
 func buildWasmDeps(_ context.Context, a *authDeps, j *jobDeps) (wasmDeps, error) {
 	if !conf.GetWasmEnabled() {
 		fiberlog.Debug("wasm subsystem is disabled; skipping wazero runtime setup")
@@ -1040,7 +1048,34 @@ func buildWasmDeps(_ context.Context, a *authDeps, j *jobDeps) (wasmDeps, error)
 		return wasmDeps{}, errors.Join(errors.New("build wazero runtime"), err)
 	}
 
-	svc := installer.New(a.repos.Plugins, rt, a.audit)
+	// WS-10c: build the installer with the WS-10b side-channel repos so
+	// the Upgrade flow can clean up HTTP handler mounts + event
+	// subscriptions before CASCADE.
+	svc := installer.New(a.repos.Plugins, rt, a.audit).
+		WithSideRepos(a.repos.PluginHTTPHandlers, a.repos.PluginSubscriptions)
+
+	// WS-10c: build the marketplace. The index loader picks local vs
+	// HTTP based on conf.wasm.marketplace.url; the asset loader matches.
+	// A missing or malformed index is a soft error: the marketplace
+	// service stays nil and the api handlers degrade to 501.
+	var mktSvc *marketplace.Service
+	ttl := time.Duration(conf.GetWasmMarketplaceCacheTTL()) * time.Second
+	if url := conf.GetWasmMarketplaceURL(); url != "" {
+		mktSvc = marketplace.New(
+			marketplace.NewHTTPIndexLoader(url, ttl),
+			marketplace.NewHTTPAssetLoader(url),
+			svc, a.repos.Plugins, a.audit, slog.Default(),
+		)
+		fiberlog.Info("wasm marketplace enabled", "url", url)
+	} else if path := conf.GetWasmMarketplacePath(); path != "" {
+		mktSvc = marketplace.New(
+			marketplace.NewLocalIndexLoader(path, ttl),
+			marketplace.NewLocalAssetLoader(path),
+			svc, a.repos.Plugins, a.audit, slog.Default(),
+		)
+		fiberlog.Info("wasm marketplace enabled", "path", path)
+	}
+
 	fiberlog.Info("wasm subsystem enabled",
 		"max_memory_per_plugin", conf.GetWasmMaxMemoryPerPlugin(),
 		"exec_timeout_ms", conf.GetWasmExecTimeoutMs())
@@ -1049,5 +1084,6 @@ func buildWasmDeps(_ context.Context, a *authDeps, j *jobDeps) (wasmDeps, error)
 		pluginsRepo: a.repos.Plugins,
 		svc:         svc,
 		bus:         bus,
+		marketplace: mktSvc,
 	}, nil
 }

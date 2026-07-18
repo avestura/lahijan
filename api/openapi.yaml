@@ -1526,6 +1526,177 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  # -------------------------------------------------------------------------
+  # Admin: plugin marketplace (WS-10c). Platform-admin-only endpoints for
+  # browsing the configured marketplace index and installing or upgrading
+  # plugins from it. Every state-changing action emits an audit event
+  # (action: plugins.marketplace_install | plugins.marketplace_upgrade |
+  # plugins.upgrade). The marketplace source is configured via
+  # wasm.marketplace.url (HTTP) or wasm.marketplace.path (local directory).
+  # -------------------------------------------------------------------------
+
+  /api/v1/admin/marketplace:
+    get:
+      tags: [admin]
+      operationId: listAdminMarketplace
+      summary: List plugins available in the marketplace
+      description: |
+        Returns the configured marketplace index verbatim. Each entry
+        carries the plugin's marketplace metadata (name, version,
+        description, license, permissions) plus the sha256 pin the
+        installer verifies before persisting. The marketplace itself
+        is configured via conf.wasm.marketplace.{url,path}.
+      responses:
+        "200":
+          description: A page of marketplace entries.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminMarketplacePage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "501":
+          description: The marketplace subsystem is not enabled on this server.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/admin/marketplace/{name}:
+    get:
+      tags: [admin]
+      operationId: getAdminMarketplaceEntry
+      summary: Fetch a single marketplace entry by name
+      description: |
+        Returns one entry from the marketplace index. Useful for the
+        admin UI's "install" page which renders the manifest + permission
+        list before the admin approves.
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema: { type: string }
+          description: The marketplace entry name (kebab-case).
+      responses:
+        "200":
+          description: The entry.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminMarketplaceEntry" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501":
+          description: The marketplace subsystem is not enabled on this server.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/admin/plugins/install/{name}:
+    post:
+      tags: [admin]
+      operationId: installAdminPluginFromMarketplace
+      summary: Install a plugin from the marketplace
+      description: |
+        Fetches the plugin from the configured marketplace (verifying
+        the sha256 pin), runs it through the standard installer.Upload
+        flow (audit emission, permission enforcement), and returns the
+        new plugin row in "pending" status. The admin must grant at
+        least one permission (or call /enable directly) before the
+        runtime will instantiate it.
+
+        Returns 409 Conflict when a plugin with this (name, *) already
+        exists; the admin should POST /upgrade/{name} instead.
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema: { type: string }
+          description: The marketplace entry name (kebab-case).
+      responses:
+        "201":
+          description: The plugin was installed; the new row is returned.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminPlugin" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404":
+          description: The marketplace has no entry with this name.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "409":
+          description: A plugin with this name is already installed (use /upgrade instead).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "422":
+          description: The downloaded .wasm does not match the marketplace sha256 pin.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "501":
+          description: The marketplace subsystem is not enabled on this server.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/admin/plugins/upgrade/{name}:
+    post:
+      tags: [admin]
+      operationId: upgradeAdminPluginFromMarketplace
+      summary: Upgrade an installed plugin to the marketplace's latest version
+      description: |
+        Fetches the marketplace version of an already-installed plugin
+        and runs it through installer.Upgrade. The flow:
+
+          1. Locates the most recent prior version (by name).
+          2. Semver-compares; rejects downgrades + same-version
+             reinstalls.
+          3. Uploads the new version (status=pending), preserving
+             grants the new manifest still requests, dropping grants
+             it no longer requests, and surfacing new permissions in
+             the response so the admin can approve them.
+          4. Hard-deletes the old row. CASCADE removes orphan state.
+
+        The response includes `newPermissions` — the admin must POST
+        /permissions/{perm}/grant for each before /enable will work.
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema: { type: string }
+          description: The marketplace entry name (kebab-case).
+      responses:
+        "200":
+          description: The upgrade completed; the result bundle is returned.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminPluginUpgradeResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404":
+          description: The marketplace has no entry with this name OR no prior installation exists.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "409":
+          description: The marketplace version equals the installed version.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "422":
+          description: The downloaded .wasm does not match the marketplace sha256 pin.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "501":
+          description: The marketplace subsystem is not enabled on this server.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
 # ---------------------------------------------------------------------------
 # Components
 # ---------------------------------------------------------------------------
@@ -2234,6 +2405,115 @@ components:
           type: integer
         offset:
           type: integer
+
+    # ---------------------------------------------------------------------
+    # Marketplace schemas (WS-10c). The marketplace index shape used by
+    # /api/v1/admin/marketplace* + the upgrade-result bundle returned by
+    # /api/v1/admin/plugins/upgrade/{name}.
+    # ---------------------------------------------------------------------
+
+    AdminMarketplaceEntry:
+      type: object
+      required: [name, version, source, sha256]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          description: Kebab-case plugin name (matches the manifest).
+        version:
+          type: string
+          description: Semver version (matches the manifest).
+        description:
+          type: string
+        author:
+          type: string
+        license:
+          type: string
+          description: SPDX identifier (Apache-2.0, MIT, ...).
+        homepage:
+          type: string
+          format: uri
+        permissions:
+          type: array
+          description: |
+            Permission slugs the plugin requests. The admin must grant
+            each one at install time; the upload parser rejects unknown
+            slugs.
+          items:
+            type: string
+        source:
+          type: object
+          required: [repo]
+          additionalProperties: false
+          properties:
+            repo:
+              type: string
+              enum: [local, git]
+              description: |
+                `local` = the .wasm + manifest live under the marketplace
+                root; `git` = clone the pinned git URL (future WS;
+                signature verification required).
+            path:
+              type: string
+              description: Subdirectory under the marketplace root (repo=local).
+            gitUrl:
+              type: string
+              format: uri
+            gitRef:
+              type: string
+              description: Pinned git ref (branch, tag, or commit).
+        sha256:
+          type: string
+          description: sha256 hex of the .wasm bytes; the installer verifies the download matches.
+
+    AdminMarketplacePage:
+      type: object
+      required: [items]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/AdminMarketplaceEntry" }
+
+    AdminPluginUpgradeResult:
+      type: object
+      required: [plugin, oldId, preservedGrants, droppedGrants, newPermissions]
+      additionalProperties: false
+      description: |
+        The result bundle returned by the marketplace upgrade endpoint.
+        The admin uses `newPermissions` to decide whether to grant each
+        one (per WS-10c DoD "upgrade adds a permission -> admin is
+        prompted to grant it"). `droppedGrants` are surfaced for
+        visibility but cannot be undone — the new manifest no longer
+        requests them.
+      properties:
+        plugin:
+          description: The newly-installed plugin row (status=pending).
+          allOf:
+            - $ref: "#/components/schemas/AdminPlugin"
+        oldId:
+          type: string
+          format: uuid
+          description: The id of the previous plugin row (now hard-deleted).
+        preservedGrants:
+          type: array
+          description: Grants carried forward from the prior version.
+          items:
+            type: string
+        droppedGrants:
+          type: array
+          description: Grants no longer requested by the new manifest (silently dropped).
+          items:
+            type: string
+        newPermissions:
+          type: array
+          description: |
+            New manifest permissions the prior version did not have. The
+            admin MUST grant each one (POST
+            /api/v1/admin/plugins/{pluginId}/permissions/{perm}/grant)
+            before calling /enable.
+          items:
+            type: string
 
     # ---------------------------------------------------------------------
     # MFA schemas (WS-07c)

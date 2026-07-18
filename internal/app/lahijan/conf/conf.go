@@ -607,3 +607,29 @@ func GetWasmExecTimeoutMs() int {
 func GetWasmMaxModuleSize() int {
 	return viper.GetInt("wasm.maxModuleSize")
 }
+
+// ---------------------------------------------------------------------------
+// WASM plugin marketplace (WS-10c). Every getter reads a key under
+// wasm.marketplace.*.
+// ---------------------------------------------------------------------------
+
+// GetWasmMarketplacePath returns the local marketplace directory. Used
+// when wasm.marketplace.url is empty. Defaults to the in-repo
+// examples/plugins/marketplace/ directory.
+func GetWasmMarketplacePath() string {
+	return viper.GetString("wasm.marketplace.path")
+}
+
+// GetWasmMarketplaceURL returns the remote HTTP(S) endpoint serving the
+// marketplace index. When non-empty, takes precedence over the local
+// path. Empty string means "use the local path".
+func GetWasmMarketplaceURL() string {
+	return viper.GetString("wasm.marketplace.url")
+}
+
+// GetWasmMarketplaceCacheTTL returns the parsed-index cache lifetime.
+// The local loader also watches the file's mtime; the HTTP loader only
+// re-fetches on TTL expiry.
+func GetWasmMarketplaceCacheTTL() int {
+	return viper.GetInt("wasm.marketplace.cacheTtlSeconds")
+}

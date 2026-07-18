@@ -1081,6 +1081,113 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/marketplace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List plugins available in the marketplace
+         * @description Returns the configured marketplace index verbatim. Each entry
+         *     carries the plugin's marketplace metadata (name, version,
+         *     description, license, permissions) plus the sha256 pin the
+         *     installer verifies before persisting. The marketplace itself
+         *     is configured via conf.wasm.marketplace.{url,path}.
+         */
+        get: operations["listAdminMarketplace"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/marketplace/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fetch a single marketplace entry by name
+         * @description Returns one entry from the marketplace index. Useful for the
+         *     admin UI's "install" page which renders the manifest + permission
+         *     list before the admin approves.
+         */
+        get: operations["getAdminMarketplaceEntry"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/install/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Install a plugin from the marketplace
+         * @description Fetches the plugin from the configured marketplace (verifying
+         *     the sha256 pin), runs it through the standard installer.Upload
+         *     flow (audit emission, permission enforcement), and returns the
+         *     new plugin row in "pending" status. The admin must grant at
+         *     least one permission (or call /enable directly) before the
+         *     runtime will instantiate it.
+         *
+         *     Returns 409 Conflict when a plugin with this (name, *) already
+         *     exists; the admin should POST /upgrade/{name} instead.
+         */
+        post: operations["installAdminPluginFromMarketplace"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/upgrade/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upgrade an installed plugin to the marketplace's latest version
+         * @description Fetches the marketplace version of an already-installed plugin
+         *     and runs it through installer.Upgrade. The flow:
+         *
+         *       1. Locates the most recent prior version (by name).
+         *       2. Semver-compares; rejects downgrades + same-version
+         *          reinstalls.
+         *       3. Uploads the new version (status=pending), preserving
+         *          grants the new manifest still requests, dropping grants
+         *          it no longer requests, and surfacing new permissions in
+         *          the response so the admin can approve them.
+         *       4. Hard-deletes the old row. CASCADE removes orphan state.
+         *
+         *     The response includes `newPermissions` — the admin must POST
+         *     /permissions/{perm}/grant for each before /enable will work.
+         */
+        post: operations["upgradeAdminPluginFromMarketplace"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1453,6 +1560,72 @@ export interface components {
             total: number;
             limit: number;
             offset: number;
+        };
+        AdminMarketplaceEntry: {
+            /** @description Kebab-case plugin name (matches the manifest). */
+            name: string;
+            /** @description Semver version (matches the manifest). */
+            version: string;
+            description?: string;
+            author?: string;
+            /** @description SPDX identifier (Apache-2.0, MIT, ...). */
+            license?: string;
+            /** Format: uri */
+            homepage?: string;
+            /**
+             * @description Permission slugs the plugin requests. The admin must grant
+             *     each one at install time; the upload parser rejects unknown
+             *     slugs.
+             */
+            permissions?: string[];
+            source: {
+                /**
+                 * @description `local` = the .wasm + manifest live under the marketplace
+                 *     root; `git` = clone the pinned git URL (future WS;
+                 *     signature verification required).
+                 * @enum {string}
+                 */
+                repo: "local" | "git";
+                /** @description Subdirectory under the marketplace root (repo=local). */
+                path?: string;
+                /** Format: uri */
+                gitUrl?: string;
+                /** @description Pinned git ref (branch, tag, or commit). */
+                gitRef?: string;
+            };
+            /** @description sha256 hex of the .wasm bytes; the installer verifies the download matches. */
+            sha256: string;
+        };
+        AdminMarketplacePage: {
+            items: components["schemas"]["AdminMarketplaceEntry"][];
+        };
+        /**
+         * @description The result bundle returned by the marketplace upgrade endpoint.
+         *     The admin uses `newPermissions` to decide whether to grant each
+         *     one (per WS-10c DoD "upgrade adds a permission -> admin is
+         *     prompted to grant it"). `droppedGrants` are surfaced for
+         *     visibility but cannot be undone — the new manifest no longer
+         *     requests them.
+         */
+        AdminPluginUpgradeResult: {
+            /** @description The newly-installed plugin row (status=pending). */
+            plugin: components["schemas"]["AdminPlugin"];
+            /**
+             * Format: uuid
+             * @description The id of the previous plugin row (now hard-deleted).
+             */
+            oldId: string;
+            /** @description Grants carried forward from the prior version. */
+            preservedGrants: string[];
+            /** @description Grants no longer requested by the new manifest (silently dropped). */
+            droppedGrants: string[];
+            /**
+             * @description New manifest permissions the prior version did not have. The
+             *     admin MUST grant each one (POST
+             *     /api/v1/admin/plugins/{pluginId}/permissions/{perm}/grant)
+             *     before calling /enable.
+             */
+            newPermissions: string[];
         };
         TOTPEnrollResponse: {
             /**
@@ -3087,6 +3260,196 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listAdminMarketplace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of marketplace entries. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminMarketplacePage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description The marketplace subsystem is not enabled on this server. */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAdminMarketplaceEntry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The marketplace entry name (kebab-case). */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The entry. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminMarketplaceEntry"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The marketplace subsystem is not enabled on this server. */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    installAdminPluginFromMarketplace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The marketplace entry name (kebab-case). */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The plugin was installed; the new row is returned. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPlugin"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description The marketplace has no entry with this name. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A plugin with this name is already installed (use /upgrade instead). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The downloaded .wasm does not match the marketplace sha256 pin. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The marketplace subsystem is not enabled on this server. */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    upgradeAdminPluginFromMarketplace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The marketplace entry name (kebab-case). */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The upgrade completed; the result bundle is returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPluginUpgradeResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description The marketplace has no entry with this name OR no prior installation exists. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The marketplace version equals the installed version. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The downloaded .wasm does not match the marketplace sha256 pin. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The marketplace subsystem is not enabled on this server. */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
 }

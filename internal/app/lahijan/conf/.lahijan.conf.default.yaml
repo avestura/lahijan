@@ -358,3 +358,20 @@ wasm:
   # rejects anything larger at the multipart boundary so a malicious admin
   # cannot exhaust server memory.
   maxModuleSize: 10485760
+  # Marketplace (WS-10c). The admin marketplace API reads the index from
+  # either `path` (a local directory) or `url` (an HTTP endpoint serving the
+  # same YAML). When both are set, `url` wins. When neither is set, the
+  # marketplace endpoints degrade to 501 "feature disabled". The default
+  # in-repo marketplace lives at examples/plugins/marketplace/.
+  marketplace:
+    # Local directory rooted at the Lahijan working dir. The directory must
+    # contain plugins-marketplace.yaml at its top level. Defaults to the
+    # in-repo marketplace shipped with Lahijan.
+    path: "examples/plugins/marketplace"
+    # Remote HTTP(S) endpoint serving plugins-marketplace.yaml. When non-
+    # empty, takes precedence over `path`.
+    url: ""
+    # Cache lifetime (seconds) for the parsed index. The local loader also
+    # watches the file's mtime and re-reads on change; the HTTP loader only
+    # re-fetches on TTL expiry.
+    cacheTtlSeconds: 60
