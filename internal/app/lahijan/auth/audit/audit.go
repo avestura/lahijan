@@ -58,6 +58,20 @@ const (
 	ActionIdpLogin  = "auth.idp.login"
 	ActionIdpUnlink = "auth.idp.unlink"
 
+	// MFA actions (WS-07c). Enroll covers every step of enrollment
+	// (begin_registration / finish_registration / TOTP enroll);
+	// Verify is a successful or failed factor verification at challenge
+	// time; Disable is removing a factor; RecoveryRefresh is
+	// regenerating the recovery code batch; Challenge is the login-time
+	// challenge success; ChallengeFail covers a single failed challenge
+	// attempt and the brute-force lockout.
+	ActionMFAEnroll          = "auth.mfa.enroll"
+	ActionMFAVerify          = "auth.mfa.verify"
+	ActionMFADisable         = "auth.mfa.disable"
+	ActionMFARecoveryRefresh = "auth.mfa.recovery_refresh"
+	ActionMFAChallenge       = "auth.mfa.challenge"
+	ActionMFAChallengeFail   = "auth.mfa.challenge_fail"
+
 	// Audit subsystem actions (the audit query API itself emits these).
 	ActionAuditExport = "audit.export"
 	ActionRBACRoleOps = "rbac.role.update"

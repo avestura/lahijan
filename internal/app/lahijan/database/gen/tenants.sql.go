@@ -26,7 +26,7 @@ const createTenant = `-- name: CreateTenant :one
 
 INSERT INTO tenants (slug, name, is_active)
 VALUES ($1, $2, $3)
-RETURNING id, slug, name, is_active, created_at, updated_at, deleted_at
+RETURNING id, slug, name, is_active, created_at, updated_at, deleted_at, mfa_required
 `
 
 type CreateTenantParams struct {
@@ -50,12 +50,13 @@ func (q *Queries) CreateTenant(ctx context.Context, arg CreateTenantParams) (Ten
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.MfaRequired,
 	)
 	return i, err
 }
 
 const getTenantByID = `-- name: GetTenantByID :one
-SELECT id, slug, name, is_active, created_at, updated_at, deleted_at FROM tenants WHERE id = $1
+SELECT id, slug, name, is_active, created_at, updated_at, deleted_at, mfa_required FROM tenants WHERE id = $1
 `
 
 func (q *Queries) GetTenantByID(ctx context.Context, id uuid.UUID) (Tenant, error) {
@@ -69,12 +70,13 @@ func (q *Queries) GetTenantByID(ctx context.Context, id uuid.UUID) (Tenant, erro
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.MfaRequired,
 	)
 	return i, err
 }
 
 const getTenantBySlug = `-- name: GetTenantBySlug :one
-SELECT id, slug, name, is_active, created_at, updated_at, deleted_at FROM tenants WHERE slug = $1 AND deleted_at IS NULL
+SELECT id, slug, name, is_active, created_at, updated_at, deleted_at, mfa_required FROM tenants WHERE slug = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) GetTenantBySlug(ctx context.Context, slug string) (Tenant, error) {
@@ -88,12 +90,13 @@ func (q *Queries) GetTenantBySlug(ctx context.Context, slug string) (Tenant, err
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.MfaRequired,
 	)
 	return i, err
 }
 
 const listTenants = `-- name: ListTenants :many
-SELECT id, slug, name, is_active, created_at, updated_at, deleted_at FROM tenants
+SELECT id, slug, name, is_active, created_at, updated_at, deleted_at, mfa_required FROM tenants
 WHERE deleted_at IS NULL
 ORDER BY created_at DESC
 LIMIT $1 OFFSET $2
@@ -121,6 +124,7 @@ func (q *Queries) ListTenants(ctx context.Context, arg ListTenantsParams) ([]Ten
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.MfaRequired,
 		); err != nil {
 			return nil, err
 		}

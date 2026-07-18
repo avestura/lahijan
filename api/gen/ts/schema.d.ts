@@ -83,6 +83,12 @@ export interface paths {
          * Log in with email and password
          * @description Verifies credentials and opens a session. Sets the session and
          *     refresh-token cookies; returns the authenticated user.
+         *
+         *     When MFA is required (the user has at least one enrolled factor OR
+         *     any of their tenant memberships has mfa_required = TRUE), the
+         *     response is 202 Accepted with a pending_session_token instead of
+         *     200 OK with a session. The caller then completes the MFA challenge
+         *     at /api/v1/auth/mfa/challenge to obtain the real session.
          */
         post: operations["login"];
         delete?: never;
@@ -517,6 +523,252 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/mfa/totp/enroll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Begin TOTP enrollment
+         * @description Generates a fresh TOTP secret, AES-GCM-encrypts it at rest, and
+         *     returns the raw secret + the otpauth:// provisioning URI for the
+         *     dashboard to render as a QR code. Until the user confirms with a
+         *     valid 6-digit code at /verify, the secret does NOT count as an
+         *     enrolled factor (login does not challenge for it).
+         *
+         *     Re-enrollment over a confirmed factor fails with 409 — the user
+         *     must explicitly disable first.
+         */
+        post: operations["enrollTOTP"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/mfa/totp/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm TOTP enrollment with a 6-digit code
+         * @description Marks the pending TOTP secret as confirmed (the user's
+         *     authenticator app produced a matching 6-digit code). On success
+         *     the factor becomes effective and a fresh batch of recovery codes
+         *     is generated (returned once via /me/mfa/recovery).
+         */
+        post: operations["verifyTOTP"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/mfa/totp/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Disable TOTP
+         * @description Removes the user's TOTP factor. Per the WS-07c default the caller
+         *     MUST supply their current password (re-authentication) before the
+         *     factor is removed; this prevents a stolen session cookie from
+         *     silently disarming MFA.
+         */
+        post: operations["disableTOTP"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/mfa/webauthn/register/begin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Begin WebAuthn / passkey registration
+         * @description Returns the PublicKeyCredentialCreationOptions the browser feeds
+         *     to navigator.credentials.create(). The dashboard persists the
+         *     returned ceremony session (typically in a short-lived cookie or
+         *     local storage) and POSTs it back at /register/finish.
+         */
+        post: operations["beginWebAuthnRegistration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/mfa/webauthn/register/finish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Finish WebAuthn / passkey registration
+         * @description Accepts the attestation response the browser POSTed after
+         *     navigator.credentials.create() succeeded. Verifies the signature,
+         *     persists the credential, and (on success) returns a small
+         *     confirmation envelope.
+         */
+        post: operations["finishWebAuthnRegistration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/mfa/webauthn/login/begin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Begin a WebAuthn login ceremony
+         * @description Returns the PublicKeyCredentialRequestOptions the browser feeds
+         *     to navigator.credentials.get() during an MFA challenge. The
+         *     caller MUST carry a valid pending_session_token (issued by the
+         *     password/IdP login step when MFA is required).
+         */
+        post: operations["beginWebAuthnLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/mfa/webauthn/login/finish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Finish a WebAuthn login ceremony
+         * @description Accepts the assertion response the browser POSTed after
+         *     navigator.credentials.get() succeeded. On success the MFA
+         *     challenge is complete; the caller still POSTs to
+         *     /api/v1/auth/mfa/challenge with kind=webauthn-finished to
+         *     exchange the pending_session_token for the real session.
+         */
+        post: operations["finishWebAuthnLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/mfa/webauthn/credentials/{credentialId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a WebAuthn credential
+         * @description Revokes a single WebAuthn credential (one of the user's passkeys).
+         *     Re-authentication (current password) is required when this would
+         *     leave the user with zero factors AND MFA is required by policy.
+         */
+        delete: operations["deleteWebAuthnCredential"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/mfa/recovery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List recovery code metadata (no raw codes)
+         * @description Returns metadata about the user's recovery codes (count remaining,
+         *     created_at per row). The raw codes are NEVER returned by this
+         *     endpoint — they were shown exactly once at generation time.
+         */
+        get: operations["listMyRecoveryCodes"];
+        put?: never;
+        /**
+         * Regenerate the recovery code batch
+         * @description Wipes the user's existing recovery codes (used + unused) and
+         *     issues a fresh batch. The raw codes are returned exactly once;
+         *     Lahijan cannot show them again.
+         */
+        post: operations["regenerateMyRecoveryCodes"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/mfa/challenge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verify an MFA challenge and issue the real session
+         * @description Accepts a pending_session_token (from /login or /oauth/callback
+         *     when MFA was required) plus an MFA code:
+         *
+         *       - kind=totp:     code is a 6-digit TOTP value
+         *       - kind=recovery: code is a recovery code
+         *       - kind=webauthn: assertion fields from the /webauthn/login/finish response
+         *
+         *     On success the pending_session_token is consumed and the real
+         *     session + refresh token are issued (set as cookies, just like
+         *     /login). On failure the failed_attempts counter is bumped; at
+         *     maxAttempts=5 the pending token is revoked (brute-force lockout).
+         */
+        post: operations["challengeMFA"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/audit": {
         parameters: {
             query?: never;
@@ -725,6 +977,21 @@ export interface components {
         AuthResponse: {
             user: components["schemas"]["User"];
         };
+        MFAChallengeRequired: {
+            /** @description Always true; signals the 202 path. */
+            mfaRequired: boolean;
+            /**
+             * @description Short-lived, single-use token. POST it to
+             *     /api/v1/auth/mfa/challenge with the MFA code to obtain the
+             *     real session cookies.
+             */
+            pendingSessionToken: string;
+            /**
+             * @description The factors the user has enrolled. Lets the dashboard pick
+             *     the default challenge UI (TOTP input vs WebAuthn prompt).
+             */
+            enrolledFactors?: ("totp" | "webauthn")[];
+        };
         CreatePersonalAccessTokenRequest: {
             name: string;
             /** @description Permission slugs (scope.action) the PAT grants. */
@@ -856,6 +1123,118 @@ export interface components {
             total: number;
             limit: number;
             offset: number;
+        };
+        TOTPEnrollResponse: {
+            /**
+             * @description The raw base32 TOTP secret, shown ONCE so the user can enter
+             *     it manually if they cannot scan the QR. Persisted encrypted
+             *     at rest.
+             */
+            secret: string;
+            /** @description The otpauth:// URL the dashboard encodes as a QR code. */
+            provisioningUri: string;
+        };
+        TOTPVerifyRequest: {
+            /** @description The 6-digit code from the user's authenticator app. */
+            code: string;
+        };
+        MFADisableRequest: {
+            /**
+             * Format: password
+             * @description The user's current password. Required so that a stolen
+             *     session cookie cannot silently disarm MFA.
+             */
+            currentPassword: string;
+        };
+        RecoveryCodesBatch: {
+            /**
+             * @description The raw recovery codes. Shown to the user EXACTLY ONCE;
+             *     Lahijan cannot render them again.
+             */
+            codes: string[];
+        };
+        RecoveryCodesListResponse: {
+            /** @description Total codes the user has (used + unused). */
+            total: number;
+            /** @description Number of unused codes remaining. */
+            remaining: number;
+            /** @description Optional per-row metadata (no raw codes). */
+            rows?: {
+                /** Format: uuid */
+                id: string;
+                used: boolean;
+                /** Format: date-time */
+                createdAt: string;
+            }[];
+        };
+        WebAuthnBeginRequest: {
+            /** @description Optional user-supplied label for the credential. */
+            name?: string;
+        };
+        WebAuthnBeginRegistrationResponse: {
+            /**
+             * @description The PublicKeyCredentialCreationOptions the browser feeds to
+             *     navigator.credentials.create(). Opaque to Lahijan.
+             */
+            publicKey: Record<string, never>;
+            /**
+             * @description Opaque ceremony session token the dashboard MUST echo back
+             *     at /finish in the matching field.
+             */
+            session: string;
+        };
+        WebAuthnFinishRegistrationRequest: {
+            /** @description The ceremony session returned by /register/begin. */
+            session: string;
+            /**
+             * @description The raw attestation response the browser POSTed. Carried
+             *     verbatim to the WebAuthn library.
+             */
+            response: unknown;
+            /** @description User-supplied label for the credential. */
+            name: string;
+        };
+        WebAuthnLoginBeginRequest: {
+            /** @description The pending_session_token from /login or /oauth/callback. */
+            pendingSessionToken: string;
+        };
+        WebAuthnLoginBeginResponse: {
+            /**
+             * @description The PublicKeyCredentialRequestOptions the browser feeds to
+             *     navigator.credentials.get().
+             */
+            publicKey: Record<string, never>;
+            /** @description Opaque ceremony session for /login/finish. */
+            session: string;
+        };
+        WebAuthnLoginFinishRequest: {
+            session: string;
+            /** @description The raw assertion response from the browser. */
+            response: unknown;
+        };
+        MFAChallengeRequest: {
+            /** @description The token from /login when MFA is required. */
+            pendingSessionToken: string;
+            /**
+             * @description Which factor the user is challenging with.
+             * @enum {string}
+             */
+            kind: "totp" | "recovery" | "webauthn";
+            /**
+             * @description The 6-digit TOTP code (kind=totp) or the recovery code
+             *     (kind=recovery). Empty when kind=webauthn.
+             */
+            code?: string;
+            /**
+             * @description The ceremony session from /me/mfa/webauthn/login/begin
+             *     (kind=webauthn only).
+             */
+            webauthnSession?: string;
+            /**
+             * @description The parsed assertion response from the browser
+             *     (kind=webauthn only).
+             */
+            webauthnResponse?: unknown;
         };
     };
     responses: {
@@ -1100,6 +1479,20 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuthResponse"];
+                };
+            };
+            /**
+             * @description MFA challenge required. The pending_session_token is also set
+             *     in a short-lived cookie (lahijan_mfa_pending) for browser
+             *     clients. Exchange it for the real session at
+             *     /api/v1/auth/mfa/challenge.
+             */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MFAChallengeRequired"];
                 };
             };
             401: components["responses"]["Unauthorized"];
@@ -1624,6 +2017,311 @@ export interface operations {
             404: components["responses"]["NotFound"];
             /** @description Removing this identity would leave the user with no way to log in. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    enrollTOTP: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The new TOTP secret + provisioning URI. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TOTPEnrollResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description TOTP is already enrolled; disable first. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    verifyTOTP: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TOTPVerifyRequest"];
+            };
+        };
+        responses: {
+            /** @description TOTP confirmed; recovery codes generated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecoveryCodesBatch"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    disableTOTP: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MFADisableRequest"];
+            };
+        };
+        responses: {
+            /** @description TOTP disabled. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    beginWebAuthnRegistration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["WebAuthnBeginRequest"];
+            };
+        };
+        responses: {
+            /** @description The ceremony options + opaque session handle. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebAuthnBeginRegistrationResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description WebAuthn is not configured on this server. */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    finishWebAuthnRegistration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebAuthnFinishRegistrationRequest"];
+            };
+        };
+        responses: {
+            /** @description The credential was registered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    beginWebAuthnLogin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebAuthnLoginBeginRequest"];
+            };
+        };
+        responses: {
+            /** @description The ceremony options + opaque session handle. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebAuthnLoginBeginResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    finishWebAuthnLogin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebAuthnLoginFinishRequest"];
+            };
+        };
+        responses: {
+            /** @description The assertion verified; the challenge is complete. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    deleteWebAuthnCredential: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                credentialId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Credential removed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listMyRecoveryCodes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The user's recovery code rows (raw codes stripped). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecoveryCodesListResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    regenerateMyRecoveryCodes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The fresh batch of recovery codes (shown once). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecoveryCodesBatch"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    challengeMFA: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MFAChallengeRequest"];
+            };
+        };
+        responses: {
+            /** @description MFA succeeded; real session cookies set. */
+            200: {
+                headers: {
+                    "Set-Cookie": components["headers"]["SetCookie"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /**
+             * @description The pending token is invalid, expired, already used, or
+             *     revoked; OR the supplied code did not match.
+             */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Too many failed attempts; pending session revoked. */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

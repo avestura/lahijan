@@ -61,12 +61,67 @@ func (s *Server) Register(c *fiber.Ctx) error {
 }
 
 // Login handles POST /api/v1/auth/login.
+//
+// When the MFA service is wired AND the user requires MFA (has an enrolled
+// factor OR any tenant membership requires it), returns 202 Accepted with
+// a pending_session_token; the client must complete the challenge at
+// /api/v1/auth/mfa/challenge to obtain the real session. Otherwise behaves
+// as the WS-06 flow: returns 200 with session cookies.
 func (s *Server) Login(c *fiber.Ctx) error {
 	var req apigen.LoginRequest
 	if err := c.BodyParser(&req); err != nil {
 		return SendBadRequest(c, i18n.T(c.UserContext(), "auth.err_bad_request", nil), nil)
 	}
 	ua, ip := extractUA(c)
+
+	// MFA-aware path: verify credentials, decide between immediate session
+	// and pending MFA challenge.
+	if s.mfaSvc != nil {
+		user, err := s.sessionSvc.VerifyCredentials(c.UserContext(), string(req.Email), req.Password)
+		if err != nil {
+			return s.mapAuthError(c, err)
+		}
+		required, err := s.mfaSvc.IsMFARequired(c.UserContext(), user.ID)
+		if err != nil {
+			return SendInternal(c, i18n.T(c.UserContext(), "auth.err_internal", nil))
+		}
+		if required {
+			pending, perr := s.mfaSvc.BeginLogin(c.UserContext(), user.ID, ua, ip)
+			if perr != nil {
+				return s.mapMFAError(c, perr)
+			}
+			if pending.Token == "" {
+				// Should not happen: IsMFARequired returned true so
+				// BeginLogin must either issue a token or error.
+				return SendInternal(c, i18n.T(c.UserContext(), "auth.err_internal", nil))
+			}
+			factors := []apigen.MFAChallengeRequiredEnrolledFactors{}
+			if s.mfaSvc.HasTOTP(c.UserContext(), user.ID) {
+				factors = append(factors, apigen.MFAChallengeRequiredEnrolledFactors("totp"))
+			}
+			if s.mfaSvc.HasWebAuthn(c.UserContext(), user.ID) {
+				factors = append(factors, apigen.MFAChallengeRequiredEnrolledFactors("webauthn"))
+			}
+			return c.Status(fiber.StatusAccepted).JSON(apigen.MFAChallengeRequired{
+				MfaRequired:         true,
+				PendingSessionToken: pending.Token,
+				EnrolledFactors:     &factors,
+			})
+		}
+		// Not required: open the real session now.
+		sess, err := s.sessionSvc.OpenForExistingUser(c.UserContext(), user.ID, ua, ip)
+		if err != nil {
+			return s.mapAuthError(c, err)
+		}
+		setSessionCookie(c, s.cookies, sess.CookieValue, sess.Refresh.Raw)
+		fetched, err := s.users.GetByID(c.UserContext(), sess.UserID)
+		if err != nil {
+			return SendInternal(c, i18n.T(c.UserContext(), "auth.err_internal", nil))
+		}
+		return c.JSON(apigen.AuthResponse{User: toUserDTO(fetched)})
+	}
+
+	// Legacy path: MFA service not wired (dev). Behaves exactly as WS-06.
 	sess, err := s.sessionSvc.Login(c.UserContext(), session.LoginInput{
 		Email:     string(req.Email),
 		Password:  req.Password,

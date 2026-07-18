@@ -128,6 +128,12 @@ paths:
       description: |
         Verifies credentials and opens a session. Sets the session and
         refresh-token cookies; returns the authenticated user.
+
+        When MFA is required (the user has at least one enrolled factor OR
+        any of their tenant memberships has mfa_required = TRUE), the
+        response is 202 Accepted with a pending_session_token instead of
+        200 OK with a session. The caller then completes the MFA challenge
+        at /api/v1/auth/mfa/challenge to obtain the real session.
       security: []
       requestBody:
         required: true
@@ -145,6 +151,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuthResponse"
+        "202":
+          description: |
+            MFA challenge required. The pending_session_token is also set
+            in a short-lived cookie (lahijan_mfa_pending) for browser
+            clients. Exchange it for the real session at
+            /api/v1/auth/mfa/challenge.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MFAChallengeRequired"
         "401":
           $ref: "#/components/responses/Unauthorized"
 
@@ -727,6 +743,300 @@ paths:
                 $ref: "#/components/schemas/Error"
 
   # -------------------------------------------------------------------------
+  # Multi-factor authentication (WS-07c)
+  # -------------------------------------------------------------------------
+  # Self-service factor enrollment lives under /api/v1/me/mfa/*. The login
+  # challenge endpoint is under /api/v1/auth/mfa/challenge because the caller
+  # is anonymous (only carries the pending_session_token).
+
+  /api/v1/me/mfa/totp/enroll:
+    post:
+      tags: [auth]
+      operationId: enrollTOTP
+      summary: Begin TOTP enrollment
+      description: |
+        Generates a fresh TOTP secret, AES-GCM-encrypts it at rest, and
+        returns the raw secret + the otpauth:// provisioning URI for the
+        dashboard to render as a QR code. Until the user confirms with a
+        valid 6-digit code at /verify, the secret does NOT count as an
+        enrolled factor (login does not challenge for it).
+
+        Re-enrollment over a confirmed factor fails with 409 — the user
+        must explicitly disable first.
+      responses:
+        "200":
+          description: The new TOTP secret + provisioning URI.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TOTPEnrollResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409":
+          description: TOTP is already enrolled; disable first.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/me/mfa/totp/verify:
+    post:
+      tags: [auth]
+      operationId: verifyTOTP
+      summary: Confirm TOTP enrollment with a 6-digit code
+      description: |
+        Marks the pending TOTP secret as confirmed (the user's
+        authenticator app produced a matching 6-digit code). On success
+        the factor becomes effective and a fresh batch of recovery codes
+        is generated (returned once via /me/mfa/recovery).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TOTPVerifyRequest"
+      responses:
+        "200":
+          description: TOTP confirmed; recovery codes generated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoveryCodesBatch"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/v1/me/mfa/totp/disable:
+    post:
+      tags: [auth]
+      operationId: disableTOTP
+      summary: Disable TOTP
+      description: |
+        Removes the user's TOTP factor. Per the WS-07c default the caller
+        MUST supply their current password (re-authentication) before the
+        factor is removed; this prevents a stolen session cookie from
+        silently disarming MFA.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MFADisableRequest"
+      responses:
+        "200":
+          description: TOTP disabled.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/v1/me/mfa/webauthn/register/begin:
+    post:
+      tags: [auth]
+      operationId: beginWebAuthnRegistration
+      summary: Begin WebAuthn / passkey registration
+      description: |
+        Returns the PublicKeyCredentialCreationOptions the browser feeds
+        to navigator.credentials.create(). The dashboard persists the
+        returned ceremony session (typically in a short-lived cookie or
+        local storage) and POSTs it back at /register/finish.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebAuthnBeginRequest"
+      responses:
+        "200":
+          description: The ceremony options + opaque session handle.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebAuthnBeginRegistrationResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "501":
+          description: WebAuthn is not configured on this server.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/me/mfa/webauthn/register/finish:
+    post:
+      tags: [auth]
+      operationId: finishWebAuthnRegistration
+      summary: Finish WebAuthn / passkey registration
+      description: |
+        Accepts the attestation response the browser POSTed after
+        navigator.credentials.create() succeeded. Verifies the signature,
+        persists the credential, and (on success) returns a small
+        confirmation envelope.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebAuthnFinishRegistrationRequest"
+      responses:
+        "200":
+          description: The credential was registered.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/v1/me/mfa/webauthn/login/begin:
+    post:
+      tags: [auth]
+      operationId: beginWebAuthnLogin
+      summary: Begin a WebAuthn login ceremony
+      description: |
+        Returns the PublicKeyCredentialRequestOptions the browser feeds
+        to navigator.credentials.get() during an MFA challenge. The
+        caller MUST carry a valid pending_session_token (issued by the
+        password/IdP login step when MFA is required).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebAuthnLoginBeginRequest"
+      responses:
+        "200":
+          description: The ceremony options + opaque session handle.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebAuthnLoginBeginResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/v1/me/mfa/webauthn/login/finish:
+    post:
+      tags: [auth]
+      operationId: finishWebAuthnLogin
+      summary: Finish a WebAuthn login ceremony
+      description: |
+        Accepts the assertion response the browser POSTed after
+        navigator.credentials.get() succeeded. On success the MFA
+        challenge is complete; the caller still POSTs to
+        /api/v1/auth/mfa/challenge with kind=webauthn-finished to
+        exchange the pending_session_token for the real session.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebAuthnLoginFinishRequest"
+      responses:
+        "200":
+          description: The assertion verified; the challenge is complete.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/v1/me/mfa/webauthn/credentials/{credentialId}:
+    delete:
+      tags: [auth]
+      operationId: deleteWebAuthnCredential
+      summary: Remove a WebAuthn credential
+      description: |
+        Revokes a single WebAuthn credential (one of the user's passkeys).
+        Re-authentication (current password) is required when this would
+        leave the user with zero factors AND MFA is required by policy.
+      parameters:
+        - name: credentialId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Credential removed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/me/mfa/recovery:
+    get:
+      tags: [auth]
+      operationId: listMyRecoveryCodes
+      summary: List recovery code metadata (no raw codes)
+      description: |
+        Returns metadata about the user's recovery codes (count remaining,
+        created_at per row). The raw codes are NEVER returned by this
+        endpoint — they were shown exactly once at generation time.
+      responses:
+        "200":
+          description: The user's recovery code rows (raw codes stripped).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoveryCodesListResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [auth]
+      operationId: regenerateMyRecoveryCodes
+      summary: Regenerate the recovery code batch
+      description: |
+        Wipes the user's existing recovery codes (used + unused) and
+        issues a fresh batch. The raw codes are returned exactly once;
+        Lahijan cannot show them again.
+      responses:
+        "200":
+          description: The fresh batch of recovery codes (shown once).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoveryCodesBatch"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/v1/auth/mfa/challenge:
+    post:
+      tags: [auth]
+      operationId: challengeMFA
+      summary: Verify an MFA challenge and issue the real session
+      description: |
+        Accepts a pending_session_token (from /login or /oauth/callback
+        when MFA was required) plus an MFA code:
+
+          - kind=totp:     code is a 6-digit TOTP value
+          - kind=recovery: code is a recovery code
+          - kind=webauthn: assertion fields from the /webauthn/login/finish response
+
+        On success the pending_session_token is consumed and the real
+        session + refresh token are issued (set as cookies, just like
+        /login). On failure the failed_attempts counter is bumped; at
+        maxAttempts=5 the pending token is revoked (brute-force lockout).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MFAChallengeRequest"
+      responses:
+        "200":
+          description: MFA succeeded; real session cookies set.
+          headers:
+            Set-Cookie: { $ref: "#/components/headers/SetCookie" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401":
+          description: |
+            The pending token is invalid, expired, already used, or
+            revoked; OR the supplied code did not match.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "429":
+          description: Too many failed attempts; pending session revoked.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  # -------------------------------------------------------------------------
   # Audit log (WS-08)
   # -------------------------------------------------------------------------
   # /api/v1/audit returns the tenant-scoped audit trail; the caller must be a
@@ -1166,6 +1476,29 @@ components:
         user:
           $ref: "#/components/schemas/User"
 
+    MFAChallengeRequired:
+      type: object
+      required: [pendingSessionToken, mfaRequired]
+      additionalProperties: false
+      properties:
+        mfaRequired:
+          type: boolean
+          description: Always true; signals the 202 path.
+        pendingSessionToken:
+          type: string
+          description: |
+            Short-lived, single-use token. POST it to
+            /api/v1/auth/mfa/challenge with the MFA code to obtain the
+            real session cookies.
+        enrolledFactors:
+          type: array
+          description: |
+            The factors the user has enrolled. Lets the dashboard pick
+            the default challenge UI (TOTP input vs WebAuthn prompt).
+          items:
+            type: string
+            enum: [totp, webauthn]
+
     CreatePersonalAccessTokenRequest:
       type: object
       required: [name]
@@ -1373,3 +1706,184 @@ components:
           type: integer
         offset:
           type: integer
+
+    # ---------------------------------------------------------------------
+    # MFA schemas (WS-07c)
+    # ---------------------------------------------------------------------
+
+    TOTPEnrollResponse:
+      type: object
+      required: [secret, provisioningUri]
+      additionalProperties: false
+      properties:
+        secret:
+          type: string
+          description: |
+            The raw base32 TOTP secret, shown ONCE so the user can enter
+            it manually if they cannot scan the QR. Persisted encrypted
+            at rest.
+        provisioningUri:
+          type: string
+          description: |
+            The otpauth:// URL the dashboard encodes as a QR code.
+
+    TOTPVerifyRequest:
+      type: object
+      required: [code]
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+          description: The 6-digit code from the user's authenticator app.
+
+    MFADisableRequest:
+      type: object
+      required: [currentPassword]
+      additionalProperties: false
+      properties:
+        currentPassword:
+          type: string
+          format: password
+          description: |
+            The user's current password. Required so that a stolen
+            session cookie cannot silently disarm MFA.
+
+    RecoveryCodesBatch:
+      type: object
+      required: [codes]
+      additionalProperties: false
+      properties:
+        codes:
+          type: array
+          description: |
+            The raw recovery codes. Shown to the user EXACTLY ONCE;
+            Lahijan cannot render them again.
+          items:
+            type: string
+
+    RecoveryCodesListResponse:
+      type: object
+      required: [total, remaining]
+      additionalProperties: false
+      properties:
+        total:
+          type: integer
+          description: Total codes the user has (used + unused).
+        remaining:
+          type: integer
+          description: Number of unused codes remaining.
+        rows:
+          type: array
+          description: Optional per-row metadata (no raw codes).
+          items:
+            type: object
+            required: [id, used, createdAt]
+            properties:
+              id:
+                type: string
+                format: uuid
+              used:
+                type: boolean
+              createdAt:
+                type: string
+                format: date-time
+
+    WebAuthnBeginRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          description: Optional user-supplied label for the credential.
+
+    WebAuthnBeginRegistrationResponse:
+      type: object
+      required: [publicKey, session]
+      additionalProperties: false
+      properties:
+        publicKey:
+          type: object
+          description: |
+            The PublicKeyCredentialCreationOptions the browser feeds to
+            navigator.credentials.create(). Opaque to Lahijan.
+        session:
+          type: string
+          description: |
+            Opaque ceremony session token the dashboard MUST echo back
+            at /finish in the matching field.
+
+    WebAuthnFinishRegistrationRequest:
+      type: object
+      required: [session, response, name]
+      additionalProperties: false
+      properties:
+        session:
+          type: string
+          description: The ceremony session returned by /register/begin.
+        response:
+          description: |
+            The raw attestation response the browser POSTed. Carried
+            verbatim to the WebAuthn library.
+        name:
+          type: string
+          description: User-supplied label for the credential.
+
+    WebAuthnLoginBeginRequest:
+      type: object
+      required: [pendingSessionToken]
+      additionalProperties: false
+      properties:
+        pendingSessionToken:
+          type: string
+          description: The pending_session_token from /login or /oauth/callback.
+
+    WebAuthnLoginBeginResponse:
+      type: object
+      required: [publicKey, session]
+      additionalProperties: false
+      properties:
+        publicKey:
+          type: object
+          description: |
+            The PublicKeyCredentialRequestOptions the browser feeds to
+            navigator.credentials.get().
+        session:
+          type: string
+          description: Opaque ceremony session for /login/finish.
+
+    WebAuthnLoginFinishRequest:
+      type: object
+      required: [session, response]
+      additionalProperties: false
+      properties:
+        session:
+          type: string
+        response:
+          description: The raw assertion response from the browser.
+
+    MFAChallengeRequest:
+      type: object
+      required: [pendingSessionToken, kind]
+      additionalProperties: false
+      properties:
+        pendingSessionToken:
+          type: string
+          description: The token from /login when MFA is required.
+        kind:
+          type: string
+          enum: [totp, recovery, webauthn]
+          description: Which factor the user is challenging with.
+        code:
+          type: string
+          description: |
+            The 6-digit TOTP code (kind=totp) or the recovery code
+            (kind=recovery). Empty when kind=webauthn.
+        webauthnSession:
+          type: string
+          description: |
+            The ceremony session from /me/mfa/webauthn/login/begin
+            (kind=webauthn only).
+        webauthnResponse:
+          description: |
+            The parsed assertion response from the browser
+            (kind=webauthn only).

@@ -46,6 +46,19 @@ const (
 	HealthStatusOk       HealthStatus = "ok"
 )
 
+// Defines values for MFAChallengeRequestKind.
+const (
+	MFAChallengeRequestKindRecovery MFAChallengeRequestKind = "recovery"
+	MFAChallengeRequestKindTotp     MFAChallengeRequestKind = "totp"
+	MFAChallengeRequestKindWebauthn MFAChallengeRequestKind = "webauthn"
+)
+
+// Defines values for MFAChallengeRequiredEnrolledFactors.
+const (
+	MFAChallengeRequiredEnrolledFactorsTotp     MFAChallengeRequiredEnrolledFactors = "totp"
+	MFAChallengeRequiredEnrolledFactorsWebauthn MFAChallengeRequiredEnrolledFactors = "webauthn"
+)
+
 // Defines values for ExportFormat.
 const (
 	ExportFormatCsv  ExportFormat = "csv"
@@ -237,6 +250,55 @@ type LogoutRequest struct {
 	RefreshToken *string `json:"refreshToken,omitempty"`
 }
 
+// MFAChallengeRequest defines model for MFAChallengeRequest.
+type MFAChallengeRequest struct {
+	// Code The 6-digit TOTP code (kind=totp) or the recovery code
+	// (kind=recovery). Empty when kind=webauthn.
+	Code *string `json:"code,omitempty"`
+
+	// Kind Which factor the user is challenging with.
+	Kind MFAChallengeRequestKind `json:"kind"`
+
+	// PendingSessionToken The token from /login when MFA is required.
+	PendingSessionToken string `json:"pendingSessionToken"`
+
+	// WebauthnResponse The parsed assertion response from the browser
+	// (kind=webauthn only).
+	WebauthnResponse *interface{} `json:"webauthnResponse,omitempty"`
+
+	// WebauthnSession The ceremony session from /me/mfa/webauthn/login/begin
+	// (kind=webauthn only).
+	WebauthnSession *string `json:"webauthnSession,omitempty"`
+}
+
+// MFAChallengeRequestKind Which factor the user is challenging with.
+type MFAChallengeRequestKind string
+
+// MFAChallengeRequired defines model for MFAChallengeRequired.
+type MFAChallengeRequired struct {
+	// EnrolledFactors The factors the user has enrolled. Lets the dashboard pick
+	// the default challenge UI (TOTP input vs WebAuthn prompt).
+	EnrolledFactors *[]MFAChallengeRequiredEnrolledFactors `json:"enrolledFactors,omitempty"`
+
+	// MfaRequired Always true; signals the 202 path.
+	MfaRequired bool `json:"mfaRequired"`
+
+	// PendingSessionToken Short-lived, single-use token. POST it to
+	// /api/v1/auth/mfa/challenge with the MFA code to obtain the
+	// real session cookies.
+	PendingSessionToken string `json:"pendingSessionToken"`
+}
+
+// MFAChallengeRequiredEnrolledFactors defines model for MFAChallengeRequired.EnrolledFactors.
+type MFAChallengeRequiredEnrolledFactors string
+
+// MFADisableRequest defines model for MFADisableRequest.
+type MFADisableRequest struct {
+	// CurrentPassword The user's current password. Required so that a stolen
+	// session cookie cannot silently disarm MFA.
+	CurrentPassword string `json:"currentPassword"`
+}
+
 // Membership defines model for Membership.
 type Membership struct {
 	// Role Role held within the tenant (e.g. owner, admin, member).
@@ -275,6 +337,29 @@ type Pong struct {
 	Pong time.Time `json:"pong"`
 }
 
+// RecoveryCodesBatch defines model for RecoveryCodesBatch.
+type RecoveryCodesBatch struct {
+	// Codes The raw recovery codes. Shown to the user EXACTLY ONCE;
+	// Lahijan cannot render them again.
+	Codes []string `json:"codes"`
+}
+
+// RecoveryCodesListResponse defines model for RecoveryCodesListResponse.
+type RecoveryCodesListResponse struct {
+	// Remaining Number of unused codes remaining.
+	Remaining int `json:"remaining"`
+
+	// Rows Optional per-row metadata (no raw codes).
+	Rows *[]struct {
+		CreatedAt time.Time          `json:"createdAt"`
+		Id        openapi_types.UUID `json:"id"`
+		Used      bool               `json:"used"`
+	} `json:"rows,omitempty"`
+
+	// Total Total codes the user has (used + unused).
+	Total int `json:"total"`
+}
+
 // RefreshRequest Optional. When omitted, the refresh-token cookie is used. Pass an
 // explicit refresh token when rotating from a non-browser client.
 type RefreshRequest struct {
@@ -291,6 +376,23 @@ type RegisterRequest struct {
 
 	// Password Plaintext password; hashed with argon2id before storage.
 	Password string `json:"password"`
+}
+
+// TOTPEnrollResponse defines model for TOTPEnrollResponse.
+type TOTPEnrollResponse struct {
+	// ProvisioningUri The otpauth:// URL the dashboard encodes as a QR code.
+	ProvisioningUri string `json:"provisioningUri"`
+
+	// Secret The raw base32 TOTP secret, shown ONCE so the user can enter
+	// it manually if they cannot scan the QR. Persisted encrypted
+	// at rest.
+	Secret string `json:"secret"`
+}
+
+// TOTPVerifyRequest defines model for TOTPVerifyRequest.
+type TOTPVerifyRequest struct {
+	// Code The 6-digit code from the user's authenticator app.
+	Code string `json:"code"`
 }
 
 // TokenRequest defines model for TokenRequest.
@@ -327,6 +429,59 @@ type User struct {
 
 	// Memberships Tenant memberships held by this user.
 	Memberships *[]Membership `json:"memberships,omitempty"`
+}
+
+// WebAuthnBeginRegistrationResponse defines model for WebAuthnBeginRegistrationResponse.
+type WebAuthnBeginRegistrationResponse struct {
+	// PublicKey The PublicKeyCredentialCreationOptions the browser feeds to
+	// navigator.credentials.create(). Opaque to Lahijan.
+	PublicKey map[string]interface{} `json:"publicKey"`
+
+	// Session Opaque ceremony session token the dashboard MUST echo back
+	// at /finish in the matching field.
+	Session string `json:"session"`
+}
+
+// WebAuthnBeginRequest defines model for WebAuthnBeginRequest.
+type WebAuthnBeginRequest struct {
+	// Name Optional user-supplied label for the credential.
+	Name *string `json:"name,omitempty"`
+}
+
+// WebAuthnFinishRegistrationRequest defines model for WebAuthnFinishRegistrationRequest.
+type WebAuthnFinishRegistrationRequest struct {
+	// Name User-supplied label for the credential.
+	Name string `json:"name"`
+
+	// Response The raw attestation response the browser POSTed. Carried
+	// verbatim to the WebAuthn library.
+	Response interface{} `json:"response"`
+
+	// Session The ceremony session returned by /register/begin.
+	Session string `json:"session"`
+}
+
+// WebAuthnLoginBeginRequest defines model for WebAuthnLoginBeginRequest.
+type WebAuthnLoginBeginRequest struct {
+	// PendingSessionToken The pending_session_token from /login or /oauth/callback.
+	PendingSessionToken string `json:"pendingSessionToken"`
+}
+
+// WebAuthnLoginBeginResponse defines model for WebAuthnLoginBeginResponse.
+type WebAuthnLoginBeginResponse struct {
+	// PublicKey The PublicKeyCredentialRequestOptions the browser feeds to
+	// navigator.credentials.get().
+	PublicKey map[string]interface{} `json:"publicKey"`
+
+	// Session Opaque ceremony session for /login/finish.
+	Session string `json:"session"`
+}
+
+// WebAuthnLoginFinishRequest defines model for WebAuthnLoginFinishRequest.
+type WebAuthnLoginFinishRequest struct {
+	// Response The raw assertion response from the browser.
+	Response interface{} `json:"response"`
+	Session  string      `json:"session"`
 }
 
 // ExportFormat defines model for ExportFormat.
@@ -427,6 +582,9 @@ type LogoutJSONRequestBody = LogoutRequest
 // UpdateCurrentUserJSONRequestBody defines body for UpdateCurrentUser for application/json ContentType.
 type UpdateCurrentUserJSONRequestBody = UpdateMeRequest
 
+// ChallengeMFAJSONRequestBody defines body for ChallengeMFA for application/json ContentType.
+type ChallengeMFAJSONRequestBody = MFAChallengeRequest
+
 // ConfirmPasswordResetJSONRequestBody defines body for ConfirmPasswordReset for application/json ContentType.
 type ConfirmPasswordResetJSONRequestBody = PasswordResetConfirmRequest
 
@@ -450,6 +608,24 @@ type AssertionConsumerServiceSAMLFormdataRequestBody AssertionConsumerServiceSAM
 
 // VerifyEmailJSONRequestBody defines body for VerifyEmail for application/json ContentType.
 type VerifyEmailJSONRequestBody = TokenRequest
+
+// DisableTOTPJSONRequestBody defines body for DisableTOTP for application/json ContentType.
+type DisableTOTPJSONRequestBody = MFADisableRequest
+
+// VerifyTOTPJSONRequestBody defines body for VerifyTOTP for application/json ContentType.
+type VerifyTOTPJSONRequestBody = TOTPVerifyRequest
+
+// BeginWebAuthnLoginJSONRequestBody defines body for BeginWebAuthnLogin for application/json ContentType.
+type BeginWebAuthnLoginJSONRequestBody = WebAuthnLoginBeginRequest
+
+// FinishWebAuthnLoginJSONRequestBody defines body for FinishWebAuthnLogin for application/json ContentType.
+type FinishWebAuthnLoginJSONRequestBody = WebAuthnLoginFinishRequest
+
+// BeginWebAuthnRegistrationJSONRequestBody defines body for BeginWebAuthnRegistration for application/json ContentType.
+type BeginWebAuthnRegistrationJSONRequestBody = WebAuthnBeginRequest
+
+// FinishWebAuthnRegistrationJSONRequestBody defines body for FinishWebAuthnRegistration for application/json ContentType.
+type FinishWebAuthnRegistrationJSONRequestBody = WebAuthnFinishRegistrationRequest
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -551,6 +727,11 @@ type ClientInterface interface {
 
 	UpdateCurrentUser(ctx context.Context, body UpdateCurrentUserJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ChallengeMFAWithBody request with any body
+	ChallengeMFAWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	ChallengeMFA(ctx context.Context, body ChallengeMFAJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// CallbackOAuth request
 	CallbackOAuth(ctx context.Context, provider string, params *CallbackOAuthParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -620,6 +801,48 @@ type ClientInterface interface {
 
 	// DeleteMyIdentity request
 	DeleteMyIdentity(ctx context.Context, identityId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListMyRecoveryCodes request
+	ListMyRecoveryCodes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RegenerateMyRecoveryCodes request
+	RegenerateMyRecoveryCodes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DisableTOTPWithBody request with any body
+	DisableTOTPWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	DisableTOTP(ctx context.Context, body DisableTOTPJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// EnrollTOTP request
+	EnrollTOTP(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// VerifyTOTPWithBody request with any body
+	VerifyTOTPWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	VerifyTOTP(ctx context.Context, body VerifyTOTPJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteWebAuthnCredential request
+	DeleteWebAuthnCredential(ctx context.Context, credentialId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// BeginWebAuthnLoginWithBody request with any body
+	BeginWebAuthnLoginWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	BeginWebAuthnLogin(ctx context.Context, body BeginWebAuthnLoginJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// FinishWebAuthnLoginWithBody request with any body
+	FinishWebAuthnLoginWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	FinishWebAuthnLogin(ctx context.Context, body FinishWebAuthnLoginJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// BeginWebAuthnRegistrationWithBody request with any body
+	BeginWebAuthnRegistrationWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	BeginWebAuthnRegistration(ctx context.Context, body BeginWebAuthnRegistrationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// FinishWebAuthnRegistrationWithBody request with any body
+	FinishWebAuthnRegistrationWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	FinishWebAuthnRegistration(ctx context.Context, body FinishWebAuthnRegistrationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// Ping request
 	Ping(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -738,6 +961,30 @@ func (c *Client) UpdateCurrentUserWithBody(ctx context.Context, contentType stri
 
 func (c *Client) UpdateCurrentUser(ctx context.Context, body UpdateCurrentUserJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateCurrentUserRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ChallengeMFAWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChallengeMFARequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ChallengeMFA(ctx context.Context, body ChallengeMFAJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChallengeMFARequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -1050,6 +1297,198 @@ func (c *Client) ListMyIdentities(ctx context.Context, reqEditors ...RequestEdit
 
 func (c *Client) DeleteMyIdentity(ctx context.Context, identityId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDeleteMyIdentityRequest(c.Server, identityId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListMyRecoveryCodes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListMyRecoveryCodesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) RegenerateMyRecoveryCodes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRegenerateMyRecoveryCodesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DisableTOTPWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDisableTOTPRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DisableTOTP(ctx context.Context, body DisableTOTPJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDisableTOTPRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) EnrollTOTP(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewEnrollTOTPRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) VerifyTOTPWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewVerifyTOTPRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) VerifyTOTP(ctx context.Context, body VerifyTOTPJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewVerifyTOTPRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteWebAuthnCredential(ctx context.Context, credentialId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteWebAuthnCredentialRequest(c.Server, credentialId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) BeginWebAuthnLoginWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewBeginWebAuthnLoginRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) BeginWebAuthnLogin(ctx context.Context, body BeginWebAuthnLoginJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewBeginWebAuthnLoginRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) FinishWebAuthnLoginWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewFinishWebAuthnLoginRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) FinishWebAuthnLogin(ctx context.Context, body FinishWebAuthnLoginJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewFinishWebAuthnLoginRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) BeginWebAuthnRegistrationWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewBeginWebAuthnRegistrationRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) BeginWebAuthnRegistration(ctx context.Context, body BeginWebAuthnRegistrationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewBeginWebAuthnRegistrationRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) FinishWebAuthnRegistrationWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewFinishWebAuthnRegistrationRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) FinishWebAuthnRegistration(ctx context.Context, body FinishWebAuthnRegistrationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewFinishWebAuthnRegistrationRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -1594,6 +2033,46 @@ func NewUpdateCurrentUserRequestWithBody(server string, contentType string, body
 	}
 
 	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewChallengeMFARequest calls the generic ChallengeMFA builder with application/json body
+func NewChallengeMFARequest(server string, body ChallengeMFAJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewChallengeMFARequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewChallengeMFARequestWithBody generates requests for ChallengeMFA with any type of body
+func NewChallengeMFARequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/auth/mfa/challenge")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -2309,6 +2788,361 @@ func NewDeleteMyIdentityRequest(server string, identityId openapi_types.UUID) (*
 	return req, nil
 }
 
+// NewListMyRecoveryCodesRequest generates requests for ListMyRecoveryCodes
+func NewListMyRecoveryCodesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/me/mfa/recovery")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRegenerateMyRecoveryCodesRequest generates requests for RegenerateMyRecoveryCodes
+func NewRegenerateMyRecoveryCodesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/me/mfa/recovery")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDisableTOTPRequest calls the generic DisableTOTP builder with application/json body
+func NewDisableTOTPRequest(server string, body DisableTOTPJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDisableTOTPRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewDisableTOTPRequestWithBody generates requests for DisableTOTP with any type of body
+func NewDisableTOTPRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/me/mfa/totp/disable")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewEnrollTOTPRequest generates requests for EnrollTOTP
+func NewEnrollTOTPRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/me/mfa/totp/enroll")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewVerifyTOTPRequest calls the generic VerifyTOTP builder with application/json body
+func NewVerifyTOTPRequest(server string, body VerifyTOTPJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewVerifyTOTPRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewVerifyTOTPRequestWithBody generates requests for VerifyTOTP with any type of body
+func NewVerifyTOTPRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/me/mfa/totp/verify")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteWebAuthnCredentialRequest generates requests for DeleteWebAuthnCredential
+func NewDeleteWebAuthnCredentialRequest(server string, credentialId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "credentialId", runtime.ParamLocationPath, credentialId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/me/mfa/webauthn/credentials/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewBeginWebAuthnLoginRequest calls the generic BeginWebAuthnLogin builder with application/json body
+func NewBeginWebAuthnLoginRequest(server string, body BeginWebAuthnLoginJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewBeginWebAuthnLoginRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewBeginWebAuthnLoginRequestWithBody generates requests for BeginWebAuthnLogin with any type of body
+func NewBeginWebAuthnLoginRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/me/mfa/webauthn/login/begin")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewFinishWebAuthnLoginRequest calls the generic FinishWebAuthnLogin builder with application/json body
+func NewFinishWebAuthnLoginRequest(server string, body FinishWebAuthnLoginJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewFinishWebAuthnLoginRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewFinishWebAuthnLoginRequestWithBody generates requests for FinishWebAuthnLogin with any type of body
+func NewFinishWebAuthnLoginRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/me/mfa/webauthn/login/finish")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewBeginWebAuthnRegistrationRequest calls the generic BeginWebAuthnRegistration builder with application/json body
+func NewBeginWebAuthnRegistrationRequest(server string, body BeginWebAuthnRegistrationJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewBeginWebAuthnRegistrationRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewBeginWebAuthnRegistrationRequestWithBody generates requests for BeginWebAuthnRegistration with any type of body
+func NewBeginWebAuthnRegistrationRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/me/mfa/webauthn/register/begin")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewFinishWebAuthnRegistrationRequest calls the generic FinishWebAuthnRegistration builder with application/json body
+func NewFinishWebAuthnRegistrationRequest(server string, body FinishWebAuthnRegistrationJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewFinishWebAuthnRegistrationRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewFinishWebAuthnRegistrationRequestWithBody generates requests for FinishWebAuthnRegistration with any type of body
+func NewFinishWebAuthnRegistrationRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/me/mfa/webauthn/register/finish")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewPingRequest generates requests for Ping
 func NewPingRequest(server string) (*http.Request, error) {
 	var err error
@@ -2433,6 +3267,11 @@ type ClientWithResponsesInterface interface {
 
 	UpdateCurrentUserWithResponse(ctx context.Context, body UpdateCurrentUserJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateCurrentUserResponse, error)
 
+	// ChallengeMFAWithBodyWithResponse request with any body
+	ChallengeMFAWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChallengeMFAResponse, error)
+
+	ChallengeMFAWithResponse(ctx context.Context, body ChallengeMFAJSONRequestBody, reqEditors ...RequestEditorFn) (*ChallengeMFAResponse, error)
+
 	// CallbackOAuthWithResponse request
 	CallbackOAuthWithResponse(ctx context.Context, provider string, params *CallbackOAuthParams, reqEditors ...RequestEditorFn) (*CallbackOAuthResponse, error)
 
@@ -2502,6 +3341,48 @@ type ClientWithResponsesInterface interface {
 
 	// DeleteMyIdentityWithResponse request
 	DeleteMyIdentityWithResponse(ctx context.Context, identityId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteMyIdentityResponse, error)
+
+	// ListMyRecoveryCodesWithResponse request
+	ListMyRecoveryCodesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListMyRecoveryCodesResponse, error)
+
+	// RegenerateMyRecoveryCodesWithResponse request
+	RegenerateMyRecoveryCodesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*RegenerateMyRecoveryCodesResponse, error)
+
+	// DisableTOTPWithBodyWithResponse request with any body
+	DisableTOTPWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DisableTOTPResponse, error)
+
+	DisableTOTPWithResponse(ctx context.Context, body DisableTOTPJSONRequestBody, reqEditors ...RequestEditorFn) (*DisableTOTPResponse, error)
+
+	// EnrollTOTPWithResponse request
+	EnrollTOTPWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*EnrollTOTPResponse, error)
+
+	// VerifyTOTPWithBodyWithResponse request with any body
+	VerifyTOTPWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*VerifyTOTPResponse, error)
+
+	VerifyTOTPWithResponse(ctx context.Context, body VerifyTOTPJSONRequestBody, reqEditors ...RequestEditorFn) (*VerifyTOTPResponse, error)
+
+	// DeleteWebAuthnCredentialWithResponse request
+	DeleteWebAuthnCredentialWithResponse(ctx context.Context, credentialId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteWebAuthnCredentialResponse, error)
+
+	// BeginWebAuthnLoginWithBodyWithResponse request with any body
+	BeginWebAuthnLoginWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*BeginWebAuthnLoginResponse, error)
+
+	BeginWebAuthnLoginWithResponse(ctx context.Context, body BeginWebAuthnLoginJSONRequestBody, reqEditors ...RequestEditorFn) (*BeginWebAuthnLoginResponse, error)
+
+	// FinishWebAuthnLoginWithBodyWithResponse request with any body
+	FinishWebAuthnLoginWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*FinishWebAuthnLoginResponse, error)
+
+	FinishWebAuthnLoginWithResponse(ctx context.Context, body FinishWebAuthnLoginJSONRequestBody, reqEditors ...RequestEditorFn) (*FinishWebAuthnLoginResponse, error)
+
+	// BeginWebAuthnRegistrationWithBodyWithResponse request with any body
+	BeginWebAuthnRegistrationWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*BeginWebAuthnRegistrationResponse, error)
+
+	BeginWebAuthnRegistrationWithResponse(ctx context.Context, body BeginWebAuthnRegistrationJSONRequestBody, reqEditors ...RequestEditorFn) (*BeginWebAuthnRegistrationResponse, error)
+
+	// FinishWebAuthnRegistrationWithBodyWithResponse request with any body
+	FinishWebAuthnRegistrationWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*FinishWebAuthnRegistrationResponse, error)
+
+	FinishWebAuthnRegistrationWithResponse(ctx context.Context, body FinishWebAuthnRegistrationJSONRequestBody, reqEditors ...RequestEditorFn) (*FinishWebAuthnRegistrationResponse, error)
 
 	// PingWithResponse request
 	PingWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PingResponse, error)
@@ -2588,6 +3469,7 @@ type LoginResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *AuthResponse
+	JSON202      *MFAChallengeRequired
 	JSON401      *Unauthorized
 }
 
@@ -2671,6 +3553,31 @@ func (r UpdateCurrentUserResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r UpdateCurrentUserResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ChallengeMFAResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AuthResponse
+	JSON400      *BadRequest
+	JSON401      *Error
+	JSON429      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r ChallengeMFAResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ChallengeMFAResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -3091,6 +3998,242 @@ func (r DeleteMyIdentityResponse) StatusCode() int {
 	return 0
 }
 
+type ListMyRecoveryCodesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *RecoveryCodesListResponse
+	JSON401      *Unauthorized
+}
+
+// Status returns HTTPResponse.Status
+func (r ListMyRecoveryCodesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListMyRecoveryCodesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type RegenerateMyRecoveryCodesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *RecoveryCodesBatch
+	JSON401      *Unauthorized
+}
+
+// Status returns HTTPResponse.Status
+func (r RegenerateMyRecoveryCodesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RegenerateMyRecoveryCodesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DisableTOTPResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *MessageResponse
+	JSON401      *Unauthorized
+}
+
+// Status returns HTTPResponse.Status
+func (r DisableTOTPResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DisableTOTPResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type EnrollTOTPResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TOTPEnrollResponse
+	JSON401      *Unauthorized
+	JSON409      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r EnrollTOTPResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r EnrollTOTPResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type VerifyTOTPResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *RecoveryCodesBatch
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+}
+
+// Status returns HTTPResponse.Status
+func (r VerifyTOTPResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r VerifyTOTPResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteWebAuthnCredentialResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *MessageResponse
+	JSON401      *Unauthorized
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteWebAuthnCredentialResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteWebAuthnCredentialResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type BeginWebAuthnLoginResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *WebAuthnLoginBeginResponse
+	JSON401      *Unauthorized
+}
+
+// Status returns HTTPResponse.Status
+func (r BeginWebAuthnLoginResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r BeginWebAuthnLoginResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type FinishWebAuthnLoginResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *MessageResponse
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+}
+
+// Status returns HTTPResponse.Status
+func (r FinishWebAuthnLoginResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r FinishWebAuthnLoginResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type BeginWebAuthnRegistrationResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *WebAuthnBeginRegistrationResponse
+	JSON401      *Unauthorized
+	JSON501      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r BeginWebAuthnRegistrationResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r BeginWebAuthnRegistrationResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type FinishWebAuthnRegistrationResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *MessageResponse
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+}
+
+// Status returns HTTPResponse.Status
+func (r FinishWebAuthnRegistrationResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r FinishWebAuthnRegistrationResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type PingResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3221,6 +4364,23 @@ func (c *ClientWithResponses) UpdateCurrentUserWithResponse(ctx context.Context,
 		return nil, err
 	}
 	return ParseUpdateCurrentUserResponse(rsp)
+}
+
+// ChallengeMFAWithBodyWithResponse request with arbitrary body returning *ChallengeMFAResponse
+func (c *ClientWithResponses) ChallengeMFAWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChallengeMFAResponse, error) {
+	rsp, err := c.ChallengeMFAWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChallengeMFAResponse(rsp)
+}
+
+func (c *ClientWithResponses) ChallengeMFAWithResponse(ctx context.Context, body ChallengeMFAJSONRequestBody, reqEditors ...RequestEditorFn) (*ChallengeMFAResponse, error) {
+	rsp, err := c.ChallengeMFA(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChallengeMFAResponse(rsp)
 }
 
 // CallbackOAuthWithResponse request returning *CallbackOAuthResponse
@@ -3449,6 +4609,144 @@ func (c *ClientWithResponses) DeleteMyIdentityWithResponse(ctx context.Context, 
 	return ParseDeleteMyIdentityResponse(rsp)
 }
 
+// ListMyRecoveryCodesWithResponse request returning *ListMyRecoveryCodesResponse
+func (c *ClientWithResponses) ListMyRecoveryCodesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListMyRecoveryCodesResponse, error) {
+	rsp, err := c.ListMyRecoveryCodes(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListMyRecoveryCodesResponse(rsp)
+}
+
+// RegenerateMyRecoveryCodesWithResponse request returning *RegenerateMyRecoveryCodesResponse
+func (c *ClientWithResponses) RegenerateMyRecoveryCodesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*RegenerateMyRecoveryCodesResponse, error) {
+	rsp, err := c.RegenerateMyRecoveryCodes(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRegenerateMyRecoveryCodesResponse(rsp)
+}
+
+// DisableTOTPWithBodyWithResponse request with arbitrary body returning *DisableTOTPResponse
+func (c *ClientWithResponses) DisableTOTPWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DisableTOTPResponse, error) {
+	rsp, err := c.DisableTOTPWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDisableTOTPResponse(rsp)
+}
+
+func (c *ClientWithResponses) DisableTOTPWithResponse(ctx context.Context, body DisableTOTPJSONRequestBody, reqEditors ...RequestEditorFn) (*DisableTOTPResponse, error) {
+	rsp, err := c.DisableTOTP(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDisableTOTPResponse(rsp)
+}
+
+// EnrollTOTPWithResponse request returning *EnrollTOTPResponse
+func (c *ClientWithResponses) EnrollTOTPWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*EnrollTOTPResponse, error) {
+	rsp, err := c.EnrollTOTP(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseEnrollTOTPResponse(rsp)
+}
+
+// VerifyTOTPWithBodyWithResponse request with arbitrary body returning *VerifyTOTPResponse
+func (c *ClientWithResponses) VerifyTOTPWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*VerifyTOTPResponse, error) {
+	rsp, err := c.VerifyTOTPWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseVerifyTOTPResponse(rsp)
+}
+
+func (c *ClientWithResponses) VerifyTOTPWithResponse(ctx context.Context, body VerifyTOTPJSONRequestBody, reqEditors ...RequestEditorFn) (*VerifyTOTPResponse, error) {
+	rsp, err := c.VerifyTOTP(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseVerifyTOTPResponse(rsp)
+}
+
+// DeleteWebAuthnCredentialWithResponse request returning *DeleteWebAuthnCredentialResponse
+func (c *ClientWithResponses) DeleteWebAuthnCredentialWithResponse(ctx context.Context, credentialId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteWebAuthnCredentialResponse, error) {
+	rsp, err := c.DeleteWebAuthnCredential(ctx, credentialId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteWebAuthnCredentialResponse(rsp)
+}
+
+// BeginWebAuthnLoginWithBodyWithResponse request with arbitrary body returning *BeginWebAuthnLoginResponse
+func (c *ClientWithResponses) BeginWebAuthnLoginWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*BeginWebAuthnLoginResponse, error) {
+	rsp, err := c.BeginWebAuthnLoginWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseBeginWebAuthnLoginResponse(rsp)
+}
+
+func (c *ClientWithResponses) BeginWebAuthnLoginWithResponse(ctx context.Context, body BeginWebAuthnLoginJSONRequestBody, reqEditors ...RequestEditorFn) (*BeginWebAuthnLoginResponse, error) {
+	rsp, err := c.BeginWebAuthnLogin(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseBeginWebAuthnLoginResponse(rsp)
+}
+
+// FinishWebAuthnLoginWithBodyWithResponse request with arbitrary body returning *FinishWebAuthnLoginResponse
+func (c *ClientWithResponses) FinishWebAuthnLoginWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*FinishWebAuthnLoginResponse, error) {
+	rsp, err := c.FinishWebAuthnLoginWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseFinishWebAuthnLoginResponse(rsp)
+}
+
+func (c *ClientWithResponses) FinishWebAuthnLoginWithResponse(ctx context.Context, body FinishWebAuthnLoginJSONRequestBody, reqEditors ...RequestEditorFn) (*FinishWebAuthnLoginResponse, error) {
+	rsp, err := c.FinishWebAuthnLogin(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseFinishWebAuthnLoginResponse(rsp)
+}
+
+// BeginWebAuthnRegistrationWithBodyWithResponse request with arbitrary body returning *BeginWebAuthnRegistrationResponse
+func (c *ClientWithResponses) BeginWebAuthnRegistrationWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*BeginWebAuthnRegistrationResponse, error) {
+	rsp, err := c.BeginWebAuthnRegistrationWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseBeginWebAuthnRegistrationResponse(rsp)
+}
+
+func (c *ClientWithResponses) BeginWebAuthnRegistrationWithResponse(ctx context.Context, body BeginWebAuthnRegistrationJSONRequestBody, reqEditors ...RequestEditorFn) (*BeginWebAuthnRegistrationResponse, error) {
+	rsp, err := c.BeginWebAuthnRegistration(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseBeginWebAuthnRegistrationResponse(rsp)
+}
+
+// FinishWebAuthnRegistrationWithBodyWithResponse request with arbitrary body returning *FinishWebAuthnRegistrationResponse
+func (c *ClientWithResponses) FinishWebAuthnRegistrationWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*FinishWebAuthnRegistrationResponse, error) {
+	rsp, err := c.FinishWebAuthnRegistrationWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseFinishWebAuthnRegistrationResponse(rsp)
+}
+
+func (c *ClientWithResponses) FinishWebAuthnRegistrationWithResponse(ctx context.Context, body FinishWebAuthnRegistrationJSONRequestBody, reqEditors ...RequestEditorFn) (*FinishWebAuthnRegistrationResponse, error) {
+	rsp, err := c.FinishWebAuthnRegistration(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseFinishWebAuthnRegistrationResponse(rsp)
+}
+
 // PingWithResponse request returning *PingResponse
 func (c *ClientWithResponses) PingWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PingResponse, error) {
 	rsp, err := c.Ping(ctx, reqEditors...)
@@ -3625,6 +4923,13 @@ func ParseLoginResponse(rsp *http.Response) (*LoginResponse, error) {
 		}
 		response.JSON200 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest MFAChallengeRequired
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest Unauthorized
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -3737,6 +5042,53 @@ func ParseUpdateCurrentUserResponse(rsp *http.Response) (*UpdateCurrentUserRespo
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseChallengeMFAResponse parses an HTTP response from a ChallengeMFAWithResponse call
+func ParseChallengeMFAResponse(rsp *http.Response) (*ChallengeMFAResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ChallengeMFAResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AuthResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
 
 	}
 
@@ -4331,6 +5683,378 @@ func ParseDeleteMyIdentityResponse(rsp *http.Response) (*DeleteMyIdentityRespons
 			return nil, err
 		}
 		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListMyRecoveryCodesResponse parses an HTTP response from a ListMyRecoveryCodesWithResponse call
+func ParseListMyRecoveryCodesResponse(rsp *http.Response) (*ListMyRecoveryCodesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListMyRecoveryCodesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest RecoveryCodesListResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRegenerateMyRecoveryCodesResponse parses an HTTP response from a RegenerateMyRecoveryCodesWithResponse call
+func ParseRegenerateMyRecoveryCodesResponse(rsp *http.Response) (*RegenerateMyRecoveryCodesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RegenerateMyRecoveryCodesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest RecoveryCodesBatch
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDisableTOTPResponse parses an HTTP response from a DisableTOTPWithResponse call
+func ParseDisableTOTPResponse(rsp *http.Response) (*DisableTOTPResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DisableTOTPResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MessageResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseEnrollTOTPResponse parses an HTTP response from a EnrollTOTPWithResponse call
+func ParseEnrollTOTPResponse(rsp *http.Response) (*EnrollTOTPResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &EnrollTOTPResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TOTPEnrollResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseVerifyTOTPResponse parses an HTTP response from a VerifyTOTPWithResponse call
+func ParseVerifyTOTPResponse(rsp *http.Response) (*VerifyTOTPResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &VerifyTOTPResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest RecoveryCodesBatch
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteWebAuthnCredentialResponse parses an HTTP response from a DeleteWebAuthnCredentialWithResponse call
+func ParseDeleteWebAuthnCredentialResponse(rsp *http.Response) (*DeleteWebAuthnCredentialResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteWebAuthnCredentialResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MessageResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseBeginWebAuthnLoginResponse parses an HTTP response from a BeginWebAuthnLoginWithResponse call
+func ParseBeginWebAuthnLoginResponse(rsp *http.Response) (*BeginWebAuthnLoginResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &BeginWebAuthnLoginResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WebAuthnLoginBeginResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseFinishWebAuthnLoginResponse parses an HTTP response from a FinishWebAuthnLoginWithResponse call
+func ParseFinishWebAuthnLoginResponse(rsp *http.Response) (*FinishWebAuthnLoginResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &FinishWebAuthnLoginResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MessageResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseBeginWebAuthnRegistrationResponse parses an HTTP response from a BeginWebAuthnRegistrationWithResponse call
+func ParseBeginWebAuthnRegistrationResponse(rsp *http.Response) (*BeginWebAuthnRegistrationResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &BeginWebAuthnRegistrationResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WebAuthnBeginRegistrationResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseFinishWebAuthnRegistrationResponse parses an HTTP response from a FinishWebAuthnRegistrationWithResponse call
+func ParseFinishWebAuthnRegistrationResponse(rsp *http.Response) (*FinishWebAuthnRegistrationResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &FinishWebAuthnRegistrationResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MessageResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
 
 	}
 

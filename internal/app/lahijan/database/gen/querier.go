@@ -11,10 +11,21 @@ import (
 )
 
 type Querier interface {
+	//: user-scoped (cross-tenant; the login flow calls this to decide whether
+	//: the user must complete an MFA challenge before the real session is
+	//: issued, per the per-tenant MFA policy in WS-07c).
+	// Returns the first tenant the user is a member of that has
+	// mfa_required = TRUE; or no rows if none of the user's tenants require
+	// MFA. Joining through memberships means a soft-deleted membership or
+	// tenant is excluded automatically.
+	AnyTenantRequiresMFAForUser(ctx context.Context, userID uuid.UUID) (bool, error)
+	ConfirmTOTPSecret(ctx context.Context, userID uuid.UUID) error
 	// Single-use: stamp used_at. The app layer checks used_at IS NULL before
 	// consuming, then runs this UPDATE and uses the returned row count to detect
 	// a race (0 affected = already consumed or did not exist).
 	ConsumeEmailToken(ctx context.Context, tokenHash string) (int64, error)
+	ConsumeMFAPendingSession(ctx context.Context, id uuid.UUID) error
+	ConsumeRecoveryCode(ctx context.Context, arg ConsumeRecoveryCodeParams) error
 	//: tenant-scoped
 	CountAuditLogForTenant(ctx context.Context, tenantID *uuid.UUID) (int64, error)
 	//: tenant-scoped; same filters as ListAuditLogForTenantFiltered, for pagination.
@@ -26,7 +37,9 @@ type Querier interface {
 	CountOAuthIdentitiesForUser(ctx context.Context, userID uuid.UUID) (int64, error)
 	CountSAMLIdentitiesForUser(ctx context.Context, userID uuid.UUID) (int64, error)
 	CountTenants(ctx context.Context) (int64, error)
+	CountUnusedRecoveryCodesForUser(ctx context.Context, userID uuid.UUID) (int64, error)
 	CountUsers(ctx context.Context) (int64, error)
+	CountWebauthnCredentialsForUser(ctx context.Context, userID uuid.UUID) (int64, error)
 	// Audit log: append-only. tenant_id is nullable for system-level events.
 	// The audit_log_block_mutation trigger (migration 0005) rejects UPDATE/DELETE,
 	// so this query file intentionally exposes only INSERT and SELECT.
@@ -41,6 +54,9 @@ type Querier interface {
 	// Email tokens: single-use, expiring tokens for email verification, password
 	// reset, and email change (WS-06). Global; only the SHA-256 hash is stored.
 	CreateEmailToken(ctx context.Context, arg CreateEmailTokenParams) (EmailToken, error)
+	// mfa_pending_sessions: short-lived, single-use pending session tokens
+	// issued during login when the user has MFA enabled (WS-07c).
+	CreateMFAPendingSession(ctx context.Context, arg CreateMFAPendingSessionParams) (MfaPendingSession, error)
 	// Memberships: tenant-scoped. This is the canonical example of tenant scoping.
 	// Every tenant-scoped query takes tenant_id as its first parameter so the
 	// repository layer can bake it in from the request context (ADR-0002).
@@ -53,6 +69,10 @@ type Querier interface {
 	CreateOAuthIdentity(ctx context.Context, arg CreateOAuthIdentityParams) (UserOauthIdentity, error)
 	CreatePermission(ctx context.Context, arg CreatePermissionParams) (Permission, error)
 	CreatePersonalAccessToken(ctx context.Context, arg CreatePersonalAccessTokenParams) (PersonalAccessToken, error)
+	// user_recovery_codes: per-user single-use recovery codes (WS-07c). The
+	// code_hash column carries the SHA-256 hex of the raw code; the raw code
+	// is never stored.
+	CreateRecoveryCode(ctx context.Context, arg CreateRecoveryCodeParams) (UserRecoveryCode, error)
 	// Tokens: refresh_tokens and personal_access_tokens. Both global.
 	//
 	// refresh_tokens belong to a session (session_id, added in WS-06 migration 0009)
@@ -74,6 +94,14 @@ type Querier interface {
 	// Sessions: a logical login session (WS-06). Global, backed by an opaque
 	// signed cookie whose SHA-256 hash matches sessions.token_hash.
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
+	// user_totp_secrets: per-user TOTP (RFC 6238) secret used as a second
+	// factor at login (WS-07c). The secret column carries AES-GCM ciphertext
+	// produced by auth/secrets.Crypto; this query file treats it as opaque
+	// TEXT and never inspects its contents.
+	// Upsert: replace any existing row for this user_id with a fresh secret.
+	// A re-enrollment invalidates the old secret across every authenticator app
+	// the user had it loaded into.
+	CreateTOTPSecret(ctx context.Context, arg CreateTOTPSecretParams) (UserTotpSecret, error)
 	// Tenants: global table, the top-level isolation boundary.
 	// Per ADR-0002, every tenant-scoped table references tenants(id).
 	// Optional fields use explicit params (not COALESCE) so sqlc emits concrete
@@ -83,6 +111,11 @@ type Querier interface {
 	// WS-06 adds display_name, email_verified_at, and locale.
 	// Optional fields use explicit params; the repository wrapper supplies defaults.
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	// user_webauthn_credentials: per-user WebAuthn / passkey credentials (WS-07c).
+	CreateWebauthnCredential(ctx context.Context, arg CreateWebauthnCredentialParams) (UserWebauthnCredential, error)
+	// Used before regenerating a fresh batch: every old code is invalidated.
+	DeleteAllRecoveryCodesForUser(ctx context.Context, userID uuid.UUID) error
+	DeleteMFAPendingSessionsForUser(ctx context.Context, userID uuid.UUID) error
 	// Unlink: removes the (user, provider) link entirely. Enforced "at least one
 	// auth method remaining" check happens in the service layer (it counts
 	// password_hash + other identities + SAML links before calling this).
@@ -92,6 +125,8 @@ type Querier interface {
 	// password_hash + OAuth/OIDC identities + other SAML identities before
 	// calling this).
 	DeleteSAMLIdentity(ctx context.Context, arg DeleteSAMLIdentityParams) error
+	DeleteTOTPSecret(ctx context.Context, userID uuid.UUID) error
+	DeleteWebauthnCredential(ctx context.Context, arg DeleteWebauthnCredentialParams) error
 	GetAuditLog(ctx context.Context, id uuid.UUID) (AuditLog, error)
 	//: tenant-scoped; single-row read for the GET /audit/{id} handler. Returns the
 	//: row if it belongs to the tenant in ctx, OR is a system-level event (NULL
@@ -99,6 +134,7 @@ type Querier interface {
 	//: auth flows even when scoped.
 	GetAuditLogForTenant(ctx context.Context, arg GetAuditLogForTenantParams) (AuditLog, error)
 	GetEmailTokenByHash(ctx context.Context, tokenHash string) (EmailToken, error)
+	GetMFAPendingSessionByHash(ctx context.Context, tokenHash string) (MfaPendingSession, error)
 	//: tenant-scoped
 	GetMembership(ctx context.Context, arg GetMembershipParams) (Membership, error)
 	//: tenant-scoped
@@ -118,6 +154,9 @@ type Querier interface {
 	GetPermissionBySlug(ctx context.Context, slug string) (Permission, error)
 	GetPersonalAccessTokenByHash(ctx context.Context, tokenHash string) (PersonalAccessToken, error)
 	GetPersonalAccessTokenByID(ctx context.Context, id uuid.UUID) (PersonalAccessToken, error)
+	// Lookup path: SHA-256 the user-supplied code, find a row scoped by
+	// (user_id, hash) where used_at IS NULL.
+	GetRecoveryCodeByUserAndHash(ctx context.Context, arg GetRecoveryCodeByUserAndHashParams) (UserRecoveryCode, error)
 	GetRefreshTokenByHash(ctx context.Context, tokenHash string) (RefreshToken, error)
 	GetRoleByID(ctx context.Context, id uuid.UUID) (Role, error)
 	GetRoleBySlug(ctx context.Context, slug string) (Role, error)
@@ -130,11 +169,20 @@ type Querier interface {
 	GetSAMLIdentityForUser(ctx context.Context, arg GetSAMLIdentityForUserParams) (UserSamlIdentity, error)
 	GetSession(ctx context.Context, id uuid.UUID) (Session, error)
 	GetSessionByTokenHash(ctx context.Context, tokenHash string) (Session, error)
+	GetTOTPSecret(ctx context.Context, userID uuid.UUID) (UserTotpSecret, error)
 	GetTenantByID(ctx context.Context, id uuid.UUID) (Tenant, error)
 	GetTenantBySlug(ctx context.Context, slug string) (Tenant, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
+	GetWebauthnCredential(ctx context.Context, id uuid.UUID) (UserWebauthnCredential, error)
+	// Lookup used at assertion time: the credential_id from the browser is the
+	// natural key (alongside user_id) to find the stored public_key + sign_count
+	// the RP needs to verify the signature.
+	GetWebauthnCredentialByUserAndID(ctx context.Context, arg GetWebauthnCredentialByUserAndIDParams) (UserWebauthnCredential, error)
 	GrantPermissionToRole(ctx context.Context, arg GrantPermissionToRoleParams) error
+	// Bumps the failure counter; the caller checks if it crosses the threshold
+	// and calls RevokeMFAPendingSession to lock the user out.
+	IncMFAPendingSessionFailures(ctx context.Context, id uuid.UUID) error
 	//: tenant-scoped
 	ListAuditLogForTenant(ctx context.Context, arg ListAuditLogForTenantParams) ([]AuditLog, error)
 	//: tenant-scoped; filtered + paginated read for GET /audit.
@@ -161,16 +209,19 @@ type Querier interface {
 	// in the given tenant. Used by RBAC policy enforcement (WS-08).
 	ListPermissionsForUser(ctx context.Context, arg ListPermissionsForUserParams) ([]Permission, error)
 	ListPersonalAccessTokensForUser(ctx context.Context, userID uuid.UUID) ([]PersonalAccessToken, error)
+	ListRecoveryCodesForUser(ctx context.Context, userID uuid.UUID) ([]UserRecoveryCode, error)
 	ListRoles(ctx context.Context) ([]Role, error)
 	ListSAMLIdentitiesForUser(ctx context.Context, userID uuid.UUID) ([]UserSamlIdentity, error)
 	ListSessionsForUser(ctx context.Context, userID uuid.UUID) ([]Session, error)
 	ListTenants(ctx context.Context, arg ListTenantsParams) ([]Tenant, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
+	ListWebauthnCredentialsForUser(ctx context.Context, userID uuid.UUID) ([]UserWebauthnCredential, error)
 	RevokeAllRefreshTokensForUser(ctx context.Context, userID uuid.UUID) error
 	RevokeAllSessionsForUser(ctx context.Context, userID uuid.UUID) error
 	// Invalidate every outstanding email token of a kind for a user (e.g. when
 	// re-issuing a verification token, revoke the previous one).
 	RevokeEmailTokensForUser(ctx context.Context, arg RevokeEmailTokensForUserParams) error
+	RevokeMFAPendingSession(ctx context.Context, id uuid.UUID) error
 	RevokePersonalAccessToken(ctx context.Context, tokenHash string) error
 	RevokePersonalAccessTokenByID(ctx context.Context, arg RevokePersonalAccessTokenByIDParams) error
 	RevokeRefreshToken(ctx context.Context, tokenHash string) error
@@ -198,6 +249,9 @@ type Querier interface {
 	UpdateUserLocale(ctx context.Context, arg UpdateUserLocaleParams) error
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
 	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) error
+	// Bumps the sign counter on every successful assertion; the RP rejects any
+	// future assertion whose count is not strictly greater.
+	UpdateWebauthnSignCount(ctx context.Context, arg UpdateWebauthnSignCountParams) error
 	VerifyUserEmail(ctx context.Context, id uuid.UUID) error
 }
 

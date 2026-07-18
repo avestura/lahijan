@@ -26,6 +26,10 @@ sql:
       - "queries/email_tokens.sql"
       - "queries/oauth_identities.sql"
       - "queries/saml_identities.sql"
+      - "queries/totp_secrets.sql"
+      - "queries/webauthn_credentials.sql"
+      - "queries/recovery_codes.sql"
+      - "queries/mfa_pending_sessions.sql"
     schema:
       - "migrations/*.up.sql"
     gen:

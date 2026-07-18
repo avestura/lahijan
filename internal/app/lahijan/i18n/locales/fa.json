@@ -80,6 +80,33 @@
     "other": "این حساب هنوز به ورود سازمان شما متصل نشده است. برای افزوده شدن با اپراتور خود تماس بگیرید."
   },
 
+  "auth.err_mfa_required_unenrolled": {
+    "description": "هنگامی که ورود به دلیل نیاز سازمان به تأیید دوم مرحله‌ای مسدود می‌شود ولی کاربر هیچ عاملی ثبت نکرده است.",
+    "other": "سازمان شما به تأیید دوم مرحله‌ای نیاز دارد. لطفاً پیش از ورود، یک عامل تأیید ثبت کنید."
+  },
+  "auth.err_mfa_pending_not_found": { "other": "نشست تأیید دوم مرحله‌ای منقضی شده است. لطفاً دوباره وارد شوید." },
+  "auth.err_mfa_pending_expired": { "other": "نشست تأیید دوم مرحله‌ای منقضی شده است. لطفاً دوباره وارد شوید." },
+  "auth.err_mfa_pending_consumed": { "other": "این نشست تأیید دوم مرحله‌ای پیش‌تر به‌کار رفته است. لطفاً دوباره وارد شوید." },
+  "auth.err_mfa_pending_revoked": { "other": "این نشست تأیید دوم مرحله‌ای به دلیل تلاش‌های ناموفق زیاد باطل شد. لطفاً دوباره وارد شوید." },
+  "auth.err_mfa_too_many_attempts": {
+    "description": "پس از ۵ تحدید ناموفق پیاپی برابر همان نشست معلق.",
+    "other": "تعداد کدهای نادرست بیش از حد بود. نشست تأیید دوم مرحله‌ای باطل شد؛ لطفاً دوباره وارد شوید."
+  },
+  "auth.err_mfa_invalid_challenge": { "other": "آن کد درست نبود. لطفاً دوباره تلاش کنید." },
+  "auth.err_mfa_not_enrolled": { "other": "این عامل تأیید دوم مرحله‌ای ثبت نشده است." },
+  "auth.err_mfa_already_enrolled": { "other": "این عامل تأیید دوم مرحله‌ای از قبل ثبت شده است. برای ثبت دوباره، ابتدا آن را غیرفعال کنید." },
+  "auth.err_mfa_factor_not_found": { "other": "عامل تأیید دوم مرحله‌ای یافت نشد." },
+  "auth.err_mfa_password_required": { "other": "برای غیرفعال کردن تأیید دوم مرحله‌ای، گذرواژه کنونی نیاز است." },
+  "auth.err_mfa_disabled": { "other": "تأیید دوم مرحله‌ای روی این کارساز فعال نیست." },
+
+  "auth.msg_mfa_totp_enrolled": { "other": "برنامهٔ تأییدکنندهٔ شما پیکربندی شد. کد ۶ رقمی را وارد کنید تا تأیید شود." },
+  "auth.msg_mfa_totp_confirmed": { "other": "TOTP فعال شد." },
+  "auth.msg_mfa_totp_disabled": { "other": "TOTP غیرفعال شد." },
+  "auth.msg_mfa_webauthn_registered": { "other": "کلید عبور ثبت شد." },
+  "auth.msg_mfa_webauthn_deleted": { "other": "کلید عبور حذف شد." },
+  "auth.msg_mfa_recovery_regenerated": { "other": "دسته‌ای تازه از کدهای بازیابی ساخته شد. همین حالا ذخیره‌شان کنید — دیگر نمایش داده نخواهند شد." },
+  "auth.msg_mfa_challenge_ok": { "other": "تأیید دوم مرحله‌ای موفق بود." },
+
   "rbac.err_tenant_scope_required": {
     "description": "هنگامی که یک پایانهٔ ممتاز بدون سرتیتر X-Tenant-Id فراخوانی شود.",
     "other": "برای این کنش، یک حوزهٔ مستأجر لازم است. سرتیتر X-Tenant-Id را تنظیم کنید."
@@ -113,6 +140,13 @@
   "audit.action_auth_idp_link": { "other": "ارائه‌دهندهٔ هویت متصل شد" },
   "audit.action_auth_idp_login": { "other": "ورود از طریق ارائه‌دهندهٔ هویت" },
   "audit.action_auth_idp_unlink": { "other": "ارائه‌دهندهٔ هویت جدا شد" },
+
+  "audit.action_auth_mfa_enroll": { "other": "عامل تأیید دوم مرحله‌ای فعال شد" },
+  "audit.action_auth_mfa_verify": { "other": "عامل تأیید دوم مرحله‌ای تأیید شد" },
+  "audit.action_auth_mfa_disable": { "other": "عامل تأیید دوم مرحله‌ای غیرفعال شد" },
+  "audit.action_auth_mfa_recovery_refresh": { "other": "کدهای بازیابی بازتولید شدند" },
+  "audit.action_auth_mfa_challenge": { "other": "تحدید تأیید دوم مرحله‌ای موفق بود" },
+  "audit.action_auth_mfa_challenge_fail": { "other": "تحدید تأیید دوم مرحله‌ای ناموفق بود" },
 
   "audit.action_audit_export": { "other": "گزارش ممیزی برون‌برداری شد" },
   "audit.action_rbac_role_update": { "other": "نقاب به‌روز شد" },

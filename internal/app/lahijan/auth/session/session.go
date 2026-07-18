@@ -163,27 +163,9 @@ type RegisterInput struct {
 // Login verifies credentials and opens a session. A disabled account returns
 // ErrUserInactive; depending on config, an unverified email blocks login.
 func (s *Service) Login(ctx context.Context, in LoginInput) (Session, error) {
-	user, err := s.users.GetByEmail(ctx, normalizeEmail(in.Email))
+	user, err := s.VerifyCredentials(ctx, in.Email, in.Password)
 	if err != nil {
-		s.auditFail(ctx, audit.ActionLogin, nil)
-		return Session{}, ErrInvalidCredentials
-	}
-	if user.PasswordHash == nil {
-		s.auditFail(ctx, audit.ActionLogin, &user.ID)
-		return Session{}, ErrInvalidCredentials
-	}
-	ok, err := s.hasher.Verify(in.Password, *user.PasswordHash)
-	if err != nil || !ok {
-		s.auditFail(ctx, audit.ActionLogin, &user.ID)
-		return Session{}, ErrInvalidCredentials
-	}
-	if !user.IsActive {
-		s.auditFail(ctx, audit.ActionLogin, &user.ID)
-		return Session{}, ErrUserInactive
-	}
-	if s.cfg.RequireVerified && user.EmailVerifiedAt == nil {
-		s.auditFail(ctx, audit.ActionLogin, &user.ID)
-		return Session{}, ErrEmailUnverified
+		return Session{}, err
 	}
 	// Lazily rehash on login if parameters were bumped.
 	if s.hasher.NeedsRehash(*user.PasswordHash) {
@@ -205,6 +187,50 @@ func (s *Service) Login(ctx context.Context, in LoginInput) (Session, error) {
 		Status:       audit.StatusSuccess,
 	})
 	return sess, nil
+}
+
+// VerifyCredentials validates the email + password without opening a
+// session. Used by the MFA-aware login flow (WS-07c) so the api handler
+// can decide between opening the session directly and issuing a pending
+// MFA challenge token:
+//
+//	user, err := sessionSvc.VerifyCredentials(ctx, email, pw)
+//	required, _ := mfaSvc.IsMFARequired(ctx, user.ID)
+//	if required {
+//	    pending, _ := mfaSvc.BeginLogin(ctx, user.ID, ua, ip)
+//	    return 202 Accepted { pending_session_token: pending.Token }
+//	}
+//	sess, _ := sessionSvc.OpenForExistingUser(ctx, user.ID, ua, ip)
+//
+// Returns the same sentinels as Login: ErrInvalidCredentials,
+// ErrUserInactive, ErrEmailUnverified.
+//
+// On success, the caller is responsible for opening the session via
+// OpenForExistingUser (which is the path WS-07a's IdP login also takes).
+func (s *Service) VerifyCredentials(ctx context.Context, email, password string) (database.User, error) {
+	user, err := s.users.GetByEmail(ctx, normalizeEmail(email))
+	if err != nil {
+		s.auditFail(ctx, audit.ActionLogin, nil)
+		return database.User{}, ErrInvalidCredentials
+	}
+	if user.PasswordHash == nil {
+		s.auditFail(ctx, audit.ActionLogin, &user.ID)
+		return database.User{}, ErrInvalidCredentials
+	}
+	ok, err := s.hasher.Verify(password, *user.PasswordHash)
+	if err != nil || !ok {
+		s.auditFail(ctx, audit.ActionLogin, &user.ID)
+		return database.User{}, ErrInvalidCredentials
+	}
+	if !user.IsActive {
+		s.auditFail(ctx, audit.ActionLogin, &user.ID)
+		return database.User{}, ErrUserInactive
+	}
+	if s.cfg.RequireVerified && user.EmailVerifiedAt == nil {
+		s.auditFail(ctx, audit.ActionLogin, &user.ID)
+		return database.User{}, ErrEmailUnverified
+	}
+	return user, nil
 }
 
 // LoginInput carries the credentials for a login attempt.

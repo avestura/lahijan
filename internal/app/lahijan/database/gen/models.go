@@ -73,6 +73,23 @@ type Membership struct {
 	DeletedAt *time.Time `json:"deleted_at"`
 }
 
+// Short-lived, single-use pending session tokens issued during login when MFA is required; global.
+type MfaPendingSession struct {
+	ID     uuid.UUID `json:"id"`
+	UserID uuid.UUID `json:"user_id"`
+	// SHA-256 hash of the raw pending token; raw token is never stored.
+	TokenHash string    `json:"token_hash"`
+	ExpiresAt time.Time `json:"expires_at"`
+	// NULL until consumed by a successful MFA challenge; single-use.
+	ConsumedAt *time.Time `json:"consumed_at"`
+	RevokedAt  *time.Time `json:"revoked_at"`
+	// Number of consecutive failed challenges; at 5 the row is auto-revoked.
+	FailedAttempts int32       `json:"failed_attempts"`
+	UserAgent      *string     `json:"user_agent"`
+	IpAddress      *netip.Addr `json:"ip_address"`
+	CreatedAt      time.Time   `json:"created_at"`
+}
+
 // Atomic capability, formatted scope.action.
 type Permission struct {
 	ID uuid.UUID `json:"id"`
@@ -164,6 +181,8 @@ type Tenant struct {
 	CreatedAt time.Time  `json:"created_at"`
 	UpdatedAt time.Time  `json:"updated_at"`
 	DeletedAt *time.Time `json:"deleted_at"`
+	// When TRUE, every member of this tenant must complete an MFA challenge at login.
+	MfaRequired bool `json:"mfa_required"`
 }
 
 // A person who can log in; global, not tenant-scoped.
@@ -205,6 +224,17 @@ type UserOauthIdentity struct {
 	UpdatedAt time.Time  `json:"updated_at"`
 }
 
+// Per-user single-use recovery codes; global, SHA-256 hashed at rest (raw code never stored).
+type UserRecoveryCode struct {
+	ID     uuid.UUID `json:"id"`
+	UserID uuid.UUID `json:"user_id"`
+	// SHA-256 hex digest of the raw recovery code.
+	CodeHash string `json:"code_hash"`
+	// NULL until consumed by a successful recovery challenge; one-shot.
+	UsedAt    *time.Time `json:"used_at"`
+	CreatedAt time.Time  `json:"created_at"`
+}
+
 // Links a user to an external SAML 2.0 IdP; global, no tokens stored (assertions are short-lived).
 type UserSamlIdentity struct {
 	ID     uuid.UUID `json:"id"`
@@ -219,4 +249,36 @@ type UserSamlIdentity struct {
 	AttributesJson json.RawMessage `json:"attributes_json"`
 	CreatedAt      time.Time       `json:"created_at"`
 	UpdatedAt      time.Time       `json:"updated_at"`
+}
+
+// Per-user TOTP secret; global, AES-GCM encrypted at rest. One row per user; confirmed_at IS NULL means enrollment is pending.
+type UserTotpSecret struct {
+	ID     uuid.UUID `json:"id"`
+	UserID uuid.UUID `json:"user_id"`
+	// AES-GCM ciphertext (base64) of the base32 TOTP secret.
+	Secret string `json:"secret"`
+	// NULL until the user verifies a 6-digit code; until then login does not challenge for TOTP.
+	ConfirmedAt *time.Time `json:"confirmed_at"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+}
+
+// Per-user WebAuthn / passkey credentials; global, public_key not encrypted (not sensitive per spec).
+type UserWebauthnCredential struct {
+	ID     uuid.UUID `json:"id"`
+	UserID uuid.UUID `json:"user_id"`
+	// Unpadded base64url of the credential id from the authenticator.
+	CredentialID string `json:"credential_id"`
+	// COSE-encoded public key blob (raw bytes).
+	PublicKey []byte     `json:"public_key"`
+	Aaguid    *uuid.UUID `json:"aaguid"`
+	// WebAuthn replay-detection counter; bumped on every assertion.
+	SignCount int64 `json:"sign_count"`
+	// UI hints the browser reported at registration: usb, nfc, ble, internal, hybrid, smart-card.
+	Transports []string `json:"transports"`
+	// User-supplied label for the credential.
+	Name       string     `json:"name"`
+	LastUsedAt *time.Time `json:"last_used_at"`
+	CreatedAt  time.Time  `json:"created_at"`
+	UpdatedAt  time.Time  `json:"updated_at"`
 }
