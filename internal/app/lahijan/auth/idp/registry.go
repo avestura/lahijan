@@ -8,6 +8,11 @@
 // with OAuth presets. The "oidc:" prefix matches the OIDCAdapter.Key value
 // the service stores on user_oauth_identities.provider, so a callback can be
 // routed back to the right adapter by reading the path param.
+//
+// SAML providers are NOT part of CombinedRegistry: the SAML flow uses a
+// different adapter shape (no Exchange(code, pkce) → Tokens/Profile contract)
+// and is dispatched directly by the api handler. The auth/saml.Registry is
+// wired separately into the api server.
 package idp
 
 import (

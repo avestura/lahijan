@@ -2,6 +2,11 @@
 // both satisfy the service's ExternalIDP interface. The OAuth adapter is a
 // trivial pass-through; the OIDC adapter holds the nonce between BuildAuthURL
 // and Exchange (the OIDC Exchange signature requires it).
+//
+// SAML does not satisfy ExternalIDP — its flow is materially different (POST
+// binding vs authorization-code, NameID vs subject, no tokens to encrypt). The
+// api handler drives SAML through LinkSAML directly rather than through the
+// ExternalIDP adapter, keeping the OAuth/OIDC adapter surface small.
 package idp
 
 import (
