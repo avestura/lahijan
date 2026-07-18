@@ -136,3 +136,29 @@ func NewOAuthIdentity(
 	require.NoError(t, err, "create oauth identity")
 	return row
 }
+
+// NewSAMLIdentity inserts and returns a fresh SAML identity link for the
+// given user. Provider is "saml:fake" by default; pass a different value to
+// test other IdPs. The attribute snapshot is a minimal {"email": [...]} blob.
+func NewSAMLIdentity(
+	ctx context.Context,
+	t *testing.T,
+	db gen.DBTX,
+	userID uuid.UUID,
+	provider string,
+) gen.UserSamlIdentity {
+	t.Helper()
+	if provider == "" {
+		provider = "saml:fake"
+	}
+	nameID := "nameid-" + uuid.NewString()[:12]
+	row, err := querier(db).CreateSAMLIdentity(ctx, gen.CreateSAMLIdentityParams{
+		UserID:         userID,
+		Provider:       provider,
+		NameID:         nameID,
+		IdpEntityID:    "https://idp.example.test/saml",
+		AttributesJson: json.RawMessage(`{"email":["saml@example.test"]}`),
+	})
+	require.NoError(t, err, "create saml identity")
+	return row
+}
