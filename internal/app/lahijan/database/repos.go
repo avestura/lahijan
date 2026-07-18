@@ -34,6 +34,11 @@ type Repos struct {
 	PluginSubscriptions *PluginEventSubscriptionsRepository
 	PluginHTTPHandlers  *PluginHTTPHandlersRepository
 	DNSZones            *DNSZonesRepository
+	ComputeInstances    *ComputeInstancesRepository
+	ComputeImages       *ComputeImagesRepository
+	ComputeProfiles     *ComputeProfilesRepository
+	ComputeNetworks     *ComputeNetworksRepository
+	ComputeStorageVolumes *ComputeStorageVolumesRepository
 }
 
 // NewRepos builds the aggregate repository from a pool or transaction. The
@@ -61,5 +66,10 @@ func NewRepos(db DBTX) *Repos {
 		PluginSubscriptions: NewPluginEventSubscriptionsRepository(q),
 		PluginHTTPHandlers:  NewPluginHTTPHandlersRepository(q),
 		DNSZones:            NewDNSZonesRepository(q),
+		ComputeInstances:    NewComputeInstancesRepository(q),
+		ComputeImages:       NewComputeImagesRepository(q),
+		ComputeProfiles:     NewComputeProfilesRepository(q),
+		ComputeNetworks:     NewComputeNetworksRepository(q),
+		ComputeStorageVolumes: NewComputeStorageVolumesRepository(q),
 	}
 }
