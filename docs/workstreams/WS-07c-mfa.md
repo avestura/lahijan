@@ -1,7 +1,7 @@
 # WS-07c · Multi-Factor Authentication
 
 ```
-Status: in-progress
+Status: done
 Phase: 1
 Depends on WS-06
 Unblocks: —
@@ -72,29 +72,39 @@ this WS, users can enable MFA and the login flow challenges them appropriately.
 
 ## Definition of Done
 
-- [ ] TOTP enroll → verify → disable works end-to-end
-- [ ] WebAuthn register → login works end-to-end (synthetic authenticator in
+- [x] TOTP enroll → verify → disable works end-to-end
+- [x] WebAuthn register → login works end-to-end (synthetic authenticator in
       tests)
-- [ ] recovery codes: generate → use → invalidated
-- [ ] login with MFA-enabled user returns `pending_session_token`
-- [ ] MFA challenge succeeds → real session issued
-- [ ] MFA challenge fails 5 times → pending token revoked
-- [ ] per-tenant "MFA required" policy enforced at login
-- [ ] every privileged MFA action emits an audit event
-- [ ] every user-facing string through `i18n.T`; en + fa in sync
-- [ ] `make lint test` green
+- [x] recovery codes: generate → use → invalidated
+- [x] login with MFA-enabled user returns `pending_session_token`
+- [x] MFA challenge succeeds → real session issued
+- [x] MFA challenge fails 5 times → pending token revoked
+- [x] per-tenant "MFA required" policy enforced at login
+- [x] every privileged MFA action emits an audit event
+- [x] every user-facing string through `i18n.T`; en + fa in sync
+- [x] `make lint test` green
 
 ## Open questions
 
 - WebAuthn library choice: `go-webauthn/webauthn` is the standard. License:
-  Apache-2. (Default: use it.)
-- TOTP secret encrypted at rest with what key? (Default: same AES-GCM master
-  key used for other encrypted columns; lives in `conf`.)
-- Allow user to disable MFA without re-entering password? (Default: no —
-  require current password to disable.)
+  Apache-2. **Resolved:** ADR-0021 records the choice (v0.11.x).
+- TOTP secret encrypted at rest with what key? **Resolved:** same AES-GCM
+  master key (`conf.auth.secrets.encryptionKey`) used for OAuth/OIDC
+  tokens; reused via `auth/secrets.Crypto`.
+- Allow user to disable MFA without re-entering password? **Resolved:** no.
+  `POST /me/mfa/totp/disable` requires `currentPassword`; the api handler
+  calls `sessionSvc.VerifyCredentials` to re-authenticate before revoking
+  the factor.
 
 ## Notes
 
 - WebAuthn testing in CI is tricky; use `firefox-webauthn` or a synthetic
-  authenticator library. Look at how `go-webauthn/webauthn` itself tests.
+  authenticator library. **Resolved:** `auth/mfa/webauthn/fake/authenticator.go`
+  implements a minimal ES256 synthetic authenticator that produces real
+  CBOR + ASN.1 ECDSA signatures the relying-party verifies end to end
+  (register → login covered by `TestCeremony_RegisterThenLogin` +
+  `TestMFA_WebAuthnCeremonyViaHTTP`).
 - `pending_session_token` must be short-lived (e.g. 5 min) and single-use.
+  **Resolved:** default `auth.mfa.pendingTTLSeconds = 300`, single-use
+  enforced by `mfa_pending_sessions.consumed_at`, brute-force lockout at
+  `auth.mfa.maxAttempts = 5` (returns 429 on the 5th failed challenge).
