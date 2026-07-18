@@ -271,8 +271,9 @@ func translateS3Err(err error) error {
 	}
 	var apiErr smithy.APIError
 	if !errors.As(err, &apiErr) {
-		// Not an SDK error — wrap as-is.
-		return fmt.Errorf("%w: %v", ErrOperationFailed, err)
+		// Not an SDK error — wrap with the ErrOperationFailed sentinel
+		// and the original error so callers can errors.Is either.
+		return fmt.Errorf("%w: %w", ErrOperationFailed, err)
 	}
 	switch apiErr.ErrorCode() {
 	case "BucketAlreadyExists", "BucketAlreadyOwnedByYou":

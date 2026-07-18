@@ -35,16 +35,16 @@ func newHTTPClient() *http.Client {
 func connectProvider(t *testing.T, srv *fake.Server) *seaweedfs.Provider {
 	t.Helper()
 	p, err := seaweedfs.NewClient(seaweedfs.Config{
-		HTTPClient:      newHTTPClient(),
-		S3:              srv,
-		Presign:         srv,
-		Filer:           srv,
-		S3Endpoint:      "https://fake-s3.example",
-		FilerURL:        "https://fake-filer.example",
-		Region:          "us-east-1",
-		AdminAccessKey:  "lahijan-dev-admin-key",
-		AdminSecretKey:  "lahijan-dev-admin-secret",
-		RequestTimeout:  5 * time.Second,
+		HTTPClient:        newHTTPClient(),
+		S3:                srv,
+		Presign:           srv,
+		Filer:             srv,
+		S3Endpoint:        "https://fake-s3.example",
+		FilerURL:          "https://fake-filer.example",
+		Region:            "us-east-1",
+		AdminAccessKey:    "lahijan-dev-admin-key",
+		AdminSecretKey:    "lahijan-dev-admin-secret",
+		RequestTimeout:    5 * time.Second,
 		DefaultPresignTTL: 60 * time.Second,
 	})
 	if err != nil {
@@ -58,18 +58,18 @@ func connectProvider(t *testing.T, srv *fake.Server) *seaweedfs.Provider {
 func connectProviderWithBus(t *testing.T, srv *fake.Server, bus seaweedfs.EventBus) *seaweedfs.Provider {
 	t.Helper()
 	p, err := seaweedfs.NewClient(seaweedfs.Config{
-		HTTPClient:      newHTTPClient(),
-		S3:              srv,
-		Presign:         srv,
-		Filer:           srv,
-		S3Endpoint:      "https://fake-s3.example",
-		FilerURL:        "https://fake-filer.example",
-		Region:          "us-east-1",
-		AdminAccessKey:  "lahijan-dev-admin-key",
-		AdminSecretKey:  "lahijan-dev-admin-secret",
-		RequestTimeout:  5 * time.Second,
+		HTTPClient:        newHTTPClient(),
+		S3:                srv,
+		Presign:           srv,
+		Filer:             srv,
+		S3Endpoint:        "https://fake-s3.example",
+		FilerURL:          "https://fake-filer.example",
+		Region:            "us-east-1",
+		AdminAccessKey:    "lahijan-dev-admin-key",
+		AdminSecretKey:    "lahijan-dev-admin-secret",
+		RequestTimeout:    5 * time.Second,
 		DefaultPresignTTL: 60 * time.Second,
-		Bus:             bus,
+		Bus:               bus,
 	})
 	if err != nil {
 		t.Fatalf("connectProviderWithBus: %v", err)

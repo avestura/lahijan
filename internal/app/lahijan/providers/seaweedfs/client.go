@@ -370,19 +370,19 @@ func NewClient(cfg Config) (*Provider, error) {
 	}
 
 	return &Provider{
-		s3:               s3Client,
-		presign:          presignClient,
-		filer:            filerClient,
-		httpClient:       cfg.HTTPClient,
-		s3Endpoint:       strings.TrimRight(cfg.S3Endpoint, "/"),
-		filerURL:         strings.TrimRight(cfg.FilerURL, "/"),
-		region:           region,
-		adminAccessKey:   cfg.AdminAccessKey,
-		adminSecretKey:   cfg.AdminSecretKey,
-		timeout:          timeout,
+		s3:                s3Client,
+		presign:           presignClient,
+		filer:             filerClient,
+		httpClient:        cfg.HTTPClient,
+		s3Endpoint:        strings.TrimRight(cfg.S3Endpoint, "/"),
+		filerURL:          strings.TrimRight(cfg.FilerURL, "/"),
+		region:            region,
+		adminAccessKey:    cfg.AdminAccessKey,
+		adminSecretKey:    cfg.AdminSecretKey,
+		timeout:           timeout,
 		defaultPresignTTL: presignTTL,
-		defaultQuota:     cfg.DefaultQuota,
-		bus:              cfg.Bus,
+		defaultQuota:      cfg.DefaultQuota,
+		bus:               cfg.Bus,
 	}, nil
 }
 
@@ -392,10 +392,10 @@ func NewClient(cfg Config) (*Provider, error) {
 // virtual-hosted-style addressing).
 func buildS3Client(endpoint, region, accessKey, secretKey string) *awss3.Client {
 	return awss3.New(awss3.Options{
-		Region:        region,
-		Credentials:   awscredentials.NewStaticCredentialsProvider(accessKey, secretKey, ""),
-		BaseEndpoint:  aws.String(endpoint),
-		UsePathStyle:  true,
+		Region:       region,
+		Credentials:  awscredentials.NewStaticCredentialsProvider(accessKey, secretKey, ""),
+		BaseEndpoint: aws.String(endpoint),
+		UsePathStyle: true,
 	})
 }
 
@@ -413,6 +413,8 @@ type sdkPresignAdapter struct {
 }
 
 // PresignGetObject implements presignAPI.
+//
+//nolint:lll // signature matches the SDK's; cannot wrap without losing readability.
 func (a *sdkPresignAdapter) PresignGetObject(ctx context.Context, params *awss3.GetObjectInput, optFns ...func(*awss3.PresignOptions)) (*V4PresignedRequest, error) {
 	req, err := a.inner.PresignGetObject(ctx, params, optFns...)
 	if err != nil {
@@ -422,6 +424,8 @@ func (a *sdkPresignAdapter) PresignGetObject(ctx context.Context, params *awss3.
 }
 
 // PresignPutObject implements presignAPI.
+//
+//nolint:lll // signature matches the SDK's; cannot wrap without losing readability.
 func (a *sdkPresignAdapter) PresignPutObject(ctx context.Context, params *awss3.PutObjectInput, optFns ...func(*awss3.PresignOptions)) (*V4PresignedRequest, error) {
 	req, err := a.inner.PresignPutObject(ctx, params, optFns...)
 	if err != nil {
@@ -511,7 +515,7 @@ func (c *filerHTTPClient) ListMetadata(ctx context.Context, prefix string) (map[
 
 // do issues a Filer request and decodes the JSON response into out. path
 // is the absolute path under the Filer root (with a leading slash).
-func (c *filerHTTPClient) do(ctx context.Context, method, path string, body any, out any) error {
+func (c *filerHTTPClient) do(ctx context.Context, method, path string, body, out any) error {
 	ctx, span := startSpan(ctx, "filer.http."+strings.ToLower(method),
 		attribute.String("seaweedfs.filer_path", path))
 	defer span.End()

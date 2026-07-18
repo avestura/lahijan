@@ -158,14 +158,14 @@ func (p *Provider) RotateCredentials(ctx context.Context, accessKey string, para
 	// Delete the old record first so the old secret stops signing
 	// requests before the new one is live. A failure here is fatal —
 	// the caller must retry with the same access key.
-	if err := p.deleteIdentity(ctx, accessKey); err != nil {
-		setStatus(span, err)
-		return nil, fmt.Errorf("seaweedfs: credential.rotate: %w", err)
+	if delErr := p.deleteIdentity(ctx, accessKey); delErr != nil {
+		setStatus(span, delErr)
+		return nil, fmt.Errorf("seaweedfs: credential.rotate: %w", delErr)
 	}
-	fresh, err := p.MintCredentials(ctx, params)
-	if err != nil {
-		setStatus(span, err)
-		return nil, fmt.Errorf("seaweedfs: credential.rotate: %w", err)
+	fresh, mErr := p.MintCredentials(ctx, params)
+	if mErr != nil {
+		setStatus(span, mErr)
+		return nil, fmt.Errorf("seaweedfs: credential.rotate: %w", mErr)
 	}
 	p.emitChange(ctx, BusEvent{
 		Topic:      "storage.credential.rotated",
@@ -354,7 +354,7 @@ func validateMintParams(params MintCredentialsParams) error {
 			return fmt.Errorf("NamePrefix %q length %d exceeds max 8", prefix, len(prefix))
 		}
 		for _, r := range prefix {
-			if !(r >= 'a' && r <= 'z') && !(r >= '0' && r <= '9') {
+			if (r < 'a' || r > 'z') && (r < '0' || r > '9') {
 				return fmt.Errorf("NamePrefix %q must be lowercase alphanumeric", prefix)
 			}
 		}

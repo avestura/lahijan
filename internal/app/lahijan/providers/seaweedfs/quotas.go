@@ -36,10 +36,7 @@ func (p *Provider) SetBucketQuota(ctx context.Context, bucket string, quota Quot
 		return err
 	}
 
-	rec := quotaRecord{
-		SizeMiB:   quota.SizeMiB,
-		FileCount: quota.FileCount,
-	}
+	rec := quotaRecord(quota)
 	body, err := jsonMarshal(rec)
 	if err != nil {
 		setStatus(span, err)
@@ -87,7 +84,7 @@ func (p *Provider) GetBucketQuota(ctx context.Context, bucket string) (QuotaSpec
 		return QuotaSpec{}, fmt.Errorf("seaweedfs: quota.get: decode: %w", err)
 	}
 	setStatus(span, nil)
-	return QuotaSpec{SizeMiB: rec.SizeMiB, FileCount: rec.FileCount}, nil
+	return QuotaSpec(rec), nil
 }
 
 // ClearBucketQuota removes the quota record for the bucket, effectively
@@ -118,10 +115,7 @@ func (p *Provider) ClearBucketQuota(ctx context.Context, bucket string) error {
 // parent CreateBucket already emits storage.bucket.created and a second
 // storage.bucket.quota.set would be redundant noise.
 func (p *Provider) writeBucketQuota(ctx context.Context, bucket string, quota QuotaSpec) error {
-	rec := quotaRecord{
-		SizeMiB:   quota.SizeMiB,
-		FileCount: quota.FileCount,
-	}
+	rec := quotaRecord(quota)
 	body, err := jsonMarshal(rec)
 	if err != nil {
 		return fmt.Errorf("marshal quota: %w", err)

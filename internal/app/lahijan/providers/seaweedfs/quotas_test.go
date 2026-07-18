@@ -128,16 +128,16 @@ func TestQuotas_CreateWithDefaultQuota(t *testing.T) {
 	srv := newFake(t)
 	// Construct a provider with a non-zero default quota.
 	p, err := seaweedfs.NewClient(seaweedfs.Config{
-		HTTPClient:      newHTTPClient(),
-		S3:              srv,
-		Presign:         srv,
-		Filer:           srv,
-		S3Endpoint:      "https://fake-s3.example",
-		FilerURL:        "https://fake-filer.example",
-		AdminAccessKey:  "k",
-		AdminSecretKey:  "s",
-		DefaultQuota:    seaweedfs.QuotaSpec{SizeMiB: 10},
-		RequestTimeout:  5 * time.Second,
+		HTTPClient:     newHTTPClient(),
+		S3:             srv,
+		Presign:        srv,
+		Filer:          srv,
+		S3Endpoint:     "https://fake-s3.example",
+		FilerURL:       "https://fake-filer.example",
+		AdminAccessKey: "k",
+		AdminSecretKey: "s",
+		DefaultQuota:   seaweedfs.QuotaSpec{SizeMiB: 10},
+		RequestTimeout: 5 * time.Second,
 	})
 	require.NoError(t, err)
 
@@ -157,16 +157,16 @@ func TestQuotas_CreateWithExplicitZero(t *testing.T) {
 	t.Parallel()
 	srv := newFake(t)
 	p, err := seaweedfs.NewClient(seaweedfs.Config{
-		HTTPClient:      newHTTPClient(),
-		S3:              srv,
-		Presign:         srv,
-		Filer:           srv,
-		S3Endpoint:      "https://fake-s3.example",
-		FilerURL:        "https://fake-filer.example",
-		AdminAccessKey:  "k",
-		AdminSecretKey:  "s",
-		DefaultQuota:    seaweedfs.QuotaSpec{SizeMiB: 10},
-		RequestTimeout:  5 * time.Second,
+		HTTPClient:     newHTTPClient(),
+		S3:             srv,
+		Presign:        srv,
+		Filer:          srv,
+		S3Endpoint:     "https://fake-s3.example",
+		FilerURL:       "https://fake-filer.example",
+		AdminAccessKey: "k",
+		AdminSecretKey: "s",
+		DefaultQuota:   seaweedfs.QuotaSpec{SizeMiB: 10},
+		RequestTimeout: 5 * time.Second,
 	})
 	require.NoError(t, err)
 

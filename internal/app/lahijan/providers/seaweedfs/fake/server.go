@@ -233,13 +233,13 @@ func (s *Server) emitHookSnapshot() func(topic, resourceID string) {
 // CreateBucket implements seaweedfs.s3BucketAPI.
 func (s *Server) CreateBucket(_ context.Context, params *awss3.CreateBucketInput, _ ...func(*awss3.Options)) (*awss3.CreateBucketOutput, error) {
 	if params == nil || params.Bucket == nil {
-		return nil, fakeS3Error(400, "InvalidBucketName", "bucket is required")
+		return nil, newFakeS3Error(400, "InvalidBucketName", "bucket is required")
 	}
 	name := *params.Bucket
 	s.mu.Lock()
 	if _, exists := s.buckets[name]; exists {
 		s.mu.Unlock()
-		return nil, fakeS3Error(409, "BucketAlreadyExists", "bucket %q already exists", name)
+		return nil, newFakeS3Error(409, "BucketAlreadyExists", "bucket %q already exists", name)
 	}
 	s.buckets[name] = &fakeBucket{
 		Name:      name,
@@ -254,13 +254,13 @@ func (s *Server) CreateBucket(_ context.Context, params *awss3.CreateBucketInput
 // DeleteBucket implements seaweedfs.s3BucketAPI.
 func (s *Server) DeleteBucket(_ context.Context, params *awss3.DeleteBucketInput, _ ...func(*awss3.Options)) (*awss3.DeleteBucketOutput, error) {
 	if params == nil || params.Bucket == nil {
-		return nil, fakeS3Error(400, "InvalidBucketName", "bucket is required")
+		return nil, newFakeS3Error(400, "InvalidBucketName", "bucket is required")
 	}
 	name := *params.Bucket
 	s.mu.Lock()
 	if _, exists := s.buckets[name]; !exists {
 		s.mu.Unlock()
-		return nil, fakeS3Error(404, "NoSuchBucket", "bucket %q does not exist", name)
+		return nil, newFakeS3Error(404, "NoSuchBucket", "bucket %q does not exist", name)
 	}
 	delete(s.buckets, name)
 	delete(s.quotaMap, "/etc/seaweedfs/buckets/"+name+"/quota.json")
@@ -272,14 +272,14 @@ func (s *Server) DeleteBucket(_ context.Context, params *awss3.DeleteBucketInput
 // HeadBucket implements seaweedfs.s3BucketAPI.
 func (s *Server) HeadBucket(_ context.Context, params *awss3.HeadBucketInput, _ ...func(*awss3.Options)) (*awss3.HeadBucketOutput, error) {
 	if params == nil || params.Bucket == nil {
-		return nil, fakeS3Error(400, "InvalidBucketName", "bucket is required")
+		return nil, newFakeS3Error(400, "InvalidBucketName", "bucket is required")
 	}
 	name := *params.Bucket
 	s.mu.Lock()
 	_, exists := s.buckets[name]
 	s.mu.Unlock()
 	if !exists {
-		return nil, fakeS3Error(404, "NoSuchBucket", "bucket %q does not exist", name)
+		return nil, newFakeS3Error(404, "NoSuchBucket", "bucket %q does not exist", name)
 	}
 	return &awss3.HeadBucketOutput{}, nil
 }
@@ -287,7 +287,7 @@ func (s *Server) HeadBucket(_ context.Context, params *awss3.HeadBucketInput, _ 
 // ListBuckets implements seaweedfs.s3BucketAPI.
 func (s *Server) ListBuckets(_ context.Context, _ *awss3.ListBucketsInput, _ ...func(*awss3.Options)) (*awss3.ListBucketsOutput, error) {
 	if s.pingS3Fail {
-		return nil, fakeS3Error(503, "InternalError", "fake: listbuckets failed (pingS3Fail set)")
+		return nil, newFakeS3Error(503, "InternalError", "fake: listbuckets failed (pingS3Fail set)")
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -313,7 +313,7 @@ func (s *Server) ListBuckets(_ context.Context, _ *awss3.ListBucketsInput, _ ...
 // QuotaExceeded when the upload would cross the ceiling.
 func (s *Server) PutObject(_ context.Context, params *awss3.PutObjectInput, _ ...func(*awss3.Options)) (*awss3.PutObjectOutput, error) {
 	if params == nil || params.Bucket == nil || params.Key == nil {
-		return nil, fakeS3Error(400, "InvalidRequest", "bucket + key are required")
+		return nil, newFakeS3Error(400, "InvalidRequest", "bucket + key are required")
 	}
 	bucket := *params.Bucket
 	key := *params.Key
@@ -321,13 +321,13 @@ func (s *Server) PutObject(_ context.Context, params *awss3.PutObjectInput, _ ..
 	defer s.mu.Unlock()
 	b, ok := s.buckets[bucket]
 	if !ok {
-		return nil, fakeS3Error(404, "NoSuchBucket", "bucket %q does not exist", bucket)
+		return nil, newFakeS3Error(404, "NoSuchBucket", "bucket %q does not exist", bucket)
 	}
 	var body []byte
 	if params.Body != nil {
 		read, err := io.ReadAll(params.Body)
 		if err != nil {
-			return nil, fakeS3Error(400, "InvalidRequest", "read body: %v", err)
+			return nil, newFakeS3Error(400, "InvalidRequest", "read body: %v", err)
 		}
 		body = read
 	}
@@ -341,10 +341,10 @@ func (s *Server) PutObject(_ context.Context, params *awss3.PutObjectInput, _ ..
 	if qBytes, ok := s.quotaMap["/etc/seaweedfs/buckets/"+bucket+"/quota.json"]; ok {
 		sizeMiB, fileCount := parseQuotaBytes(qBytes)
 		if sizeMiB > 0 && totalSize > sizeMiB*1024*1024 {
-			return nil, fakeS3Error(507, "QuotaExceeded", "size quota exceeded")
+			return nil, newFakeS3Error(507, "QuotaExceeded", "size quota exceeded")
 		}
 		if fileCount > 0 && int64(len(b.Objects))+1 > fileCount {
-			return nil, fakeS3Error(507, "QuotaExceeded", "file count quota exceeded")
+			return nil, newFakeS3Error(507, "QuotaExceeded", "file count quota exceeded")
 		}
 	}
 	b.Objects[key] = body
@@ -357,7 +357,7 @@ func (s *Server) PutObject(_ context.Context, params *awss3.PutObjectInput, _ ..
 // GetObject implements seaweedfs.s3BucketAPI.
 func (s *Server) GetObject(_ context.Context, params *awss3.GetObjectInput, _ ...func(*awss3.Options)) (*awss3.GetObjectOutput, error) {
 	if params == nil || params.Bucket == nil || params.Key == nil {
-		return nil, fakeS3Error(400, "InvalidRequest", "bucket + key are required")
+		return nil, newFakeS3Error(400, "InvalidRequest", "bucket + key are required")
 	}
 	bucket := *params.Bucket
 	key := *params.Key
@@ -365,11 +365,11 @@ func (s *Server) GetObject(_ context.Context, params *awss3.GetObjectInput, _ ..
 	defer s.mu.Unlock()
 	b, ok := s.buckets[bucket]
 	if !ok {
-		return nil, fakeS3Error(404, "NoSuchBucket", "bucket %q does not exist", bucket)
+		return nil, newFakeS3Error(404, "NoSuchBucket", "bucket %q does not exist", bucket)
 	}
 	body, ok := b.Objects[key]
 	if !ok {
-		return nil, fakeS3Error(404, "NoSuchKey", "key %q does not exist in bucket %q", key, bucket)
+		return nil, newFakeS3Error(404, "NoSuchKey", "key %q does not exist in bucket %q", key, bucket)
 	}
 	contentLength := int64(len(body))
 	return &awss3.GetObjectOutput{
@@ -385,6 +385,8 @@ func (s *Server) GetObject(_ context.Context, params *awss3.GetObjectInput, _ ..
 // PresignGetObject implements seaweedfs.presignAPI. Produces a
 // deterministic SigV4-shaped URL so tests can assert the bucket + key +
 // expiry landed.
+//
+//nolint:lll // signature mirrors the SDK's; cannot wrap without losing readability.
 func (s *Server) PresignGetObject(_ context.Context, params *awss3.GetObjectInput, _ ...func(*awss3.PresignOptions)) (*seaweedfs.V4PresignedRequest, error) {
 	if params == nil || params.Bucket == nil || params.Key == nil {
 		return nil, errors.New("fake: bucket + key are required")
@@ -398,6 +400,8 @@ func (s *Server) PresignGetObject(_ context.Context, params *awss3.GetObjectInpu
 }
 
 // PresignPutObject implements seaweedfs.presignAPI.
+//
+//nolint:lll // signature mirrors the SDK's; cannot wrap without losing readability.
 func (s *Server) PresignPutObject(_ context.Context, params *awss3.PutObjectInput, _ ...func(*awss3.PresignOptions)) (*seaweedfs.V4PresignedRequest, error) {
 	if params == nil || params.Bucket == nil || params.Key == nil {
 		return nil, errors.New("fake: bucket + key are required")
@@ -428,10 +432,10 @@ func (s *Server) GetStatus(_ context.Context) (*seaweedfs.FilerStatus, error) {
 	return &seaweedfs.FilerStatus{
 		Version: s.filerVersion,
 		Topology: &seaweedfs.FilerTopology{
-			Free:               1024 * 1024 * 1024 * 100,
-			Max:                1024 * 1024 * 1024 * 500,
-			VolumeCount:        volumeCount,
-			ActiveVolumeCount:  volumeCount,
+			Free:              1024 * 1024 * 1024 * 100,
+			Max:               1024 * 1024 * 1024 * 500,
+			VolumeCount:       volumeCount,
+			ActiveVolumeCount: volumeCount,
 		},
 	}, nil
 }
@@ -512,45 +516,45 @@ func (s *Server) ListMetadata(_ context.Context, prefix string) (map[string][]by
 // helpers
 // ---------------------------------------------------------------------------
 
-// fakeS3Error builds a smithy.APIError-compatible error carrying the
+// newFakeS3Error builds a smithy.APIError-compatible error carrying the
 // given HTTP status code + AWS-style error code. The driver's
 // translateS3Err reads ErrorCode + ErrorMessage (and the HTTP status
 // via the httpresponseError interface) — fakeS3Error implements both
 // so the translation works against the fake the same way it works
 // against a real SeaweedFS S3 response.
-func fakeS3Error(status int, code, format string, args ...any) error {
-	return &fakeS3Err{
+func newFakeS3Error(status int, code, format string, args ...any) error {
+	return &fakeS3Error{
 		status:  status,
 		code:    code,
 		message: fmt.Sprintf(format, args...),
 	}
 }
 
-// fakeS3Err implements smithy.APIError + the httpresponseError
+// fakeS3Error implements smithy.APIError + the httpresponseError
 // interface the driver's httpStatusFromErr helper looks for.
-type fakeS3Err struct {
+type fakeS3Error struct {
 	status  int
 	code    string
 	message string
 }
 
 // ErrorCode implements smithy.APIError.
-func (e *fakeS3Err) ErrorCode() string { return e.code }
+func (e *fakeS3Error) ErrorCode() string { return e.code }
 
 // ErrorMessage implements smithy.APIError.
-func (e *fakeS3Err) ErrorMessage() string { return e.message }
+func (e *fakeS3Error) ErrorMessage() string { return e.message }
 
 // ErrorFault implements smithy.APIError.
-func (e *fakeS3Err) ErrorFault() smithy.ErrorFault { return smithy.FaultUnknown }
+func (e *fakeS3Error) ErrorFault() smithy.ErrorFault { return smithy.FaultUnknown }
 
 // Error implements error.
-func (e *fakeS3Err) Error() string {
+func (e *fakeS3Error) Error() string {
 	return fmt.Sprintf("fake s3 error: %s: %s (http %d)", e.code, e.message, e.status)
 }
 
 // HTTPStatusCode exposes the HTTP status code for the driver's
 // translateS3Err via the httpresponseError interface pattern.
-func (e *fakeS3Err) HTTPStatusCode() int { return e.status }
+func (e *fakeS3Error) HTTPStatusCode() int { return e.status }
 
 // parseQuotaBytes extracts (SizeMiB, FileCount) from a JSON quota body
 // written by the driver's quotas.go. Tolerates malformed bodies.

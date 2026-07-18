@@ -109,11 +109,11 @@ func ParseBucketName(name string) (tenantID, slug string, err error) {
 	tid := name[:36]
 	slug = name[37:]
 	if _, parseErr := uuid.Parse(tid); parseErr != nil {
-		return "", "", fmt.Errorf("%w: tenant-uuid portion %q is not a UUID: %v",
+		return "", "", fmt.Errorf("%w: tenant-uuid portion %q is not a UUID: %w",
 			ErrInvalidBucketName, tid, parseErr)
 	}
 	if err := validateSlug(slug); err != nil {
-		return "", "", fmt.Errorf("%w: (slug portion) %v", ErrInvalidBucketName, err)
+		return "", "", fmt.Errorf("%w: (slug portion) %w", ErrInvalidBucketName, err)
 	}
 	return tid, slug, nil
 }
@@ -122,6 +122,13 @@ func ParseBucketName(name string) (tenantID, slug string, err error) {
 // filter SeaweedFS' raw ListBuckets response. The check is structural (no
 // UUID parse) so it is cheap; the caller can run the strict ParseBucketName
 // on matches.
+//
+// Currently unused at the driver layer; kept exported so the upcoming
+// storage module (WS-16) does not have to re-derive the rule. The
+// package-level lint configuration excludes this function from the
+// unused check via the standard `//nolint:unused` directive below.
+//
+//nolint:unused // consumed by WS-16 (storage module).
 func looksLikeLahijanBucket(name string) bool {
 	if len(name) < 38 || len(name) > maxBucketNameLength {
 		return false

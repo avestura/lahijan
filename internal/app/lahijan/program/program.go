@@ -230,6 +230,17 @@ func Start() error {
 	}
 	_ = powerdnsDeps // consumed by WS-15 (DNS module)
 
+	// WS-13: build the SeaweedFS driver (providers/seaweedfs/*). Returns a
+	// zero-value seaweedfsDeps when providers.seaweedfs.enabled is false;
+	// the storage module (WS-16) degrades to 501 in that case. Built
+	// AFTER wasmDeps so the events synthesis path can fan into the WASM
+	// event bus when both subsystems are enabled.
+	seaweedfsDeps, err := buildSeaweedfsDeps(context.Background(), wasmDeps.bus)
+	if err != nil {
+		log.Fatalf("failed to build seaweedfs deps: %s", err.Error())
+	}
+	_ = seaweedfsDeps // consumed by WS-16 (storage module)
+
 	// Seed the RBAC catalog (permissions + default roles + grants). Idempotent
 	// so it is safe to run on every bootstrap. Fail-fast on error: without the
 	// seed, every privileged route returns 403.

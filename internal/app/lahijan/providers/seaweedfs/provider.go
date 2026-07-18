@@ -4,7 +4,6 @@ package seaweedfs
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
@@ -91,8 +90,3 @@ func clusterModeFromStatus(status *FilerStatus) bool {
 	}
 	return status.Topology.VolumeCount >= 2
 }
-
-// errProviderIncomplete is returned by NewClient-style helpers when the
-// caller injects an inconsistent set of dependencies. Kept unexported so
-// callers do not depend on the exact wording.
-var errProviderIncomplete = errors.New("seaweedfs: provider dependencies incomplete")
