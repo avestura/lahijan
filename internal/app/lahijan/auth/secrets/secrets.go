@@ -49,6 +49,20 @@ func NewSigner(key string) *Signer {
 	return &Signer{key: k}
 }
 
+// ExportKey returns the byte form of the signer's HMAC key. It exists so the
+// OAuth/OIDC state-token signer (auth/state) can share the exact same
+// process-wide key without re-reading config or re-deriving the dev fallback.
+// Other packages MUST NOT use this to roll their own signing; the auth/state
+// signer is the sole authorised consumer.
+func ExportKey(s *Signer) []byte {
+	if s == nil {
+		return nil
+	}
+	out := make([]byte, len(s.key))
+	copy(out, s.key)
+	return out
+}
+
 // Issue generates byteLength cryptographically-random bytes and returns:
 //
 //	raw  - the signed token string to hand to the client (cookie/PAT/email link)
