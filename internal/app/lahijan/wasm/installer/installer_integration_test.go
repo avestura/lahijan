@@ -86,7 +86,8 @@ func TestUpload_HappyPath_PersistsAndAudits(t *testing.T) {
 
 	// Audit row was emitted.
 	var n int
-	err = pool.QueryRow(ctx,
+	err = pool.QueryRow(
+		ctx,
 		"SELECT count(*) FROM audit_log WHERE action = $1 AND resource_id = $2",
 		installer.ActionUpload, row.ID,
 	).Scan(&n)
@@ -164,7 +165,8 @@ func TestGrant_HappyPath_PersistsAndAudits(t *testing.T) {
 	assert.Equal(t, "kv.read:cache", grants[0].Permission)
 
 	var n int
-	err = pool.QueryRow(ctx,
+	err = pool.QueryRow(
+		ctx,
 		"SELECT count(*) FROM audit_log WHERE action = $1 AND resource_id = $2",
 		installer.ActionGrant, row.ID,
 	).Scan(&n)
@@ -211,7 +213,8 @@ func TestEnableDisable_LifecycleAndAudit(t *testing.T) {
 
 	for _, action := range []string{installer.ActionEnable, installer.ActionDisable} {
 		var n int
-		err = pool.QueryRow(ctx,
+		err = pool.QueryRow(
+			ctx,
 			"SELECT count(*) FROM audit_log WHERE action = $1 AND resource_id = $2",
 			action, row.ID,
 		).Scan(&n)
@@ -235,7 +238,8 @@ func TestDelete_RemovesRowAndAudits(t *testing.T) {
 	require.Error(t, err)
 
 	var n int
-	err = pool.QueryRow(ctx,
+	err = pool.QueryRow(
+		ctx,
 		"SELECT count(*) FROM audit_log WHERE action = $1 AND resource_id = $2",
 		installer.ActionDelete, row.ID,
 	).Scan(&n)

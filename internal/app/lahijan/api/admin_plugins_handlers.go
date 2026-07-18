@@ -95,9 +95,9 @@ func (s *Server) UploadAdminPlugin(c *fiber.Ctx) error {
 	if err != nil {
 		return SendBadRequest(c, i18n.T(ctx, "plugins.err_missing_wasm", nil), nil)
 	}
-	if max := conf.GetWasmMaxModuleSize(); max > 0 && int(wasmFile.Size) > max {
+	if maxSz := conf.GetWasmMaxModuleSize(); maxSz > 0 && int(wasmFile.Size) > maxSz {
 		return SendError(c, fiber.StatusRequestEntityTooLarge, CodePayloadTooLarge,
-			i18n.T(ctx, "plugins.err_wasm_too_large", map[string]any{"Max": max}), nil)
+			i18n.T(ctx, "plugins.err_wasm_too_large", map[string]any{"Max": maxSz}), nil)
 	}
 	wasmSrc, err := wasmFile.Open()
 	if err != nil {
@@ -299,7 +299,7 @@ func adminPluginsPageParams(limit, offset *int) (int, int) {
 func toAdminPluginDTO(row *database.Plugin, grants []database.PluginPermission, includeDetail bool) apigen.AdminPlugin {
 	out := apigen.AdminPlugin{
 		Id:          row.ID,
-		TenantId:    (*openapi_types.UUID)(row.TenantID),
+		TenantId:    row.TenantID,
 		Name:        row.Name,
 		Version:     row.Version,
 		Description: &row.Description,

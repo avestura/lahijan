@@ -144,15 +144,15 @@ func Start() error {
 		// lifetime — River ties the client's lifetime to the Start
 		// context, so a timeout here would stop the workers after the
 		// timeout. The defer below drains via Stop on shutdown.
-		if err := jobDeps.supervisor.Start(context.Background()); err != nil {
-			log.Fatalf("failed to start job supervisor: %s", err.Error())
+		if startErr := jobDeps.supervisor.Start(context.Background()); startErr != nil {
+			log.Fatalf("failed to start job supervisor: %s", startErr.Error())
 		}
 		defer func() {
 			stopCtx, stopCancel := context.WithTimeout(context.Background(),
 				time.Duration(conf.GetJobsSoftStopTimeoutSeconds())*time.Second)
 			defer stopCancel()
-			if err := jobDeps.supervisor.Stop(stopCtx); err != nil {
-				fiberlog.Error("job supervisor stop: %s", err.Error())
+			if stopErr := jobDeps.supervisor.Stop(stopCtx); stopErr != nil {
+				fiberlog.Error("job supervisor stop: %s", stopErr.Error())
 			}
 		}()
 	}

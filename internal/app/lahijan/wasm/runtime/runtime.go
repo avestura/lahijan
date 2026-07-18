@@ -88,12 +88,12 @@ type HostFunctionsRegistrar func(ctx context.Context, rt wazero.Runtime, enforce
 // per-call enforcement seam. Construct one at bootstrap; share across
 // requests. Methods are safe for concurrent use.
 type Runtime struct {
-	cfg       Config
-	rt        wazero.Runtime
-	enforcer  permission.Enforcer
-	logger    *slog.Logger
-	mu        sync.RWMutex
-	compiled  map[string]*compiledPlugin // keyed by sha256 hex
+	cfg      Config
+	rt       wazero.Runtime
+	enforcer permission.Enforcer
+	logger   *slog.Logger
+	mu       sync.RWMutex
+	compiled map[string]*compiledPlugin // keyed by sha256 hex
 }
 
 // compiledPlugin is a cached compile result. The same .wasm bytes always
@@ -241,8 +241,8 @@ func checkMemoryLimit(m wazero.CompiledModule, capBytes int) error {
 			return fmt.Errorf("wasm: exported memory index=%d min %d bytes > cap %d: %w",
 				mem.Index(), minBytes, capBytes, ErrMemoryLimitExceeded)
 		}
-		if max, ok := mem.Max(); ok {
-			maxBytes := uint64(max) * WasmPageBytes
+		if memMax, ok := mem.Max(); ok {
+			maxBytes := uint64(memMax) * WasmPageBytes
 			if uint64(capBytes) < maxBytes {
 				return fmt.Errorf("wasm: exported memory index=%d max %d bytes > cap %d: %w",
 					mem.Index(), maxBytes, capBytes, ErrMemoryLimitExceeded)

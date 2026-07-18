@@ -58,14 +58,14 @@ import (
 // can unmarshal directly. JSON tags are present so the same struct round-trips
 // through the database (plugins.manifest_json is JSONB).
 type Manifest struct {
-	Name        string         `yaml:"name"       json:"name"`
-	Version     string         `yaml:"version"    json:"version"`
-	Description string         `yaml:"description" json:"description,omitempty"`
-	Author      string         `yaml:"author"     json:"author,omitempty"`
-	License     string         `yaml:"license"    json:"license,omitempty"`
-	Homepage    string         `yaml:"homepage"   json:"homepage,omitempty"`
+	Name        string `yaml:"name"       json:"name"`
+	Version     string `yaml:"version"    json:"version"`
+	Description string `yaml:"description" json:"description,omitempty"`
+	Author      string `yaml:"author"     json:"author,omitempty"`
+	License     string `yaml:"license"    json:"license,omitempty"`
+	Homepage    string `yaml:"homepage"   json:"homepage,omitempty"`
 
-	Permissions []string         `yaml:"permissions"  json:"permissions,omitempty"`
+	Permissions  []string        `yaml:"permissions"  json:"permissions,omitempty"`
 	ConfigSchema *map[string]any `yaml:"config_schema" json:"config_schema,omitempty"`
 
 	Entrypoints []string `yaml:"entrypoints" json:"entrypoints,omitempty"`

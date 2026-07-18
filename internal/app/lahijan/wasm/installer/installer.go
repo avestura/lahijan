@@ -46,7 +46,7 @@ const (
 	ActionDelete  = "plugins.delete"
 )
 
-// Resource type recorded on audit rows for plugin events.
+// ResourcePlugin is the resource_type recorded on audit rows for plugin events.
 const ResourcePlugin = "plugin"
 
 // ErrManifestInvalid is returned by Upload when the manifest fails Validate.
@@ -114,7 +114,7 @@ func (s *Service) Upload(ctx context.Context, arg UploadParams) (database.Plugin
 	// manifest.Parse), but re-running Validate is cheap and keeps this
 	// method safe to call from non-API paths (CLI, webhook).
 	if err := arg.Manifest.Validate(); err != nil {
-		return database.Plugin{}, fmt.Errorf("installer: %w: %v", ErrManifestInvalid, err)
+		return database.Plugin{}, fmt.Errorf("installer: %w: %v", ErrManifestInvalid, err) //nolint:errorlint // joining two sentinels intentionally
 	}
 
 	// Compile (or at least verify the runtime accepts the module) BEFORE
@@ -123,7 +123,7 @@ func (s *Service) Upload(ctx context.Context, arg UploadParams) (database.Plugin
 	// persist — the runtime will compile on first instantiation.
 	if s.rt != nil {
 		if _, err := s.rt.Compile(ctx, arg.WasmBytes, arg.Manifest); err != nil {
-			return database.Plugin{}, fmt.Errorf("installer: %w: %v", ErrModuleRejected, err)
+			return database.Plugin{}, fmt.Errorf("installer: %w: %v", ErrModuleRejected, err) //nolint:errorlint // joining two sentinels intentionally
 		}
 	}
 
@@ -175,7 +175,7 @@ func (s *Service) Grant(
 	requestID *string,
 ) error {
 	if err := permission.Validate(perm); err != nil {
-		return fmt.Errorf("installer: %w: %v", ErrManifestInvalid, err)
+		return fmt.Errorf("installer: %w: %v", ErrManifestInvalid, err) //nolint:errorlint // joining two sentinels intentionally
 	}
 	if _, err := s.repo.Get(ctx, pluginID); err != nil {
 		if database.IsNoRows(err) {

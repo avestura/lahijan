@@ -7,9 +7,9 @@ import (
 	"context"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/google/uuid"
 )
 
 func TestValidate_AcceptsKnownSlugs(t *testing.T) {
@@ -37,10 +37,10 @@ func TestValidate_AcceptsQualifiers(t *testing.T) {
 func TestValidate_RejectsUnknownAndMalformed(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []string{
-		"",                       // empty
-		"no-dot",                 // no scope.action
-		"unknown.action",         // not in catalog
-		"kv.read: ",              // whitespace qualifier
+		"",               // empty
+		"no-dot",         // no scope.action
+		"unknown.action", // not in catalog
+		"kv.read: ",      // whitespace qualifier
 	} {
 		require.Errorf(t, Validate(tc), "expected %q to be rejected", tc)
 	}
