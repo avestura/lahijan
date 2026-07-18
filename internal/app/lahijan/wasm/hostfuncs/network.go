@@ -9,7 +9,8 @@
 //	  (func (param i32 i32 i32 i32 i32 i32 i32 i32) (result i32)))
 //
 // http_request(method_ptr, method_len, url_ptr, url_len,
-//              headers_ptr, headers_len, body_ptr, body_len) -> status
+//
+//	headers_ptr, headers_len, body_ptr, body_len) -> status
 //
 // The result is the HTTP status code on success (1xx-5xx), or one of
 // the negative StatusXxx codes on host-side failure. Headers + body of
@@ -131,11 +132,11 @@ func (r *registrar) httpRequest(
 	}
 	headers := map[string]string{}
 	if headersLen > 0 {
-		hb, err := readMemory(m, headersPtr, headersLen)
-		if err != nil {
+		hb, hErr := readMemory(m, headersPtr, headersLen)
+		if hErr != nil {
 			return r.end(ctx, networkModuleName, "http_request", pid, permission.CapNetworkOutbound, StatusInvalidMemory)
 		}
-		if err := json.Unmarshal(hb, &headers); err != nil {
+		if jErr := json.Unmarshal(hb, &headers); jErr != nil {
 			return r.end(ctx, networkModuleName, "http_request", pid, permission.CapNetworkOutbound, StatusInvalidArgument)
 		}
 	}
@@ -147,7 +148,7 @@ func (r *registrar) httpRequest(
 	// Apply a per-call timeout so a slow upstream cannot hold the plugin
 	// call open forever. The runtime's per-call exec timeout still
 	// applies on top.
-	callCtx, cancel := context.WithTimeout(ctx, DefaultOutbound_TIMEOUT())
+	callCtx, cancel := context.WithTimeout(ctx, DefaultOutboundTimeoutFn())
 	defer cancel()
 	// Use callCtx for the upstream request so the timeout propagates;
 	// the plugin's outbound call never exceeds the cap.
@@ -178,9 +179,10 @@ func (r *registrar) httpRequest(
 	return r.end(ctx, networkModuleName, "http_request", pid, permission.CapNetworkOutbound, int32(resp.StatusCode))
 }
 
-// DefaultOutbound_TIMEOUT returns the outbound HTTP timeout. Wrapped in
-// a function so tests can override.
-var DefaultOutbound_TIMEOUT = func() time.Duration { return DefaultOutboundTimeout }
+// DefaultOutboundTimeoutFn returns the outbound HTTP timeout. Wrapped
+// in a function so tests can override. The default is the package
+// constant DefaultOutboundTimeout.
+var DefaultOutboundTimeoutFn = func() time.Duration { return DefaultOutboundTimeout }
 
 // urlAllowed reports whether urlStr matches any entry in the
 // process-wide AllowedURLGlobs. An empty allowlist means "allow all"
@@ -241,7 +243,8 @@ type httpDoerAdapter struct{ client *http.Client }
 func (a *httpDoerAdapter) Do(req OutboundRequest) (OutboundResponse, error) {
 	bodyReader := bytes.NewReader(req.Body)
 	httpReq, err := http.NewRequestWithContext(
-		context.Background(), req.Method, req.URL, bodyReader)
+		context.Background(), req.Method, req.URL, bodyReader,
+	)
 	if err != nil {
 		return OutboundResponse{}, err
 	}

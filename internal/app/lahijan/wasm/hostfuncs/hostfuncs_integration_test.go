@@ -361,8 +361,8 @@ func TestNetwork_HttpRequest_GatedAndCallsClient(t *testing.T) {
 	repos := testutil.Repos()
 	doer := &fakeHTTPDoer{resp: OutboundResponse{StatusCode: 200, Body: []byte("ok")}}
 	rt := buildRuntime(t, Deps{
-		Enforcer:  permission.NewDBEnforcer(repos.Plugins),
-		Repos:     repos,
+		Enforcer:   permission.NewDBEnforcer(repos.Plugins),
+		Repos:      repos,
 		HTTPClient: doer,
 	})
 

@@ -12,7 +12,7 @@
 //   - StatusSuccess (0)        : job queued.
 //   - StatusDenied (-2)        : enforcer rejected job.schedule.
 //   - StatusInvalidArgument (-5): name empty OR run_at too far in the
-//                                 future (capped by MaxRunAtOffset).
+//     future (capped by MaxRunAtOffset).
 //
 // The host enqueues a River job of kind wasm.plugin.invoke with the
 // plugin id + export name + args; the worker (wasm.runner package,

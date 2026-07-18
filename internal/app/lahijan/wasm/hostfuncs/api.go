@@ -12,11 +12,12 @@
 //	  (func (param i32 i32 i32 i32) (result i32)))
 //
 // register_handler(method_ptr, method_len, path_ptr, path_len,
-//                  handler_ptr, handler_len) -> status
-//   - StatusSuccess (0). Idempotent on (plugin, method, path).
-//   - StatusDenied (-2)          : enforcer rejected api.handler.register:<path>.
-//   - StatusInvalidArgument (-5) : method empty, path missing leading
-//                                 slash, path escapes prefix.
+//
+//	               handler_ptr, handler_len) -> status
+//	- StatusSuccess (0). Idempotent on (plugin, method, path).
+//	- StatusDenied (-2)          : enforcer rejected api.handler.register:<path>.
+//	- StatusInvalidArgument (-5) : method empty, path missing leading
+//	                              slash, path escapes prefix.
 //
 // unregister_handler(method_ptr, method_len, path_ptr, path_len) -> status
 //   - StatusSuccess (0).

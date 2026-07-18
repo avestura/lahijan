@@ -13,8 +13,8 @@
 //   - > 0 : bytes written into buf (JSON-encoded value).
 //   - 0   : key exists but value is the empty string "{}" / "null".
 //   - StatusNotFound (-6)        : key missing OR marked secret. The
-//                                 plugin cannot distinguish the two;
-//                                 this is deliberate.
+//     plugin cannot distinguish the two;
+//     this is deliberate.
 //   - StatusBufferTooSmall (-7)  : buf_cap < value size; retry larger.
 //   - StatusDenied (-2)          : enforcer rejected config.read:<plugin>.
 package hostfuncs

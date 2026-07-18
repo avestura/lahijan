@@ -171,11 +171,6 @@ func resolvePluginID(ctx context.Context) (uuid.UUID, error) {
 	return wasmruntime.PluginIDFromContext(ctx)
 }
 
-// errNoPluginInContext is the host-side sentinel that wraps the
-// runtime's "no plugin id" error. Host functions translate it to
-// StatusDenied (fail closed).
-var errNoPluginInContext = wasmruntime.ErrNoPluginInContext
-
 // WithPluginID is the test-side helper. Production callers go through
 // runtime.Instance.Call which injects the id itself.
 func WithPluginID(ctx context.Context, id uuid.UUID) context.Context {

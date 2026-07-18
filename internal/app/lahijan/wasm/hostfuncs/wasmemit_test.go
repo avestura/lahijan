@@ -101,12 +101,12 @@ func emitKVSetModuleTTL(key, val string, ttlMS int64) []byte {
 	//   type 0: (i32 i32 i32 i32 i64) -> i32  -- kv.set
 	//   type 1: () -> i32                     -- run
 	typeBody := []byte{
-		0x02, // 2 types
-		0x60, // functype
+		0x02,                               // 2 types
+		0x60,                               // functype
 		0x05, 0x7f, 0x7f, 0x7f, 0x7f, 0x7e, // 5 params i32 i32 i32 i32 i64
 		0x01, 0x7f, // 1 result i32
-		0x60, // functype
-		0x00, // 0 params
+		0x60,       // functype
+		0x00,       // 0 params
 		0x01, 0x7f, // 1 result i32
 	}
 	typeSec := section(0x01, typeBody)
@@ -176,7 +176,7 @@ func emitEmitEventModule(topic, payload string) []byte {
 	const memPages = 1
 
 	typeSec := section(0x01, []byte{
-		0x02, // 2 types
+		0x02,                                           // 2 types
 		0x60, 0x04, 0x7f, 0x7f, 0x7f, 0x7f, 0x01, 0x7f, // type 0: (i32 i32 i32 i32) -> i32 -- events.emit
 		0x60, 0x00, 0x01, 0x7f, // type 1: () -> i32 -- run
 	})

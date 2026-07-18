@@ -29,11 +29,11 @@ const (
 // on lifecycle transitions. Plugins subscribe via "compute.instance.*"
 // to drive autoscaler / notifier behaviour.
 const (
-	ComputeInstanceCreated  = "compute.instance.created"
-	ComputeInstanceStarted  = "compute.instance.started"
-	ComputeInstanceStopped  = "compute.instance.stopped"
+	ComputeInstanceCreated   = "compute.instance.created"
+	ComputeInstanceStarted   = "compute.instance.started"
+	ComputeInstanceStopped   = "compute.instance.stopped"
 	ComputeInstanceRestarted = "compute.instance.restarted"
-	ComputeInstanceDeleted  = "compute.instance.deleted"
+	ComputeInstanceDeleted   = "compute.instance.deleted"
 )
 
 // Storage module events (WS-13, WS-16). Emitted by the storage service
@@ -48,10 +48,10 @@ const (
 // Billing module events (WS-17). Emitted by the metering + ledger
 // services. Plugins subscribe to drive low-balance alerts or wallet UIs.
 const (
-	BillingLowBalance  = "billing.balance.low"
-	BillingToppedUp    = "billing.balance.topped_up"
-	BillingCharge      = "billing.balance.charged"
-	BillingRefund      = "billing.balance.refunded"
+	BillingLowBalance = "billing.balance.low"
+	BillingToppedUp   = "billing.balance.topped_up"
+	BillingCharge     = "billing.balance.charged"
+	BillingRefund     = "billing.balance.refunded"
 )
 
 // Plugin subsystem events (WS-10b/c). Emitted by the installer + the

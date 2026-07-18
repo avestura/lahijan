@@ -48,6 +48,8 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/database"
 	"github.com/avestura/lahijan/internal/app/lahijan/jobs"
 	notifyemail "github.com/avestura/lahijan/internal/app/lahijan/notify/email"
+	"github.com/avestura/lahijan/internal/app/lahijan/wasm/eventbus"
+	"github.com/avestura/lahijan/internal/app/lahijan/wasm/hostfuncs"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/installer"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/permission"
 	wasmruntime "github.com/avestura/lahijan/internal/app/lahijan/wasm/runtime"
@@ -161,7 +163,13 @@ func Start() error {
 	// service). Returns a zero-value wasmDeps when conf.wasm.enabled is
 	// false; the api handlers degrade to a 501 envelope. The runtime is
 	// closed at shutdown via defer.
-	wasmDeps, err := buildWasmDeps(context.Background(), authDeps)
+	//
+	// WS-10b: the runtime is wired with the host-functions registrar
+	// (network.outbound / kv.* / events.* / job.schedule /
+	// api.handler.register / config.read). The bus + River client are
+	// shared with the rest of the process so plugin-issued events and
+	// jobs land on the same durable backbone as platform events.
+	wasmDeps, err := buildWasmDeps(context.Background(), authDeps, &jobDeps)
 	if err != nil {
 		log.Fatalf("failed to build wasm deps: %s", err.Error())
 	}
@@ -906,23 +914,25 @@ func mountJobsAdminUI(app *fiber.App, client *jobs.Client, policy middleware.Pol
 	return nil
 }
 
-// wasmDeps bundles the WS-10a WASM plugin subsystem dependencies built at
-// bootstrap. Every field is nil-appropriate: when conf.wasm.enabled is false
-// the bundle is zero-value, the api handlers degrade to 501, and no runtime
-// is built.
+// wasmDeps bundles the WS-10a/WS-10b WASM plugin subsystem dependencies
+// built at bootstrap. Every field is nil-appropriate: when conf.wasm.enabled
+// is false the bundle is zero-value, the api handlers degrade to 501, and
+// no runtime is built.
 type wasmDeps struct {
 	runtime     *wasmruntime.Runtime
 	pluginsRepo *database.PluginsRepository
 	svc         *installer.Service
+	bus         *eventbus.Bus
 }
 
 // buildWasmDeps wires the wazero runtime + permission enforcer + installer
 // service from config. Returns an empty wasmDeps when wasm.enabled is false
-// so the api handlers degrade cleanly. The runtime is returned WITHOUT
-// having registered any host functions (WS-10b will add them via
-// runtime.Config.HostFunctions); WS-10a ships the sandbox + permission
-// enforcer + admin API, not the host imports themselves.
-func buildWasmDeps(_ context.Context, a *authDeps) (wasmDeps, error) {
+// so the api handlers degrade cleanly. WS-10b registers the host-functions
+// bundle (kv / events / jobs / api / network / config) via
+// runtime.Config.HostFunctions so plugins that declare those imports can
+// call them; every host function routes its permission check through the
+// enforcer built here.
+func buildWasmDeps(_ context.Context, a *authDeps, j *jobDeps) (wasmDeps, error) {
 	if !conf.GetWasmEnabled() {
 		fiberlog.Debug("wasm subsystem is disabled; skipping wazero runtime setup")
 		// Even with the runtime disabled, expose the repo so future
@@ -933,13 +943,40 @@ func buildWasmDeps(_ context.Context, a *authDeps) (wasmDeps, error) {
 	}
 
 	enforcer := permission.NewDBEnforcer(a.repos.Plugins)
+	// Build the event bus. Plugin events + the audit log's event-listener
+	// tap both go through here. The bus's async dispatcher is wired when
+	// the EventService lands (WS-10b deliverable; for now Emit dispatches
+	// synchronously to in-process listeners only).
+	bus := eventbus.New(eventbus.Config{
+		Logger: slog.Default(),
+	})
+
+	// Build the host-functions registrar. River client may be nil when
+	// jobs are disabled — the jobs.schedule host function degrades to
+	// StatusUnavailable in that case.
+	var riverClient *jobs.Client
+	if j != nil {
+		riverClient = j.client
+	}
+	hostReg, err := hostfuncs.Registrar(hostfuncs.Deps{
+		Enforcer: enforcer,
+		Logger:   slog.Default(),
+		Repos:    a.repos,
+		Bus:      bus,
+		Jobs:     riverClient,
+	})
+	if err != nil {
+		return wasmDeps{}, errors.Join(errors.New("build hostfuncs registrar"), err)
+	}
+
 	rt, err := wasmruntime.New(context.Background(), enforcer, wasmruntime.Config{
 		MaxMemoryBytes: conf.GetWasmMaxMemoryPerPlugin(),
 		ExecTimeout:    time.Duration(conf.GetWasmExecTimeoutMs()) * time.Millisecond,
 		Logger:         slog.Default(),
-		// HostFunctions stays nil in WS-10a; WS-10b wires the
-		// network.outbound / kv.* / events.* / job.schedule / config.read
-		// host modules through this hook.
+		// WS-10b: register every host module. Plugins that declare
+		// imports from any lahijan_* module now resolve them at
+		// instantiation; the permission gate runs on every call.
+		HostFunctions: hostReg,
 	})
 	if err != nil {
 		return wasmDeps{}, errors.Join(errors.New("build wazero runtime"), err)
@@ -953,5 +990,6 @@ func buildWasmDeps(_ context.Context, a *authDeps) (wasmDeps, error) {
 		runtime:     rt,
 		pluginsRepo: a.repos.Plugins,
 		svc:         svc,
+		bus:         bus,
 	}, nil
 }
