@@ -40,6 +40,10 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres/init.sh:/docker-entrypoint-initdb.d/01-init.sh:ro
+      # PDNS schema (WS-12). The init.sh wrapper runs psql --dbname=pdns
+      # against schema.pgsql.sql on first boot only.
+      - ./powerdns/init.sh:/docker-entrypoint-initdb.d/02-pdns-schema.sh:ro
+      - ./powerdns/schema.pgsql.sql:/powerdns/schema.pgsql.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
@@ -90,6 +94,67 @@ services:
       timeout: 3s
       retries: 6
       start_period: 5s
+
+  # PowerDNS Authoritative (WS-12). The daemon runs in a container and uses
+  # the gpgsql backend pointing at the shared Postgres (ADR-0007). The PDNS
+  # schema is applied via the init script in deployments/powerdns/init.sql
+  # (sourced upstream from PDNS' schema.pgsql.sql). The API key is read
+  # from env LAHIJAN_PROVIDERS_POWERDNS_API_KEY (or PDNS_API_KEY for short)
+  # and templated into pdns.conf at startup via envsubst.
+  powerdns:
+    image: powerdns/pdns-auth-49:4.9.3
+    container_name: lahijan-powerdns-dev
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # The init.sh on the postgres container created the pdns database +
+      # user. PDNS only needs to know how to connect.
+      PDNS_gpgsql_host: postgres
+      PDNS_gpgsql_user: ${PDNS_DATABASE_USER:-pdns}
+      PDNS_gpgsql_password: ${PDNS_DATABASE_PASSWORD:-pdns}
+      PDNS_gpgsql_dbname: ${PDNS_DATABASE_NAME:-pdns}
+      PDNS_gpgsql_port: 5432
+      # API + web server (the HTTP API the Lahijan driver talks to).
+      PDNS_api: "yes"
+      PDNS_webserver: "yes"
+      PDNS_webserver_address: "0.0.0.0"
+      PDNS_webserver_port: "8081"
+      PDNS_webserver_allow_from: "0.0.0.0/0,::/0"
+      PDNS_api_key: ${PDNS_API_KEY:-lahijan-dev-pdns-key}
+      # The Lahijan driver always uses /api/v1; PDNS' webserver logs echo
+      # this so we can tell driver traffic apart from other clients.
+      PDNS_webserver_loglevel: "9"
+      # Default SOA-EDIT-API policy applied to every zone Lahijan creates.
+      PDNS_default_soa_edit_api: "DEFAULT"
+      # Disable PDNS' own dnsupdate (RFC 2136) endpoint; Lahijan is the
+      # only writer.
+      PDNS_dnsupdate: "no"
+    ports:
+      # HTTP API the Lahijan driver talks to (conf.providers.powerdns.baseURL).
+      - "${PDNS_API_PORT:-8081}:8081"
+      # Authoritative DNS port (UDP + TCP). Exposed so the operator can
+      # `dig @localhost` against PDNS during dev.
+      - "${PDNS_DNS_PORT:-5300}:53/udp"
+      - "${PDNS_DNS_PORT:-5300}:53/tcp"
+    volumes:
+      # The PDNS daemon reads its config from env vars (PDNS_*) when run
+      # under the official docker image. For non-compose deployments the
+      # pdns.conf.template next to this file is the reference config —
+      # render it with envsubst to produce a pdns.conf the bare-metal
+      # binary can read.
+      - ./powerdns/pdns.conf.template:/etc/powerdns/pdns.conf.template:ro
+    healthcheck:
+      # PDNS does not ship a healthcheck binary; use the HTTP API as the
+      # liveness probe. The api endpoint returns 401 without a key but the
+      # TCP connect itself proves the daemon is up + the API is listening.
+      # The alpine-based PDNS image ships wget (not curl), so we use it.
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://localhost:8081/api/v1/servers/localhost || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 15s
 
 volumes:
   postgres_data:

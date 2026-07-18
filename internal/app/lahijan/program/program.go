@@ -219,6 +219,17 @@ func Start() error {
 		defer func() { _ = incusDeps.listener.Close() }()
 	}
 
+	// WS-12: build the PowerDNS driver (providers/powerdns/*). Returns a
+	// zero-value powerdnsDeps when providers.powerdns.enabled is false; the
+	// DNS module (WS-15) degrades to 501 in that case. Built AFTER wasmDeps
+	// so the events synthesis path can fan into the WASM event bus when
+	// both subsystems are enabled.
+	powerdnsDeps, err := buildPowerdnsDeps(context.Background(), wasmDeps.bus)
+	if err != nil {
+		log.Fatalf("failed to build powerdns deps: %s", err.Error())
+	}
+	_ = powerdnsDeps // consumed by WS-15 (DNS module)
+
 	// Seed the RBAC catalog (permissions + default roles + grants). Idempotent
 	// so it is safe to run on every bootstrap. Fail-fast on error: without the
 	// seed, every privileged route returns 403.

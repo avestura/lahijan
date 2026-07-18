@@ -443,3 +443,49 @@ providers:
       # set to true to skip server cert verification (dev only; never true
       # in prod). Used when pointing at a daemon with a self-signed cert.
       insecureSkipVerify: false
+
+  # PowerDNS Authoritative backend (WS-12). The daemon runs in a container
+  # pointed at the shared Postgres gpgsql backend (ADR-0007). Lahijan talks
+  # to the daemon's HTTP API over the local compose network. The API key
+  # MUST be set via env LAHIJAN_PROVIDERS_POWERDNS_API_KEY in any non-dev
+  # environment; an empty key falls back to a derived dev value and the
+  # driver fails fast.
+  powerdns:
+    # toggles the PowerDNS driver. When false, program.Start skips building
+    # it and the dns module (WS-15) degrades to 501.
+    enabled: false
+    # Base URL of the PDNS HTTP API. The default targets the compose
+    # service on the internal port (8081) — point this at a remote PDNS
+    # for non-compose deploys.
+    baseURL: "http://powerdns:8081"
+    # API key the daemon expects in the X-API-Key header. Sourced from env
+    # LAHIJAN_PROVIDERS_POWERDNS_API_KEY; never commit a real value.
+    apiKey: ""
+    # Per-request timeout in seconds for PDNS HTTP calls. PDNS zone writes
+    # return quickly (sub-second); 30s is a generous ceiling for slow
+    # disks.
+    requestTimeoutSeconds: 30
+    # Default NS targets written into the SOA + NS RRsets at zone-create
+    # time. The first entry is the primary; the rest are secondaries. Each
+    # must be a canonical name (the driver appends a trailing dot if
+    # missing).
+    defaultNameservers:
+      - "ns1.lahijan.local."
+    # Default DNSSEC policy for new zones per WS-12 "Open questions" item
+    # 1: off by default; the admin opts in per zone via the DNS service.
+    # When true, EnableDNSSEC runs at zone-create time.
+    defaultDNSSECEnabled: false
+    # Default AXFR policy per WS-12 "Open questions" item 2: Lahijan is
+    # the only NS by default. When true, ALLOW-AXFR-FROM is seeded with
+    # defaultAXFRFrom at zone-create time.
+    defaultAXFREnabled: false
+    # When defaultAXFREnabled is true, these IPs/CIDRs are written into
+    # ALLOW-AXFR-FROM. Empty when AXFR is off.
+    defaultAXFRFrom: []
+    # Events synthesis (WS-12). When enabled, every mutating driver call
+    # emits a BusEvent into the WASM event bus so plugins subscribed to
+    # "dns.zone.*" / "dns.record.*" see a uniform stream. PDNS itself
+    # does NOT push events. Disable for dev runs that do not have a WASM
+    # bus attached.
+    events:
+      enabled: true

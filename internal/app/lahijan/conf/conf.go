@@ -732,3 +732,69 @@ func GetProvidersIncusTLS() IncusTLSConfig {
 		InsecureSkipVerify: viper.GetBool("providers.incus.tls.insecureSkipVerify"),
 	}
 }
+
+// ---------------------------------------------------------------------------
+// PowerDNS provider (WS-12). Every getter reads a key under providers.powerdns.*.
+// ---------------------------------------------------------------------------
+
+// GetProvidersPowerDNSEnabled reports whether the PowerDNS DNS driver (WS-12)
+// is wired into this process. When false, program.Start skips building the
+// driver and the DNS module (WS-15) degrades to 501 "feature disabled".
+func GetProvidersPowerDNSEnabled() bool {
+	return viper.GetBool("providers.powerdns.enabled")
+}
+
+// GetProvidersPowerDNSBaseURL returns the PDNS HTTP API base URL. The
+// default targets the compose service on port 8081.
+func GetProvidersPowerDNSBaseURL() string {
+	return viper.GetString("providers.powerdns.baseURL")
+}
+
+// GetProvidersPowerDNSAPIKey returns the secret sent on every PDNS request
+// in the X-API-Key header. SENSITIVE — never logged. Must be set via env
+// LAHIJAN_PROVIDERS_POWERDNS_API_KEY in any non-dev environment.
+func GetProvidersPowerDNSAPIKey() string {
+	return viper.GetString("providers.powerdns.apiKey")
+}
+
+// GetProvidersPowerDNSRequestTimeoutSeconds returns the per-call timeout
+// applied to every PDNS HTTP request.
+func GetProvidersPowerDNSRequestTimeoutSeconds() int {
+	return viper.GetInt("providers.powerdns.requestTimeoutSeconds")
+}
+
+// GetProvidersPowerDNSDefaultNameservers returns the NS targets the driver
+// writes into the SOA + NS RRsets at zone-create time when the caller does
+// not override them. Each entry must be a canonical name.
+func GetProvidersPowerDNSDefaultNameservers() []string {
+	return viper.GetStringSlice("providers.powerdns.defaultNameservers")
+}
+
+// GetProvidersPowerDNSDefaultDNSSECEnabled reports whether new zones get
+// DNSSEC turned on at create time. Default false per WS-12 "Open questions"
+// item 1.
+func GetProvidersPowerDNSDefaultDNSSECEnabled() bool {
+	return viper.GetBool("providers.powerdns.defaultDNSSECEnabled")
+}
+
+// GetProvidersPowerDNSDefaultAXFREnabled reports whether new zones get
+// AXFR allowed at create time. Default false per WS-12 "Open questions"
+// item 2 (Lahijan is the only NS by default).
+func GetProvidersPowerDNSDefaultAXFREnabled() bool {
+	return viper.GetBool("providers.powerdns.defaultAXFREnabled")
+}
+
+// GetProvidersPowerDNSDefaultAXFRFrom returns the IPs/CIDRs written into
+// ALLOW-AXFR-FROM at zone-create time when defaultAXFREnabled is true.
+// Empty when AXFR is off.
+func GetProvidersPowerDNSDefaultAXFRFrom() []string {
+	return viper.GetStringSlice("providers.powerdns.defaultAXFRFrom")
+}
+
+// GetProvidersPowerDNSEventsEnabled reports whether the driver should
+// synthesize change events into the WASM event bus. PDNS does not push
+// events itself; the driver emits one BusEvent per mutating call when this
+// is true and a bus is wired.
+func GetProvidersPowerDNSEventsEnabled() bool {
+	return viper.GetBool("providers.powerdns.events.enabled")
+}

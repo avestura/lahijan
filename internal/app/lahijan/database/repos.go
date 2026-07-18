@@ -33,6 +33,7 @@ type Repos struct {
 	PluginConfig        *PluginConfigRepository
 	PluginSubscriptions *PluginEventSubscriptionsRepository
 	PluginHTTPHandlers  *PluginHTTPHandlersRepository
+	DNSZones            *DNSZonesRepository
 }
 
 // NewRepos builds the aggregate repository from a pool or transaction. The
@@ -59,5 +60,6 @@ func NewRepos(db DBTX) *Repos {
 		PluginConfig:        NewPluginConfigRepository(q),
 		PluginSubscriptions: NewPluginEventSubscriptionsRepository(q),
 		PluginHTTPHandlers:  NewPluginHTTPHandlersRepository(q),
+		DNSZones:            NewDNSZonesRepository(q),
 	}
 }
