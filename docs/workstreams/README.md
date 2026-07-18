@@ -59,7 +59,7 @@ The ws-implementer subagent (`.opencode/agent/ws-implementer.md`) and the
 
 | WS | Title | Status | Depends on |
 |----|-------|--------|------------|
-| [WS-11](./WS-11-incus-provider.md) | Incus Provider | pending | WS-05 |
+| [WS-11](./WS-11-incus-provider.md) | Incus Provider | done | WS-05 |
 | [WS-12](./WS-12-powerdns-provider.md) | PowerDNS Provider | pending | WS-05 |
 | [WS-13](./WS-13-seaweedfs-provider.md) | SeaweedFS Provider | pending | WS-05 |
 
