@@ -34,6 +34,7 @@ Accepted; corrections land as new ADRs that supersede prior ones.
 | [0024](./0024-wasm-host-function-abi.md) | WASM Host Function ABI — flat i32 pointer-passing | Accepted | 2026-07-18 |
 | [0025](./0025-incus-client-library-choice.md) | Incus client library — thin internal REST client over the Incus REST API | Accepted | 2026-07-18 |
 | [0026](./0026-powerdns-client-library-choice.md) | PowerDNS client library — thin internal REST client over the PDNS HTTP API | Accepted | 2026-07-18 |
+| [0027](./0027-seaweedfs-client-library-choice.md) | SeaweedFS client library — AWS SDK v2 (S3) + thin HTTP (Filer/IAM), interface-injected for tests | Accepted | 2026-07-18 |
 
 ## How to write a new ADR
 

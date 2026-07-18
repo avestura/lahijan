@@ -1,7 +1,7 @@
 # WS-13 · SeaweedFS Provider
 
 ```
-Status: pending
+Status: in-progress
 Phase: 3
 Depends:: WS-05
 Unblocks: WS-16 (storage module), WS-29 (lifecycle/versioning)
