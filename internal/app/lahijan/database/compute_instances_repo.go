@@ -17,7 +17,7 @@ import (
 // InstanceType values mirror the Incus instance "type" field. Empty string
 // is treated as "container" by the daemon.
 const (
-	InstanceTypeContainer    = "container"
+	InstanceTypeContainer      = "container"
 	InstanceTypeVirtualMachine = "virtual-machine"
 )
 
@@ -37,12 +37,12 @@ const (
 // daemon (Incus types.StatusCode). Kept here so the cache column matches
 // the daemon's own values; see statusFromIncus helper in the service layer.
 const (
-	StatusCodeStopped    = 102
-	StatusCodeRunning    = 103
-	StatusCodeFrozen     = 110
-	StatusCodeStarting   = 111
-	StatusCodeStopping   = 112
-	StatusCodeDeleted    = 0
+	StatusCodeStopped  = 102
+	StatusCodeRunning  = 103
+	StatusCodeFrozen   = 110
+	StatusCodeStarting = 111
+	StatusCodeStopping = 112
+	StatusCodeDeleted  = 0
 )
 
 // ComputeInstancesRepository is the persistence boundary for the

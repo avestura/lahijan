@@ -38,13 +38,13 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/secrets"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/session"
 	"github.com/avestura/lahijan/internal/app/lahijan/database/testutil"
+	notifyemail "github.com/avestura/lahijan/internal/app/lahijan/notify/email"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/installer"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/manifest"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/marketplace"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/permission"
 	wasmruntime "github.com/avestura/lahijan/internal/app/lahijan/wasm/runtime"
 	"github.com/gofiber/fiber/v2"
-	notifyemail "github.com/avestura/lahijan/internal/app/lahijan/notify/email"
 )
 
 // buildLocalMarketplace writes a single-plugin marketplace into a temp
@@ -90,14 +90,18 @@ func newMarketplaceTestApp(t *testing.T, dir string) *marketplaceTestApp {
 	mailer := email.New(
 		repos.Users, repos.EmailTokens, hasher, signer,
 		notifyemail.NoopSender{}, audit.NoopEmitter{},
-		email.Config{VerifyTTL: time.Hour, ResetTTL: time.Hour, EmailChangeTTL: time.Hour,
-			TokenByteLen: 32, AppBaseURL: "https://app.test"},
+		email.Config{
+			VerifyTTL: time.Hour, ResetTTL: time.Hour, EmailChangeTTL: time.Hour,
+			TokenByteLen: 32, AppBaseURL: "https://app.test",
+		},
 	)
 	sessionSvc := session.New(
 		repos.Users, repos.Sessions, repos.Tokens, hasher, signer,
 		mailer, audit.NoopEmitter{},
-		session.Config{SessionLifetime: time.Hour, RefreshLifetime: time.Hour,
-			TokenByteLen: 32, MinPasswordLen: 12},
+		session.Config{
+			SessionLifetime: time.Hour, RefreshLifetime: time.Hour,
+			TokenByteLen: 32, MinPasswordLen: 12,
+		},
 	)
 	patSvc := pat.New(
 		repos.Tokens, signer, audit.NoopEmitter{},
@@ -120,17 +124,17 @@ func newMarketplaceTestApp(t *testing.T, dir string) *marketplaceTestApp {
 	)
 
 	server := api.NewServer(api.ServerDeps{
-		Users:         repos.Users,
-		Sessions:      repos.Sessions,
-		SessionSvc:    sessionSvc,
-		PATSvc:        patSvc,
-		EmailSvc:      mailer,
-		Signer:        signer,
-		Cookies:       cookies,
-		Audit:         repos.AuditLog,
-		AuditEmitter:  audit.NewDBEmitter(repos.AuditLog),
-		PluginsRepo:   repos.Plugins,
-		PluginSvc:     installSvc,
+		Users:          repos.Users,
+		Sessions:       repos.Sessions,
+		SessionSvc:     sessionSvc,
+		PATSvc:         patSvc,
+		EmailSvc:       mailer,
+		Signer:         signer,
+		Cookies:        cookies,
+		Audit:          repos.AuditLog,
+		AuditEmitter:   audit.NewDBEmitter(repos.AuditLog),
+		PluginsRepo:    repos.Plugins,
+		PluginSvc:      installSvc,
 		MarketplaceSvc: mktSvc,
 	})
 	policy := middleware.NewPolicyResolver(rbac.NewEvaluator(repos.Memberships))

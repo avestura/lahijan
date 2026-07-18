@@ -41,14 +41,15 @@ func RegisterRoutes(app *fiber.App, server *Server, policy middleware.PolicyReso
 }
 
 // AuditGate returns a path-aware middleware that runs RequirePerm for the
-// audit endpoints and bypasses every other path. It exists because:
+// privileged endpoints and bypasses every other path. It exists because:
 //
 //   - apigen.FiberServerOptions.Middlewares is a flat list (no per-route map),
 //     so any middleware we add runs for every route.
-//   - Registering audit routes manually would conflict with apigen's
+//   - Registering routes manually would conflict with apigen's
 //     registration (Fiber panics on duplicate routes).
 //
-// The gate inspects c.Path() and dispatches to the right RequirePerm slug:
+// The gate inspects c.Path() + c.Method() and dispatches to the right
+// RequirePerm slug:
 //
 //	/api/v1/audit/export           -> audit.export
 //	/api/v1/audit/{id}             -> audit.read
@@ -67,6 +68,27 @@ func RegisterRoutes(app *fiber.App, server *Server, policy middleware.PolicyReso
 //	/api/v1/admin/marketplace/*      -> plugins.read        (WS-10c marketplace)
 //	/api/v1/admin/plugins/{id}     -> plugins.read  (GET) / plugins.uninstall (DELETE)
 //	/api/v1/admin/plugins          -> plugins.read
+//	/api/v1/compute/instances POST                    -> compute.instance.create
+//	/api/v1/compute/instances GET                     -> compute.instance.read
+//	/api/v1/compute/instances/{id} GET / PATCH        -> compute.instance.read / .update
+//	/api/v1/compute/instances/{id} DELETE             -> compute.instance.delete
+//	/api/v1/compute/instances/{id}/{start|stop|...}   -> compute.instance.<action>
+//	/api/v1/compute/instances/{id}/exec POST          -> compute.instance.start
+//	                                                          (exec needs a running instance)
+//	/api/v1/compute/images GET                        -> compute.image.read
+//	/api/v1/compute/images POST                       -> compute.instance.create
+//	                                                          (custom upload is create-adjacent)
+//	/api/v1/compute/images/{id} GET                   -> compute.image.read
+//	/api/v1/compute/images/{id} DELETE                -> compute.instance.delete
+//	/api/v1/compute/profiles GET / POST               -> compute.profile.read / .apply
+//	/api/v1/compute/profiles/{id} GET                 -> compute.profile.read
+//	/api/v1/compute/profiles/{id} DELETE              -> compute.profile.apply
+//	/api/v1/compute/networks GET / POST               -> compute.network.read / .create
+//	/api/v1/compute/networks/{id} GET                 -> compute.network.read
+//	/api/v1/compute/networks/{id} DELETE              -> compute.network.create
+//	/api/v1/compute/storage GET / POST                -> compute.storage_pool.read
+//	/api/v1/compute/storage/{id} GET                  -> compute.storage_pool.read
+//	/api/v1/compute/storage/{id} DELETE               -> compute.storage_pool.read
 //
 // Everything else: c.Next() (no enforcement; routes that need it must add
 // their own per-route RequirePerm or be gated through this same function as
@@ -74,6 +96,7 @@ func RegisterRoutes(app *fiber.App, server *Server, policy middleware.PolicyReso
 func AuditGate(policy middleware.PolicyResolver) apigen.MiddlewareFunc {
 	return func(c *fiber.Ctx) error {
 		path := c.Path()
+		method := c.Method()
 		switch {
 		// WS-08: audit log endpoints.
 		case path == "/api/v1/audit/export":
@@ -133,7 +156,126 @@ func AuditGate(policy middleware.PolicyResolver) apigen.MiddlewareFunc {
 			return middleware.RequirePerm(policy, rbac.PermPluginsInstall)(c)
 		case strings.HasPrefix(path, "/api/v1/admin/plugins/"):
 			return middleware.RequirePerm(policy, rbac.PermPluginsInstall)(c)
+
+		// WS-14: compute module endpoints. Every /api/v1/compute/* path
+		// is gated; the slug maps 1:1 with the rbac.PermCompute*
+		// registry so the policy evaluator can answer with the caller's
+		// role grant (tenant.viewer / member / admin / owner).
+		case isComputeInstanceExecPath(path) && method == "POST":
+			// exec needs a running instance; reuse the start permission
+			// since both involve "interact with a running instance".
+			return middleware.RequirePerm(policy, rbac.PermComputeInstanceStart)(c)
+		case isComputeInstanceLifecyclePath(path) && method == "POST":
+			return middleware.RequirePerm(policy, computeInstanceActionPerm(path))(c)
+		case isComputeInstancePath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermComputeInstanceCreate)(c)
+		case isComputeInstancePath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermComputeInstanceRead)(c)
+		case isComputeInstancePath(path) && method == "PATCH":
+			return middleware.RequirePerm(policy, rbac.PermComputeInstanceUpdate)(c)
+		case isComputeInstancePath(path) && method == "DELETE":
+			return middleware.RequirePerm(policy, rbac.PermComputeInstanceDelete)(c)
+		case isComputeImagePath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermComputeInstanceCreate)(c)
+		case isComputeImagePath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermComputeImageRead)(c)
+		case isComputeImagePath(path) && method == "DELETE":
+			return middleware.RequirePerm(policy, rbac.PermComputeInstanceDelete)(c)
+		case isComputeProfilePath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermComputeProfileApply)(c)
+		case isComputeProfilePath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermComputeProfileRead)(c)
+		case isComputeProfilePath(path) && method == "DELETE":
+			return middleware.RequirePerm(policy, rbac.PermComputeProfileApply)(c)
+		case isComputeNetworkPath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermComputeNetworkCreate)(c)
+		case isComputeNetworkPath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermComputeNetworkRead)(c)
+		case isComputeNetworkPath(path) && method == "DELETE":
+			return middleware.RequirePerm(policy, rbac.PermComputeNetworkCreate)(c)
+		case isComputeStoragePath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermComputeNetworkCreate)(c)
+		case isComputeStoragePath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermComputeStoragePoolRead)(c)
+		case isComputeStoragePath(path) && method == "DELETE":
+			return middleware.RequirePerm(policy, rbac.PermComputeStoragePoolRead)(c)
 		}
 		return c.Next()
 	}
+}
+
+// isComputeInstancePath reports whether path targets the instances
+// collection or a specific instance (but not the action sub-paths).
+func isComputeInstancePath(path string) bool {
+	if path == "/api/v1/compute/instances" {
+		return true
+	}
+	return strings.HasPrefix(path, "/api/v1/compute/instances/") &&
+		!isComputeInstanceLifecyclePath(path) &&
+		!isComputeInstanceExecPath(path)
+}
+
+// isComputeInstanceLifecyclePath reports whether path is one of the
+// /instances/{id}/{action} lifecycle endpoints.
+func isComputeInstanceLifecyclePath(path string) bool {
+	for _, a := range []string{"start", "stop", "restart", "freeze", "unfreeze"} {
+		if strings.HasSuffix(path, "/"+a) && strings.HasPrefix(path, "/api/v1/compute/instances/") {
+			return true
+		}
+	}
+	return false
+}
+
+// isComputeInstanceExecPath reports whether path is the exec endpoint.
+func isComputeInstanceExecPath(path string) bool {
+	return strings.HasPrefix(path, "/api/v1/compute/instances/") && strings.HasSuffix(path, "/exec")
+}
+
+// computeInstanceActionPerm maps the trailing path segment to the matching
+// rbac permission slug. Caller MUST ensure path is a lifecycle path.
+func computeInstanceActionPerm(path string) string {
+	switch {
+	case strings.HasSuffix(path, "/start"):
+		return rbac.PermComputeInstanceStart
+	case strings.HasSuffix(path, "/stop"):
+		return rbac.PermComputeInstanceStop
+	case strings.HasSuffix(path, "/restart"):
+		return rbac.PermComputeInstanceRestart
+	case strings.HasSuffix(path, "/freeze"), strings.HasSuffix(path, "/unfreeze"):
+		// freeze/unfreeze are state changes; reuse stop (the closest
+		// permission in the registry). A future WS can split these.
+		return rbac.PermComputeInstanceStop
+	}
+	return rbac.PermComputeInstanceRead
+}
+
+// isComputeImagePath / isComputeProfilePath / isComputeNetworkPath /
+// isComputeStoragePath mirror isComputeInstancePath for the secondary
+// resources.
+func isComputeImagePath(path string) bool {
+	if path == "/api/v1/compute/images" {
+		return true
+	}
+	return strings.HasPrefix(path, "/api/v1/compute/images/")
+}
+
+func isComputeProfilePath(path string) bool {
+	if path == "/api/v1/compute/profiles" {
+		return true
+	}
+	return strings.HasPrefix(path, "/api/v1/compute/profiles/")
+}
+
+func isComputeNetworkPath(path string) bool {
+	if path == "/api/v1/compute/networks" {
+		return true
+	}
+	return strings.HasPrefix(path, "/api/v1/compute/networks/")
+}
+
+func isComputeStoragePath(path string) bool {
+	if path == "/api/v1/compute/storage" {
+		return true
+	}
+	return strings.HasPrefix(path, "/api/v1/compute/storage/")
 }

@@ -14,8 +14,8 @@ import (
 
 // NetworkType values mirror the Incus network "type" field.
 const (
-	NetworkTypeBridge  = "bridge"
-	NetworkTypeMacvlan = "macvlan"
+	NetworkTypeBridge   = "bridge"
+	NetworkTypeMacvlan  = "macvlan"
 	NetworkTypePhysical = "physical"
 )
 

@@ -30,14 +30,14 @@ func NewComputeImagesRepository(q *gen.Queries) *ComputeImagesRepository {
 
 // CreateComputeImageParams carries the user-controlled fields of a new row.
 type CreateComputeImageParams struct {
-	Alias           string
-	Source          string
-	Fingerprint     string
-	Type            string
-	Architecture    string
-	SizeBytes       int64
-	PropertiesJson  json.RawMessage
-	Description     string
+	Alias          string
+	Source         string
+	Fingerprint    string
+	Type           string
+	Architecture   string
+	SizeBytes      int64
+	PropertiesJson json.RawMessage
+	Description    string
 }
 
 // Create inserts a new compute_images row scoped to the tenant in ctx.

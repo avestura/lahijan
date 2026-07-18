@@ -106,6 +106,11 @@ func (s *Service) ListVolumes(
 	return s.repos.ComputeStorageVolumes.List(ctx, limit, offset)
 }
 
+// CountVolumes returns the number of non-deleted storage volumes in the tenant.
+func (s *Service) CountVolumes(ctx context.Context) (int64, error) {
+	return s.repos.ComputeStorageVolumes.Count(ctx)
+}
+
 // DeleteVolume soft-deletes the row + deletes the Incus volume.
 func (s *Service) DeleteVolume(
 	ctx context.Context,

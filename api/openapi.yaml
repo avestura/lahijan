@@ -44,6 +44,8 @@ tags:
     description: The append-only audit trail of privileged actions.
   - name: admin
     description: Platform-admin endpoints (cross-tenant; platform.admin role only).
+  - name: compute
+    description: Compute instances, images, profiles, networks, and storage volumes.
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -1697,6 +1699,497 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
 
+  # ===========================================================================
+  # Compute module (WS-14)
+  # ===========================================================================
+
+  /api/v1/compute/instances:
+    get:
+      tags: [compute]
+      operationId: listComputeInstances
+      summary: List compute instances
+      description: |
+        Returns a paginated list of the caller's compute instances within
+        the tenant in scope. The list reflects the cached state in the
+        Lahijan database; live state from the daemon is queried on demand
+        via GET /instances/{id} (which reconciles) or via the per-instance
+        reconcile endpoint (TODO).
+      parameters:
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+      responses:
+        "200":
+          description: A page of instances.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeInstancePage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [compute]
+      operationId: createComputeInstance
+      summary: Create a compute instance
+      description: |
+        Creates a new instance in the caller's tenant. The service checks
+        the per-tenant quota (vCPU / RAM / disk / instance count) before
+        reaching the daemon; an over-quota request returns 422. The
+        instance is created in "stopped" state; the caller must POST
+        /instances/{id}/start to launch it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComputeInstanceCreateRequest" }
+      responses:
+        "201":
+          description: Instance created (in stopped state).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeInstance" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "402":
+          description: Insufficient balance to create the instance (per ADR-0013).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422":
+          description: Quota exceeded.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "501":
+          description: The compute subsystem is not enabled on this server.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/compute/instances/{instanceId}:
+    get:
+      tags: [compute]
+      operationId: getComputeInstance
+      summary: Get a compute instance (reconciled)
+      description: |
+        Returns the instance, reconciling the cached row with the live
+        daemon state. A flaky daemon returns the cached state instead of
+        erroring so the UI does not 500 on a backend blip.
+      parameters:
+        - name: instanceId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The instance.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeInstance" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [compute]
+      operationId: updateComputeInstance
+      summary: Update an instance's config
+      description: |
+        Replaces the instance's description, config, devices, and profiles.
+        Hot-pluggable fields (e.g. limits.memory for a stopped instance)
+        apply immediately; others require a restart.
+      parameters:
+        - name: instanceId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComputeInstanceUpdateRequest" }
+      responses:
+        "200":
+          description: The updated instance.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeInstance" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [compute]
+      operationId: deleteComputeInstance
+      summary: Delete a compute instance
+      description: |
+        Stops the instance if running (force = true skips the graceful
+        shutdown), deletes it from the daemon, and soft-deletes the
+        cached row (the row is retained for historical audit + billing
+        joins).
+      parameters:
+        - name: instanceId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: force
+          in: query
+          required: false
+          schema: { type: boolean, default: false }
+          description: Skip the graceful shutdown and force-delete.
+      responses:
+        "204": { description: Instance deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/compute/instances/{instanceId}/{action}:
+    parameters:
+      - name: instanceId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: action
+        in: path
+        required: true
+        schema: { type: string, enum: [start, stop, restart, freeze, unfreeze] }
+      - name: force
+        in: query
+        required: false
+        schema: { type: boolean, default: false }
+        description: Force the action (skip graceful shutdown for stop).
+      - name: timeout
+        in: query
+        required: false
+        schema: { type: integer, minimum: 0, default: 30 }
+        description: Action timeout in seconds.
+    post:
+      tags: [compute]
+      operationId: setComputeInstanceState
+      summary: Apply a lifecycle action to an instance
+      description: |
+        Starts, stops, restarts, freezes, or unfreezes an instance. The
+        cached row is updated with the new status; the audit log records
+        the action and the WASM event bus emits the corresponding
+        compute.instance.* event.
+      responses:
+        "200":
+          description: The updated instance.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeInstance" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: The action conflicts with the current state (e.g. start on a running instance).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/compute/instances/{instanceId}/exec:
+    post:
+      tags: [compute]
+      operationId: execComputeInstance
+      summary: Run a one-shot command inside an instance
+      description: |
+        Runs the given command in the instance and returns the captured
+        stdout, stderr, and exit code. The interactive (bidirectional,
+        xterm.js) variant lands with WS-20 (dashboard UI); this endpoint
+        is the simpler "run + capture" path the API exposes today. The
+        instance must be running (WS-14 open question 3).
+      parameters:
+        - name: instanceId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComputeExecRequest" }
+      responses:
+        "200":
+          description: The captured output.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeExecResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: The instance is not running.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/compute/images:
+    get:
+      tags: [compute]
+      operationId: listComputeImages
+      summary: List compute images
+      parameters:
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+      responses:
+        "200":
+          description: A page of images.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeImagePage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [compute]
+      operationId: uploadComputeImage
+      summary: Record a custom image
+      description: |
+        Records a custom image row in the tenant's catalog. The actual
+        upload to the image store is performed by the provider driver;
+        this endpoint persists the alias + fingerprint so the catalog is
+        listable and the alias resolves at instance-create time.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComputeImageUploadRequest" }
+      responses:
+        "201":
+          description: Image recorded.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeImage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/compute/images/{imageId}:
+    parameters:
+      - name: imageId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [compute]
+      operationId: getComputeImage
+      summary: Get an image
+      responses:
+        "200":
+          description: The image.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeImage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [compute]
+      operationId: deleteComputeImage
+      summary: Delete a custom image
+      description: Featured images cannot be deleted.
+      responses:
+        "204": { description: Image deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/compute/profiles:
+    get:
+      tags: [compute]
+      operationId: listComputeProfiles
+      summary: List profiles
+      parameters:
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+      responses:
+        "200":
+          description: A page of profiles.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeProfilePage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [compute]
+      operationId: createComputeProfile
+      summary: Create a profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComputeProfileCreateRequest" }
+      responses:
+        "201":
+          description: Profile created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeProfile" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/compute/profiles/{profileId}:
+    parameters:
+      - name: profileId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [compute]
+      operationId: getComputeProfile
+      summary: Get a profile
+      responses:
+        "200":
+          description: The profile.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeProfile" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [compute]
+      operationId: deleteComputeProfile
+      summary: Delete a profile
+      responses:
+        "204": { description: Profile deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/compute/networks:
+    get:
+      tags: [compute]
+      operationId: listComputeNetworks
+      summary: List networks
+      parameters:
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+      responses:
+        "200":
+          description: A page of networks.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeNetworkPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [compute]
+      operationId: createComputeNetwork
+      summary: Create a network
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComputeNetworkCreateRequest" }
+      responses:
+        "201":
+          description: Network created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeNetwork" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/compute/networks/{networkId}:
+    parameters:
+      - name: networkId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [compute]
+      operationId: getComputeNetwork
+      summary: Get a network
+      responses:
+        "200":
+          description: The network.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeNetwork" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [compute]
+      operationId: deleteComputeNetwork
+      summary: Delete a network
+      responses:
+        "204": { description: Network deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/compute/storage:
+    get:
+      tags: [compute]
+      operationId: listComputeStorageVolumes
+      summary: List storage volumes
+      parameters:
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+      responses:
+        "200":
+          description: A page of storage volumes.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeStorageVolumePage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [compute]
+      operationId: createComputeStorageVolume
+      summary: Create a storage volume
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComputeStorageVolumeCreateRequest" }
+      responses:
+        "201":
+          description: Volume created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeStorageVolume" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/compute/storage/{volumeId}:
+    parameters:
+      - name: volumeId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [compute]
+      operationId: getComputeStorageVolume
+      summary: Get a storage volume
+      responses:
+        "200":
+          description: The volume.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeStorageVolume" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [compute]
+      operationId: deleteComputeStorageVolume
+      summary: Delete a storage volume
+      responses:
+        "204": { description: Volume deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
 # ---------------------------------------------------------------------------
 # Components
 # ---------------------------------------------------------------------------
@@ -2695,3 +3188,317 @@ components:
           description: |
             The parsed assertion response from the browser
             (kind=webauthn only).
+
+    # =========================================================================
+    # Compute module schemas (WS-14)
+    # =========================================================================
+
+    ComputeInstance:
+      type: object
+      required: [id, tenantId, name, status, imageAlias, createdAt]
+      additionalProperties: false
+      properties:
+        id:           { type: string, format: uuid }
+        tenantId:     { type: string, format: uuid }
+        name:         { type: string }
+        type:
+          type: string
+          enum: [container, virtual-machine]
+          description: Instance type. Defaults to container.
+        status:
+          type: string
+          description: Cached Incus status string (Running, Stopped, Frozen, ...).
+        statusCode:
+          type: integer
+          description: Numeric Incus status code (Running=103, Stopped=102).
+        imageAlias:   { type: string }
+        imageFingerprint:
+          type: string
+          description: Resolved image fingerprint (filled in at create success).
+        profiles:
+          type: array
+          items: { type: string }
+          description: Profile names applied to the instance.
+        config:
+          type: object
+          additionalProperties: { type: string }
+          description: Free-form config map (limits.cpu, limits.memory, ...).
+        devices:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties: { type: string }
+          description: Per-device config map (root disk, nics, ...).
+        description:  { type: string }
+        createdAt:    { type: string, format: date-time }
+        updatedAt:    { type: string, format: date-time }
+
+    ComputeInstancePage:
+      type: object
+      required: [items, total, limit, offset]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ComputeInstance" }
+        total:  { type: integer }
+        limit:  { type: integer }
+        offset: { type: integer }
+
+    ComputeInstanceCreateRequest:
+      type: object
+      required: [name, imageAlias]
+      additionalProperties: false
+      properties:
+        name:        { type: string, minLength: 1, maxLength: 63 }
+        type:
+          type: string
+          enum: [container, virtual-machine]
+          default: container
+        imageAlias:  { type: string, minLength: 1 }
+        description: { type: string }
+        config:
+          type: object
+          additionalProperties: { type: string }
+        devices:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties: { type: string }
+        profiles:
+          type: array
+          items: { type: string }
+          default: ["default"]
+
+    ComputeInstanceUpdateRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        description: { type: string }
+        config:
+          type: object
+          additionalProperties: { type: string }
+        devices:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties: { type: string }
+        profiles:
+          type: array
+          items: { type: string }
+
+    ComputeExecRequest:
+      type: object
+      required: [command]
+      additionalProperties: false
+      properties:
+        command:
+          type: array
+          items: { type: string }
+          description: The argv to execute. Must be non-empty.
+        environment:
+          type: object
+          additionalProperties: { type: string }
+        user:  { type: integer, default: 0 }
+        group: { type: integer, default: 0 }
+        cwd:   { type: string }
+        stdin:
+          type: string
+          description: Input bytes for the process stdin (UTF-8 text).
+
+    ComputeExecResult:
+      type: object
+      required: [exitCode]
+      additionalProperties: false
+      properties:
+        stdout:
+          type: string
+          description: Captured stdout (base64 if non-UTF-8).
+        stderr:
+          type: string
+          description: Captured stderr (base64 if non-UTF-8).
+        exitCode: { type: integer }
+
+    ComputeImage:
+      type: object
+      required: [id, alias, source]
+      additionalProperties: false
+      properties:
+        id:           { type: string, format: uuid }
+        alias:        { type: string }
+        source:
+          type: string
+          enum: [featured, custom]
+        fingerprint:  { type: string }
+        type:
+          type: string
+          enum: [container, virtual-machine]
+        architecture: { type: string }
+        sizeBytes:    { type: integer, format: int64 }
+        description:  { type: string }
+        createdAt:    { type: string, format: date-time }
+        updatedAt:    { type: string, format: date-time }
+
+    ComputeImagePage:
+      type: object
+      required: [items, total, limit, offset]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ComputeImage" }
+        total:  { type: integer }
+        limit:  { type: integer }
+        offset: { type: integer }
+
+    ComputeImageUploadRequest:
+      type: object
+      required: [alias, fingerprint]
+      additionalProperties: false
+      properties:
+        alias:        { type: string, minLength: 1, maxLength: 63 }
+        fingerprint:  { type: string, minLength: 1 }
+        type:
+          type: string
+          enum: [container, virtual-machine]
+          default: container
+        architecture: { type: string }
+        sizeBytes:    { type: integer, format: int64 }
+        properties:
+          type: object
+          additionalProperties: { type: string }
+        description:  { type: string }
+
+    ComputeProfile:
+      type: object
+      required: [id, name]
+      additionalProperties: false
+      properties:
+        id:          { type: string, format: uuid }
+        name:        { type: string }
+        description: { type: string }
+        config:
+          type: object
+          additionalProperties: { type: string }
+        devices:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties: { type: string }
+        createdAt:   { type: string, format: date-time }
+        updatedAt:   { type: string, format: date-time }
+
+    ComputeProfilePage:
+      type: object
+      required: [items, total, limit, offset]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ComputeProfile" }
+        total:  { type: integer }
+        limit:  { type: integer }
+        offset: { type: integer }
+
+    ComputeProfileCreateRequest:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name:        { type: string, minLength: 1, maxLength: 63 }
+        description: { type: string }
+        config:
+          type: object
+          additionalProperties: { type: string }
+        devices:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties: { type: string }
+
+    ComputeNetwork:
+      type: object
+      required: [id, name, type]
+      additionalProperties: false
+      properties:
+        id:          { type: string, format: uuid }
+        name:        { type: string }
+        description: { type: string }
+        type:        { type: string }
+        config:
+          type: object
+          additionalProperties: { type: string }
+        aclNames:
+          type: array
+          items: { type: string }
+        forwardNames:
+          type: array
+          items: { type: string }
+        createdAt:   { type: string, format: date-time }
+        updatedAt:   { type: string, format: date-time }
+
+    ComputeNetworkPage:
+      type: object
+      required: [items, total, limit, offset]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ComputeNetwork" }
+        total:  { type: integer }
+        limit:  { type: integer }
+        offset: { type: integer }
+
+    ComputeNetworkCreateRequest:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name:        { type: string, minLength: 1, maxLength: 63 }
+        description: { type: string }
+        type:
+          type: string
+          default: bridge
+        config:
+          type: object
+          additionalProperties: { type: string }
+
+    ComputeStorageVolume:
+      type: object
+      required: [id, name, poolName]
+      additionalProperties: false
+      properties:
+        id:          { type: string, format: uuid }
+        name:        { type: string }
+        description: { type: string }
+        type:        { type: string }
+        poolName:    { type: string }
+        config:
+          type: object
+          additionalProperties: { type: string }
+        createdAt:   { type: string, format: date-time }
+        updatedAt:   { type: string, format: date-time }
+
+    ComputeStorageVolumePage:
+      type: object
+      required: [items, total, limit, offset]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ComputeStorageVolume" }
+        total:  { type: integer }
+        limit:  { type: integer }
+        offset: { type: integer }
+
+    ComputeStorageVolumeCreateRequest:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name:        { type: string, minLength: 1, maxLength: 63 }
+        description: { type: string }
+        poolName:    { type: string, default: default }
+        config:
+          type: object
+          additionalProperties: { type: string }

@@ -106,6 +106,11 @@ func (s *Service) ListProfiles(
 	return s.repos.ComputeProfiles.List(ctx, limit, offset)
 }
 
+// CountProfiles returns the number of non-deleted profiles in the tenant.
+func (s *Service) CountProfiles(ctx context.Context) (int64, error) {
+	return s.repos.ComputeProfiles.Count(ctx)
+}
+
 // DeleteProfile soft-deletes the profile row + deletes the Incus profile.
 func (s *Service) DeleteProfile(
 	ctx context.Context,

@@ -65,6 +65,36 @@ const (
 	AuditOutcomeStatusSuccess AuditOutcomeStatus = "success"
 )
 
+// Defines values for ComputeImageSource.
+const (
+	ComputeImageSourceCustom   ComputeImageSource = "custom"
+	ComputeImageSourceFeatured ComputeImageSource = "featured"
+)
+
+// Defines values for ComputeImageType.
+const (
+	ComputeImageTypeContainer      ComputeImageType = "container"
+	ComputeImageTypeVirtualMachine ComputeImageType = "virtual-machine"
+)
+
+// Defines values for ComputeImageUploadRequestType.
+const (
+	ComputeImageUploadRequestTypeContainer      ComputeImageUploadRequestType = "container"
+	ComputeImageUploadRequestTypeVirtualMachine ComputeImageUploadRequestType = "virtual-machine"
+)
+
+// Defines values for ComputeInstanceType.
+const (
+	ComputeInstanceTypeContainer      ComputeInstanceType = "container"
+	ComputeInstanceTypeVirtualMachine ComputeInstanceType = "virtual-machine"
+)
+
+// Defines values for ComputeInstanceCreateRequestType.
+const (
+	ComputeInstanceCreateRequestTypeContainer      ComputeInstanceCreateRequestType = "container"
+	ComputeInstanceCreateRequestTypeVirtualMachine ComputeInstanceCreateRequestType = "virtual-machine"
+)
+
 // Defines values for HealthStatus.
 const (
 	HealthStatusDegraded HealthStatus = "degraded"
@@ -363,6 +393,220 @@ type AuditPage struct {
 // AuthResponse defines model for AuthResponse.
 type AuthResponse struct {
 	User User `json:"user"`
+}
+
+// ComputeExecRequest defines model for ComputeExecRequest.
+type ComputeExecRequest struct {
+	// Command The argv to execute. Must be non-empty.
+	Command     []string           `json:"command"`
+	Cwd         *string            `json:"cwd,omitempty"`
+	Environment *map[string]string `json:"environment,omitempty"`
+	Group       *int               `json:"group,omitempty"`
+
+	// Stdin Input bytes for the process stdin (UTF-8 text).
+	Stdin *string `json:"stdin,omitempty"`
+	User  *int    `json:"user,omitempty"`
+}
+
+// ComputeExecResult defines model for ComputeExecResult.
+type ComputeExecResult struct {
+	ExitCode int `json:"exitCode"`
+
+	// Stderr Captured stderr (base64 if non-UTF-8).
+	Stderr *string `json:"stderr,omitempty"`
+
+	// Stdout Captured stdout (base64 if non-UTF-8).
+	Stdout *string `json:"stdout,omitempty"`
+}
+
+// ComputeImage defines model for ComputeImage.
+type ComputeImage struct {
+	Alias        string             `json:"alias"`
+	Architecture *string            `json:"architecture,omitempty"`
+	CreatedAt    *time.Time         `json:"createdAt,omitempty"`
+	Description  *string            `json:"description,omitempty"`
+	Fingerprint  *string            `json:"fingerprint,omitempty"`
+	Id           openapi_types.UUID `json:"id"`
+	SizeBytes    *int64             `json:"sizeBytes,omitempty"`
+	Source       ComputeImageSource `json:"source"`
+	Type         *ComputeImageType  `json:"type,omitempty"`
+	UpdatedAt    *time.Time         `json:"updatedAt,omitempty"`
+}
+
+// ComputeImageSource defines model for ComputeImage.Source.
+type ComputeImageSource string
+
+// ComputeImageType defines model for ComputeImage.Type.
+type ComputeImageType string
+
+// ComputeImagePage defines model for ComputeImagePage.
+type ComputeImagePage struct {
+	Items  []ComputeImage `json:"items"`
+	Limit  int            `json:"limit"`
+	Offset int            `json:"offset"`
+	Total  int            `json:"total"`
+}
+
+// ComputeImageUploadRequest defines model for ComputeImageUploadRequest.
+type ComputeImageUploadRequest struct {
+	Alias        string                         `json:"alias"`
+	Architecture *string                        `json:"architecture,omitempty"`
+	Description  *string                        `json:"description,omitempty"`
+	Fingerprint  string                         `json:"fingerprint"`
+	Properties   *map[string]string             `json:"properties,omitempty"`
+	SizeBytes    *int64                         `json:"sizeBytes,omitempty"`
+	Type         *ComputeImageUploadRequestType `json:"type,omitempty"`
+}
+
+// ComputeImageUploadRequestType defines model for ComputeImageUploadRequest.Type.
+type ComputeImageUploadRequestType string
+
+// ComputeInstance defines model for ComputeInstance.
+type ComputeInstance struct {
+	// Config Free-form config map (limits.cpu, limits.memory, ...).
+	Config      *map[string]string `json:"config,omitempty"`
+	CreatedAt   time.Time          `json:"createdAt"`
+	Description *string            `json:"description,omitempty"`
+
+	// Devices Per-device config map (root disk, nics, ...).
+	Devices    *map[string]map[string]string `json:"devices,omitempty"`
+	Id         openapi_types.UUID            `json:"id"`
+	ImageAlias string                        `json:"imageAlias"`
+
+	// ImageFingerprint Resolved image fingerprint (filled in at create success).
+	ImageFingerprint *string `json:"imageFingerprint,omitempty"`
+	Name             string  `json:"name"`
+
+	// Profiles Profile names applied to the instance.
+	Profiles *[]string `json:"profiles,omitempty"`
+
+	// Status Cached Incus status string (Running, Stopped, Frozen, ...).
+	Status string `json:"status"`
+
+	// StatusCode Numeric Incus status code (Running=103, Stopped=102).
+	StatusCode *int               `json:"statusCode,omitempty"`
+	TenantId   openapi_types.UUID `json:"tenantId"`
+
+	// Type Instance type. Defaults to container.
+	Type      *ComputeInstanceType `json:"type,omitempty"`
+	UpdatedAt *time.Time           `json:"updatedAt,omitempty"`
+}
+
+// ComputeInstanceType Instance type. Defaults to container.
+type ComputeInstanceType string
+
+// ComputeInstanceCreateRequest defines model for ComputeInstanceCreateRequest.
+type ComputeInstanceCreateRequest struct {
+	Config      *map[string]string                `json:"config,omitempty"`
+	Description *string                           `json:"description,omitempty"`
+	Devices     *map[string]map[string]string     `json:"devices,omitempty"`
+	ImageAlias  string                            `json:"imageAlias"`
+	Name        string                            `json:"name"`
+	Profiles    *[]string                         `json:"profiles,omitempty"`
+	Type        *ComputeInstanceCreateRequestType `json:"type,omitempty"`
+}
+
+// ComputeInstanceCreateRequestType defines model for ComputeInstanceCreateRequest.Type.
+type ComputeInstanceCreateRequestType string
+
+// ComputeInstancePage defines model for ComputeInstancePage.
+type ComputeInstancePage struct {
+	Items  []ComputeInstance `json:"items"`
+	Limit  int               `json:"limit"`
+	Offset int               `json:"offset"`
+	Total  int               `json:"total"`
+}
+
+// ComputeInstanceUpdateRequest defines model for ComputeInstanceUpdateRequest.
+type ComputeInstanceUpdateRequest struct {
+	Config      *map[string]string            `json:"config,omitempty"`
+	Description *string                       `json:"description,omitempty"`
+	Devices     *map[string]map[string]string `json:"devices,omitempty"`
+	Profiles    *[]string                     `json:"profiles,omitempty"`
+}
+
+// ComputeNetwork defines model for ComputeNetwork.
+type ComputeNetwork struct {
+	AclNames     *[]string          `json:"aclNames,omitempty"`
+	Config       *map[string]string `json:"config,omitempty"`
+	CreatedAt    *time.Time         `json:"createdAt,omitempty"`
+	Description  *string            `json:"description,omitempty"`
+	ForwardNames *[]string          `json:"forwardNames,omitempty"`
+	Id           openapi_types.UUID `json:"id"`
+	Name         string             `json:"name"`
+	Type         string             `json:"type"`
+	UpdatedAt    *time.Time         `json:"updatedAt,omitempty"`
+}
+
+// ComputeNetworkCreateRequest defines model for ComputeNetworkCreateRequest.
+type ComputeNetworkCreateRequest struct {
+	Config      *map[string]string `json:"config,omitempty"`
+	Description *string            `json:"description,omitempty"`
+	Name        string             `json:"name"`
+	Type        *string            `json:"type,omitempty"`
+}
+
+// ComputeNetworkPage defines model for ComputeNetworkPage.
+type ComputeNetworkPage struct {
+	Items  []ComputeNetwork `json:"items"`
+	Limit  int              `json:"limit"`
+	Offset int              `json:"offset"`
+	Total  int              `json:"total"`
+}
+
+// ComputeProfile defines model for ComputeProfile.
+type ComputeProfile struct {
+	Config      *map[string]string            `json:"config,omitempty"`
+	CreatedAt   *time.Time                    `json:"createdAt,omitempty"`
+	Description *string                       `json:"description,omitempty"`
+	Devices     *map[string]map[string]string `json:"devices,omitempty"`
+	Id          openapi_types.UUID            `json:"id"`
+	Name        string                        `json:"name"`
+	UpdatedAt   *time.Time                    `json:"updatedAt,omitempty"`
+}
+
+// ComputeProfileCreateRequest defines model for ComputeProfileCreateRequest.
+type ComputeProfileCreateRequest struct {
+	Config      *map[string]string            `json:"config,omitempty"`
+	Description *string                       `json:"description,omitempty"`
+	Devices     *map[string]map[string]string `json:"devices,omitempty"`
+	Name        string                        `json:"name"`
+}
+
+// ComputeProfilePage defines model for ComputeProfilePage.
+type ComputeProfilePage struct {
+	Items  []ComputeProfile `json:"items"`
+	Limit  int              `json:"limit"`
+	Offset int              `json:"offset"`
+	Total  int              `json:"total"`
+}
+
+// ComputeStorageVolume defines model for ComputeStorageVolume.
+type ComputeStorageVolume struct {
+	Config      *map[string]string `json:"config,omitempty"`
+	CreatedAt   *time.Time         `json:"createdAt,omitempty"`
+	Description *string            `json:"description,omitempty"`
+	Id          openapi_types.UUID `json:"id"`
+	Name        string             `json:"name"`
+	PoolName    string             `json:"poolName"`
+	Type        *string            `json:"type,omitempty"`
+	UpdatedAt   *time.Time         `json:"updatedAt,omitempty"`
+}
+
+// ComputeStorageVolumeCreateRequest defines model for ComputeStorageVolumeCreateRequest.
+type ComputeStorageVolumeCreateRequest struct {
+	Config      *map[string]string `json:"config,omitempty"`
+	Description *string            `json:"description,omitempty"`
+	Name        string             `json:"name"`
+	PoolName    *string            `json:"poolName,omitempty"`
+}
+
+// ComputeStorageVolumePage defines model for ComputeStorageVolumePage.
+type ComputeStorageVolumePage struct {
+	Items  []ComputeStorageVolume `json:"items"`
+	Limit  int                    `json:"limit"`
+	Offset int                    `json:"offset"`
+	Total  int                    `json:"total"`
 }
 
 // CreatePersonalAccessTokenRequest defines model for CreatePersonalAccessTokenRequest.
@@ -814,6 +1058,66 @@ type AssertionConsumerServiceSAMLFormdataBody struct {
 	SAMLResponse string `form:"SAMLResponse" json:"SAMLResponse"`
 }
 
+// ListComputeImagesParams defines parameters for ListComputeImages.
+type ListComputeImagesParams struct {
+	// Limit Maximum number of items to return (1..200).
+	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of items to skip for pagination.
+	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// ListComputeInstancesParams defines parameters for ListComputeInstances.
+type ListComputeInstancesParams struct {
+	// Limit Maximum number of items to return (1..200).
+	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of items to skip for pagination.
+	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// DeleteComputeInstanceParams defines parameters for DeleteComputeInstance.
+type DeleteComputeInstanceParams struct {
+	// Force Skip the graceful shutdown and force-delete.
+	Force *bool `form:"force,omitempty" json:"force,omitempty"`
+}
+
+// SetComputeInstanceStateParams defines parameters for SetComputeInstanceState.
+type SetComputeInstanceStateParams struct {
+	// Force Force the action (skip graceful shutdown for stop).
+	Force *bool `form:"force,omitempty" json:"force,omitempty"`
+
+	// Timeout Action timeout in seconds.
+	Timeout *int `form:"timeout,omitempty" json:"timeout,omitempty"`
+}
+
+// ListComputeNetworksParams defines parameters for ListComputeNetworks.
+type ListComputeNetworksParams struct {
+	// Limit Maximum number of items to return (1..200).
+	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of items to skip for pagination.
+	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// ListComputeProfilesParams defines parameters for ListComputeProfiles.
+type ListComputeProfilesParams struct {
+	// Limit Maximum number of items to return (1..200).
+	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of items to skip for pagination.
+	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// ListComputeStorageVolumesParams defines parameters for ListComputeStorageVolumes.
+type ListComputeStorageVolumesParams struct {
+	// Limit Maximum number of items to return (1..200).
+	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of items to skip for pagination.
+	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
 // UploadAdminPluginMultipartRequestBody defines body for UploadAdminPlugin for multipart/form-data ContentType.
 type UploadAdminPluginMultipartRequestBody UploadAdminPluginMultipartBody
 
@@ -852,6 +1156,27 @@ type AssertionConsumerServiceSAMLFormdataRequestBody AssertionConsumerServiceSAM
 
 // VerifyEmailJSONRequestBody defines body for VerifyEmail for application/json ContentType.
 type VerifyEmailJSONRequestBody = TokenRequest
+
+// UploadComputeImageJSONRequestBody defines body for UploadComputeImage for application/json ContentType.
+type UploadComputeImageJSONRequestBody = ComputeImageUploadRequest
+
+// CreateComputeInstanceJSONRequestBody defines body for CreateComputeInstance for application/json ContentType.
+type CreateComputeInstanceJSONRequestBody = ComputeInstanceCreateRequest
+
+// UpdateComputeInstanceJSONRequestBody defines body for UpdateComputeInstance for application/json ContentType.
+type UpdateComputeInstanceJSONRequestBody = ComputeInstanceUpdateRequest
+
+// ExecComputeInstanceJSONRequestBody defines body for ExecComputeInstance for application/json ContentType.
+type ExecComputeInstanceJSONRequestBody = ComputeExecRequest
+
+// CreateComputeNetworkJSONRequestBody defines body for CreateComputeNetwork for application/json ContentType.
+type CreateComputeNetworkJSONRequestBody = ComputeNetworkCreateRequest
+
+// CreateComputeProfileJSONRequestBody defines body for CreateComputeProfile for application/json ContentType.
+type CreateComputeProfileJSONRequestBody = ComputeProfileCreateRequest
+
+// CreateComputeStorageVolumeJSONRequestBody defines body for CreateComputeStorageVolume for application/json ContentType.
+type CreateComputeStorageVolumeJSONRequestBody = ComputeStorageVolumeCreateRequest
 
 // DisableTOTPJSONRequestBody defines body for DisableTOTP for application/json ContentType.
 type DisableTOTPJSONRequestBody = MFADisableRequest
@@ -1084,6 +1409,89 @@ type ClientInterface interface {
 	VerifyEmailWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	VerifyEmail(ctx context.Context, body VerifyEmailJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListComputeImages request
+	ListComputeImages(ctx context.Context, params *ListComputeImagesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UploadComputeImageWithBody request with any body
+	UploadComputeImageWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UploadComputeImage(ctx context.Context, body UploadComputeImageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteComputeImage request
+	DeleteComputeImage(ctx context.Context, imageId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetComputeImage request
+	GetComputeImage(ctx context.Context, imageId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListComputeInstances request
+	ListComputeInstances(ctx context.Context, params *ListComputeInstancesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateComputeInstanceWithBody request with any body
+	CreateComputeInstanceWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateComputeInstance(ctx context.Context, body CreateComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteComputeInstance request
+	DeleteComputeInstance(ctx context.Context, instanceId openapi_types.UUID, params *DeleteComputeInstanceParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetComputeInstance request
+	GetComputeInstance(ctx context.Context, instanceId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateComputeInstanceWithBody request with any body
+	UpdateComputeInstanceWithBody(ctx context.Context, instanceId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateComputeInstance(ctx context.Context, instanceId openapi_types.UUID, body UpdateComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ExecComputeInstanceWithBody request with any body
+	ExecComputeInstanceWithBody(ctx context.Context, instanceId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	ExecComputeInstance(ctx context.Context, instanceId openapi_types.UUID, body ExecComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetComputeInstanceState request
+	SetComputeInstanceState(ctx context.Context, instanceId openapi_types.UUID, action string, params *SetComputeInstanceStateParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListComputeNetworks request
+	ListComputeNetworks(ctx context.Context, params *ListComputeNetworksParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateComputeNetworkWithBody request with any body
+	CreateComputeNetworkWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateComputeNetwork(ctx context.Context, body CreateComputeNetworkJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteComputeNetwork request
+	DeleteComputeNetwork(ctx context.Context, networkId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetComputeNetwork request
+	GetComputeNetwork(ctx context.Context, networkId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListComputeProfiles request
+	ListComputeProfiles(ctx context.Context, params *ListComputeProfilesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateComputeProfileWithBody request with any body
+	CreateComputeProfileWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateComputeProfile(ctx context.Context, body CreateComputeProfileJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteComputeProfile request
+	DeleteComputeProfile(ctx context.Context, profileId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetComputeProfile request
+	GetComputeProfile(ctx context.Context, profileId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListComputeStorageVolumes request
+	ListComputeStorageVolumes(ctx context.Context, params *ListComputeStorageVolumesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateComputeStorageVolumeWithBody request with any body
+	CreateComputeStorageVolumeWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateComputeStorageVolume(ctx context.Context, body CreateComputeStorageVolumeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteComputeStorageVolume request
+	DeleteComputeStorageVolume(ctx context.Context, volumeId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetComputeStorageVolume request
+	GetComputeStorageVolume(ctx context.Context, volumeId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListMyIdentities request
 	ListMyIdentities(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -1742,6 +2150,366 @@ func (c *Client) VerifyEmailWithBody(ctx context.Context, contentType string, bo
 
 func (c *Client) VerifyEmail(ctx context.Context, body VerifyEmailJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewVerifyEmailRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListComputeImages(ctx context.Context, params *ListComputeImagesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListComputeImagesRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UploadComputeImageWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUploadComputeImageRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UploadComputeImage(ctx context.Context, body UploadComputeImageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUploadComputeImageRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteComputeImage(ctx context.Context, imageId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteComputeImageRequest(c.Server, imageId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetComputeImage(ctx context.Context, imageId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetComputeImageRequest(c.Server, imageId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListComputeInstances(ctx context.Context, params *ListComputeInstancesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListComputeInstancesRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateComputeInstanceWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateComputeInstanceRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateComputeInstance(ctx context.Context, body CreateComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateComputeInstanceRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteComputeInstance(ctx context.Context, instanceId openapi_types.UUID, params *DeleteComputeInstanceParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteComputeInstanceRequest(c.Server, instanceId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetComputeInstance(ctx context.Context, instanceId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetComputeInstanceRequest(c.Server, instanceId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateComputeInstanceWithBody(ctx context.Context, instanceId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateComputeInstanceRequestWithBody(c.Server, instanceId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateComputeInstance(ctx context.Context, instanceId openapi_types.UUID, body UpdateComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateComputeInstanceRequest(c.Server, instanceId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ExecComputeInstanceWithBody(ctx context.Context, instanceId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewExecComputeInstanceRequestWithBody(c.Server, instanceId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ExecComputeInstance(ctx context.Context, instanceId openapi_types.UUID, body ExecComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewExecComputeInstanceRequest(c.Server, instanceId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) SetComputeInstanceState(ctx context.Context, instanceId openapi_types.UUID, action string, params *SetComputeInstanceStateParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetComputeInstanceStateRequest(c.Server, instanceId, action, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListComputeNetworks(ctx context.Context, params *ListComputeNetworksParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListComputeNetworksRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateComputeNetworkWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateComputeNetworkRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateComputeNetwork(ctx context.Context, body CreateComputeNetworkJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateComputeNetworkRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteComputeNetwork(ctx context.Context, networkId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteComputeNetworkRequest(c.Server, networkId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetComputeNetwork(ctx context.Context, networkId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetComputeNetworkRequest(c.Server, networkId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListComputeProfiles(ctx context.Context, params *ListComputeProfilesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListComputeProfilesRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateComputeProfileWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateComputeProfileRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateComputeProfile(ctx context.Context, body CreateComputeProfileJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateComputeProfileRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteComputeProfile(ctx context.Context, profileId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteComputeProfileRequest(c.Server, profileId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetComputeProfile(ctx context.Context, profileId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetComputeProfileRequest(c.Server, profileId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListComputeStorageVolumes(ctx context.Context, params *ListComputeStorageVolumesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListComputeStorageVolumesRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateComputeStorageVolumeWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateComputeStorageVolumeRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateComputeStorageVolume(ctx context.Context, body CreateComputeStorageVolumeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateComputeStorageVolumeRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteComputeStorageVolume(ctx context.Context, volumeId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteComputeStorageVolumeRequest(c.Server, volumeId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetComputeStorageVolume(ctx context.Context, volumeId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetComputeStorageVolumeRequest(c.Server, volumeId)
 	if err != nil {
 		return nil, err
 	}
@@ -3818,6 +4586,1066 @@ func NewVerifyEmailRequestWithBody(server string, contentType string, body io.Re
 	return req, nil
 }
 
+// NewListComputeImagesRequest generates requests for ListComputeImages
+func NewListComputeImagesRequest(server string, params *ListComputeImagesParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/images")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUploadComputeImageRequest calls the generic UploadComputeImage builder with application/json body
+func NewUploadComputeImageRequest(server string, body UploadComputeImageJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUploadComputeImageRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewUploadComputeImageRequestWithBody generates requests for UploadComputeImage with any type of body
+func NewUploadComputeImageRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/images")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteComputeImageRequest generates requests for DeleteComputeImage
+func NewDeleteComputeImageRequest(server string, imageId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "imageId", runtime.ParamLocationPath, imageId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/images/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetComputeImageRequest generates requests for GetComputeImage
+func NewGetComputeImageRequest(server string, imageId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "imageId", runtime.ParamLocationPath, imageId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/images/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListComputeInstancesRequest generates requests for ListComputeInstances
+func NewListComputeInstancesRequest(server string, params *ListComputeInstancesParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/instances")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateComputeInstanceRequest calls the generic CreateComputeInstance builder with application/json body
+func NewCreateComputeInstanceRequest(server string, body CreateComputeInstanceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateComputeInstanceRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateComputeInstanceRequestWithBody generates requests for CreateComputeInstance with any type of body
+func NewCreateComputeInstanceRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/instances")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteComputeInstanceRequest generates requests for DeleteComputeInstance
+func NewDeleteComputeInstanceRequest(server string, instanceId openapi_types.UUID, params *DeleteComputeInstanceParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "instanceId", runtime.ParamLocationPath, instanceId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/instances/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Force != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "force", runtime.ParamLocationQuery, *params.Force); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetComputeInstanceRequest generates requests for GetComputeInstance
+func NewGetComputeInstanceRequest(server string, instanceId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "instanceId", runtime.ParamLocationPath, instanceId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/instances/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateComputeInstanceRequest calls the generic UpdateComputeInstance builder with application/json body
+func NewUpdateComputeInstanceRequest(server string, instanceId openapi_types.UUID, body UpdateComputeInstanceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateComputeInstanceRequestWithBody(server, instanceId, "application/json", bodyReader)
+}
+
+// NewUpdateComputeInstanceRequestWithBody generates requests for UpdateComputeInstance with any type of body
+func NewUpdateComputeInstanceRequestWithBody(server string, instanceId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "instanceId", runtime.ParamLocationPath, instanceId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/instances/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewExecComputeInstanceRequest calls the generic ExecComputeInstance builder with application/json body
+func NewExecComputeInstanceRequest(server string, instanceId openapi_types.UUID, body ExecComputeInstanceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewExecComputeInstanceRequestWithBody(server, instanceId, "application/json", bodyReader)
+}
+
+// NewExecComputeInstanceRequestWithBody generates requests for ExecComputeInstance with any type of body
+func NewExecComputeInstanceRequestWithBody(server string, instanceId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "instanceId", runtime.ParamLocationPath, instanceId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/instances/%s/exec", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewSetComputeInstanceStateRequest generates requests for SetComputeInstanceState
+func NewSetComputeInstanceStateRequest(server string, instanceId openapi_types.UUID, action string, params *SetComputeInstanceStateParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "instanceId", runtime.ParamLocationPath, instanceId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "action", runtime.ParamLocationPath, action)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/instances/%s/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Force != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "force", runtime.ParamLocationQuery, *params.Force); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Timeout != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "timeout", runtime.ParamLocationQuery, *params.Timeout); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListComputeNetworksRequest generates requests for ListComputeNetworks
+func NewListComputeNetworksRequest(server string, params *ListComputeNetworksParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/networks")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateComputeNetworkRequest calls the generic CreateComputeNetwork builder with application/json body
+func NewCreateComputeNetworkRequest(server string, body CreateComputeNetworkJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateComputeNetworkRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateComputeNetworkRequestWithBody generates requests for CreateComputeNetwork with any type of body
+func NewCreateComputeNetworkRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/networks")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteComputeNetworkRequest generates requests for DeleteComputeNetwork
+func NewDeleteComputeNetworkRequest(server string, networkId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "networkId", runtime.ParamLocationPath, networkId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/networks/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetComputeNetworkRequest generates requests for GetComputeNetwork
+func NewGetComputeNetworkRequest(server string, networkId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "networkId", runtime.ParamLocationPath, networkId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/networks/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListComputeProfilesRequest generates requests for ListComputeProfiles
+func NewListComputeProfilesRequest(server string, params *ListComputeProfilesParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/profiles")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateComputeProfileRequest calls the generic CreateComputeProfile builder with application/json body
+func NewCreateComputeProfileRequest(server string, body CreateComputeProfileJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateComputeProfileRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateComputeProfileRequestWithBody generates requests for CreateComputeProfile with any type of body
+func NewCreateComputeProfileRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/profiles")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteComputeProfileRequest generates requests for DeleteComputeProfile
+func NewDeleteComputeProfileRequest(server string, profileId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "profileId", runtime.ParamLocationPath, profileId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/profiles/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetComputeProfileRequest generates requests for GetComputeProfile
+func NewGetComputeProfileRequest(server string, profileId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "profileId", runtime.ParamLocationPath, profileId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/profiles/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListComputeStorageVolumesRequest generates requests for ListComputeStorageVolumes
+func NewListComputeStorageVolumesRequest(server string, params *ListComputeStorageVolumesParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/storage")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateComputeStorageVolumeRequest calls the generic CreateComputeStorageVolume builder with application/json body
+func NewCreateComputeStorageVolumeRequest(server string, body CreateComputeStorageVolumeJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateComputeStorageVolumeRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateComputeStorageVolumeRequestWithBody generates requests for CreateComputeStorageVolume with any type of body
+func NewCreateComputeStorageVolumeRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/storage")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteComputeStorageVolumeRequest generates requests for DeleteComputeStorageVolume
+func NewDeleteComputeStorageVolumeRequest(server string, volumeId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "volumeId", runtime.ParamLocationPath, volumeId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/storage/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetComputeStorageVolumeRequest generates requests for GetComputeStorageVolume
+func NewGetComputeStorageVolumeRequest(server string, volumeId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "volumeId", runtime.ParamLocationPath, volumeId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/storage/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListMyIdentitiesRequest generates requests for ListMyIdentities
 func NewListMyIdentitiesRequest(server string) (*http.Request, error) {
 	var err error
@@ -4471,6 +6299,89 @@ type ClientWithResponsesInterface interface {
 	VerifyEmailWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*VerifyEmailResponse, error)
 
 	VerifyEmailWithResponse(ctx context.Context, body VerifyEmailJSONRequestBody, reqEditors ...RequestEditorFn) (*VerifyEmailResponse, error)
+
+	// ListComputeImagesWithResponse request
+	ListComputeImagesWithResponse(ctx context.Context, params *ListComputeImagesParams, reqEditors ...RequestEditorFn) (*ListComputeImagesResponse, error)
+
+	// UploadComputeImageWithBodyWithResponse request with any body
+	UploadComputeImageWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UploadComputeImageResponse, error)
+
+	UploadComputeImageWithResponse(ctx context.Context, body UploadComputeImageJSONRequestBody, reqEditors ...RequestEditorFn) (*UploadComputeImageResponse, error)
+
+	// DeleteComputeImageWithResponse request
+	DeleteComputeImageWithResponse(ctx context.Context, imageId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteComputeImageResponse, error)
+
+	// GetComputeImageWithResponse request
+	GetComputeImageWithResponse(ctx context.Context, imageId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeImageResponse, error)
+
+	// ListComputeInstancesWithResponse request
+	ListComputeInstancesWithResponse(ctx context.Context, params *ListComputeInstancesParams, reqEditors ...RequestEditorFn) (*ListComputeInstancesResponse, error)
+
+	// CreateComputeInstanceWithBodyWithResponse request with any body
+	CreateComputeInstanceWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateComputeInstanceResponse, error)
+
+	CreateComputeInstanceWithResponse(ctx context.Context, body CreateComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateComputeInstanceResponse, error)
+
+	// DeleteComputeInstanceWithResponse request
+	DeleteComputeInstanceWithResponse(ctx context.Context, instanceId openapi_types.UUID, params *DeleteComputeInstanceParams, reqEditors ...RequestEditorFn) (*DeleteComputeInstanceResponse, error)
+
+	// GetComputeInstanceWithResponse request
+	GetComputeInstanceWithResponse(ctx context.Context, instanceId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeInstanceResponse, error)
+
+	// UpdateComputeInstanceWithBodyWithResponse request with any body
+	UpdateComputeInstanceWithBodyWithResponse(ctx context.Context, instanceId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateComputeInstanceResponse, error)
+
+	UpdateComputeInstanceWithResponse(ctx context.Context, instanceId openapi_types.UUID, body UpdateComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateComputeInstanceResponse, error)
+
+	// ExecComputeInstanceWithBodyWithResponse request with any body
+	ExecComputeInstanceWithBodyWithResponse(ctx context.Context, instanceId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ExecComputeInstanceResponse, error)
+
+	ExecComputeInstanceWithResponse(ctx context.Context, instanceId openapi_types.UUID, body ExecComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*ExecComputeInstanceResponse, error)
+
+	// SetComputeInstanceStateWithResponse request
+	SetComputeInstanceStateWithResponse(ctx context.Context, instanceId openapi_types.UUID, action string, params *SetComputeInstanceStateParams, reqEditors ...RequestEditorFn) (*SetComputeInstanceStateResponse, error)
+
+	// ListComputeNetworksWithResponse request
+	ListComputeNetworksWithResponse(ctx context.Context, params *ListComputeNetworksParams, reqEditors ...RequestEditorFn) (*ListComputeNetworksResponse, error)
+
+	// CreateComputeNetworkWithBodyWithResponse request with any body
+	CreateComputeNetworkWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateComputeNetworkResponse, error)
+
+	CreateComputeNetworkWithResponse(ctx context.Context, body CreateComputeNetworkJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateComputeNetworkResponse, error)
+
+	// DeleteComputeNetworkWithResponse request
+	DeleteComputeNetworkWithResponse(ctx context.Context, networkId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteComputeNetworkResponse, error)
+
+	// GetComputeNetworkWithResponse request
+	GetComputeNetworkWithResponse(ctx context.Context, networkId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeNetworkResponse, error)
+
+	// ListComputeProfilesWithResponse request
+	ListComputeProfilesWithResponse(ctx context.Context, params *ListComputeProfilesParams, reqEditors ...RequestEditorFn) (*ListComputeProfilesResponse, error)
+
+	// CreateComputeProfileWithBodyWithResponse request with any body
+	CreateComputeProfileWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateComputeProfileResponse, error)
+
+	CreateComputeProfileWithResponse(ctx context.Context, body CreateComputeProfileJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateComputeProfileResponse, error)
+
+	// DeleteComputeProfileWithResponse request
+	DeleteComputeProfileWithResponse(ctx context.Context, profileId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteComputeProfileResponse, error)
+
+	// GetComputeProfileWithResponse request
+	GetComputeProfileWithResponse(ctx context.Context, profileId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeProfileResponse, error)
+
+	// ListComputeStorageVolumesWithResponse request
+	ListComputeStorageVolumesWithResponse(ctx context.Context, params *ListComputeStorageVolumesParams, reqEditors ...RequestEditorFn) (*ListComputeStorageVolumesResponse, error)
+
+	// CreateComputeStorageVolumeWithBodyWithResponse request with any body
+	CreateComputeStorageVolumeWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateComputeStorageVolumeResponse, error)
+
+	CreateComputeStorageVolumeWithResponse(ctx context.Context, body CreateComputeStorageVolumeJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateComputeStorageVolumeResponse, error)
+
+	// DeleteComputeStorageVolumeWithResponse request
+	DeleteComputeStorageVolumeWithResponse(ctx context.Context, volumeId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteComputeStorageVolumeResponse, error)
+
+	// GetComputeStorageVolumeWithResponse request
+	GetComputeStorageVolumeWithResponse(ctx context.Context, volumeId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeStorageVolumeResponse, error)
 
 	// ListMyIdentitiesWithResponse request
 	ListMyIdentitiesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListMyIdentitiesResponse, error)
@@ -5473,6 +7384,584 @@ func (r VerifyEmailResponse) StatusCode() int {
 	return 0
 }
 
+type ListComputeImagesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeImagePage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+}
+
+// Status returns HTTPResponse.Status
+func (r ListComputeImagesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListComputeImagesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UploadComputeImageResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *ComputeImage
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON409      *Conflict
+}
+
+// Status returns HTTPResponse.Status
+func (r UploadComputeImageResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UploadComputeImageResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteComputeImageResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteComputeImageResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteComputeImageResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetComputeImageResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeImage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r GetComputeImageResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetComputeImageResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListComputeInstancesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeInstancePage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+}
+
+// Status returns HTTPResponse.Status
+func (r ListComputeInstancesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListComputeInstancesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateComputeInstanceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *ComputeInstance
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON402      *Error
+	JSON403      *Forbidden
+	JSON409      *Conflict
+	JSON422      *Error
+	JSON501      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateComputeInstanceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateComputeInstanceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteComputeInstanceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteComputeInstanceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteComputeInstanceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetComputeInstanceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeInstance
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r GetComputeInstanceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetComputeInstanceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpdateComputeInstanceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeInstance
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateComputeInstanceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateComputeInstanceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ExecComputeInstanceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeExecResult
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON409      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r ExecComputeInstanceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ExecComputeInstanceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type SetComputeInstanceStateResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeInstance
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON409      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r SetComputeInstanceStateResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetComputeInstanceStateResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListComputeNetworksResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeNetworkPage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+}
+
+// Status returns HTTPResponse.Status
+func (r ListComputeNetworksResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListComputeNetworksResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateComputeNetworkResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *ComputeNetwork
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON409      *Conflict
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateComputeNetworkResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateComputeNetworkResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteComputeNetworkResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteComputeNetworkResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteComputeNetworkResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetComputeNetworkResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeNetwork
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r GetComputeNetworkResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetComputeNetworkResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListComputeProfilesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeProfilePage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+}
+
+// Status returns HTTPResponse.Status
+func (r ListComputeProfilesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListComputeProfilesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateComputeProfileResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *ComputeProfile
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON409      *Conflict
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateComputeProfileResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateComputeProfileResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteComputeProfileResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteComputeProfileResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteComputeProfileResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetComputeProfileResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeProfile
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r GetComputeProfileResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetComputeProfileResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListComputeStorageVolumesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeStorageVolumePage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+}
+
+// Status returns HTTPResponse.Status
+func (r ListComputeStorageVolumesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListComputeStorageVolumesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateComputeStorageVolumeResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *ComputeStorageVolume
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON409      *Conflict
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateComputeStorageVolumeResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateComputeStorageVolumeResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteComputeStorageVolumeResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteComputeStorageVolumeResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteComputeStorageVolumeResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetComputeStorageVolumeResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeStorageVolume
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r GetComputeStorageVolumeResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetComputeStorageVolumeResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type ListMyIdentitiesResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -6247,6 +8736,269 @@ func (c *ClientWithResponses) VerifyEmailWithResponse(ctx context.Context, body 
 		return nil, err
 	}
 	return ParseVerifyEmailResponse(rsp)
+}
+
+// ListComputeImagesWithResponse request returning *ListComputeImagesResponse
+func (c *ClientWithResponses) ListComputeImagesWithResponse(ctx context.Context, params *ListComputeImagesParams, reqEditors ...RequestEditorFn) (*ListComputeImagesResponse, error) {
+	rsp, err := c.ListComputeImages(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListComputeImagesResponse(rsp)
+}
+
+// UploadComputeImageWithBodyWithResponse request with arbitrary body returning *UploadComputeImageResponse
+func (c *ClientWithResponses) UploadComputeImageWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UploadComputeImageResponse, error) {
+	rsp, err := c.UploadComputeImageWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUploadComputeImageResponse(rsp)
+}
+
+func (c *ClientWithResponses) UploadComputeImageWithResponse(ctx context.Context, body UploadComputeImageJSONRequestBody, reqEditors ...RequestEditorFn) (*UploadComputeImageResponse, error) {
+	rsp, err := c.UploadComputeImage(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUploadComputeImageResponse(rsp)
+}
+
+// DeleteComputeImageWithResponse request returning *DeleteComputeImageResponse
+func (c *ClientWithResponses) DeleteComputeImageWithResponse(ctx context.Context, imageId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteComputeImageResponse, error) {
+	rsp, err := c.DeleteComputeImage(ctx, imageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteComputeImageResponse(rsp)
+}
+
+// GetComputeImageWithResponse request returning *GetComputeImageResponse
+func (c *ClientWithResponses) GetComputeImageWithResponse(ctx context.Context, imageId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeImageResponse, error) {
+	rsp, err := c.GetComputeImage(ctx, imageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetComputeImageResponse(rsp)
+}
+
+// ListComputeInstancesWithResponse request returning *ListComputeInstancesResponse
+func (c *ClientWithResponses) ListComputeInstancesWithResponse(ctx context.Context, params *ListComputeInstancesParams, reqEditors ...RequestEditorFn) (*ListComputeInstancesResponse, error) {
+	rsp, err := c.ListComputeInstances(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListComputeInstancesResponse(rsp)
+}
+
+// CreateComputeInstanceWithBodyWithResponse request with arbitrary body returning *CreateComputeInstanceResponse
+func (c *ClientWithResponses) CreateComputeInstanceWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateComputeInstanceResponse, error) {
+	rsp, err := c.CreateComputeInstanceWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateComputeInstanceResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateComputeInstanceWithResponse(ctx context.Context, body CreateComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateComputeInstanceResponse, error) {
+	rsp, err := c.CreateComputeInstance(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateComputeInstanceResponse(rsp)
+}
+
+// DeleteComputeInstanceWithResponse request returning *DeleteComputeInstanceResponse
+func (c *ClientWithResponses) DeleteComputeInstanceWithResponse(ctx context.Context, instanceId openapi_types.UUID, params *DeleteComputeInstanceParams, reqEditors ...RequestEditorFn) (*DeleteComputeInstanceResponse, error) {
+	rsp, err := c.DeleteComputeInstance(ctx, instanceId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteComputeInstanceResponse(rsp)
+}
+
+// GetComputeInstanceWithResponse request returning *GetComputeInstanceResponse
+func (c *ClientWithResponses) GetComputeInstanceWithResponse(ctx context.Context, instanceId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeInstanceResponse, error) {
+	rsp, err := c.GetComputeInstance(ctx, instanceId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetComputeInstanceResponse(rsp)
+}
+
+// UpdateComputeInstanceWithBodyWithResponse request with arbitrary body returning *UpdateComputeInstanceResponse
+func (c *ClientWithResponses) UpdateComputeInstanceWithBodyWithResponse(ctx context.Context, instanceId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateComputeInstanceResponse, error) {
+	rsp, err := c.UpdateComputeInstanceWithBody(ctx, instanceId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateComputeInstanceResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpdateComputeInstanceWithResponse(ctx context.Context, instanceId openapi_types.UUID, body UpdateComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateComputeInstanceResponse, error) {
+	rsp, err := c.UpdateComputeInstance(ctx, instanceId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateComputeInstanceResponse(rsp)
+}
+
+// ExecComputeInstanceWithBodyWithResponse request with arbitrary body returning *ExecComputeInstanceResponse
+func (c *ClientWithResponses) ExecComputeInstanceWithBodyWithResponse(ctx context.Context, instanceId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ExecComputeInstanceResponse, error) {
+	rsp, err := c.ExecComputeInstanceWithBody(ctx, instanceId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseExecComputeInstanceResponse(rsp)
+}
+
+func (c *ClientWithResponses) ExecComputeInstanceWithResponse(ctx context.Context, instanceId openapi_types.UUID, body ExecComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*ExecComputeInstanceResponse, error) {
+	rsp, err := c.ExecComputeInstance(ctx, instanceId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseExecComputeInstanceResponse(rsp)
+}
+
+// SetComputeInstanceStateWithResponse request returning *SetComputeInstanceStateResponse
+func (c *ClientWithResponses) SetComputeInstanceStateWithResponse(ctx context.Context, instanceId openapi_types.UUID, action string, params *SetComputeInstanceStateParams, reqEditors ...RequestEditorFn) (*SetComputeInstanceStateResponse, error) {
+	rsp, err := c.SetComputeInstanceState(ctx, instanceId, action, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetComputeInstanceStateResponse(rsp)
+}
+
+// ListComputeNetworksWithResponse request returning *ListComputeNetworksResponse
+func (c *ClientWithResponses) ListComputeNetworksWithResponse(ctx context.Context, params *ListComputeNetworksParams, reqEditors ...RequestEditorFn) (*ListComputeNetworksResponse, error) {
+	rsp, err := c.ListComputeNetworks(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListComputeNetworksResponse(rsp)
+}
+
+// CreateComputeNetworkWithBodyWithResponse request with arbitrary body returning *CreateComputeNetworkResponse
+func (c *ClientWithResponses) CreateComputeNetworkWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateComputeNetworkResponse, error) {
+	rsp, err := c.CreateComputeNetworkWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateComputeNetworkResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateComputeNetworkWithResponse(ctx context.Context, body CreateComputeNetworkJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateComputeNetworkResponse, error) {
+	rsp, err := c.CreateComputeNetwork(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateComputeNetworkResponse(rsp)
+}
+
+// DeleteComputeNetworkWithResponse request returning *DeleteComputeNetworkResponse
+func (c *ClientWithResponses) DeleteComputeNetworkWithResponse(ctx context.Context, networkId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteComputeNetworkResponse, error) {
+	rsp, err := c.DeleteComputeNetwork(ctx, networkId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteComputeNetworkResponse(rsp)
+}
+
+// GetComputeNetworkWithResponse request returning *GetComputeNetworkResponse
+func (c *ClientWithResponses) GetComputeNetworkWithResponse(ctx context.Context, networkId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeNetworkResponse, error) {
+	rsp, err := c.GetComputeNetwork(ctx, networkId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetComputeNetworkResponse(rsp)
+}
+
+// ListComputeProfilesWithResponse request returning *ListComputeProfilesResponse
+func (c *ClientWithResponses) ListComputeProfilesWithResponse(ctx context.Context, params *ListComputeProfilesParams, reqEditors ...RequestEditorFn) (*ListComputeProfilesResponse, error) {
+	rsp, err := c.ListComputeProfiles(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListComputeProfilesResponse(rsp)
+}
+
+// CreateComputeProfileWithBodyWithResponse request with arbitrary body returning *CreateComputeProfileResponse
+func (c *ClientWithResponses) CreateComputeProfileWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateComputeProfileResponse, error) {
+	rsp, err := c.CreateComputeProfileWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateComputeProfileResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateComputeProfileWithResponse(ctx context.Context, body CreateComputeProfileJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateComputeProfileResponse, error) {
+	rsp, err := c.CreateComputeProfile(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateComputeProfileResponse(rsp)
+}
+
+// DeleteComputeProfileWithResponse request returning *DeleteComputeProfileResponse
+func (c *ClientWithResponses) DeleteComputeProfileWithResponse(ctx context.Context, profileId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteComputeProfileResponse, error) {
+	rsp, err := c.DeleteComputeProfile(ctx, profileId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteComputeProfileResponse(rsp)
+}
+
+// GetComputeProfileWithResponse request returning *GetComputeProfileResponse
+func (c *ClientWithResponses) GetComputeProfileWithResponse(ctx context.Context, profileId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeProfileResponse, error) {
+	rsp, err := c.GetComputeProfile(ctx, profileId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetComputeProfileResponse(rsp)
+}
+
+// ListComputeStorageVolumesWithResponse request returning *ListComputeStorageVolumesResponse
+func (c *ClientWithResponses) ListComputeStorageVolumesWithResponse(ctx context.Context, params *ListComputeStorageVolumesParams, reqEditors ...RequestEditorFn) (*ListComputeStorageVolumesResponse, error) {
+	rsp, err := c.ListComputeStorageVolumes(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListComputeStorageVolumesResponse(rsp)
+}
+
+// CreateComputeStorageVolumeWithBodyWithResponse request with arbitrary body returning *CreateComputeStorageVolumeResponse
+func (c *ClientWithResponses) CreateComputeStorageVolumeWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateComputeStorageVolumeResponse, error) {
+	rsp, err := c.CreateComputeStorageVolumeWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateComputeStorageVolumeResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateComputeStorageVolumeWithResponse(ctx context.Context, body CreateComputeStorageVolumeJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateComputeStorageVolumeResponse, error) {
+	rsp, err := c.CreateComputeStorageVolume(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateComputeStorageVolumeResponse(rsp)
+}
+
+// DeleteComputeStorageVolumeWithResponse request returning *DeleteComputeStorageVolumeResponse
+func (c *ClientWithResponses) DeleteComputeStorageVolumeWithResponse(ctx context.Context, volumeId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteComputeStorageVolumeResponse, error) {
+	rsp, err := c.DeleteComputeStorageVolume(ctx, volumeId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteComputeStorageVolumeResponse(rsp)
+}
+
+// GetComputeStorageVolumeWithResponse request returning *GetComputeStorageVolumeResponse
+func (c *ClientWithResponses) GetComputeStorageVolumeWithResponse(ctx context.Context, volumeId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeStorageVolumeResponse, error) {
+	rsp, err := c.GetComputeStorageVolume(ctx, volumeId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetComputeStorageVolumeResponse(rsp)
 }
 
 // ListMyIdentitiesWithResponse request returning *ListMyIdentitiesResponse
@@ -8050,6 +10802,1108 @@ func ParseVerifyEmailResponse(rsp *http.Response) (*VerifyEmailResponse, error) 
 			return nil, err
 		}
 		response.JSON400 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListComputeImagesResponse parses an HTTP response from a ListComputeImagesWithResponse call
+func ParseListComputeImagesResponse(rsp *http.Response) (*ListComputeImagesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListComputeImagesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeImagePage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUploadComputeImageResponse parses an HTTP response from a UploadComputeImageWithResponse call
+func ParseUploadComputeImageResponse(rsp *http.Response) (*UploadComputeImageResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UploadComputeImageResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ComputeImage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Conflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteComputeImageResponse parses an HTTP response from a DeleteComputeImageWithResponse call
+func ParseDeleteComputeImageResponse(rsp *http.Response) (*DeleteComputeImageResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteComputeImageResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetComputeImageResponse parses an HTTP response from a GetComputeImageWithResponse call
+func ParseGetComputeImageResponse(rsp *http.Response) (*GetComputeImageResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetComputeImageResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeImage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListComputeInstancesResponse parses an HTTP response from a ListComputeInstancesWithResponse call
+func ParseListComputeInstancesResponse(rsp *http.Response) (*ListComputeInstancesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListComputeInstancesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeInstancePage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateComputeInstanceResponse parses an HTTP response from a CreateComputeInstanceWithResponse call
+func ParseCreateComputeInstanceResponse(rsp *http.Response) (*CreateComputeInstanceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateComputeInstanceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ComputeInstance
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 402:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON402 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Conflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteComputeInstanceResponse parses an HTTP response from a DeleteComputeInstanceWithResponse call
+func ParseDeleteComputeInstanceResponse(rsp *http.Response) (*DeleteComputeInstanceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteComputeInstanceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetComputeInstanceResponse parses an HTTP response from a GetComputeInstanceWithResponse call
+func ParseGetComputeInstanceResponse(rsp *http.Response) (*GetComputeInstanceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetComputeInstanceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeInstance
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateComputeInstanceResponse parses an HTTP response from a UpdateComputeInstanceWithResponse call
+func ParseUpdateComputeInstanceResponse(rsp *http.Response) (*UpdateComputeInstanceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateComputeInstanceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeInstance
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseExecComputeInstanceResponse parses an HTTP response from a ExecComputeInstanceWithResponse call
+func ParseExecComputeInstanceResponse(rsp *http.Response) (*ExecComputeInstanceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ExecComputeInstanceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeExecResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetComputeInstanceStateResponse parses an HTTP response from a SetComputeInstanceStateWithResponse call
+func ParseSetComputeInstanceStateResponse(rsp *http.Response) (*SetComputeInstanceStateResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetComputeInstanceStateResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeInstance
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListComputeNetworksResponse parses an HTTP response from a ListComputeNetworksWithResponse call
+func ParseListComputeNetworksResponse(rsp *http.Response) (*ListComputeNetworksResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListComputeNetworksResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeNetworkPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateComputeNetworkResponse parses an HTTP response from a CreateComputeNetworkWithResponse call
+func ParseCreateComputeNetworkResponse(rsp *http.Response) (*CreateComputeNetworkResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateComputeNetworkResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ComputeNetwork
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Conflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteComputeNetworkResponse parses an HTTP response from a DeleteComputeNetworkWithResponse call
+func ParseDeleteComputeNetworkResponse(rsp *http.Response) (*DeleteComputeNetworkResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteComputeNetworkResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetComputeNetworkResponse parses an HTTP response from a GetComputeNetworkWithResponse call
+func ParseGetComputeNetworkResponse(rsp *http.Response) (*GetComputeNetworkResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetComputeNetworkResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeNetwork
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListComputeProfilesResponse parses an HTTP response from a ListComputeProfilesWithResponse call
+func ParseListComputeProfilesResponse(rsp *http.Response) (*ListComputeProfilesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListComputeProfilesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeProfilePage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateComputeProfileResponse parses an HTTP response from a CreateComputeProfileWithResponse call
+func ParseCreateComputeProfileResponse(rsp *http.Response) (*CreateComputeProfileResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateComputeProfileResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ComputeProfile
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Conflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteComputeProfileResponse parses an HTTP response from a DeleteComputeProfileWithResponse call
+func ParseDeleteComputeProfileResponse(rsp *http.Response) (*DeleteComputeProfileResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteComputeProfileResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetComputeProfileResponse parses an HTTP response from a GetComputeProfileWithResponse call
+func ParseGetComputeProfileResponse(rsp *http.Response) (*GetComputeProfileResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetComputeProfileResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeProfile
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListComputeStorageVolumesResponse parses an HTTP response from a ListComputeStorageVolumesWithResponse call
+func ParseListComputeStorageVolumesResponse(rsp *http.Response) (*ListComputeStorageVolumesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListComputeStorageVolumesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeStorageVolumePage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateComputeStorageVolumeResponse parses an HTTP response from a CreateComputeStorageVolumeWithResponse call
+func ParseCreateComputeStorageVolumeResponse(rsp *http.Response) (*CreateComputeStorageVolumeResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateComputeStorageVolumeResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ComputeStorageVolume
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Conflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteComputeStorageVolumeResponse parses an HTTP response from a DeleteComputeStorageVolumeWithResponse call
+func ParseDeleteComputeStorageVolumeResponse(rsp *http.Response) (*DeleteComputeStorageVolumeResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteComputeStorageVolumeResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetComputeStorageVolumeResponse parses an HTTP response from a GetComputeStorageVolumeWithResponse call
+func ParseGetComputeStorageVolumeResponse(rsp *http.Response) (*GetComputeStorageVolumeResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetComputeStorageVolumeResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeStorageVolume
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	}
 

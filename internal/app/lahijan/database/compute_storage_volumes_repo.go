@@ -16,10 +16,10 @@ import (
 // only manages "custom" volumes today; container / image / virtual-machine
 // volumes are derived from their owning instance / image.
 const (
-	VolumeTypeCustom          = "custom"
-	VolumeTypeContainer        = "container"
-	VolumeTypeImage            = "image"
-	VolumeTypeVirtualMachine  = "virtual-machine"
+	VolumeTypeCustom         = "custom"
+	VolumeTypeContainer      = "container"
+	VolumeTypeImage          = "image"
+	VolumeTypeVirtualMachine = "virtual-machine"
 )
 
 // ComputeStorageVolumesRepository is the persistence boundary for

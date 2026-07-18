@@ -107,6 +107,11 @@ func (s *Service) ListNetworks(
 	return s.repos.ComputeNetworks.List(ctx, limit, offset)
 }
 
+// CountNetworks returns the number of non-deleted networks in the tenant.
+func (s *Service) CountNetworks(ctx context.Context) (int64, error) {
+	return s.repos.ComputeNetworks.Count(ctx)
+}
+
 // DeleteNetwork soft-deletes the row + deletes the Incus network.
 func (s *Service) DeleteNetwork(
 	ctx context.Context,

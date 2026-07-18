@@ -206,6 +206,14 @@ func (c InstanceConfig) DiskGiB() int64 {
 	return parseToGiB(root["size"])
 }
 
+// ParseInstanceConfig decodes a compute_instances.config_json blob.
+// Returns a zero-value InstanceConfig (no error) on a nil/empty input —
+// the caller treats it as "use Incus defaults". Exported so the api layer
+// can decode the cached blob when rendering the DTO shape.
+func ParseInstanceConfig(raw json.RawMessage) (InstanceConfig, error) {
+	return parseInstanceConfig(raw)
+}
+
 // parseInstanceConfig decodes a compute_instances.config_json blob.
 // Returns a zero-value InstanceConfig (no error) on a nil/empty input —
 // the caller treats it as "use Incus defaults".
