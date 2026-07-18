@@ -183,7 +183,12 @@ func tokensFromOAuth2(t *oauth2.Token) Tokens {
 // per RFC 7636 §4.1. We use 32 random bytes (base64url-encoded to 43 chars)
 // — the minimum length — because the verifier is single-use and travels in a
 // short-lived cookie.
-func generateVerifier() (string, error) {
+func generateVerifier() (string, error) { return GenerateVerifier() }
+
+// GenerateVerifier mints a 43-char cryptographically-random code_verifier per
+// RFC 7636 §4.1. Exported so the OIDC package can share the same PKCE shape
+// without duplicating the encoder.
+func GenerateVerifier() (string, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
 		return "", err
