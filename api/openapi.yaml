@@ -556,6 +556,121 @@ paths:
             Location: { schema: { type: string } }
         "400": { $ref: "#/components/responses/BadRequest" }
 
+  # External identity providers (WS-07b): SAML 2.0 service-provider flow.
+  # -------------------------------------------------------------------------
+  # Three endpoints: the SP metadata (served at a well-known URL so the IdP
+  # can register us), the SP-initiated start (mints a signed AuthnRequest +
+  # redirects the browser to the IdP), and the Assertion Consumer Service
+  # (POST endpoint the IdP posts the signed assertion back to).
+
+  /api/v1/auth/saml/metadata:
+    get:
+      tags: [auth]
+      operationId: metadataSAML
+      summary: SAML service-provider metadata
+      description: |
+        Serves the SP metadata XML the IdP registers Lahijan under. The
+        metadata carries the SP's entity ID, the ACS URL (POST binding), and
+        the SP's signing certificate so the IdP can verify signed
+        AuthnRequests.
+
+        When no SAML provider is configured, returns a 501 with a localised
+        "feature disabled" envelope.
+      security: []
+      responses:
+        "200":
+          description: SP metadata XML.
+          content:
+            application/xml:
+              schema:
+                type: string
+        "501":
+          description: SAML is not enabled on this server.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/auth/saml/{provider}/start:
+    get:
+      tags: [auth]
+      operationId: startSAML
+      summary: Begin a SAML 2.0 service-provider flow
+      description: |
+        Mints a signed SAML AuthnRequest, sets a signed CSRF state token as a
+        short-lived cookie, and 302s the browser to the IdP's SSO endpoint
+        (HTTP-Redirect binding).
+
+        When called from an authenticated session (the user is linking a new
+        SAML IdP to their existing account) the response also sets a
+        lahijan_link_uid cookie carrying the user's id; the ACS enforces the
+        link against the user who started the flow.
+      security: []
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          description: The configured SAML provider key (e.g. entra, okta).
+          schema: { type: string }
+      responses:
+        "302":
+          description: Redirect to the IdP SSO URL.
+          headers:
+            Location:
+              description: The absolute IdP SSO URL carrying SAMLRequest + RelayState.
+              schema: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404":
+          description: The provider key is not configured or not enabled.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/auth/saml/{provider}/acs:
+    post:
+      tags: [auth]
+      operationId: assertionConsumerServiceSAML
+      summary: SAML Assertion Consumer Service
+      description: |
+        Consumes the IdP's POSTed SAML response (form fields SAMLResponse +
+        RelayState), verifies the state token against the cookie nonce,
+        verifies the signed assertion (signature via the IdP's published
+        certificate, audience, recipient, conditions, InResponseTo replay
+        check), and either:
+          - logs the user in (sets the session + refresh cookies), or
+          - links the SAML identity to the logged-in user (when
+            lahijan_link_uid is set), or
+          - returns a "completion required" envelope when the (provider,
+            name_id) is unknown and just-in-time user creation is disabled.
+
+        On success the browser is redirected to the dashboard root (`/`);
+        on failure it is redirected to the login page with an error query.
+      security: []
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [SAMLResponse]
+              properties:
+                SAMLResponse:
+                  type: string
+                  description: Base64-encoded SAML Response XML the IdP signed.
+                RelayState:
+                  type: string
+                  description: The relay state the SP emitted on /start (carries the CSRF token).
+      responses:
+        "302":
+          description: Redirect to the dashboard or login page.
+          headers:
+            Location: { schema: { type: string } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
   /api/v1/me/identities:
     get:
       tags: [auth]
@@ -1106,9 +1221,11 @@ components:
           type: string
           description: Localized human-readable confirmation.
 
-    # External identity (WS-07a): a link between a user and an OAuth/OIDC IdP.
-    # Tokens are NOT included; only the provider key, the IdP-stable subject,
-    # and the scopes the IdP granted at issue/refresh time.
+    # External identity (WS-07a + WS-07b): a link between a user and an
+    # OAuth/OIDC/SAML IdP. Tokens are NOT included; only the provider key,
+    # the IdP-stable subject, and the scopes the IdP granted at issue/refresh
+    # time. For SAML identities the scopes array is empty and the optional
+    # attributes map carries the snapshot from the most recent assertion.
     ExternalIdentity:
       type: object
       required: [id, provider, subject, scopes, createdAt]
@@ -1121,21 +1238,40 @@ components:
         provider:
           type: string
           description: |
-            The provider key: a configured OAuth preset (google, github) or
-            "oidc:<config_key>" for an OIDC IdP.
+            The provider key: a configured OAuth preset (google, github),
+            "oidc:<config_key>" for an OIDC IdP, or "saml:<config_key>" for
+            a SAML 2.0 IdP.
         subject:
           type: string
-          description: The IdP-stable subject identifier.
+          description: |
+            The IdP-stable subject identifier. For OAuth/OIDC this is the
+            `sub` claim; for SAML it is the NameID.
         scopes:
           type: array
-          description: Scope strings the IdP granted at issue/refresh time.
+          description: |
+            Scope strings the IdP granted at issue/refresh time. Empty for
+            SAML identities (SAML has no notion of scopes).
           items:
             type: string
+        attributes:
+          type: object
+          description: |
+            SAML-only: snapshot of the attribute statement from the most
+            recent assertion. Each key is a SAML attribute name (typically a
+            URI like http://schemas.xmlsoap.org/ws/2005/05/identity/claims/
+            emailaddress); each value is an array of strings (SAML attributes
+            are multi-valued). NULL/absent for OAuth/OIDC identities.
+          additionalProperties:
+            type: array
+            items:
+              type: string
         expiresAt:
           type: string
           format: date-time
           nullable: true
-          description: When the access_token expires; NULL when non-expiring.
+          description: |
+            When the access_token expires; NULL when non-expiring or for
+            SAML identities (SAML assertions are short-lived and not stored).
         createdAt:
           type: string
           format: date-time

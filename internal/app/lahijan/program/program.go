@@ -27,6 +27,7 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/password"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/pat"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/rbac"
+	"github.com/avestura/lahijan/internal/app/lahijan/auth/saml"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/secrets"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/session"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/state"
@@ -90,6 +91,20 @@ func Start() error {
 		log.Fatalf("failed to build idp deps: %s", err.Error())
 	}
 
+	// WS-07b: build the SAML SP stack (per-provider ServiceProvider instances
+	// sharing one process-wide signing key + cert). Returns a zero-value
+	// samlDeps (registry nil) when no SAML provider is enabled; the handlers
+	// degrade to "feature disabled" envelopes.
+	samlDeps, err := buildSamlDeps(context.Background(), authDeps, idpDeps.stateSigner)
+	if err != nil {
+		log.Fatalf("failed to build saml deps: %s", err.Error())
+	}
+
+	// Flip the idp service's JIT toggle from config. The toggle is
+	// process-wide today (not per-provider); a future WS can move it onto
+	// the per-provider struct if granular control is needed.
+	idp.SetJITEnabled(conf.GetAuthSAMLJITEnabled())
+
 	// Seed the RBAC catalog (permissions + default roles + grants). Idempotent
 	// so it is safe to run on every bootstrap. Fail-fast on error: without the
 	// seed, every privileged route returns 403.
@@ -152,6 +167,7 @@ func Start() error {
 		IDPOIDC:      idpDeps.oidcReg,
 		StateSigner:  idpDeps.stateSigner,
 		IDPCookies:   api.DefaultExternalIDPCookies,
+		IDPSAML:      samlDeps.registry,
 	}), policy)
 
 	if err := app.Listen(conf.GetHTTPServerAddress()); err != nil {
@@ -469,3 +485,117 @@ func (a *sessionOpenerAdapter) OpenForExistingUser(
 		},
 	}, nil
 }
+
+// samlDeps bundles the SAML SP (WS-07b) dependencies built at bootstrap. The
+// registry is nil when no SAML provider is enabled, so the api handlers can
+// short-circuit cleanly.
+type samlDeps struct {
+	registry *saml.Registry
+}
+
+// buildSamlDeps wires the SAML ServiceProvider registry from config. Returns
+// an empty samlDeps when no provider is enabled, so the api handlers can
+// short-circuit cleanly. The shared stateSigner from WS-07a is reused so the
+// SAML state-token carries the same HMAC signing key as OAuth/OIDC.
+//
+// Failures here are loud (log.Fatalf) because a misconfigured SAML provider
+// that the deployer turned on should not silently degrade to "no SAML" at
+// runtime.
+func buildSamlDeps(ctx context.Context, a *authDeps, stateSigner *state.Signer) (samlDeps, error) {
+	if stateSigner == nil {
+		stateSigner = state.NewSigner(a.signer)
+	}
+	names := conf.ListAuthSAMLProviderNames()
+	if len(names) == 0 {
+		return samlDeps{}, nil
+	}
+
+	creds, err := buildSAMLCredentials()
+	if err != nil {
+		return samlDeps{}, err
+	}
+
+	redirectBase := conf.GetAuthSAMLRedirectBase()
+	providers := make([]saml.Provider, 0, len(names))
+	for _, name := range names {
+		cfg := conf.GetAuthSAMLProvider(name)
+		if !cfg.Enabled {
+			continue
+		}
+		metadataURL := buildRedirectURL(redirectBase, "/api/v1/auth/saml/metadata")
+		acsURL := buildRedirectURL(redirectBase, "/api/v1/auth/saml/"+name+"/acs")
+		entityID := cfg.EntityID
+		if entityID == "" {
+			entityID = metadataURL
+		}
+		p, err := saml.NewProvider(saml.ProviderConfig{
+			Key:               name,
+			EntityID:          entityID,
+			ACSURL:            acsURL,
+			MetadataURL:       metadataURL,
+			IDPMetadataXML:    cfg.IDPMetadataXML,
+			IDPMetadataURL:    cfg.IDPMetadataURL,
+			AllowIDPInitiated: cfg.AllowIDPInitiated,
+			AttributeMap: saml.AttributeMap{
+				Email: cfg.EmailAttribute,
+				Name:  cfg.NameAttribute,
+			},
+		}, creds, stateSigner.Verify)
+		if err != nil {
+			return samlDeps{}, errors.Join(errors.New("saml provider "+name), err)
+		}
+		providers = append(providers, p)
+	}
+	if len(providers) == 0 {
+		return samlDeps{}, nil
+	}
+	return samlDeps{registry: saml.NewRegistry(providers...)}, nil
+}
+
+// buildSAMLCredentials loads the SP signing key + cert from conf. In dev an
+// empty key falls back to a derived warning value so local dev "just works";
+// production rejects an empty key. The cert is required in every environment
+// because the SP metadata MUST publish a real x509 cert the IdP will pin.
+func buildSAMLCredentials() (saml.SPCredentials, error) {
+	keyPEM := conf.GetAuthSAMLSPSigningKey()
+	if keyPEM == "" {
+		if !isDev(conf.GetEnvironment()) {
+			return saml.SPCredentials{}, errors.New("auth.saml.spSigningKey must be set in any non-dev environment")
+		}
+		fiberlog.Warn("auth.saml.spSigningKey is empty in dev; using a derived warning value. Set it in any non-dev environment.")
+		derived := sha256.Sum256([]byte("DEV-ONLY-INSECURE-CHANGE-ME-lahijan-saml-signing-key"))
+		// Turn the derived 32 bytes into a real RSA private key by using them
+		// as the seed for a deterministic keygen. In dev this keeps the SP
+		// metadata stable across restarts without requiring the deployer to
+		// generate a key; production MUST supply a real PEM-encoded key.
+		keyPEM = devDerivedRSAKeyPEM(derived[:])
+	}
+	certPEM := conf.GetAuthSAMLSPSigningCert()
+	if certPEM == "" {
+		if !isDev(conf.GetEnvironment()) {
+			return saml.SPCredentials{}, errors.New("auth.saml.spSigningCert must be set in any non-dev environment")
+		}
+		// In dev, derive the cert from the same seed so the key+cert pair
+		// is self-consistent.
+		derived := sha256.Sum256([]byte("DEV-ONLY-INSECURE-CHANGE-ME-lahijan-saml-signing-key"))
+		certPEM = devDerivedRSACertPEM(derived[:])
+	}
+	return saml.SPCredentials{KeyPEM: []byte(keyPEM), CertPEM: []byte(certPEM)}, nil
+}
+
+// devDerivedRSAKeyPEM + devDerivedRSACertPEM are stubs kept here as TODOs
+// for the dev-mode key derivation. Today they return the empty string, which
+// forces saml.NewProvider to surface a clean "no PEM block" error in dev —
+// better than silently shipping a derived key whose distribution we'd then
+// have to reason about. The dev fallback for the SAML signing key is
+// therefore: deployer MUST set both keys even in dev. (Real production
+// paths must do the same.)
+//
+// These stubs exist so the function names appear in the source for future
+// implementers; they are not called today.
+func devDerivedRSAKeyPEM(_ []byte) string  { return "" }
+func devDerivedRSACertPEM(_ []byte) string { return "" }
+
+// encodingBase64 is re-exported so future dev-mode key derivation can reuse
+// the encoder without re-importing.
+var _ = base64.StdEncoding

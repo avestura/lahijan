@@ -389,6 +389,74 @@ func GetAuthOIDCRedirectBase() string {
 	return viper.GetString("auth.oidc.redirectBase")
 }
 
+// SAMLProviderConfig carries the configurable fields of one SAML 2.0 provider
+// (Microsoft Entra, Okta, OneLogin, Shibboleth, Google Workspace SAML). The
+// IdP metadata can be supplied either inline (IDPMetadataXML) or by URL
+// (IDPMetadataURL); when both are present, the inline XML wins.
+type SAMLProviderConfig struct {
+	Enabled           bool
+	EntityID          string // this SP's entity ID
+	IDPMetadataXML    string
+	IDPMetadataURL    string
+	AllowIDPInitiated bool
+	// AttributeMap maps Lahijan field names to SAML attribute names the IdP
+	// uses. Empty values fall back to the standard WS-Federation claim URIs.
+	EmailAttribute string
+	NameAttribute  string
+}
+
+// GetAuthSAMLProvider returns the config for the named SAML provider key.
+// Returns a zero-value (Enabled=false) config when the key is absent.
+func GetAuthSAMLProvider(name string) SAMLProviderConfig {
+	prefix := "auth.saml.providers." + name
+	return SAMLProviderConfig{
+		Enabled:           viper.GetBool(prefix + ".enabled"),
+		EntityID:          viper.GetString(prefix + ".entityId"),
+		IDPMetadataXML:    viper.GetString(prefix + ".idpMetadataXML"),
+		IDPMetadataURL:    viper.GetString(prefix + ".idpMetadataURL"),
+		AllowIDPInitiated: viper.GetBool(prefix + ".allowIdpInitiated"),
+		EmailAttribute:    viper.GetString(prefix + ".emailAttribute"),
+		NameAttribute:     viper.GetString(prefix + ".nameAttribute"),
+	}
+}
+
+// ListAuthSAMLProviderNames returns every SAML provider key configured under
+// auth.saml.providers.* (sorted).
+func ListAuthSAMLProviderNames() []string {
+	return sortedProviderKeys("auth.saml.providers")
+}
+
+// GetAuthSAMLRedirectBase returns the base URL the SP advertises for its ACS
+// + metadata endpoints. Empty in dev; the handler derives from the request
+// Host header.
+func GetAuthSAMLRedirectBase() string {
+	return viper.GetString("auth.saml.redirectBase")
+}
+
+// GetAuthSAMLSPSigningKey returns the PEM-encoded RSA private key the SP
+// uses to sign AuthnRequests + SP metadata. Empty in dev (bootstrap derives
+// a deterministic warning value); MUST be set in any non-dev environment.
+// Sourced from env LAHIJAN_AUTH_SAML_SP_SIGNING_KEY (or a file path in
+// LAHIJAN_AUTH_SAML_SP_SIGNING_KEY_FILE, read by the bootstrap).
+func GetAuthSAMLSPSigningKey() string {
+	return viper.GetString("auth.saml.spSigningKey")
+}
+
+// GetAuthSAMLSPSigningCert returns the PEM-encoded x509 certificate matching
+// the SP signing key. Published in the SP metadata so the IdP can verify our
+// signed requests.
+func GetAuthSAMLSPSigningCert() string {
+	return viper.GetString("auth.saml.spSigningCert")
+}
+
+// GetAuthSAMLJITEnabled reports whether just-in-time user creation is on for
+// SAML login. Default false: production deployments that require admin
+// pre-registration keep this off; homelab / small-team deployments turn it
+// on via auth.saml.jit.enabled.
+func GetAuthSAMLJITEnabled() bool {
+	return viper.GetBool("auth.saml.jit.enabled")
+}
+
 // sortedProviderKeys returns the immediate child keys of the providers map at
 // the given viper path. Viper exposes nested maps via GetStringMap; the keys
 // are returned sorted so callers iterate deterministically (useful for tests

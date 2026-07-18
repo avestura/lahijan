@@ -16,6 +16,7 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"net/netip"
 	"strings"
@@ -226,6 +227,12 @@ func (s *Server) CallbackOIDC(c *fiber.Ctx, provider string, params apigen.Callb
 }
 
 // ListMyIdentities handles GET /api/v1/me/identities.
+//
+// Returns every external identity linked to the user across OAuth/OIDC and
+// SAML. Tokens are NOT decrypted; the response carries only the provider
+// key, the IdP-stable subject (NameID for SAML), and the scopes (empty for
+// SAML). SAML identities additionally carry an `attributes` map populated
+// from the latest attribute snapshot.
 func (s *Server) ListMyIdentities(c *fiber.Ctx) error {
 	uid, ok := s.requireUser(c)
 	if !ok {
@@ -236,13 +243,20 @@ func (s *Server) ListMyIdentities(c *fiber.Ctx) error {
 		// the dashboard renders gracefully.
 		return c.JSON([]apigen.ExternalIdentity{})
 	}
-	rows, err := s.idpSvc.ListIdentities(c.UserContext(), uid)
+	oauthRows, err := s.idpSvc.ListIdentities(c.UserContext(), uid)
 	if err != nil {
 		return SendInternal(c, i18n.T(c.UserContext(), "auth.err_internal", nil))
 	}
-	out := make([]apigen.ExternalIdentity, 0, len(rows))
-	for _, r := range rows {
+	samlRows, err := s.idpSvc.ListSAMLIdentities(c.UserContext(), uid)
+	if err != nil {
+		return SendInternal(c, i18n.T(c.UserContext(), "auth.err_internal", nil))
+	}
+	out := make([]apigen.ExternalIdentity, 0, len(oauthRows)+len(samlRows))
+	for _, r := range oauthRows {
 		out = append(out, toExternalIdentityDTO(r))
+	}
+	for _, r := range samlRows {
+		out = append(out, toExternalIdentityDTOFromSAML(r))
 	}
 	return c.JSON(out)
 }
@@ -278,6 +292,61 @@ func toExternalIdentityDTO(r database.UserOauthIdentity) apigen.ExternalIdentity
 		dto.ExpiresAt = &t
 	}
 	return dto
+}
+
+// toExternalIdentityDTOFromSAML mirrors toExternalIdentityDTO for SAML
+// identities: the NameID goes in Subject, the scopes array stays empty
+// (SAML has no notion of scopes), and the attribute snapshot is decoded
+// into the optional Attributes map.
+func toExternalIdentityDTOFromSAML(r database.UserSamlIdentity) apigen.ExternalIdentity {
+	attrs := decodeSAMLAttributes(r.AttributesJson)
+	dto := apigen.ExternalIdentity{
+		Id:         r.ID,
+		Provider:   r.Provider,
+		Subject:    r.NameID,
+		Scopes:     []string{},
+		Attributes: &attrs,
+		CreatedAt:  r.CreatedAt,
+		UpdatedAt:  &r.UpdatedAt,
+	}
+	return dto
+}
+
+// decodeSAMLAttributes unmarshals the JSONB attributes snapshot into the
+// map[string][]string the OpenAPI schema expects. Returns nil when the
+// snapshot is empty or malformed so the response simply omits the field.
+func decodeSAMLAttributes(raw json.RawMessage) map[string][]string {
+	if len(raw) == 0 || string(raw) == "{}" {
+		return nil
+	}
+	var m map[string]any
+	if err := json.Unmarshal(raw, &m); err != nil {
+		return nil
+	}
+	if len(m) == 0 {
+		return nil
+	}
+	out := make(map[string][]string, len(m))
+	for k, v := range m {
+		switch val := v.(type) {
+		case []any:
+			strs := make([]string, 0, len(val))
+			for _, item := range val {
+				if s, ok := item.(string); ok {
+					strs = append(strs, s)
+				}
+			}
+			if len(strs) > 0 {
+				out[k] = strs
+			}
+		case string:
+			out[k] = []string{val}
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // mapIDPError translates an idp service sentinel into a localised envelope.

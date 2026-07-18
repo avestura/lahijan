@@ -22,4 +22,5 @@ type (
 	AuditLog            = gen.AuditLog
 	AuditLogOutcome     = gen.AuditLogOutcome
 	UserOauthIdentity   = gen.UserOauthIdentity
+	UserSamlIdentity    = gen.UserSamlIdentity
 )

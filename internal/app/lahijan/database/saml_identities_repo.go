@@ -36,11 +36,11 @@ func NewSamlIdentitiesRepository(q *gen.Queries) *SamlIdentitiesRepository {
 // AttributesJSON is the snapshot from the IdP's attribute statement; pass an
 // empty (or "{}") RawMessage when the assertion carried no attributes.
 type CreateSAMLIdentityParams struct {
-	UserID       uuid.UUID
-	Provider     string
-	NameID       string
-	IdpEntityID  string
-	Attributes   map[string]any
+	UserID      uuid.UUID
+	Provider    string
+	NameID      string
+	IdpEntityID string
+	Attributes  map[string]any
 }
 
 // Create inserts a new SAML identity link. A duplicate (provider, name_id)
