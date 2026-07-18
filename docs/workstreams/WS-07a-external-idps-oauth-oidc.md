@@ -1,7 +1,7 @@
 # WS-07a · External IdPs — OAuth 2.0 + OIDC
 
 ```
-Status: pending
+Status: done
 Phase: 1
 Depends on: WS-06
 Unblocks: —
@@ -71,23 +71,29 @@ providers: Google and GitHub via OAuth 2.0, and any OIDC-compliant provider
 
 ## Definition of Done
 
-- [ ] register new account via Google
-- [ ] register new account via GitHub
-- [ ] register new account via generic OIDC (test provider)
-- [ ] link an existing account to an external IdP
-- [ ] unlink an external IdP (with at least one other auth method remaining)
-- [ ] OAuth/OIDC tokens encrypted at rest
-- [ ] every login emits an audit event
-- [ ] every user-facing string through `i18n.T`; en + fa in sync
-- [ ] `make lint test` green
+- [x] register new account via Google
+- [x] register new account via GitHub
+- [x] register new account via generic OIDC (test provider)
+- [x] link an existing account to an external IdP
+- [x] unlink an external IdP (with at least one other auth method remaining)
+- [x] OAuth/OIDC tokens encrypted at rest
+- [x] every login emits an audit event
+- [x] every user-facing string through `i18n.T`; en + fa in sync
+- [x] `make lint test` green
 
 ## Open questions
 
 - Should we support OAuth/OIDC for **tenants** (i.e. tenant-level SSO) or just
   for **users**? (Default: users for MVP; tenant-level SSO is a Phase 7
-  candidate.)
+  candidate.) **Resolved:** users-only for MVP — tenant-level SSO deferred to
+  Phase 7. The (provider, subject) pair is globally unique on
+  user_oauth_identities, which keeps the door open for tenant-scoped SSO
+  later by adding a tenant_id column without breaking existing rows.
 - Refresh external OAuth tokens in background or on-demand? (Default:
-  on-demand; refresh if expiry < 60s.)
+  on-demand; refresh if expiry < 60s.) **Resolved:** on-demand for MVP. The
+  identity row carries expires_at and the IdP service refreshes tokens on
+  every callback (UpdateTokens). Background refresh (River job) is a
+  follow-up.
 
 ## Notes
 
