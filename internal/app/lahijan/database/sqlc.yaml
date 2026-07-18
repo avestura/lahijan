@@ -36,6 +36,11 @@ sql:
       - "queries/plugin_event_subscriptions.sql"
       - "queries/plugin_http_handlers.sql"
       - "queries/dns_zones.sql"
+      - "queries/compute_instances.sql"
+      - "queries/compute_images.sql"
+      - "queries/compute_profiles.sql"
+      - "queries/compute_networks.sql"
+      - "queries/compute_storage_volumes.sql"
     schema:
       - "migrations/*.up.sql"
     gen:

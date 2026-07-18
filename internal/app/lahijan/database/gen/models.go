@@ -95,6 +95,89 @@ type AuditLogOutcome struct {
 	CreatedAt time.Time       `json:"created_at"`
 }
 
+// Per-tenant image catalog. Mirrors the Incus image store; featured rows are seeded from conf.
+type ComputeImage struct {
+	ID       uuid.UUID `json:"id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+	Alias    string    `json:"alias"`
+	// "featured" (seeded from conf) or "custom" (user-uploaded).
+	Source string `json:"source"`
+	// The Incus-assigned sha256 fingerprint; canonical id for source-of-truth lookups.
+	Fingerprint    string          `json:"fingerprint"`
+	Type           string          `json:"type"`
+	Architecture   string          `json:"architecture"`
+	SizeBytes      int64           `json:"size_bytes"`
+	PropertiesJson json.RawMessage `json:"properties_json"`
+	Description    string          `json:"description"`
+	CreatedAt      time.Time       `json:"created_at"`
+	UpdatedAt      time.Time       `json:"updated_at"`
+	DeletedAt      *time.Time      `json:"deleted_at"`
+}
+
+// Per-tenant compute instances. Mirrors Incus state; soft-deleted on instance delete.
+type ComputeInstance struct {
+	ID       uuid.UUID `json:"id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+	// Incus project name; derived from tenant_id at create time.
+	ProjectName string `json:"project_name"`
+	Name        string `json:"name"`
+	Type        string `json:"type"`
+	// Cached Incus status string. Reconciled on read; the daemon is the source of truth.
+	Status           string `json:"status"`
+	StatusCode       int32  `json:"status_code"`
+	ImageAlias       string `json:"image_alias"`
+	ImageFingerprint string `json:"image_fingerprint"`
+	// Profile names applied to the instance (denormalised from config_json for fast UI).
+	Profiles []string `json:"profiles"`
+	// Snapshot of user-supplied config + devices + profiles at create time.
+	ConfigJson  json.RawMessage `json:"config_json"`
+	Description string          `json:"description"`
+	CreatedAt   time.Time       `json:"created_at"`
+	UpdatedAt   time.Time       `json:"updated_at"`
+	DeletedAt   *time.Time      `json:"deleted_at"`
+}
+
+// Per-tenant Incus network catalog. Mirrors Incus networks within the tenant project.
+type ComputeNetwork struct {
+	ID           uuid.UUID       `json:"id"`
+	TenantID     uuid.UUID       `json:"tenant_id"`
+	Name         string          `json:"name"`
+	Description  string          `json:"description"`
+	Type         string          `json:"type"`
+	ConfigJson   json.RawMessage `json:"config_json"`
+	AclNames     []string        `json:"acl_names"`
+	ForwardNames []string        `json:"forward_names"`
+	CreatedAt    time.Time       `json:"created_at"`
+	UpdatedAt    time.Time       `json:"updated_at"`
+	DeletedAt    *time.Time      `json:"deleted_at"`
+}
+
+// Per-tenant Incus profile catalog. Mirrors Incus profiles within the tenant project.
+type ComputeProfile struct {
+	ID          uuid.UUID       `json:"id"`
+	TenantID    uuid.UUID       `json:"tenant_id"`
+	Name        string          `json:"name"`
+	Description string          `json:"description"`
+	ConfigJson  json.RawMessage `json:"config_json"`
+	CreatedAt   time.Time       `json:"created_at"`
+	UpdatedAt   time.Time       `json:"updated_at"`
+	DeletedAt   *time.Time      `json:"deleted_at"`
+}
+
+// Per-tenant custom storage volumes. Mirrors Incus volumes within the tenant project.
+type ComputeStorageVolume struct {
+	ID          uuid.UUID       `json:"id"`
+	TenantID    uuid.UUID       `json:"tenant_id"`
+	Name        string          `json:"name"`
+	Description string          `json:"description"`
+	Type        string          `json:"type"`
+	PoolName    string          `json:"pool_name"`
+	ConfigJson  json.RawMessage `json:"config_json"`
+	CreatedAt   time.Time       `json:"created_at"`
+	UpdatedAt   time.Time       `json:"updated_at"`
+	DeletedAt   *time.Time      `json:"deleted_at"`
+}
+
 // Tenant -> PDNS zone ownership mapping. Enforced by the DNS service (WS-15).
 type DnsZone struct {
 	ID       uuid.UUID `json:"id"`
