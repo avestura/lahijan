@@ -50,13 +50,19 @@ func RegisterRoutes(app *fiber.App, server *Server, policy middleware.PolicyReso
 //
 // The gate inspects c.Path() and dispatches to the right RequirePerm slug:
 //
-//	/api/v1/audit/export   -> audit.export
-//	/api/v1/audit/{id}     -> audit.read
-//	/api/v1/audit          -> audit.read
-//	/api/v1/admin/jobs/*/retry  -> platform.jobs.retry
-//	/api/v1/admin/jobs/*/cancel -> platform.jobs.cancel
-//	/api/v1/admin/jobs/{id}     -> platform.jobs.read
-//	/api/v1/admin/jobs          -> platform.jobs.read
+//	/api/v1/audit/export           -> audit.export
+//	/api/v1/audit/{id}             -> audit.read
+//	/api/v1/audit                  -> audit.read
+//	/api/v1/admin/jobs/*/retry     -> platform.jobs.retry
+//	/api/v1/admin/jobs/*/cancel    -> platform.jobs.cancel
+//	/api/v1/admin/jobs/{id}        -> platform.jobs.read
+//	/api/v1/admin/jobs             -> platform.jobs.read
+//	/api/v1/admin/plugins/upload   -> plugins.install
+//	/api/v1/admin/plugins/*/enable  -> plugins.install
+//	/api/v1/admin/plugins/*/disable -> plugins.install
+//	/api/v1/admin/plugins/*/permissions/*/* -> plugins.permission.approve
+//	/api/v1/admin/plugins/{id}     -> plugins.read  (GET) / plugins.uninstall (DELETE)
+//	/api/v1/admin/plugins          -> plugins.read
 //
 // Everything else: c.Next() (no enforcement; routes that need it must add
 // their own per-route RequirePerm or be gated through this same function as
@@ -85,6 +91,26 @@ func AuditGate(policy middleware.PolicyResolver) apigen.MiddlewareFunc {
 			return middleware.RequirePerm(policy, rbac.PermPlatformJobsRead)(c)
 		case strings.HasPrefix(path, "/api/v1/admin/jobs/"):
 			return middleware.RequirePerm(policy, rbac.PermPlatformJobsRead)(c)
+
+		// WS-10a: admin plugin endpoints. The upload/enable/disable lifecycle
+		// requires plugins.install; the grant/revoke path requires
+		// plugins.permission.approve; the delete path requires
+		// plugins.uninstall; the read paths require plugins.read. These are
+		// the slugs the registry + seeder already know about (rbac.Perm*).
+		case path == "/api/v1/admin/plugins/upload" && c.Method() == "POST":
+			return middleware.RequirePerm(policy, rbac.PermPluginsInstall)(c)
+		case strings.HasPrefix(path, "/api/v1/admin/plugins/") && strings.HasSuffix(path, "/enable"):
+			return middleware.RequirePerm(policy, rbac.PermPluginsInstall)(c)
+		case strings.HasPrefix(path, "/api/v1/admin/plugins/") && strings.HasSuffix(path, "/disable"):
+			return middleware.RequirePerm(policy, rbac.PermPluginsInstall)(c)
+		case strings.HasPrefix(path, "/api/v1/admin/plugins/") && strings.Contains(path, "/permissions/"):
+			return middleware.RequirePerm(policy, rbac.PermPluginsPermissionApprove)(c)
+		case strings.HasPrefix(path, "/api/v1/admin/plugins/") && c.Method() == "DELETE":
+			return middleware.RequirePerm(policy, rbac.PermPluginsUninstall)(c)
+		case path == "/api/v1/admin/plugins":
+			return middleware.RequirePerm(policy, rbac.PermPluginsRead)(c)
+		case strings.HasPrefix(path, "/api/v1/admin/plugins/"):
+			return middleware.RequirePerm(policy, rbac.PermPluginsRead)(c)
 		}
 		return c.Next()
 	}

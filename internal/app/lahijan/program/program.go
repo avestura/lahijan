@@ -48,6 +48,9 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/database"
 	"github.com/avestura/lahijan/internal/app/lahijan/jobs"
 	notifyemail "github.com/avestura/lahijan/internal/app/lahijan/notify/email"
+	"github.com/avestura/lahijan/internal/app/lahijan/wasm/installer"
+	"github.com/avestura/lahijan/internal/app/lahijan/wasm/permission"
+	wasmruntime "github.com/avestura/lahijan/internal/app/lahijan/wasm/runtime"
 	"github.com/gofiber/fiber/v2"
 	fiberlog "github.com/gofiber/fiber/v2/log"
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
@@ -154,6 +157,24 @@ func Start() error {
 		}()
 	}
 
+	// WS-10a: build the WASM plugin subsystem (wazero runtime + installer
+	// service). Returns a zero-value wasmDeps when conf.wasm.enabled is
+	// false; the api handlers degrade to a 501 envelope. The runtime is
+	// closed at shutdown via defer.
+	wasmDeps, err := buildWasmDeps(context.Background(), authDeps)
+	if err != nil {
+		log.Fatalf("failed to build wasm deps: %s", err.Error())
+	}
+	if wasmDeps.runtime != nil {
+		defer func() {
+			stopCtx, stopCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer stopCancel()
+			if err := wasmDeps.runtime.Close(stopCtx); err != nil {
+				fiberlog.Error("wasm runtime close: %s", err.Error())
+			}
+		}()
+	}
+
 	// Flip the idp service's JIT toggle from config. The toggle is
 	// process-wide today (not per-provider); a future WS can move it onto
 	// the per-provider struct if granular control is needed.
@@ -224,6 +245,8 @@ func Start() error {
 		IDPSAML:      samlDeps.registry,
 		MFASvc:       mfaDeps.svc,
 		Jobs:         jobDeps.client,
+		PluginsRepo:  wasmDeps.pluginsRepo,
+		PluginSvc:    wasmDeps.svc,
 	}), policy)
 
 	// WS-09: mount River's built-in web UI (admin-only). The UI ships its
@@ -881,4 +904,54 @@ func mountJobsAdminUI(app *fiber.App, client *jobs.Client, policy middleware.Pol
 	app.Use(prefix, gate, httpHandler)
 	fiberlog.Info("jobs admin ui mounted", "path", prefix)
 	return nil
+}
+
+// wasmDeps bundles the WS-10a WASM plugin subsystem dependencies built at
+// bootstrap. Every field is nil-appropriate: when conf.wasm.enabled is false
+// the bundle is zero-value, the api handlers degrade to 501, and no runtime
+// is built.
+type wasmDeps struct {
+	runtime     *wasmruntime.Runtime
+	pluginsRepo *database.PluginsRepository
+	svc         *installer.Service
+}
+
+// buildWasmDeps wires the wazero runtime + permission enforcer + installer
+// service from config. Returns an empty wasmDeps when wasm.enabled is false
+// so the api handlers degrade cleanly. The runtime is returned WITHOUT
+// having registered any host functions (WS-10b will add them via
+// runtime.Config.HostFunctions); WS-10a ships the sandbox + permission
+// enforcer + admin API, not the host imports themselves.
+func buildWasmDeps(_ context.Context, a *authDeps) (wasmDeps, error) {
+	if !conf.GetWasmEnabled() {
+		fiberlog.Debug("wasm subsystem is disabled; skipping wazero runtime setup")
+		// Even with the runtime disabled, expose the repo so future
+		// operators can list + inspect existing plugin rows through the
+		// admin API. The handlers degrade to 501 only on the write paths
+		// that need pluginSvc (which stays nil).
+		return wasmDeps{pluginsRepo: a.repos.Plugins}, nil
+	}
+
+	enforcer := permission.NewDBEnforcer(a.repos.Plugins)
+	rt, err := wasmruntime.New(context.Background(), enforcer, wasmruntime.Config{
+		MaxMemoryBytes: conf.GetWasmMaxMemoryPerPlugin(),
+		ExecTimeout:    time.Duration(conf.GetWasmExecTimeoutMs()) * time.Millisecond,
+		Logger:         slog.Default(),
+		// HostFunctions stays nil in WS-10a; WS-10b wires the
+		// network.outbound / kv.* / events.* / job.schedule / config.read
+		// host modules through this hook.
+	})
+	if err != nil {
+		return wasmDeps{}, errors.Join(errors.New("build wazero runtime"), err)
+	}
+
+	svc := installer.New(a.repos.Plugins, rt, a.audit)
+	fiberlog.Info("wasm subsystem enabled",
+		"max_memory_per_plugin", conf.GetWasmMaxMemoryPerPlugin(),
+		"exec_timeout_ms", conf.GetWasmExecTimeoutMs())
+	return wasmDeps{
+		runtime:     rt,
+		pluginsRepo: a.repos.Plugins,
+		svc:         svc,
+	}, nil
 }

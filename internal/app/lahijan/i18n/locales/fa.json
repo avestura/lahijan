@@ -174,6 +174,26 @@
   "audit.action_plugins_uninstall": { "other": "افزونه حذف شد" },
   "audit.action_plugins_permission_approve": { "other": "اجازه‌های افزونه تأیید شد" },
 
+  "audit.action_plugins_upload":  { "other": "افزونه بارگذاری شد" },
+  "audit.action_plugins_grant":   { "other": "اجازهٔ افزونه اعطا شد" },
+  "audit.action_plugins_revoke":  { "other": "اجازهٔ افزونه سلب شد" },
+  "audit.action_plugins_enable":  { "other": "افزونه فعال شد" },
+  "audit.action_plugins_disable": { "other": "افزونه غیرفعال شد" },
+  "audit.action_plugins_delete":  { "other": "افزونه حذف شد" },
+
+  "plugins.err_disabled":          { "other": "سامانهٔ افزونه‌ها روی این کارساز فعال نیست." },
+  "plugins.err_not_found":         { "other": "افزونه یافت نشد." },
+  "plugins.err_duplicate":         { "other": "افزونه‌ای با این نام و نسخه از پیش وجود دارد." },
+  "plugins.err_missing_wasm":      { "other": "ماژول .wasm الزامی است." },
+  "plugins.err_missing_manifest":  { "other": "پروندهٔ lahijan.manifest.yaml الزامی است." },
+  "plugins.err_wasm_too_large":    { "description": "{{.Max}} بیشینهٔ پذیرفته‌شدهٔ اندازهٔ ماژول به بایت است.",
+                                     "other": "ماژول .wasm از بیشینهٔ پذیرفته‌شده ({{.Max}} بایت) بزرگ‌تر است." },
+  "plugins.err_manifest_too_large": { "other": "مانیفست از بیشینهٔ پذیرفته‌شده بزرگ‌تر است." },
+  "plugins.err_bad_action":        { "description": "{{.Action}} عمل ناشناخته است.",
+                                     "other": "عمل ناشناخته: {{.Action}}." },
+  "plugins.err_module_rejected":   { "other": "زمان‌اجرای افزونه ماژول .wasm را رد کرد." },
+  "plugins.msg_deleted":           { "other": "افزونه حذف شد." },
+
   "audit.action_platform_job_retry": { "other": "کار به‌صورت دستی دوباره اجرا شد" },
   "audit.action_platform_job_cancel": { "other": "کار لغو شد" },
 

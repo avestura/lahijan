@@ -25,6 +25,7 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/database"
 	"github.com/avestura/lahijan/internal/app/lahijan/i18n"
 	"github.com/avestura/lahijan/internal/app/lahijan/version"
+	"github.com/avestura/lahijan/internal/app/lahijan/wasm/installer"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	openapi_types "github.com/oapi-codegen/runtime/types"
@@ -80,6 +81,15 @@ type Server struct {
 	// subsystem is disabled (dev/test without River wired); the handlers
 	// degrade to a 501 "feature disabled" envelope.
 	jobs JobsClient
+
+	// WS-10a: admin plugin deps. pluginsRepo is the persistence boundary
+	// (every read/write to the plugins + plugin_permissions tables);
+	// pluginSvc is the install/lifecycle service the write paths go
+	// through (so audit emission happens in one place). Both are
+	// nil-appropriate when the WASM subsystem is disabled
+	// (conf.wasm.enabled=false); the handlers degrade to 501.
+	pluginsRepo *database.PluginsRepository
+	pluginSvc   *installer.Service
 }
 
 // ServerDeps carries the dependencies NewServer requires. Wire it once from
@@ -121,6 +131,13 @@ type ServerDeps struct {
 	// fake) the admin jobs API talks to. Nil-appropriate when the job
 	// subsystem is disabled; the handlers degrade to a 501 envelope.
 	Jobs JobsClient
+
+	// WS-10a: admin plugin deps. PluginsRepo is required for every plugin
+	// endpoint; PluginSvc is required for the state-changing endpoints.
+	// Both nil-appropriate when the WASM subsystem is disabled; the
+	// handlers degrade to a 501 envelope.
+	PluginsRepo *database.PluginsRepository
+	PluginSvc   *installer.Service
 }
 
 // NewServer builds the API server with the given dependencies.
@@ -145,6 +162,8 @@ func NewServer(deps ServerDeps) *Server {
 		idpSAML:         deps.IDPSAML,
 		mfaSvc:          deps.MFASvc,
 		jobs:            deps.Jobs,
+		pluginsRepo:     deps.PluginsRepo,
+		pluginSvc:       deps.PluginSvc,
 	}
 	if s.tracer == nil {
 		s.tracer = Tracer()
