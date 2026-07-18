@@ -11,6 +11,30 @@ import (
 	"github.com/google/uuid"
 )
 
+const anyTenantRequiresMFAForUser = `-- name: AnyTenantRequiresMFAForUser :one
+SELECT t.mfa_required FROM tenants t
+JOIN memberships m ON m.tenant_id = t.id
+WHERE m.user_id = $1
+  AND m.deleted_at IS NULL
+  AND t.deleted_at IS NULL
+  AND t.mfa_required = TRUE
+LIMIT 1
+`
+
+// : user-scoped (cross-tenant; the login flow calls this to decide whether
+// : the user must complete an MFA challenge before the real session is
+// : issued, per the per-tenant MFA policy in WS-07c).
+// Returns the first tenant the user is a member of that has
+// mfa_required = TRUE; or no rows if none of the user's tenants require
+// MFA. Joining through memberships means a soft-deleted membership or
+// tenant is excluded automatically.
+func (q *Queries) AnyTenantRequiresMFAForUser(ctx context.Context, userID uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, anyTenantRequiresMFAForUser, userID)
+	var mfa_required bool
+	err := row.Scan(&mfa_required)
+	return mfa_required, err
+}
+
 const countMembershipsForTenant = `-- name: CountMembershipsForTenant :one
 SELECT count(*) FROM memberships
 WHERE tenant_id = $1 AND deleted_at IS NULL

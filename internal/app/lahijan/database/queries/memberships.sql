@@ -36,6 +36,23 @@ SELECT * FROM memberships
 WHERE user_id = $1 AND deleted_at IS NULL
 ORDER BY created_at DESC;
 
+-- name: AnyTenantRequiresMFAForUser :one
+--: user-scoped (cross-tenant; the login flow calls this to decide whether
+--: the user must complete an MFA challenge before the real session is
+--: issued, per the per-tenant MFA policy in WS-07c).
+-- Returns the first tenant the user is a member of that has
+-- mfa_required = TRUE; or no rows if none of the user's tenants require
+-- MFA. Joining through memberships means a soft-deleted membership or
+-- tenant is excluded automatically.
+SELECT t.mfa_required FROM tenants t
+JOIN memberships m ON m.tenant_id = t.id
+WHERE m.user_id = $1
+  AND m.deleted_at IS NULL
+  AND t.deleted_at IS NULL
+  AND t.mfa_required = TRUE
+LIMIT 1;
+
+
 -- name: GetMembershipByUserAndTenant :one
 --: user-scoped (cross-tenant check by user + tenant; used by the tenant
 --: middleware to verify the caller is a member of the requested tenant). The

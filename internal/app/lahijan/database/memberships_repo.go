@@ -121,6 +121,28 @@ func (r *MembershipsRepository) ListForUser(ctx context.Context, userID uuid.UUI
 	return r.q.ListMembershipsForUser(ctx, userID)
 }
 
+// AnyTenantRequiresMFA reports whether any of the user's active memberships
+// belongs to a tenant with mfa_required = TRUE. Used by the login flow
+// (WS-07c) to decide whether the user must complete an MFA challenge even
+// if they have no MFA factor enrolled yet (in which case the login is
+// rejected with a "complete MFA enrollment required" envelope).
+//
+// Cross-tenant by design; the user is mid-login and no tenant has been
+// selected yet. Returns (false, nil) when the user has no memberships.
+func (r *MembershipsRepository) AnyTenantRequiresMFA(
+	ctx context.Context,
+	userID uuid.UUID,
+) (bool, error) {
+	row, err := r.q.AnyTenantRequiresMFAForUser(ctx, userID)
+	if err != nil {
+		if IsNoRows(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return row, nil
+}
+
 // RoleSlugForUser returns the role slug of the user's membership in tenantID.
 // Returns ("", false, nil) when the user is not a member of the tenant; ("",
 // true, nil) when the user is a member but their membership has no role yet
