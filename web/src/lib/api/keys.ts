@@ -6,6 +6,10 @@
  *
  * Keys follow the TanStack Query convention: a tuple of [domain, scope,
  * ...params]. We never build keys by hand outside this file.
+ *
+ * Tenant-scoped queries embed the active tenant id in the key. When the
+ * user switches tenants via the Header switcher, TanStack Query sees a
+ * new key and refetches automatically — no manual invalidation needed.
  */
 export const queryKeys = {
   ping: () => ["platform", "ping"] as const,
@@ -13,19 +17,27 @@ export const queryKeys = {
   tenants: () => ["auth", "tenants"] as const,
   audit: (filters?: Record<string, unknown>) => ["audit", "list", filters ?? {}] as const,
   compute: {
-    all: () => ["compute", "instances"] as const,
-    list: () => ["compute", "instances", "list"] as const,
-    detail: (id: string) => ["compute", "instances", "detail", id] as const,
+    all: (tenantId: string) => ["compute", tenantId] as const,
+    images: (tenantId: string) => ["compute", tenantId, "images"] as const,
+    profiles: (tenantId: string) => ["compute", tenantId, "profiles"] as const,
+    instances: (tenantId: string) => ["compute", tenantId, "instances"] as const,
+    instance: (tenantId: string, id: string) =>
+      ["compute", tenantId, "instances", "detail", id] as const,
   },
   dns: {
-    zones: () => ["dns", "zones"] as const,
+    zones: (tenantId: string) => ["dns", tenantId, "zones"] as const,
   },
   storage: {
-    buckets: () => ["storage", "buckets"] as const,
+    buckets: (tenantId: string) => ["storage", tenantId, "buckets"] as const,
   },
   billing: {
     balance: () => ["billing", "balance"] as const,
     ledger: () => ["billing", "ledger"] as const,
+  },
+  my: {
+    tokens: () => ["me", "tokens"] as const,
+    identities: () => ["me", "identities"] as const,
+    recovery: () => ["me", "mfa", "recovery"] as const,
   },
 } as const;
 

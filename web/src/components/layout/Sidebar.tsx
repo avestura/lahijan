@@ -13,10 +13,15 @@ import {
   CloudIcon,
   DatabaseIcon,
   DollarSignIcon,
+  KeyIcon,
   LayoutDashboardIcon,
+  LinkIcon,
+  MonitorIcon,
   PlugIcon,
   ScrollTextIcon,
   SettingsIcon,
+  ShieldIcon,
+  UserIcon,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
@@ -41,6 +46,14 @@ const PRIMARY_NAV: NavItem[] = [
   { to: "/plugins", labelKey: "nav.plugins", icon: PlugIcon },
   { to: "/audit", labelKey: "nav.audit", icon: ScrollTextIcon },
   { to: "/settings", labelKey: "nav.settings", icon: SettingsIcon },
+];
+
+const SETTINGS_NAV: NavItem[] = [
+  { to: "/settings", labelKey: "nav.settingsSub.profile", icon: UserIcon },
+  { to: "/settings/security", labelKey: "nav.settingsSub.security", icon: ShieldIcon },
+  { to: "/settings/tokens", labelKey: "nav.settingsSub.tokens", icon: KeyIcon },
+  { to: "/settings/identities", labelKey: "nav.settingsSub.identities", icon: LinkIcon },
+  { to: "/settings/sessions", labelKey: "nav.settingsSub.sessions", icon: MonitorIcon },
 ];
 
 const ADMIN_NAV: NavItem[] = [
@@ -89,6 +102,13 @@ export function Sidebar() {
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto p-2">
         {PRIMARY_NAV.map((item) => (
+          <NavLink key={item.to} item={item} />
+        ))}
+
+        <div className="px-3 pb-1 pt-6 text-xs uppercase tracking-wider text-muted-foreground">
+          {t("nav.settingsSub.label")}
+        </div>
+        {SETTINGS_NAV.map((item) => (
           <NavLink key={item.to} item={item} />
         ))}
 
