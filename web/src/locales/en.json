@@ -12,6 +12,14 @@
     "plugins": "Plugins",
     "audit": "Audit Log",
     "settings": "Settings",
+    "settingsSub": {
+      "label": "Settings",
+      "profile": "Profile",
+      "security": "Security",
+      "tokens": "Access Tokens",
+      "identities": "Identities",
+      "sessions": "Sessions"
+    },
     "admin": {
       "label": "Administration",
       "jobs": "Jobs",
@@ -29,6 +37,18 @@
     "label": "Language",
     "en": "English",
     "fa": "Persian"
+  },
+  "tenant": {
+    "label": "Tenant",
+    "switch": "Switch tenant",
+    "current": "Active tenant",
+    "empty": "No tenants"
+  },
+  "commandPalette": {
+    "label": "Global navigation",
+    "placeholder": "Search destinations…",
+    "empty": "No matching destination.",
+    "goto": "Go to"
   },
   "auth": {
     "login": {
@@ -79,20 +99,386 @@
     "retry": "Retry",
     "cancel": "Cancel",
     "save": "Save",
+    "saved": "Saved",
     "delete": "Delete",
     "close": "Close",
     "back": "Back",
     "next": "Next",
     "previous": "Previous",
+    "finish": "Finish",
     "confirm": "Confirm",
     "search": "Search",
     "actions": "Actions",
     "status": "Status",
     "name": "Name",
     "created": "Created",
-    "updated": "Updated"
+    "updated": "Updated",
+    "copy": "Copy",
+    "copied": "Copied",
+    "yes": "Yes",
+    "no": "No",
+    "none": "None",
+    "optional": "optional",
+    "required": "required"
   },
   "permission": {
     "denied": "You do not have permission to perform this action."
+  },
+  "toast": {
+    "saved": "Saved.",
+    "deleted": "Deleted.",
+    "error": "Action failed."
+  },
+  "compute": {
+    "title": "Instances",
+    "subtitle": "Compute units you have provisioned in this tenant.",
+    "list": {
+      "new": "New instance",
+      "empty": {
+        "title": "No instances yet",
+        "body": "Create your first instance to get started."
+      },
+      "filter": {
+        "placeholder": "Filter by name or status…",
+        "status": {
+          "all": "All statuses",
+          "running": "Running",
+          "stopped": "Stopped",
+          "frozen": "Frozen",
+          "other": "Other"
+        }
+      },
+      "columns": {
+        "name": "Name",
+        "status": "Status",
+        "image": "Image",
+        "type": "Type",
+        "created": "Created",
+        "actions": "Actions"
+      },
+      "bulkActions": {
+        "start": "Start",
+        "stop": "Stop",
+        "restart": "Restart",
+        "delete": "Delete",
+        "selected": "{{count}} selected"
+      }
+    },
+    "types": {
+      "container": "Container",
+      "virtual-machine": "Virtual Machine"
+    },
+    "status": {
+      "running": "Running",
+      "stopped": "Stopped",
+      "frozen": "Frozen",
+      "starting": "Starting",
+      "stopping": "Stopping",
+      "other": "Current"
+    },
+    "actions": {
+      "start": "Start",
+      "stop": "Stop",
+      "restart": "Restart",
+      "freeze": "Freeze",
+      "unfreeze": "Unfreeze",
+      "delete": "Delete",
+      "viewDetails": "View details"
+    },
+    "deleteConfirm": {
+      "title": "Delete instance?",
+      "body": "This stops the instance if running and removes it. This cannot be undone.",
+      "force": "Force delete (skip graceful shutdown)"
+    },
+    "create": {
+      "title": "New instance",
+      "subtitle": "Provision a compute unit in your tenant.",
+      "steps": {
+        "image": "Image",
+        "size": "Size",
+        "review": "Review"
+      },
+      "name": {
+        "label": "Name",
+        "placeholder": "my-instance",
+        "hint": "Lowercase letters, numbers, and hyphens."
+      },
+      "description": {
+        "label": "Description",
+        "placeholder": "What is this instance for?"
+      },
+      "type": {
+        "label": "Type",
+        "container": "Container",
+        "vm": "Virtual Machine"
+      },
+      "image": {
+        "label": "Image",
+        "empty": "No images available."
+      },
+      "profile": {
+        "label": "Profile",
+        "empty": "No profiles available."
+      },
+      "cpu": {
+        "label": "vCPUs",
+        "hint": "Number of virtual CPUs."
+      },
+      "memory": {
+        "label": "Memory (MiB)",
+        "hint": "RAM allocated to the instance."
+      },
+      "disk": {
+        "label": "Disk (GiB)",
+        "hint": "Root disk size."
+      },
+      "advanced": {
+        "label": "Advanced options",
+        "config": "Config (YAML/JSON)"
+      },
+      "submit": "Create instance",
+      "submitting": "Creating…",
+      "successTitle": "Instance created",
+      "successBody": "Your instance is ready. Start it from the detail page."
+    },
+    "detail": {
+      "tabs": {
+        "overview": "Overview",
+        "console": "Console",
+        "snapshots": "Snapshots",
+        "network": "Network",
+        "storage": "Storage",
+        "config": "Config",
+        "audit": "Audit"
+      },
+      "notFound": "Instance not found.",
+      "id": "Instance ID",
+      "tenant": "Tenant",
+      "imageAlias": "Image",
+      "fingerprint": "Fingerprint",
+      "profiles": "Profiles",
+      "description": "Description",
+      "noDescription": "No description provided."
+    },
+    "console": {
+      "title": "Console",
+      "placeholder": "Type a command and press Enter to run it in the instance.",
+      "run": "Run",
+      "running": "Running…",
+      "exitCode": "Exit code: {{code}}",
+      "disconnected": "Disconnected. The instance may be stopped.",
+      "hint": "Output of one-shot commands; an interactive shell session is on the roadmap."
+    },
+    "snapshots": {
+      "title": "Snapshots",
+      "comingSoon": "Snapshot create/restore lands with WS-25 (scheduled snapshots + backups).",
+      "list": "Snapshots",
+      "create": "Create snapshot",
+      "name": {
+        "label": "Snapshot name",
+        "placeholder": "pre-deploy"
+      },
+      "restore": "Restore",
+      "delete": "Delete",
+      "empty": "No snapshots yet.",
+      "expiresAt": "Expires"
+    },
+    "mutations": {
+      "startSuccess": "Instance starting.",
+      "stopSuccess": "Instance stopping.",
+      "restartSuccess": "Instance restarting.",
+      "freezeSuccess": "Instance freezing.",
+      "unfreezeSuccess": "Instance unfreezing.",
+      "deleteSuccess": "Instance deleted.",
+      "createSuccess": "Instance created."
+    },
+    "quota": {
+      "label": "Quota",
+      "vcpu": "vCPUs",
+      "memory": "Memory",
+      "disk": "Disk",
+      "instances": "Instances",
+      "exceeded": "Quota exceeded."
+    },
+    "polling": {
+      "label": "Auto-refresh",
+      "on": "On",
+      "off": "Off"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "tabs": {
+      "profile": "Profile",
+      "security": "Security",
+      "tokens": "Access tokens",
+      "identities": "Identities",
+      "sessions": "Sessions"
+    },
+    "profile": {
+      "title": "Profile",
+      "subtitle": "Manage how your account appears in Lahijan.",
+      "email": {
+        "label": "Email"
+      },
+      "displayName": {
+        "label": "Display name",
+        "placeholder": "Your name"
+      },
+      "locale": {
+        "label": "Preferred language"
+      },
+      "changePassword": {
+        "title": "Change password",
+        "current": {
+          "label": "Current password",
+          "placeholder": "Your current password"
+        },
+        "new": {
+          "label": "New password",
+          "placeholder": "At least 8 characters"
+        },
+        "confirm": {
+          "label": "Confirm new password",
+          "placeholder": "Re-enter the new password"
+        },
+        "mismatch": "Passwords don't match",
+        "submit": "Update password"
+      },
+      "submit": "Save changes",
+      "submitting": "Saving…"
+    },
+    "security": {
+      "title": "Security",
+      "subtitle": "Add a second factor to keep your account safe.",
+      "totp": {
+        "title": "Authenticator app",
+        "enrolled": "Enabled",
+        "notEnrolled": "Not enabled",
+        "enroll": "Set up",
+        "disable": "Disable",
+        "qr": {
+          "alt": "Scan this QR code with your authenticator app.",
+          "cannotScan": "Can't scan? Enter this secret manually:"
+        },
+        "secret": "Secret",
+        "verify": {
+          "label": "6-digit code",
+          "placeholder": "123456",
+          "submit": "Confirm",
+          "invalid": "That code didn't match. Try again."
+        },
+        "disableConfirm": {
+          "title": "Disable authenticator?",
+          "body": "You'll need to sign in with your password the next time you log in.",
+          "currentPassword": "Current password"
+        }
+      },
+      "webauthn": {
+        "title": "Passkeys / security keys",
+        "add": "Add a passkey",
+        "name": {
+          "label": "Label",
+          "placeholder": "MacBook Touch ID"
+        },
+        "supported": "Your browser does not support WebAuthn.",
+        "list": {
+          "name": "Label",
+          "lastUsed": "Last used",
+          "created": "Created"
+        },
+        "empty": "No passkeys yet."
+      },
+      "recovery": {
+        "title": "Recovery codes",
+        "remaining": "{{count}} of {{total}} remaining",
+        "regenerate": "Regenerate codes",
+        "warning": "Save these somewhere safe. They're shown only once.",
+        "copy": "Copy all"
+      }
+    },
+    "tokens": {
+      "title": "Personal access tokens",
+      "subtitle": "Use these to authenticate API calls when you can't use the web session.",
+      "new": "New token",
+      "empty": {
+        "title": "No tokens yet",
+        "body": "Create a token to use the API from scripts or CLI tools."
+      },
+      "columns": {
+        "name": "Name",
+        "scopes": "Scopes",
+        "lastUsed": "Last used",
+        "expires": "Expires",
+        "created": "Created",
+        "actions": "Actions"
+      },
+      "create": {
+        "title": "Create token",
+        "name": {
+          "label": "Name",
+          "placeholder": "ci-deploy"
+        },
+        "scopes": {
+          "label": "Scopes",
+          "placeholder": "compute.instance.start",
+          "hint": "Comma-separated permission slugs (scope.action)."
+        },
+        "expiry": {
+          "label": "Expires at",
+          "placeholder": "YYYY-MM-DD",
+          "never": "Never"
+        },
+        "submit": "Create",
+        "submitting": "Creating…"
+      },
+      "reveal": {
+        "title": "Token created",
+        "body": "Copy the token now. You won't see it again.",
+        "copy": "Copy token",
+        "done": "I've saved it"
+      },
+      "revoke": "Revoke"
+    },
+    "identities": {
+      "title": "Linked identities",
+      "subtitle": "OAuth, OIDC, and SAML providers connected to your account.",
+      "columns": {
+        "provider": "Provider",
+        "subject": "Subject",
+        "scopes": "Scopes",
+        "created": "Linked"
+      },
+      "unlink": "Unlink",
+      "unlinkConfirm": {
+        "title": "Unlink identity?",
+        "body": "You won't be able to sign in with this provider until you re-link it."
+      },
+      "empty": {
+        "title": "No linked identities",
+        "body": "Sign in with an external provider to link it."
+      }
+    },
+    "sessions": {
+      "title": "Active sessions",
+      "subtitle": "Devices currently signed in to your account.",
+      "current": "Current session",
+      "revoke": "Revoke",
+      "empty": {
+        "title": "No other sessions",
+        "body": "This is the only active session."
+      },
+      "comingSoon": "Per-session listing lands with a follow-up auth API."
+    }
+  },
+  "audit": {
+    "title": "Audit log",
+    "columns": {
+      "action": "Action",
+      "actor": "Actor",
+      "resource": "Resource",
+      "status": "Status",
+      "created": "At"
+    }
   }
 }
