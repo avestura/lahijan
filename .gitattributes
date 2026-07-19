@@ -7,7 +7,10 @@
 *.psm1    text eol=crlf
 *.psd1    text eol=crlf
 
-# Go, YAML, JSON, MD: keep LF (Unix convention; works everywhere).
+# Go, YAML, JSON, MD, JS-family: keep LF (Unix convention; works everywhere).
+# The JS/CSS/HTML rules also satisfy Prettier's `endOfLine: "lf"` config in
+# web/.prettierrc.json and website/.prettierrc.json — without them, Windows
+# developers with core.autocrlf=true see phantom "prettier --check" failures.
 *.go      text eol=lf
 *.sql     text eol=lf
 *.yaml    text eol=lf
@@ -16,6 +19,11 @@
 *.md      text eol=lf
 *.tsx     text eol=lf
 *.ts      text eol=lf
+*.js      text eol=lf
+*.mjs     text eol=lf
+*.cjs     text eol=lf
+*.css     text eol=lf
+*.html    text eol=lf
 
 # Binaries.
 *.png     binary

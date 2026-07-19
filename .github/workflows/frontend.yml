@@ -1,11 +1,11 @@
-# Lahijan frontend CI - dashboard SPA (web/)
+# Lahijan frontend CI - dashboard SPA (web/) and marketing SPA (website/)
 #
-# Runs on every push to main and on every PR that touches the dashboard or
+# Runs on every push to main and on every PR that touches either SPA or
 # the OpenAPI spec. The pipeline is:
 #
 #   install -> lint -> typecheck -> test -> build
 #                             \-> i18n locale sync check
-#                             \-> openapi-fetch schema sync check
+#                             \-> openapi-fetch schema sync check (web only)
 #
 # A failure on any step blocks merge. The bundle-size check is informational
 # for now (printed as a build artefact summary).
@@ -17,6 +17,7 @@ on:
     branches: [main]
     paths:
       - web/**
+      - website/**
       - api/openapi.yaml
       - api/gen/ts/**
       - api/gen/ts-client/**
@@ -24,6 +25,7 @@ on:
   pull_request:
     paths:
       - web/**
+      - website/**
       - api/openapi.yaml
       - api/gen/ts/**
       - api/gen/ts-client/**
@@ -34,11 +36,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  setup:
-    name: Install + cache
+  # --------------------------------------------------------------------------
+  # Dashboard SPA (web/)
+  # --------------------------------------------------------------------------
+  web-setup:
+    name: web · install + cache
     runs-on: ubuntu-latest
-    outputs:
-      cache-hit: ${{ steps.cache.outputs.cache-hit }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -50,10 +53,10 @@ jobs:
         working-directory: web
         run: npm ci
 
-  lint:
-    name: Lint (ESLint + Prettier)
+  web-lint:
+    name: web · Lint (ESLint + Prettier)
     runs-on: ubuntu-latest
-    needs: setup
+    needs: web-setup
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -71,10 +74,10 @@ jobs:
         working-directory: web
         run: npm run format:check
 
-  typecheck:
-    name: TypeScript (strict)
+  web-typecheck:
+    name: web · TypeScript (strict)
     runs-on: ubuntu-latest
-    needs: setup
+    needs: web-setup
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -89,10 +92,10 @@ jobs:
         working-directory: web
         run: npm run typecheck
 
-  test:
-    name: Vitest
+  web-test:
+    name: web · Vitest
     runs-on: ubuntu-latest
-    needs: setup
+    needs: web-setup
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -107,10 +110,10 @@ jobs:
         working-directory: web
         run: npm run test
 
-  build:
-    name: Vite build (bundle <500 KiB gzipped)
+  web-build:
+    name: web · Vite build
     runs-on: ubuntu-latest
-    needs: [lint, typecheck, test]
+    needs: [web-lint, web-typecheck, web-test]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -131,10 +134,10 @@ jobs:
           path: web/dist
           retention-days: 7
 
-  locale-sync:
-    name: Locale key sync (en ↔ fa)
+  web-locale-sync:
+    name: web · Locale key sync (en ↔ fa)
     runs-on: ubuntu-latest
-    needs: setup
+    needs: web-setup
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -149,10 +152,10 @@ jobs:
         working-directory: web
         run: npm run i18n:check
 
-  openapi-sync:
-    name: openapi-fetch schema in sync
+  web-openapi-sync:
+    name: web · openapi-fetch schema in sync
     runs-on: ubuntu-latest
-    needs: setup
+    needs: web-setup
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -166,3 +169,132 @@ jobs:
       - name: check-openapi-sync
         working-directory: web
         run: npm run openapi:check
+
+  # --------------------------------------------------------------------------
+  # Marketing SPA (website/)
+  #
+  # Same pipeline (lint, typecheck, test, build, locale sync). The build
+  # runs vite-react-ssg, which prerenders one index.html per route and
+  # emits sitemap.xml + robots.txt into dist/.
+  # --------------------------------------------------------------------------
+  website-setup:
+    name: website · install + cache
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: website/package-lock.json
+      - name: Install
+        working-directory: website
+        run: npm ci
+
+  website-lint:
+    name: website · Lint (ESLint + Prettier)
+    runs-on: ubuntu-latest
+    needs: website-setup
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: website/package-lock.json
+      - name: Install
+        working-directory: website
+        run: npm ci
+      - name: ESLint
+        working-directory: website
+        run: npm run lint
+      - name: Prettier (check)
+        working-directory: website
+        run: npm run format:check
+
+  website-typecheck:
+    name: website · TypeScript (strict)
+    runs-on: ubuntu-latest
+    needs: website-setup
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: website/package-lock.json
+      - name: Install
+        working-directory: website
+        run: npm ci
+      - name: tsc --noEmit
+        working-directory: website
+        run: npm run typecheck
+
+  website-test:
+    name: website · Vitest
+    runs-on: ubuntu-latest
+    needs: website-setup
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: website/package-lock.json
+      - name: Install
+        working-directory: website
+        run: npm ci
+      - name: Vitest
+        working-directory: website
+        run: npm run test
+
+  website-build:
+    name: website · vite-react-ssg build
+    runs-on: ubuntu-latest
+    needs: [website-lint, website-typecheck, website-test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: website/package-lock.json
+      - name: Install
+        working-directory: website
+        run: npm ci
+      - name: Build (SSG + sitemap)
+        working-directory: website
+        run: npm run build
+      - name: Verify prerendered HTML
+        working-directory: website
+        run: |
+          for route in index features pricing about docs blog legal/privacy legal/terms; do
+            test -f "dist/${route}.html" || { echo "::error::missing prerendered dist/${route}.html"; exit 1; }
+          done
+          test -f dist/sitemap.xml || { echo "::error::missing dist/sitemap.xml"; exit 1; }
+          test -f dist/robots.txt  || { echo "::error::missing dist/robots.txt";  exit 1; }
+          echo "✅ prerendered HTML + sitemap + robots all present"
+      - name: Upload artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: website-dist
+          path: website/dist
+          retention-days: 7
+
+  website-locale-sync:
+    name: website · Locale key sync (en ↔ fa)
+    runs-on: ubuntu-latest
+    needs: website-setup
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: website/package-lock.json
+      - name: Install
+        working-directory: website
+        run: npm ci
+      - name: check-locales
+        working-directory: website
+        run: npm run i18n:check

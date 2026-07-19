@@ -53,6 +53,15 @@ help: ## Show this help
 	@echo "  make web-i18n-check   Assert en.json/fa.json key sync"
 	@echo "  make web-openapi-check Assert OpenAPI schema sync"
 	@echo ""
+	@echo "Frontend (website/ marketing SPA):"
+	@echo "  make website-install  Install website/ dependencies"
+	@echo "  make website-build    Build the marketing site (tsc + vite-react-ssg)"
+	@echo "  make website-lint     Lint (ESLint + Prettier)"
+	@echo "  make website-test     Run Vitest"
+	@echo "  make website-typecheck TypeScript strict check"
+	@echo "  make website-dev      Start the Vite dev server"
+	@echo "  make website-i18n-check   Assert en.json/fa.json key sync"
+	@echo ""
 	@echo "Database (WS-03+):"
 	@echo "  make db-up         Apply all pending migrations"
 	@echo "  make db-down       Roll back the last migration"
@@ -196,6 +205,43 @@ web-i18n-check: ## Assert en.json and fa.json are key-for-key in sync
 
 web-openapi-check: ## Assert openapi-fetch schema is in sync with api/openapi.yaml
 	$(NPM) run openapi:check
+
+# ---------------------------------------------------------------------------
+# Frontend (website/ marketing SPA — wired in WS-19)
+#
+# Mirrors the web-* targets. The marketing site prerenders via
+# vite-react-ssg at build time (see ADR-0028). CI mirrors these targets
+# via the .github/workflows/frontend.yml workflow.
+# ---------------------------------------------------------------------------
+
+WEBSITE_DIR := website
+NPM_WEBSITE := npm --prefix $(WEBSITE_DIR)
+
+.PHONY: website-install website-build website-lint website-test website-dev website-format website-typecheck website-i18n-check
+website-install: ## Install frontend dependencies (website/)
+	$(NPM_WEBSITE) install
+
+website-build: ## Build frontend (website/) — tsc --noEmit + vite-react-ssg build + sitemap
+	$(NPM_WEBSITE) run build
+
+website-lint: ## Lint frontend (website/) — ESLint + Prettier
+	$(NPM_WEBSITE) run lint
+	$(NPM_WEBSITE) run format:check
+
+website-test: ## Test frontend (website/) — Vitest
+	$(NPM_WEBSITE) run test
+
+website-typecheck: ## TypeScript check (website/) — strict mode, no emit
+	$(NPM_WEBSITE) run typecheck
+
+website-dev: ## Start the Vite dev server (website/)
+	$(NPM_WEBSITE) run dev
+
+website-format: ## Format frontend (website/) — Prettier write
+	$(NPM_WEBSITE) run format
+
+website-i18n-check: ## Assert en.json and fa.json are key-for-key in sync (website/)
+	$(NPM_WEBSITE) run i18n:check
 
 # ---------------------------------------------------------------------------
 # Database (no-ops until WS-03; commands defined so help text is stable)

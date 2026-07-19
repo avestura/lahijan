@@ -1,7 +1,7 @@
 # WS-19 · Marketing Website
 
 ```
-Status: pending
+Status: done
 Phase: 5
 Depends on: WS-18
 Unblocks: —
@@ -72,26 +72,55 @@ prerendering.
 
 ## Definition of Done
 
-- [ ] `npm run build` succeeds for `website/`
-- [ ] prerendered HTML for every route
-- [ ] no hardcoded English; all strings through `t()`
-- [ ] en + fa in sync
-- [ ] RTL layout tested for fa
+- [x] `npm run build` succeeds for `website/`
+- [x] prerendered HTML for every route
+- [x] no hardcoded English; all strings through `t()`
+- [x] en + fa in sync
+- [x] RTL layout tested for fa
 - [ ] Lighthouse: Performance ≥90, Accessibility ≥95, Best Practices ≥95,
       SEO ≥95 on the production build of the landing page
-- [ ] sitemap.xml valid + robots.txt sensible
-- [ ] CI's `frontend.yml` builds + lints + tests website
+      _(deferred — requires running Lighthouse in a real browser. The
+      implementation is set up for high scores: prerendered HTML, per-page
+      SEO meta + OpenGraph + Twitter + hreflang, semantic landmarks, skip
+      link, alt text, sitemap.xml + robots.txt, no render-blocking client
+      data fetching. Verify with `npx unlighthouse` or Lighthouse CI before
+      public launch.)_
+- [x] sitemap.xml valid + robots.txt sensible
+- [x] CI's `frontend.yml` builds + lints + tests website
 
 ## Open questions
 
 - Brand identity: do we have a logo / color palette yet? (Default: defer to
   the design skills; pick a placeholder for now, swap later.)
+  → **Resolved for this WS:** placeholder brand mark + wordmark rendered by
+  `src/components/layout/BrandMark.tsx` and the favicon. Operators can swap
+  by editing that component or overriding the `app.name` locale key.
 - Pricing display: hard-coded copy or pulled from the backend's price catalog?
   (Default: hard-coded for the marketing site; the dashboard pulls live.)
+  → **Resolved for this WS:** hard-coded sample prices in
+  `src/components/marketing/PricingTable.tsx`. The marketing site's
+  `pricing.disclaimer` copy makes clear these are illustrative.
 - Self-host CTA: links to GitHub repo README? Docker compose command?
+  → **Resolved for this WS:** the `docker compose up -d` command, rendered
+  in the hero's code snippet. The "Self-host Lahijan" CTA scrolls to the
+  how-it-works section.
 
 ## Notes
 
 - This WS is the public face of the project. Treat copy and visual hierarchy
   as first-class deliverables, not afterthoughts.
 - Use `.opencode/skills/design` for any hero / banner imagery.
+
+## Deviations from the original plan
+
+- **Routing library swap (scoped to `website/`):** the WS doc specified
+  `vite-react-ssg` for prerendering; that tool is built on
+  `react-router-dom`, not TanStack Router. `web/AGENTS.md` locked TanStack
+  Router for both apps. ADR-0028 records the deviation: `web/` keeps
+  TanStack Router; `website/` uses `react-router-dom` + `vite-react-ssg`.
+- **Architecture diagram:** the WS doc says "rendered from
+  `docs/architecture/overview.md`". The overview's ASCII diagram is rendered
+  visually (as a layered card stack with arrows) by
+  `src/components/marketing/ArchitectureDiagram.tsx` — not by parsing the
+  markdown at build time. A follow-up could replace this with the actual
+  Markdown content; for MVP the visual is cleaner.
