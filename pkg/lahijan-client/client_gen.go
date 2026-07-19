@@ -167,6 +167,36 @@ const (
 	MFAChallengeRequiredEnrolledFactorsWebauthn MFAChallengeRequiredEnrolledFactors = "webauthn"
 )
 
+// Defines values for StorageCredentialActions.
+const (
+	StorageCredentialActionsAdmin   StorageCredentialActions = "Admin"
+	StorageCredentialActionsList    StorageCredentialActions = "List"
+	StorageCredentialActionsRead    StorageCredentialActions = "Read"
+	StorageCredentialActionsTagging StorageCredentialActions = "Tagging"
+	StorageCredentialActionsWrite   StorageCredentialActions = "Write"
+)
+
+// Defines values for StorageCredentialCreateRequestActions.
+const (
+	StorageCredentialCreateRequestActionsAdmin   StorageCredentialCreateRequestActions = "Admin"
+	StorageCredentialCreateRequestActionsList    StorageCredentialCreateRequestActions = "List"
+	StorageCredentialCreateRequestActionsRead    StorageCredentialCreateRequestActions = "Read"
+	StorageCredentialCreateRequestActionsTagging StorageCredentialCreateRequestActions = "Tagging"
+	StorageCredentialCreateRequestActionsWrite   StorageCredentialCreateRequestActions = "Write"
+)
+
+// Defines values for StoragePresignRequestMethod.
+const (
+	StoragePresignRequestMethodGET StoragePresignRequestMethod = "GET"
+	StoragePresignRequestMethodPUT StoragePresignRequestMethod = "PUT"
+)
+
+// Defines values for StoragePresignResultMethod.
+const (
+	StoragePresignResultMethodGET StoragePresignResultMethod = "GET"
+	StoragePresignResultMethodPUT StoragePresignResultMethod = "PUT"
+)
+
 // Defines values for ExportFormat.
 const (
 	ExportFormatCsv  ExportFormat = "csv"
@@ -1025,6 +1055,184 @@ type RegisterRequest struct {
 	Password string `json:"password"`
 }
 
+// StorageBucket defines model for StorageBucket.
+type StorageBucket struct {
+	// BytesUsed Cached total object size in bytes; refreshed by the metering job.
+	BytesUsed int64     `json:"bytesUsed"`
+	CreatedAt time.Time `json:"createdAt"`
+
+	// Description Optional free-form description.
+	Description *string            `json:"description,omitempty"`
+	Id          openapi_types.UUID `json:"id"`
+
+	// Label Optional user-facing label.
+	Label *string `json:"label,omitempty"`
+
+	// Name Canonical "<tenant-uuid>-<slug>" form (ADR-0011); globally unique.
+	Name string `json:"name"`
+
+	// ObjectsUsed Cached total object count; refreshed by the metering job.
+	ObjectsUsed int64 `json:"objectsUsed"`
+
+	// OwnerId The user who created (and therefore owns) the bucket.
+	OwnerId openapi_types.UUID `json:"ownerId"`
+
+	// QuotaBytes Per-bucket size ceiling in bytes; 0 = unlimited. Enforced server-side.
+	QuotaBytes int64 `json:"quotaBytes"`
+
+	// QuotaObjects Per-bucket object-count ceiling; 0 = unlimited.
+	QuotaObjects int64 `json:"quotaObjects"`
+
+	// Slug User-picked slug portion (1-26 lowercase alphanumeric + dashes).
+	Slug      string             `json:"slug"`
+	TenantId  openapi_types.UUID `json:"tenantId"`
+	UpdatedAt *time.Time         `json:"updatedAt,omitempty"`
+}
+
+// StorageBucketCreateRequest defines model for StorageBucketCreateRequest.
+type StorageBucketCreateRequest struct {
+	Description *string `json:"description,omitempty"`
+	Label       *string `json:"label,omitempty"`
+
+	// QuotaBytes Per-bucket size ceiling in bytes; 0 = unlimited.
+	QuotaBytes *int64 `json:"quotaBytes,omitempty"`
+
+	// QuotaObjects Per-bucket object-count ceiling; 0 = unlimited.
+	QuotaObjects *int64 `json:"quotaObjects,omitempty"`
+
+	// Slug User-picked bucket slug per ADR-0011.
+	Slug string `json:"slug"`
+}
+
+// StorageBucketPage defines model for StorageBucketPage.
+type StorageBucketPage struct {
+	Items  []StorageBucket `json:"items"`
+	Limit  int             `json:"limit"`
+	Offset int             `json:"offset"`
+	Total  int             `json:"total"`
+}
+
+// StorageBucketUpdateRequest defines model for StorageBucketUpdateRequest.
+type StorageBucketUpdateRequest struct {
+	Description *string `json:"description,omitempty"`
+	Label       *string `json:"label,omitempty"`
+}
+
+// StorageBucketUsage defines model for StorageBucketUsage.
+type StorageBucketUsage struct {
+	// BytesUsed Cached total object size in bytes.
+	BytesUsed int64 `json:"bytesUsed"`
+
+	// ObjectsUsed Cached total object count.
+	ObjectsUsed int64 `json:"objectsUsed"`
+
+	// QuotaBytes Configured size ceiling; 0 = unlimited.
+	QuotaBytes int64 `json:"quotaBytes"`
+
+	// QuotaObjects Configured object-count ceiling; 0 = unlimited.
+	QuotaObjects int64 `json:"quotaObjects"`
+}
+
+// StorageCredential defines model for StorageCredential.
+type StorageCredential struct {
+	// AccessKeyId S3 access key string. Globally unique across the platform.
+	AccessKeyId string `json:"accessKeyId"`
+
+	// Actions High-level actions the credential permits on the bucket.
+	Actions   []StorageCredentialActions `json:"actions"`
+	BucketId  openapi_types.UUID         `json:"bucketId"`
+	CreatedAt time.Time                  `json:"createdAt"`
+
+	// ExpiresAt Optional expiry. The metering job revokes the credential past this.
+	ExpiresAt *time.Time         `json:"expiresAt"`
+	Id        openapi_types.UUID `json:"id"`
+
+	// Label User-supplied label so the user can tell credentials apart.
+	Label      *string            `json:"label,omitempty"`
+	LastUsedAt *time.Time         `json:"lastUsedAt"`
+	RevokedAt  *time.Time         `json:"revokedAt"`
+	TenantId   openapi_types.UUID `json:"tenantId"`
+	UserId     openapi_types.UUID `json:"userId"`
+}
+
+// StorageCredentialActions defines model for StorageCredential.Actions.
+type StorageCredentialActions string
+
+// StorageCredentialCreateRequest defines model for StorageCredentialCreateRequest.
+type StorageCredentialCreateRequest struct {
+	// Actions At least one action is required.
+	Actions []StorageCredentialCreateRequestActions `json:"actions"`
+
+	// ExpiresInSeconds Optional lifetime in seconds. When set, the credential expires
+	// at created_at + expiresInSeconds; the metering job revokes it
+	// past that point. Absent means "no expiry".
+	ExpiresInSeconds *int    `json:"expiresInSeconds,omitempty"`
+	Label            *string `json:"label,omitempty"`
+}
+
+// StorageCredentialCreateRequestActions defines model for StorageCredentialCreateRequest.Actions.
+type StorageCredentialCreateRequestActions string
+
+// StorageCredentialPage defines model for StorageCredentialPage.
+type StorageCredentialPage struct {
+	Items  []StorageCredential `json:"items"`
+	Limit  int                 `json:"limit"`
+	Offset int                 `json:"offset"`
+	Total  int                 `json:"total"`
+}
+
+// StorageCredentialWithSecret defines model for StorageCredentialWithSecret.
+type StorageCredentialWithSecret struct {
+	Credential StorageCredential `json:"credential"`
+
+	// SecretKey The plaintext S3 secret key. SENSITIVE — shown exactly once at
+	// mint time. Store it securely; Lahijan cannot recover it.
+	SecretKey string `json:"secretKey"`
+}
+
+// StoragePresignRequest defines model for StoragePresignRequest.
+type StoragePresignRequest struct {
+	// ExpiresInSeconds URL lifetime in seconds; clamped to [1, 86400].
+	ExpiresInSeconds *int `json:"expiresInSeconds,omitempty"`
+
+	// Key Object key within the bucket. Empty targets the bucket root.
+	Key *string `json:"key,omitempty"`
+
+	// Method HTTP method the URL is signed for.
+	Method StoragePresignRequestMethod `json:"method"`
+}
+
+// StoragePresignRequestMethod HTTP method the URL is signed for.
+type StoragePresignRequestMethod string
+
+// StoragePresignResult defines model for StoragePresignResult.
+type StoragePresignResult struct {
+	// Bucket Canonical bucket name the URL targets.
+	Bucket string `json:"bucket"`
+
+	// ExpiresAt When the signature stops being valid.
+	ExpiresAt time.Time `json:"expiresAt"`
+
+	// Key Object key within the bucket.
+	Key    *string                    `json:"key,omitempty"`
+	Method StoragePresignResultMethod `json:"method"`
+
+	// Url The SigV4-signed URL the user opens directly against the backend.
+	Url string `json:"url"`
+}
+
+// StoragePresignResultMethod defines model for StoragePresignResult.Method.
+type StoragePresignResultMethod string
+
+// StorageQuotaRequest defines model for StorageQuotaRequest.
+type StorageQuotaRequest struct {
+	// QuotaBytes Per-bucket size ceiling in bytes; 0 clears the size ceiling.
+	QuotaBytes int64 `json:"quotaBytes"`
+
+	// QuotaObjects Per-bucket object-count ceiling; 0 clears the count ceiling.
+	QuotaObjects int64 `json:"quotaObjects"`
+}
+
 // TOTPEnrollResponse defines model for TOTPEnrollResponse.
 type TOTPEnrollResponse struct {
 	// ProvisioningUri The otpauth:// URL the dashboard encodes as a QR code.
@@ -1341,6 +1549,24 @@ type ListDNSRecordsParams struct {
 	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
 }
 
+// ListStorageBucketsParams defines parameters for ListStorageBuckets.
+type ListStorageBucketsParams struct {
+	// Limit Maximum number of items to return (1..200).
+	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of items to skip for pagination.
+	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// ListStorageCredentialsParams defines parameters for ListStorageCredentials.
+type ListStorageCredentialsParams struct {
+	// Limit Maximum number of items to return (1..200).
+	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of items to skip for pagination.
+	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
 // UploadAdminPluginMultipartRequestBody defines body for UploadAdminPlugin for multipart/form-data ContentType.
 type UploadAdminPluginMultipartRequestBody UploadAdminPluginMultipartBody
 
@@ -1433,6 +1659,21 @@ type BeginWebAuthnRegistrationJSONRequestBody = WebAuthnBeginRequest
 
 // FinishWebAuthnRegistrationJSONRequestBody defines body for FinishWebAuthnRegistration for application/json ContentType.
 type FinishWebAuthnRegistrationJSONRequestBody = WebAuthnFinishRegistrationRequest
+
+// CreateStorageBucketJSONRequestBody defines body for CreateStorageBucket for application/json ContentType.
+type CreateStorageBucketJSONRequestBody = StorageBucketCreateRequest
+
+// UpdateStorageBucketJSONRequestBody defines body for UpdateStorageBucket for application/json ContentType.
+type UpdateStorageBucketJSONRequestBody = StorageBucketUpdateRequest
+
+// CreateStorageCredentialJSONRequestBody defines body for CreateStorageCredential for application/json ContentType.
+type CreateStorageCredentialJSONRequestBody = StorageCredentialCreateRequest
+
+// PresignStorageObjectJSONRequestBody defines body for PresignStorageObject for application/json ContentType.
+type PresignStorageObjectJSONRequestBody = StoragePresignRequest
+
+// SetStorageBucketQuotaJSONRequestBody defines body for SetStorageBucketQuota for application/json ContentType.
+type SetStorageBucketQuotaJSONRequestBody = StorageQuotaRequest
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -1830,6 +2071,49 @@ type ClientInterface interface {
 
 	// Ping request
 	Ping(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListStorageBuckets request
+	ListStorageBuckets(ctx context.Context, params *ListStorageBucketsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateStorageBucketWithBody request with any body
+	CreateStorageBucketWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateStorageBucket(ctx context.Context, body CreateStorageBucketJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteStorageBucket request
+	DeleteStorageBucket(ctx context.Context, bucketId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetStorageBucket request
+	GetStorageBucket(ctx context.Context, bucketId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateStorageBucketWithBody request with any body
+	UpdateStorageBucketWithBody(ctx context.Context, bucketId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateStorageBucket(ctx context.Context, bucketId openapi_types.UUID, body UpdateStorageBucketJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListStorageCredentials request
+	ListStorageCredentials(ctx context.Context, bucketId openapi_types.UUID, params *ListStorageCredentialsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateStorageCredentialWithBody request with any body
+	CreateStorageCredentialWithBody(ctx context.Context, bucketId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateStorageCredential(ctx context.Context, bucketId openapi_types.UUID, body CreateStorageCredentialJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RevokeStorageCredential request
+	RevokeStorageCredential(ctx context.Context, bucketId openapi_types.UUID, credentialId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PresignStorageObjectWithBody request with any body
+	PresignStorageObjectWithBody(ctx context.Context, bucketId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PresignStorageObject(ctx context.Context, bucketId openapi_types.UUID, body PresignStorageObjectJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetStorageBucketQuotaWithBody request with any body
+	SetStorageBucketQuotaWithBody(ctx context.Context, bucketId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	SetStorageBucketQuota(ctx context.Context, bucketId openapi_types.UUID, body SetStorageBucketQuotaJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetStorageBucketUsage request
+	GetStorageBucketUsage(ctx context.Context, bucketId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetHealth request
 	GetHealth(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -3241,6 +3525,198 @@ func (c *Client) FinishWebAuthnRegistration(ctx context.Context, body FinishWebA
 
 func (c *Client) Ping(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPingRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListStorageBuckets(ctx context.Context, params *ListStorageBucketsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListStorageBucketsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateStorageBucketWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateStorageBucketRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateStorageBucket(ctx context.Context, body CreateStorageBucketJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateStorageBucketRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteStorageBucket(ctx context.Context, bucketId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteStorageBucketRequest(c.Server, bucketId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetStorageBucket(ctx context.Context, bucketId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetStorageBucketRequest(c.Server, bucketId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateStorageBucketWithBody(ctx context.Context, bucketId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateStorageBucketRequestWithBody(c.Server, bucketId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateStorageBucket(ctx context.Context, bucketId openapi_types.UUID, body UpdateStorageBucketJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateStorageBucketRequest(c.Server, bucketId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListStorageCredentials(ctx context.Context, bucketId openapi_types.UUID, params *ListStorageCredentialsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListStorageCredentialsRequest(c.Server, bucketId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateStorageCredentialWithBody(ctx context.Context, bucketId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateStorageCredentialRequestWithBody(c.Server, bucketId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateStorageCredential(ctx context.Context, bucketId openapi_types.UUID, body CreateStorageCredentialJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateStorageCredentialRequest(c.Server, bucketId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) RevokeStorageCredential(ctx context.Context, bucketId openapi_types.UUID, credentialId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRevokeStorageCredentialRequest(c.Server, bucketId, credentialId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PresignStorageObjectWithBody(ctx context.Context, bucketId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPresignStorageObjectRequestWithBody(c.Server, bucketId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PresignStorageObject(ctx context.Context, bucketId openapi_types.UUID, body PresignStorageObjectJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPresignStorageObjectRequest(c.Server, bucketId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) SetStorageBucketQuotaWithBody(ctx context.Context, bucketId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetStorageBucketQuotaRequestWithBody(c.Server, bucketId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) SetStorageBucketQuota(ctx context.Context, bucketId openapi_types.UUID, body SetStorageBucketQuotaJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetStorageBucketQuotaRequest(c.Server, bucketId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetStorageBucketUsage(ctx context.Context, bucketId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetStorageBucketUsageRequest(c.Server, bucketId)
 	if err != nil {
 		return nil, err
 	}
@@ -7182,6 +7658,514 @@ func NewPingRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewListStorageBucketsRequest generates requests for ListStorageBuckets
+func NewListStorageBucketsRequest(server string, params *ListStorageBucketsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/storage/buckets")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateStorageBucketRequest calls the generic CreateStorageBucket builder with application/json body
+func NewCreateStorageBucketRequest(server string, body CreateStorageBucketJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateStorageBucketRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateStorageBucketRequestWithBody generates requests for CreateStorageBucket with any type of body
+func NewCreateStorageBucketRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/storage/buckets")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteStorageBucketRequest generates requests for DeleteStorageBucket
+func NewDeleteStorageBucketRequest(server string, bucketId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "bucketId", runtime.ParamLocationPath, bucketId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/storage/buckets/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetStorageBucketRequest generates requests for GetStorageBucket
+func NewGetStorageBucketRequest(server string, bucketId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "bucketId", runtime.ParamLocationPath, bucketId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/storage/buckets/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateStorageBucketRequest calls the generic UpdateStorageBucket builder with application/json body
+func NewUpdateStorageBucketRequest(server string, bucketId openapi_types.UUID, body UpdateStorageBucketJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateStorageBucketRequestWithBody(server, bucketId, "application/json", bodyReader)
+}
+
+// NewUpdateStorageBucketRequestWithBody generates requests for UpdateStorageBucket with any type of body
+func NewUpdateStorageBucketRequestWithBody(server string, bucketId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "bucketId", runtime.ParamLocationPath, bucketId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/storage/buckets/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListStorageCredentialsRequest generates requests for ListStorageCredentials
+func NewListStorageCredentialsRequest(server string, bucketId openapi_types.UUID, params *ListStorageCredentialsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "bucketId", runtime.ParamLocationPath, bucketId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/storage/buckets/%s/credentials", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateStorageCredentialRequest calls the generic CreateStorageCredential builder with application/json body
+func NewCreateStorageCredentialRequest(server string, bucketId openapi_types.UUID, body CreateStorageCredentialJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateStorageCredentialRequestWithBody(server, bucketId, "application/json", bodyReader)
+}
+
+// NewCreateStorageCredentialRequestWithBody generates requests for CreateStorageCredential with any type of body
+func NewCreateStorageCredentialRequestWithBody(server string, bucketId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "bucketId", runtime.ParamLocationPath, bucketId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/storage/buckets/%s/credentials", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRevokeStorageCredentialRequest generates requests for RevokeStorageCredential
+func NewRevokeStorageCredentialRequest(server string, bucketId openapi_types.UUID, credentialId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "bucketId", runtime.ParamLocationPath, bucketId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "credentialId", runtime.ParamLocationPath, credentialId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/storage/buckets/%s/credentials/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPresignStorageObjectRequest calls the generic PresignStorageObject builder with application/json body
+func NewPresignStorageObjectRequest(server string, bucketId openapi_types.UUID, body PresignStorageObjectJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPresignStorageObjectRequestWithBody(server, bucketId, "application/json", bodyReader)
+}
+
+// NewPresignStorageObjectRequestWithBody generates requests for PresignStorageObject with any type of body
+func NewPresignStorageObjectRequestWithBody(server string, bucketId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "bucketId", runtime.ParamLocationPath, bucketId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/storage/buckets/%s/presign", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewSetStorageBucketQuotaRequest calls the generic SetStorageBucketQuota builder with application/json body
+func NewSetStorageBucketQuotaRequest(server string, bucketId openapi_types.UUID, body SetStorageBucketQuotaJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetStorageBucketQuotaRequestWithBody(server, bucketId, "application/json", bodyReader)
+}
+
+// NewSetStorageBucketQuotaRequestWithBody generates requests for SetStorageBucketQuota with any type of body
+func NewSetStorageBucketQuotaRequestWithBody(server string, bucketId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "bucketId", runtime.ParamLocationPath, bucketId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/storage/buckets/%s/quota", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetStorageBucketUsageRequest generates requests for GetStorageBucketUsage
+func NewGetStorageBucketUsageRequest(server string, bucketId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "bucketId", runtime.ParamLocationPath, bucketId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/storage/buckets/%s/usage", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetHealthRequest generates requests for GetHealth
 func NewGetHealthRequest(server string) (*http.Request, error) {
 	var err error
@@ -7575,6 +8559,49 @@ type ClientWithResponsesInterface interface {
 
 	// PingWithResponse request
 	PingWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PingResponse, error)
+
+	// ListStorageBucketsWithResponse request
+	ListStorageBucketsWithResponse(ctx context.Context, params *ListStorageBucketsParams, reqEditors ...RequestEditorFn) (*ListStorageBucketsResponse, error)
+
+	// CreateStorageBucketWithBodyWithResponse request with any body
+	CreateStorageBucketWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateStorageBucketResponse, error)
+
+	CreateStorageBucketWithResponse(ctx context.Context, body CreateStorageBucketJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateStorageBucketResponse, error)
+
+	// DeleteStorageBucketWithResponse request
+	DeleteStorageBucketWithResponse(ctx context.Context, bucketId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteStorageBucketResponse, error)
+
+	// GetStorageBucketWithResponse request
+	GetStorageBucketWithResponse(ctx context.Context, bucketId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetStorageBucketResponse, error)
+
+	// UpdateStorageBucketWithBodyWithResponse request with any body
+	UpdateStorageBucketWithBodyWithResponse(ctx context.Context, bucketId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateStorageBucketResponse, error)
+
+	UpdateStorageBucketWithResponse(ctx context.Context, bucketId openapi_types.UUID, body UpdateStorageBucketJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateStorageBucketResponse, error)
+
+	// ListStorageCredentialsWithResponse request
+	ListStorageCredentialsWithResponse(ctx context.Context, bucketId openapi_types.UUID, params *ListStorageCredentialsParams, reqEditors ...RequestEditorFn) (*ListStorageCredentialsResponse, error)
+
+	// CreateStorageCredentialWithBodyWithResponse request with any body
+	CreateStorageCredentialWithBodyWithResponse(ctx context.Context, bucketId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateStorageCredentialResponse, error)
+
+	CreateStorageCredentialWithResponse(ctx context.Context, bucketId openapi_types.UUID, body CreateStorageCredentialJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateStorageCredentialResponse, error)
+
+	// RevokeStorageCredentialWithResponse request
+	RevokeStorageCredentialWithResponse(ctx context.Context, bucketId openapi_types.UUID, credentialId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RevokeStorageCredentialResponse, error)
+
+	// PresignStorageObjectWithBodyWithResponse request with any body
+	PresignStorageObjectWithBodyWithResponse(ctx context.Context, bucketId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PresignStorageObjectResponse, error)
+
+	PresignStorageObjectWithResponse(ctx context.Context, bucketId openapi_types.UUID, body PresignStorageObjectJSONRequestBody, reqEditors ...RequestEditorFn) (*PresignStorageObjectResponse, error)
+
+	// SetStorageBucketQuotaWithBodyWithResponse request with any body
+	SetStorageBucketQuotaWithBodyWithResponse(ctx context.Context, bucketId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetStorageBucketQuotaResponse, error)
+
+	SetStorageBucketQuotaWithResponse(ctx context.Context, bucketId openapi_types.UUID, body SetStorageBucketQuotaJSONRequestBody, reqEditors ...RequestEditorFn) (*SetStorageBucketQuotaResponse, error)
+
+	// GetStorageBucketUsageWithResponse request
+	GetStorageBucketUsageWithResponse(ctx context.Context, bucketId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetStorageBucketUsageResponse, error)
 
 	// GetHealthWithResponse request
 	GetHealthWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetHealthResponse, error)
@@ -9750,6 +10777,293 @@ func (r PingResponse) StatusCode() int {
 	return 0
 }
 
+type ListStorageBucketsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *StorageBucketPage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r ListStorageBucketsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListStorageBucketsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateStorageBucketResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *StorageBucket
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON409      *Error
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateStorageBucketResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateStorageBucketResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteStorageBucketResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteStorageBucketResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteStorageBucketResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetStorageBucketResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *StorageBucket
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r GetStorageBucketResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetStorageBucketResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpdateStorageBucketResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *StorageBucket
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateStorageBucketResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateStorageBucketResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListStorageCredentialsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *StorageCredentialPage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r ListStorageCredentialsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListStorageCredentialsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateStorageCredentialResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *StorageCredentialWithSecret
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateStorageCredentialResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateStorageCredentialResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type RevokeStorageCredentialResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r RevokeStorageCredentialResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RevokeStorageCredentialResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PresignStorageObjectResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *StoragePresignResult
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r PresignStorageObjectResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PresignStorageObjectResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type SetStorageBucketQuotaResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r SetStorageBucketQuotaResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetStorageBucketQuotaResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetStorageBucketUsageResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *StorageBucketUsage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r GetStorageBucketUsageResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetStorageBucketUsageResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetHealthResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -10803,6 +12117,145 @@ func (c *ClientWithResponses) PingWithResponse(ctx context.Context, reqEditors .
 		return nil, err
 	}
 	return ParsePingResponse(rsp)
+}
+
+// ListStorageBucketsWithResponse request returning *ListStorageBucketsResponse
+func (c *ClientWithResponses) ListStorageBucketsWithResponse(ctx context.Context, params *ListStorageBucketsParams, reqEditors ...RequestEditorFn) (*ListStorageBucketsResponse, error) {
+	rsp, err := c.ListStorageBuckets(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListStorageBucketsResponse(rsp)
+}
+
+// CreateStorageBucketWithBodyWithResponse request with arbitrary body returning *CreateStorageBucketResponse
+func (c *ClientWithResponses) CreateStorageBucketWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateStorageBucketResponse, error) {
+	rsp, err := c.CreateStorageBucketWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateStorageBucketResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateStorageBucketWithResponse(ctx context.Context, body CreateStorageBucketJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateStorageBucketResponse, error) {
+	rsp, err := c.CreateStorageBucket(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateStorageBucketResponse(rsp)
+}
+
+// DeleteStorageBucketWithResponse request returning *DeleteStorageBucketResponse
+func (c *ClientWithResponses) DeleteStorageBucketWithResponse(ctx context.Context, bucketId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteStorageBucketResponse, error) {
+	rsp, err := c.DeleteStorageBucket(ctx, bucketId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteStorageBucketResponse(rsp)
+}
+
+// GetStorageBucketWithResponse request returning *GetStorageBucketResponse
+func (c *ClientWithResponses) GetStorageBucketWithResponse(ctx context.Context, bucketId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetStorageBucketResponse, error) {
+	rsp, err := c.GetStorageBucket(ctx, bucketId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetStorageBucketResponse(rsp)
+}
+
+// UpdateStorageBucketWithBodyWithResponse request with arbitrary body returning *UpdateStorageBucketResponse
+func (c *ClientWithResponses) UpdateStorageBucketWithBodyWithResponse(ctx context.Context, bucketId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateStorageBucketResponse, error) {
+	rsp, err := c.UpdateStorageBucketWithBody(ctx, bucketId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateStorageBucketResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpdateStorageBucketWithResponse(ctx context.Context, bucketId openapi_types.UUID, body UpdateStorageBucketJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateStorageBucketResponse, error) {
+	rsp, err := c.UpdateStorageBucket(ctx, bucketId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateStorageBucketResponse(rsp)
+}
+
+// ListStorageCredentialsWithResponse request returning *ListStorageCredentialsResponse
+func (c *ClientWithResponses) ListStorageCredentialsWithResponse(ctx context.Context, bucketId openapi_types.UUID, params *ListStorageCredentialsParams, reqEditors ...RequestEditorFn) (*ListStorageCredentialsResponse, error) {
+	rsp, err := c.ListStorageCredentials(ctx, bucketId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListStorageCredentialsResponse(rsp)
+}
+
+// CreateStorageCredentialWithBodyWithResponse request with arbitrary body returning *CreateStorageCredentialResponse
+func (c *ClientWithResponses) CreateStorageCredentialWithBodyWithResponse(ctx context.Context, bucketId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateStorageCredentialResponse, error) {
+	rsp, err := c.CreateStorageCredentialWithBody(ctx, bucketId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateStorageCredentialResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateStorageCredentialWithResponse(ctx context.Context, bucketId openapi_types.UUID, body CreateStorageCredentialJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateStorageCredentialResponse, error) {
+	rsp, err := c.CreateStorageCredential(ctx, bucketId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateStorageCredentialResponse(rsp)
+}
+
+// RevokeStorageCredentialWithResponse request returning *RevokeStorageCredentialResponse
+func (c *ClientWithResponses) RevokeStorageCredentialWithResponse(ctx context.Context, bucketId openapi_types.UUID, credentialId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RevokeStorageCredentialResponse, error) {
+	rsp, err := c.RevokeStorageCredential(ctx, bucketId, credentialId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRevokeStorageCredentialResponse(rsp)
+}
+
+// PresignStorageObjectWithBodyWithResponse request with arbitrary body returning *PresignStorageObjectResponse
+func (c *ClientWithResponses) PresignStorageObjectWithBodyWithResponse(ctx context.Context, bucketId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PresignStorageObjectResponse, error) {
+	rsp, err := c.PresignStorageObjectWithBody(ctx, bucketId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePresignStorageObjectResponse(rsp)
+}
+
+func (c *ClientWithResponses) PresignStorageObjectWithResponse(ctx context.Context, bucketId openapi_types.UUID, body PresignStorageObjectJSONRequestBody, reqEditors ...RequestEditorFn) (*PresignStorageObjectResponse, error) {
+	rsp, err := c.PresignStorageObject(ctx, bucketId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePresignStorageObjectResponse(rsp)
+}
+
+// SetStorageBucketQuotaWithBodyWithResponse request with arbitrary body returning *SetStorageBucketQuotaResponse
+func (c *ClientWithResponses) SetStorageBucketQuotaWithBodyWithResponse(ctx context.Context, bucketId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetStorageBucketQuotaResponse, error) {
+	rsp, err := c.SetStorageBucketQuotaWithBody(ctx, bucketId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetStorageBucketQuotaResponse(rsp)
+}
+
+func (c *ClientWithResponses) SetStorageBucketQuotaWithResponse(ctx context.Context, bucketId openapi_types.UUID, body SetStorageBucketQuotaJSONRequestBody, reqEditors ...RequestEditorFn) (*SetStorageBucketQuotaResponse, error) {
+	rsp, err := c.SetStorageBucketQuota(ctx, bucketId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetStorageBucketQuotaResponse(rsp)
+}
+
+// GetStorageBucketUsageWithResponse request returning *GetStorageBucketUsageResponse
+func (c *ClientWithResponses) GetStorageBucketUsageWithResponse(ctx context.Context, bucketId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetStorageBucketUsageResponse, error) {
+	rsp, err := c.GetStorageBucketUsage(ctx, bucketId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetStorageBucketUsageResponse(rsp)
 }
 
 // GetHealthWithResponse request returning *GetHealthResponse
@@ -14725,6 +16178,607 @@ func ParsePingResponse(rsp *http.Response) (*PingResponse, error) {
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListStorageBucketsResponse parses an HTTP response from a ListStorageBucketsWithResponse call
+func ParseListStorageBucketsResponse(rsp *http.Response) (*ListStorageBucketsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListStorageBucketsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest StorageBucketPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateStorageBucketResponse parses an HTTP response from a CreateStorageBucketWithResponse call
+func ParseCreateStorageBucketResponse(rsp *http.Response) (*CreateStorageBucketResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateStorageBucketResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest StorageBucket
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteStorageBucketResponse parses an HTTP response from a DeleteStorageBucketWithResponse call
+func ParseDeleteStorageBucketResponse(rsp *http.Response) (*DeleteStorageBucketResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteStorageBucketResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetStorageBucketResponse parses an HTTP response from a GetStorageBucketWithResponse call
+func ParseGetStorageBucketResponse(rsp *http.Response) (*GetStorageBucketResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetStorageBucketResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest StorageBucket
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateStorageBucketResponse parses an HTTP response from a UpdateStorageBucketWithResponse call
+func ParseUpdateStorageBucketResponse(rsp *http.Response) (*UpdateStorageBucketResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateStorageBucketResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest StorageBucket
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListStorageCredentialsResponse parses an HTTP response from a ListStorageCredentialsWithResponse call
+func ParseListStorageCredentialsResponse(rsp *http.Response) (*ListStorageCredentialsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListStorageCredentialsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest StorageCredentialPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateStorageCredentialResponse parses an HTTP response from a CreateStorageCredentialWithResponse call
+func ParseCreateStorageCredentialResponse(rsp *http.Response) (*CreateStorageCredentialResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateStorageCredentialResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest StorageCredentialWithSecret
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRevokeStorageCredentialResponse parses an HTTP response from a RevokeStorageCredentialWithResponse call
+func ParseRevokeStorageCredentialResponse(rsp *http.Response) (*RevokeStorageCredentialResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RevokeStorageCredentialResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePresignStorageObjectResponse parses an HTTP response from a PresignStorageObjectWithResponse call
+func ParsePresignStorageObjectResponse(rsp *http.Response) (*PresignStorageObjectResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PresignStorageObjectResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest StoragePresignResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetStorageBucketQuotaResponse parses an HTTP response from a SetStorageBucketQuotaWithResponse call
+func ParseSetStorageBucketQuotaResponse(rsp *http.Response) (*SetStorageBucketQuotaResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetStorageBucketQuotaResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetStorageBucketUsageResponse parses an HTTP response from a GetStorageBucketUsageWithResponse call
+func ParseGetStorageBucketUsageResponse(rsp *http.Response) (*GetStorageBucketUsageResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetStorageBucketUsageResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest StorageBucketUsage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
 
 	}
 
