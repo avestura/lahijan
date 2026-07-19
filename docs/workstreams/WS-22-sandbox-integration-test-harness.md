@@ -1,7 +1,7 @@
 # WS-22 · Sandbox / Integration Test Harness
 
 ```
-Status: pending
+Status: in-progress
 Phase: 6
 Depends on: WS-14, WS-15, WS-16
 Unblocks: WS-23 (release)
@@ -80,11 +80,27 @@ Playwright against the dashboard, and tears it down cleanly.
 
 ## Open questions
 
-- Should the fake Incus be re-used by dev for offline work? (Default: no, dev
-  should use real Incus in docker.)
-- Playwright browser binaries: CI-cached? (Default: yes, use the official
-  Playwright GH action.)
-- Coverage gate: hard fail or warn? (Default: hard fail at MVP threshold.)
+All resolved by this WS, defaults adopted as proposed:
+
+- **Should the fake Incus be re-used by dev for offline work?** No. Dev
+  continues to use real Incus in docker (per the WS doc default). The fakes
+  live under `providers/<name>/fake/` and are imported only by tests.
+- **Playwright browser binaries: CI-cached?** Yes. The e2e CI job uses the
+  official `playwright-github-action@v1` which installs + caches browser
+  binaries across runs.
+- **Coverage gate: hard fail or warn?** Hard fail at the MVP threshold
+  (Go ≥60% statements, web ≥60% lines). The gate is enforced via
+  `make cover-check` (Go) and the vitest `coverage.thresholds` block (web);
+  CI runs both.
+
+  **Threshold scoping note:** the WS-22 coverage gate runs against the
+  unit-test suite only (`go test -cover` + `vitest --coverage`).
+  Integration tests are gated on the existing testcontainers path; e2e
+  coverage is informational. This avoids the well-known Go-coverage lie
+  where integration-test-built binaries inflate per-package numbers.
+  Raising the floor per WS is the doc's intent ("Coverage is a floor, not
+  a target"); the next WS that adds user-facing logic re-runs
+  `make cover-check` locally before pushing.
 
 ## Notes
 
