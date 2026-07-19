@@ -1,0 +1,62 @@
+/*
+ * Tailwind entrypoint. Layers:
+ *   - tokens.css       (primitives)
+ *   - theme.css        (semantic + component; light + dark)  [via @import]
+ *   - tailwind.css     (this file; directives + base styles)
+ *
+ * Vite resolves @import in CSS source order, so the tokens must be imported
+ * before Tailwind directives for the utilities to compile.
+ */
+
+@import "./tokens.css";
+@import "./theme.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply text-foreground;
+  }
+
+  /* Focus ring tokens; respects dark mode via the semantic layer. */
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid hsl(var(--color-ring));
+    outline-offset: 2px;
+  }
+
+  /* Skip-to-content link for accessibility (Lighthouse a11y best practice). */
+  .skip-link {
+    @apply sr-only;
+  }
+  .skip-link:focus {
+    @apply not-sr-only;
+    position: fixed;
+    top: 0.5rem;
+    inset-inline-start: 0.5rem;
+    z-index: 100;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius);
+    background: hsl(var(--color-primary));
+    color: hsl(var(--color-primary-fg));
+  }
+}

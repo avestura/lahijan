@@ -1,7 +1,7 @@
 # WS-19 · Marketing Website
 
 ```
-Status: pending
+Status: in-progress
 Phase: 5
 Depends on: WS-18
 Unblocks: —

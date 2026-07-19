@@ -1,0 +1,10 @@
+node_modules
+dist
+src/vite-env.d.ts
+*.log
+build
+coverage
+.vite
+AGENTS.md
+README.md
+*.d.ts

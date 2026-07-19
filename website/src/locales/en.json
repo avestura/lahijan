@@ -1,0 +1,336 @@
+{
+  "app": {
+    "name": "Lahijan",
+    "tagline": "Self-service cloud platform",
+    "description": "Lahijan is an open-source cloud platform for compute, DNS, and object storage. Self-host with one docker compose command."
+  },
+  "nav": {
+    "home": "Home",
+    "features": "Features",
+    "pricing": "Pricing",
+    "docs": "Docs",
+    "blog": "Blog",
+    "about": "About",
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "skipToContent": "Skip to content"
+  },
+  "theme": {
+    "label": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "locale": {
+    "label": "Language",
+    "en": "English",
+    "fa": "Persian"
+  },
+  "cta": {
+    "selfHost": "Self-host Lahijan",
+    "signIn": "Sign in",
+    "getStarted": "Get started",
+    "readDocs": "Read the docs",
+    "viewOnGithub": "View on GitHub",
+    "seePricing": "See pricing",
+    "exploreFeatures": "Explore features",
+    "readMore": "Read more"
+  },
+  "hero": {
+    "badge": "Open source · Self-hosted",
+    "title": "Your cloud, your rules.",
+    "subtitle": "Compute, DNS, and object storage behind one clean self-service portal. Deploy in minutes with a single command.",
+    "primary": "Self-host Lahijan",
+    "secondary": "Explore features"
+  },
+  "features": {
+    "sectionTitle": "Everything you need to run a cloud",
+    "sectionSubtitle": "Three best-of-breed backends, one unified control plane, zero vendor lock-in.",
+    "compute": {
+      "title": "Compute",
+      "body": "Provision system containers and virtual machines on demand. Full instance lifecycle, profiles, devices, and networks."
+    },
+    "dns": {
+      "title": "DNS",
+      "body": "Authoritative DNS for your zones, with a records editor that gets out of your way."
+    },
+    "storage": {
+      "title": "Object storage",
+      "body": "S3-compatible buckets with per-user credentials. Your apps hit the data plane directly; Lahijan manages policies."
+    },
+    "plugins": {
+      "title": "WASM plugins",
+      "body": "Extend the platform with sandboxed WebAssembly modules. Android-style permissions keep you in control."
+    },
+    "rbac": {
+      "title": "RBAC + audit",
+      "body": "Role-based access control with an append-only audit trail. Every privileged action is recorded."
+    },
+    "billing": {
+      "title": "PAYG billing",
+      "body": "Top up user balances and meter usage per minute. A ledger you can reconcile, not a black box."
+    },
+    "learnMore": "Learn more"
+  },
+  "howItWorks": {
+    "sectionTitle": "How it works",
+    "sectionSubtitle": "One platform, three concerns, a single deploy.",
+    "step1": {
+      "title": "Deploy",
+      "body": "Run docker compose up. Lahijan brings up its database and the three backends it wraps."
+    },
+    "step2": {
+      "title": "Onboard",
+      "body": "Invite users, set their quotas, and top up their balance. They get a self-service portal for compute, DNS, and S3."
+    },
+    "step3": {
+      "title": "Scale",
+      "body": "Every resource meters per minute. The ledger records every credit and debit; receipts are a query away."
+    }
+  },
+  "codeSnippet": {
+    "label": "Get started in one command",
+    "comment": "# clone, configure, bring the stack up",
+    "command": "docker compose up -d",
+    "copied": "Copied"
+  },
+  "architecture": {
+    "sectionTitle": "Architecture at a glance",
+    "sectionSubtitle": "A monolithic control plane over three focused backends.",
+    "browser": "End user (browser)",
+    "browserBody": "REST/JSON for control; S3 direct for data.",
+    "backend": "Lahijan backend (Go)",
+    "backendBody": "One GoFiber monolith. REST API, services, repository layer, job queue, WASM runtime.",
+    "database": "PostgreSQL",
+    "databaseBody": "Shared by Lahijan and the backends. Row-level tenant isolation.",
+    "backends": "Compute · DNS · Object storage",
+    "backendsBody": "Three best-of-breed backends, abstracted behind the Lahijan API."
+  },
+  "pricing": {
+    "sectionTitle": "Simple, metered pricing",
+    "sectionSubtitle": "Lahijan itself is free and open source. These sample unit prices reflect what operators typically charge users.",
+    "disclaimer": "Prices shown are illustrative. Each operator sets their own catalog.",
+    "unit": {
+      "cpu": "per vCPU-hour",
+      "ram": "per GB-hour",
+      "storage": "per GB-month",
+      "egress": "per GB",
+      "zone": "per zone-month",
+      "bucket": "per GB-month"
+    },
+    "items": {
+      "compute": {
+        "name": "Compute",
+        "body": "Billed per minute while an instance is running."
+      },
+      "dns": {
+        "name": "DNS zones",
+        "body": "Billed per hosted zone per month."
+      },
+      "storage": {
+        "name": "Object storage",
+        "body": "Billed per GB stored per month; egress billed per GB."
+      }
+    },
+    "example": {
+      "title": "Worked example",
+      "body": "A small instance (1 vCPU, 2 GB RAM, 20 GB disk) left running for a month costs about {{amount}} at the sample rates above."
+    }
+  },
+  "faq": {
+    "sectionTitle": "Frequently asked questions",
+    "sectionSubtitle": "Short answers to the questions operators ask first.",
+    "items": {
+      "selfhost": {
+        "q": "Can I self-host Lahijan?",
+        "a": "Yes. The whole stack — Lahijan, its database, and the three backends — runs from one docker compose file."
+      },
+      "backends": {
+        "q": "Which backends does Lahijan use?",
+        "a": "Lahijan wraps three mature open-source projects for compute, DNS, and object storage. They are abstracted behind the Lahijan API; end users never see their names."
+      },
+      "multiTenant": {
+        "q": "Is Lahijan multi-tenant?",
+        "a": "Yes. Every row in the database carries a tenant id, enforced at the repository layer. Tenants cannot see each other's data."
+      },
+      "pricing": {
+        "q": "How does pricing work?",
+        "a": "Each operator sets their own unit prices. Users prepay into a balance; usage is metered per minute and debited from the ledger."
+      },
+      "plugins": {
+        "q": "What are WASM plugins?",
+        "a": "WebAssembly modules that extend Lahijan with new automation. Each plugin declares a permission manifest; admins approve each permission at install time."
+      },
+      "sdk": {
+        "q": "Is there an API?",
+        "a": "Yes. Every action you can do in the UI you can do over a versioned REST API with generated client libraries."
+      }
+    }
+  },
+  "testimonials": {
+    "sectionTitle": "From the people running it",
+    "sectionSubtitle": "Operators and early users on what Lahijan replaces for them. (Placeholder copy — operators customize this section on their own deployment.)",
+    "items": {
+      "t1": {
+        "quote": "We replaced three separate control panels with one Lahijan deploy.",
+        "name": "Operator",
+        "role": "Early deployer"
+      },
+      "t2": {
+        "quote": "The audit trail alone was worth the migration. The billing is a bonus.",
+        "name": "Platform engineer",
+        "role": "SRE team"
+      },
+      "t3": {
+        "quote": "Our users finally stop asking us to open tickets for every DNS change.",
+        "name": "Hostmaster",
+        "role": "Managed hosting"
+      }
+    }
+  },
+  "finalCta": {
+    "title": "Run your own cloud today.",
+    "subtitle": "Clone the repo, edit the config, bring the stack up. That's it.",
+    "primary": "Self-host Lahijan",
+    "secondary": "Read the docs"
+  },
+  "footer": {
+    "product": "Product",
+    "resources": "Resources",
+    "company": "Company",
+    "legal": "Legal",
+    "rights": "All rights reserved.",
+    "copyright": "© {{year}} {{name}}. {{rights}}",
+    "madeWith": "Built with care for operators.",
+    "description": "Open-source cloud platform for compute, DNS, and object storage."
+  },
+  "common": {
+    "name": "Name",
+    "description": "Description",
+    "price": "Price"
+  },
+  "page": {
+    "features": {
+      "title": "Features",
+      "subtitle": "A complete cloud stack behind one API.",
+      "lead": "Lahijan unifies the three biggest operational concerns — compute, DNS, and object storage — under a single API and UI, with the audit log and billing you need to run it for real users."
+    },
+    "pricing": {
+      "title": "Pricing",
+      "subtitle": "Lahijan is free to self-host. Operators set their own prices.",
+      "lead": "The unit prices below are illustrative defaults. Each deployment reflects the operator's own catalog."
+    },
+    "about": {
+      "title": "About Lahijan",
+      "subtitle": "Why we're building it.",
+      "lead": "Lahijan is an open-source project building the self-service cloud platform we wished existed: opinionated, multi-tenant, and free to run.",
+      "mission": {
+        "title": "Mission",
+        "body": "Give every operator the same tools the big clouds have, without the lock-in or the price tag."
+      },
+      "principles": {
+        "title": "Principles",
+        "items": {
+          "transparent": {
+            "title": "Transparent infrastructure",
+            "body": "Three focused backends, abstracted behind one API. Operators see everything; users see a clean portal."
+          },
+          "tenantIsolation": {
+            "title": "Tenant isolation by construction",
+            "body": "Row-level isolation enforced in the repository layer, not bolted on after."
+          },
+          "open": {
+            "title": "Open source, open process",
+            "body": "Every decision is recorded. Every line is on a public repo."
+          }
+        }
+      },
+      "nameOrigin": {
+        "title": "Why Lahijan?",
+        "body": "Lahijan is named after the city of Lahijan in northern Iran. The project's voice is bilingual from day one: English and Persian."
+      }
+    },
+    "docs": {
+      "title": "Documentation",
+      "subtitle": "Everything you need to run Lahijan.",
+      "lead": "The full docs live in the project's docs site. The links below take you straight to the most-read sections.",
+      "links": {
+        "quickstart": "Quickstart",
+        "quickstartBody": "Self-host Lahijan in under five minutes with docker compose.",
+        "concepts": "Concepts",
+        "conceptsBody": "Tenants, users, instances, zones, buckets — what each term means.",
+        "api": "API reference",
+        "apiBody": "The REST API, generated client libraries, and OpenAPI spec.",
+        "operators": "Operator guide",
+        "operatorsBody": "Config, backups, monitoring, and upgrades."
+      },
+      "visitDocsSite": "Open the full docs site"
+    },
+    "blog": {
+      "title": "Blog",
+      "subtitle": "Updates, deep dives, and release notes.",
+      "lead": "Long-form posts live elsewhere for now. This is the index; expect the first posts soon.",
+      "empty": "No posts yet. Check back soon.",
+      "readMore": "Read more"
+    },
+    "legal": {
+      "privacy": {
+        "title": "Privacy policy",
+        "updated": "Last updated",
+        "lead": "This is a boilerplate privacy policy. Each Lahijan deployment is operated independently; the operator of your deployment is responsible for customizing this document.",
+        "sections": {
+          "scope": {
+            "title": "Scope",
+            "body": "This policy describes how the operator of your Lahijan deployment handles data. The Lahijan project itself does not collect any data from deployments."
+          },
+          "data": {
+            "title": "Data we process",
+            "body": "Account credentials, billing ledger entries, resource configuration, audit log entries, and usage telemetry required to operate the platform."
+          },
+          "retention": {
+            "title": "Retention",
+            "body": "Audit log entries are append-only and retained per the operator's policy. Other data is removed when the corresponding account or resource is deleted."
+          },
+          "contact": {
+            "title": "Contact",
+            "body": "Reach the operator of your deployment via their published support channels."
+          }
+        }
+      },
+      "terms": {
+        "title": "Terms of service",
+        "updated": "Last updated",
+        "lead": "This is a boilerplate terms-of-service document. Each Lahijan deployment is operated independently; the operator of your deployment is responsible for customizing this document.",
+        "sections": {
+          "scope": {
+            "title": "Scope",
+            "body": "These terms govern your use of the Lahijan deployment from which you accessed this document."
+          },
+          "accounts": {
+            "title": "Accounts",
+            "body": "You are responsible for safeguarding the credentials issued to your account and for all activity under it."
+          },
+          "acceptable": {
+            "title": "Acceptable use",
+            "body": "You agree not to abuse the platform, including but not limited to launching attacks, distributing malware, or violating applicable law."
+          },
+          "billing": {
+            "title": "Billing",
+            "body": "Usage is metered and debited from your prepaid balance. The operator may suspend service if the balance is exhausted."
+          },
+          "contact": {
+            "title": "Contact",
+            "body": "Reach the operator of your deployment via their published support channels."
+          }
+        }
+      }
+    },
+    "notFound": {
+      "title": "Page not found",
+      "body": "We couldn't find what you were looking for.",
+      "home": "Back to home"
+    }
+  }
+}

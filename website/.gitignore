@@ -1,0 +1,19 @@
+# Build output
+dist/
+.vite/
+
+# Dependencies
+node_modules/
+
+# Test artifacts
+coverage/
+*.lcov
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+
+# Local env files (keep examples)
+.env
+.env.local
+.env.*.local
