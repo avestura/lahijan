@@ -119,7 +119,8 @@
     "no": "خیر",
     "none": "هیچ",
     "optional": "اختیاری",
-    "required": "الزامی"
+    "required": "الزامی",
+    "selectAll": "گزینش همه"
   },
   "permission": {
     "denied": "شما اجازهٔ انجام این عمل را ندارید."

@@ -119,7 +119,8 @@
     "no": "No",
     "none": "None",
     "optional": "optional",
-    "required": "required"
+    "required": "required",
+    "selectAll": "Select all"
   },
   "permission": {
     "denied": "You do not have permission to perform this action."
