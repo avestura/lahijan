@@ -127,7 +127,45 @@ export function AuditTable({ filters, setFilters }: Props) {
           <Input
             id="audit-resource"
             value={filters.resourceType ?? ""}
-            onChange={(e) => resetAndSet({ resourceType: e.target.value || undefined })}
+            onChange={(e) =>
+              resetAndSet({ resourceType: e.target.value || undefined })
+            }
+          />
+        </div>
+        <div className="w-[200px] space-y-1">
+          <Label htmlFor="audit-actor-user">{t("audit.filters.actorUserId")}</Label>
+          <Input
+            id="audit-actor-user"
+            value={filters.actorUserId ?? ""}
+            onChange={(e) =>
+              resetAndSet({ actorUserId: e.target.value || undefined })
+            }
+          />
+        </div>
+        <div className="w-[180px] space-y-1">
+          <Label htmlFor="audit-from">{t("audit.filters.fromTs")}</Label>
+          <Input
+            id="audit-from"
+            type="date"
+            value={filters.fromTs?.slice(0, 10) ?? ""}
+            onChange={(e) =>
+              resetAndSet({
+                fromTs: e.target.value ? new Date(e.target.value).toISOString() : undefined,
+              })
+            }
+          />
+        </div>
+        <div className="w-[180px] space-y-1">
+          <Label htmlFor="audit-to">{t("audit.filters.toTs")}</Label>
+          <Input
+            id="audit-to"
+            type="date"
+            value={filters.toTs?.slice(0, 10) ?? ""}
+            onChange={(e) =>
+              resetAndSet({
+                toTs: e.target.value ? new Date(e.target.value).toISOString() : undefined,
+              })
+            }
           />
         </div>
         {canExport && (
