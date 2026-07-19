@@ -1,0 +1,10 @@
+node_modules
+dist
+src/routeTree.gen.ts
+*.log
+build
+coverage
+.vite
+AGENTS.md
+README.md
+*.d.ts

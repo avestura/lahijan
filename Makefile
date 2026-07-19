@@ -43,8 +43,15 @@ help: ## Show this help
 	@echo "  make vet           Run go vet"
 	@echo "  make tidy          Run go mod tidy"
 	@echo ""
-	@echo "Frontend (no-op until WS-18):"
-	@echo "  make web-install web-build web-lint web-test"
+	@echo "Frontend (web/ dashboard SPA):"
+	@echo "  make web-install  Install web/ dependencies"
+	@echo "  make web-build    Build the dashboard (tsc + vite build)"
+	@echo "  make web-lint     Lint (ESLint + Prettier)"
+	@echo "  make web-test     Run Vitest"
+	@echo "  make web-typecheck TypeScript strict check"
+	@echo "  make web-dev      Start the Vite dev server"
+	@echo "  make web-i18n-check   Assert en.json/fa.json key sync"
+	@echo "  make web-openapi-check Assert OpenAPI schema sync"
 	@echo ""
 	@echo "Database (WS-03+):"
 	@echo "  make db-up         Apply all pending migrations"
@@ -151,21 +158,44 @@ openapi-verify: openapi-gen ## Fail if committed generated code has drifted from
 	@echo "openapi: generated code is up to date"
 
 # ---------------------------------------------------------------------------
-# Frontend (no-ops until WS-18; defined so CI is stable)
+# Frontend (web/ dashboard SPA — wired in WS-18)
+#
+# All npm commands run inside web/. CI mirrors these targets via the
+# .github/workflows/frontend.yml workflow.
 # ---------------------------------------------------------------------------
 
-.PHONY: web-install web-build web-lint web-test
+WEB_DIR := web
+NPM := npm --prefix $(WEB_DIR)
+
+.PHONY: web-install web-build web-lint web-test web-dev web-format web-typecheck
 web-install: ## Install frontend dependencies (web/)
-	@echo "frontend not yet initialized; will be wired in WS-18"
+	$(NPM) install
 
-web-build: ## Build frontend (web/)
-	@echo "frontend not yet initialized; will be wired in WS-18"
+web-build: ## Build frontend (web/) — tsc --noEmit + vite build
+	$(NPM) run build
 
-web-lint: ## Lint frontend (web/)
-	@echo "frontend not yet initialized; will be wired in WS-18"
+web-lint: ## Lint frontend (web/) — ESLint + Prettier
+	$(NPM) run lint
+	$(NPM) run format:check
 
-web-test: ## Test frontend (web/)
-	@echo "frontend not yet initialized; will be wired in WS-18"
+web-test: ## Test frontend (web/) — Vitest
+	$(NPM) run test
+
+web-typecheck: ## TypeScript check (web/) — strict mode, no emit
+	$(NPM) run typecheck
+
+web-dev: ## Start the Vite dev server (web/)
+	$(NPM) run dev
+
+web-format: ## Format frontend (web/) — Prettier write
+	$(NPM) run format
+
+.PHONY: web-i18n-check web-openapi-check
+web-i18n-check: ## Assert en.json and fa.json are key-for-key in sync
+	$(NPM) run i18n:check
+
+web-openapi-check: ## Assert openapi-fetch schema is in sync with api/openapi.yaml
+	$(NPM) run openapi:check
 
 # ---------------------------------------------------------------------------
 # Database (no-ops until WS-03; commands defined so help text is stable)

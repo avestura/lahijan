@@ -1,0 +1,48 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "allowImportingTsExtensions": false,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Strictness — the project's non-negotiable. */
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "exactOptionalPropertyTypes": false,
+    "forceConsistentCasingInFileNames": true,
+
+    /* Path aliases */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@api": ["../api/gen/ts-client/index"],
+      "@api-schema": ["../api/gen/ts/schema"],
+      "openapi-fetch": ["./node_modules/openapi-fetch"]
+    },
+    "types": ["vite/client", "vitest/globals", "node"]
+  },
+  "include": [
+    "src",
+    "scripts",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "../api/gen/ts/**/*.ts",
+    "../api/gen/ts-client/**/*.ts"
+  ],
+  "exclude": ["node_modules", "dist", "src/routeTree.gen.ts"]
+}

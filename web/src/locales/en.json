@@ -1,0 +1,98 @@
+{
+  "app": {
+    "name": "Lahijan",
+    "tagline": "Self-service cloud platform"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "compute": "Instances",
+    "dns": "DNS",
+    "storage": "Object Storage",
+    "billing": "Billing",
+    "plugins": "Plugins",
+    "audit": "Audit Log",
+    "settings": "Settings",
+    "admin": {
+      "label": "Administration",
+      "jobs": "Jobs",
+      "plugins": "Plugins",
+      "marketplace": "Marketplace"
+    }
+  },
+  "theme": {
+    "label": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "locale": {
+    "label": "Language",
+    "en": "English",
+    "fa": "Persian"
+  },
+  "auth": {
+    "login": {
+      "title": "Sign in",
+      "subtitle": "Welcome back. Sign in to your Lahijan account.",
+      "email": {
+        "label": "Email",
+        "placeholder": "you@example.com",
+        "required": "Email is required",
+        "invalid": "Enter a valid email address"
+      },
+      "password": {
+        "label": "Password",
+        "placeholder": "Your password",
+        "required": "Password is required",
+        "min": "Password must be at least 8 characters"
+      },
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "register": "Create an account",
+      "forgotPassword": "Forgot password?",
+      "error": {
+        "invalid": "Invalid email or password",
+        "network": "Could not reach the server. Try again.",
+        "mfaRequired": "Multi-factor authentication required"
+      }
+    },
+    "logout": "Sign out",
+    "session": {
+      "expired": "Your session has expired. Please sign in again."
+    }
+  },
+  "dashboard": {
+    "welcome": "Welcome, {{name}}",
+    "ping": {
+      "loading": "Pinging the server…",
+      "success": "Server reached at {{ts}}",
+      "error": "Could not reach the server."
+    },
+    "emptyState": {
+      "title": "Nothing here yet",
+      "body": "Resources you create will appear here."
+    }
+  },
+  "common": {
+    "loading": "Loading…",
+    "error": "Something went wrong",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "confirm": "Confirm",
+    "search": "Search",
+    "actions": "Actions",
+    "status": "Status",
+    "name": "Name",
+    "created": "Created",
+    "updated": "Updated"
+  },
+  "permission": {
+    "denied": "You do not have permission to perform this action."
+  }
+}
