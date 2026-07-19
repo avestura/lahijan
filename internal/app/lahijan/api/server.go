@@ -223,6 +223,21 @@ func NewServer(deps ServerDeps) *Server {
 	return s
 }
 
+// SetDNSService swaps the DNS service after the server has been built.
+// Used by integration tests that wire a real (httptest-backed) DNS
+// service after the standard newTestApp path has run. The handler
+// closures capture s.dnsSvc at request time, so the swap takes effect
+// immediately for every subsequent request without re-registering
+// routes. Production code passes DNSSvc via ServerDeps at construction.
+func (s *Server) SetDNSService(svc *dns.Service) {
+	s.dnsSvc = svc
+}
+
+// SetComputeService mirrors SetDNSService for the compute module.
+func (s *Server) SetComputeService(svc *compute.Service) {
+	s.computeSvc = svc
+}
+
 // Ping handles GET /api/v1/ping. It returns the current server timestamp and
 // emits an OpenTelemetry trace span to prove the api pipeline is wired.
 func (s *Server) Ping(c *fiber.Ctx) error {

@@ -26,8 +26,10 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/rbac"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/secrets"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/session"
+	"github.com/avestura/lahijan/internal/app/lahijan/compute"
 	"github.com/avestura/lahijan/internal/app/lahijan/database"
 	"github.com/avestura/lahijan/internal/app/lahijan/database/testutil"
+	"github.com/avestura/lahijan/internal/app/lahijan/dns"
 	notifyemail "github.com/avestura/lahijan/internal/app/lahijan/notify/email"
 	"github.com/gofiber/fiber/v2"
 )
@@ -40,10 +42,17 @@ const strongPw = "VeryStrong123!xyz"
 // testApp bundles a Fiber app with cookies so tests can read Set-Cookie values
 // across requests (the Go http.Client does that automatically, but app.Test
 // does not, so we thread cookies explicitly).
+//
+// The dnsSvc / computeSvc fields are nil by default; per-area test
+// helpers (newDNSTestApp, newComputeTestApp) wire them so the area's
+// endpoints work end-to-end against an in-memory fake of the provider.
 type testApp struct {
-	app     *fiber.App
-	cookies api.CookieConfig
-	repos   *database.Repos
+	app        *fiber.App
+	cookies    api.CookieConfig
+	repos      *database.Repos
+	server     *api.Server
+	dnsSvc     *dns.Service
+	computeSvc *compute.Service
 }
 
 func newTestApp(t *testing.T) *testApp {
@@ -106,7 +115,7 @@ func newTestApp(t *testing.T) *testApp {
 		}),
 	})
 	api.RegisterRoutes(app, server, policy)
-	return &testApp{app: app, cookies: cookies, repos: repos}
+	return &testApp{app: app, cookies: cookies, repos: repos, server: server}
 }
 
 // doJSON issues a JSON request and returns status + decoded body (generic) +
