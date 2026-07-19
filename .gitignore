@@ -15,6 +15,14 @@
 *.out
 coverage.out
 coverage.html
+# WS-22: local coverage profiles (any extension) + report dirs.
+coverage*
+/coverage_html/
+/test-results/
+/playwright-report/
+/playwright/.cache/
+/blob-report/
+/playwright/.ms-playwright/
 
 # Glide cache (legacy)
 .glide/
