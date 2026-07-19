@@ -30,7 +30,12 @@ export const createInstanceSchema = z.object({
   imageAlias: z.string().min(1),
   profile: z.string().default("default"),
   cpu: z.coerce.number().int().min(1).max(64).default(1),
-  memoryMiB: z.coerce.number().int().min(64).max(1024 * 64).default(512),
+  memoryMiB: z.coerce
+    .number()
+    .int()
+    .min(64)
+    .max(1024 * 64)
+    .default(512),
   diskGiB: z.coerce.number().int().min(1).max(1024).default(10),
   // Optional free-form config overrides; the wizard's Advanced panel
   // surfaces this as a textarea the user fills with YAML/JSON.

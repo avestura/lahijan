@@ -169,7 +169,9 @@ export function ProfileForm() {
                 placeholder={t("settings.profile.changePassword.confirm.placeholder")}
                 onChange={(e) => {
                   const v = e.target.value;
-                  setPwdMismatch(!!form.getValues("newPassword") && v !== form.getValues("newPassword"));
+                  setPwdMismatch(
+                    !!form.getValues("newPassword") && v !== form.getValues("newPassword"),
+                  );
                 }}
               />
               {pwdMismatch && (

@@ -34,11 +34,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { useTenant } from "@/hooks/useTenant";
-import {
-  useComputeImages,
-  useComputeProfiles,
-  useCreateInstance,
-} from "../api";
+import { useComputeImages, useComputeProfiles, useCreateInstance } from "../api";
 import { createInstanceSchema, type CreateInstanceValues } from "../schemas";
 
 type Step = "image" | "size" | "review";
@@ -158,9 +154,7 @@ export function CreateInstanceWizard() {
                 ) : images.error ? (
                   <p className="text-sm text-destructive">{t("common.error")}</p>
                 ) : (images.data ?? []).length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    {t("compute.create.image.empty")}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{t("compute.create.image.empty")}</p>
                 ) : (
                   <Select
                     value={form.watch("imageAlias")}
@@ -199,13 +193,9 @@ export function CreateInstanceWizard() {
                     placeholder={t("compute.create.name.placeholder")}
                     {...form.register("name")}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    {t("compute.create.name.hint")}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{t("compute.create.name.hint")}</p>
                   {form.formState.errors.name && (
-                    <p className="text-xs text-destructive">
-                      {form.formState.errors.name.message}
-                    </p>
+                    <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
                   )}
                 </div>
                 <div className="space-y-2">
@@ -251,9 +241,7 @@ export function CreateInstanceWizard() {
                     min={64}
                     {...form.register("memoryMiB", { valueAsNumber: true })}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    {t("compute.create.memory.hint")}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{t("compute.create.memory.hint")}</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="disk">{t("compute.create.disk.label")}</Label>
@@ -318,7 +306,7 @@ export function CreateInstanceWizard() {
                       <Label htmlFor="config">{t("compute.create.advanced.config")}</Label>
                       <Textarea id="config" rows={4} {...form.register("configYAML")} />
                     </div>
-              </div>
+                  </div>
                 )}
               </div>
             </CardContent>
@@ -328,18 +316,14 @@ export function CreateInstanceWizard() {
         {step === "review" && (
           <Card>
             <CardContent className="space-y-3 p-6">
-              <Review label={t("compute.create.name.label")}>
-                {form.getValues("name")}
-              </Review>
+              <Review label={t("compute.create.name.label")}>{form.getValues("name")}</Review>
               <Review label={t("compute.create.image.label")}>
                 {form.getValues("imageAlias")}
               </Review>
               <Review label={t("compute.create.type.label")}>
                 {t(`compute.types.${form.getValues("type")}`)}
               </Review>
-              <Review label={t("compute.create.cpu.label")}>
-                {String(form.getValues("cpu"))}
-              </Review>
+              <Review label={t("compute.create.cpu.label")}>{String(form.getValues("cpu"))}</Review>
               <Review label={t("compute.create.memory.label")}>
                 {`${form.getValues("memoryMiB")} MiB`}
               </Review>

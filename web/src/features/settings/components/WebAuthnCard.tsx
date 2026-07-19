@@ -31,8 +31,7 @@ export function WebAuthnCard() {
   const [name, setName] = useState("");
 
   const isSupported =
-    typeof window !== "undefined" &&
-    typeof window.PublicKeyCredential !== "undefined";
+    typeof window !== "undefined" && typeof window.PublicKeyCredential !== "undefined";
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();

@@ -82,11 +82,7 @@ export function InstanceAudit({ instanceId }: Props) {
   const rows = query.data ?? [];
   if (rows.length === 0) {
     return (
-      <EmptyState
-        icon={ScrollTextIcon}
-        title={t("common.none")}
-        description={t("common.none")}
-      />
+      <EmptyState icon={ScrollTextIcon} title={t("common.none")} description={t("common.none")} />
     );
   }
 

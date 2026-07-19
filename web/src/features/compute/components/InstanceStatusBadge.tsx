@@ -25,10 +25,7 @@ interface Props {
 export function InstanceStatusBadge({ status }: Props) {
   const { t } = useTranslation();
   const bucket = classifyStatus(status);
-  const labelKey =
-    bucket === "other"
-      ? "compute.status.other"
-      : `compute.status.${bucket}`;
+  const labelKey = bucket === "other" ? "compute.status.other" : `compute.status.${bucket}`;
   return (
     <Badge variant={TONE_BY_BUCKET[bucket]} aria-live="polite">
       {t(labelKey)}

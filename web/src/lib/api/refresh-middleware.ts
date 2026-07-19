@@ -66,9 +66,7 @@ export const refreshMiddleware: Middleware = {
     // picked a tenant), so we skip them explicitly.
     const url = new URL(request.url);
     const isAuthPath =
-      url.pathname === REFRESH_PATH ||
-      url.pathname === LOGIN_PATH ||
-      url.pathname === LOGOUT_PATH;
+      url.pathname === REFRESH_PATH || url.pathname === LOGIN_PATH || url.pathname === LOGOUT_PATH;
     if (!isAuthPath) {
       const tenantId = useSessionStore.getState().currentTenantId;
       if (tenantId) {

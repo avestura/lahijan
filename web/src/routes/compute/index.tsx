@@ -22,11 +22,7 @@ import {
 } from "@/components/ui/select";
 import { usePerm } from "@/lib/perm";
 import { useTenant } from "@/hooks/useTenant";
-import {
-  useComputeInstances,
-  classifyStatus,
-  type StatusBucket,
-} from "@/features/compute/api";
+import { useComputeInstances, classifyStatus, type StatusBucket } from "@/features/compute/api";
 import { InstanceList } from "@/features/compute/components/InstanceList";
 
 export const Route = createFileRoute("/compute/")({
@@ -58,8 +54,7 @@ function ComputeListPage() {
         inst.name.toLowerCase().includes(lower) ||
         (inst.description ?? "").toLowerCase().includes(lower) ||
         inst.imageAlias.toLowerCase().includes(lower);
-      const matchesStatus =
-        statusFilter === "all" || classifyStatus(inst.status) === statusFilter;
+      const matchesStatus = statusFilter === "all" || classifyStatus(inst.status) === statusFilter;
       return matchesText && matchesStatus;
     });
   }, [query.data, filter, statusFilter]);

@@ -7,13 +7,7 @@
  * logout mutation. When the session is anonymous the bar shows a Sign
  * in link instead.
  */
-import {
-  BellIcon,
-  ChevronDownIcon,
-  LogOutIcon,
-  SearchIcon,
-  UserIcon,
-} from "lucide-react";
+import { BellIcon, ChevronDownIcon, LogOutIcon, SearchIcon, UserIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -86,12 +80,7 @@ export function Header() {
         </div>
         <div className="flex items-center gap-1">
           <TenantSwitcher />
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={t("common.actions")}
-            className="relative"
-          >
+          <Button variant="ghost" size="icon" aria-label={t("common.actions")} className="relative">
             <BellIcon className="h-5 w-5" />
             <span className="absolute end-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-destructive" />
           </Button>

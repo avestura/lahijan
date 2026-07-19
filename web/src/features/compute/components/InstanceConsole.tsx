@@ -123,7 +123,9 @@ export function InstanceConsole({ instanceId, status }: Props) {
           {exec.isPending ? t("compute.console.running") : t("compute.console.run")}
         </Button>
       </form>
-      {disabled && <p className="text-xs text-muted-foreground">{t("compute.console.disconnected")}</p>}
+      {disabled && (
+        <p className="text-xs text-muted-foreground">{t("compute.console.disconnected")}</p>
+      )}
       <p className="text-xs text-muted-foreground">{t("compute.console.hint")}</p>
       <div
         ref={termRef}

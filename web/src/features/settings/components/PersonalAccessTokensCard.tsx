@@ -113,9 +113,7 @@ export function PersonalAccessTokensCard() {
                   <TableHead>{t("settings.tokens.columns.scopes")}</TableHead>
                   <TableHead>{t("settings.tokens.columns.lastUsed")}</TableHead>
                   <TableHead>{t("settings.tokens.columns.expires")}</TableHead>
-                  <TableHead className="text-end">
-                    {t("settings.tokens.columns.actions")}
-                  </TableHead>
+                  <TableHead className="text-end">{t("settings.tokens.columns.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -137,7 +135,9 @@ export function PersonalAccessTokensCard() {
                         : t("common.none")}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {tok.expiresAt ? new Date(tok.expiresAt).toLocaleString() : t("settings.tokens.create.expiry.never")}
+                      {tok.expiresAt
+                        ? new Date(tok.expiresAt).toLocaleString()
+                        : t("settings.tokens.create.expiry.never")}
                     </TableCell>
                     <TableCell className="text-end">
                       <Button
@@ -214,9 +214,7 @@ export function PersonalAccessTokensCard() {
             <Button variant="outline" onClick={onCopyToken}>
               {t("settings.tokens.reveal.copy")}
             </Button>
-            <Button onClick={() => setRevealOpen(false)}>
-              {t("settings.tokens.reveal.done")}
-            </Button>
+            <Button onClick={() => setRevealOpen(false)}>{t("settings.tokens.reveal.done")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -52,9 +52,10 @@ export function useComputeInstances(tenantId: string | null) {
 /** useComputeInstance — single instance, polled every 5s while in transition. */
 export function useComputeInstance(tenantId: string | null, instanceId: string | undefined) {
   return useQuery({
-    queryKey: tenantId && instanceId
-      ? queryKeys.compute.instance(tenantId, instanceId)
-      : ["compute", "disabled"],
+    queryKey:
+      tenantId && instanceId
+        ? queryKeys.compute.instance(tenantId, instanceId)
+        : ["compute", "disabled"],
     enabled: !!tenantId && !!instanceId,
     refetchInterval: (query) => {
       const inst = query.state.data;
@@ -120,7 +121,9 @@ export function useComputeProfiles(tenantId: string | null) {
  * UX) and emit them as the `limits.cpu` / `limits.memory` / `limits.disk`
  * keys Incus expects in the `config` map.
  */
-function buildCreateBody(values: CreateInstanceValues): components["schemas"]["ComputeInstanceCreateRequest"] {
+function buildCreateBody(
+  values: CreateInstanceValues,
+): components["schemas"]["ComputeInstanceCreateRequest"] {
   const config: Record<string, string> = {
     "limits.cpu": String(values.cpu),
     "limits.memory": `${values.memoryMiB}MiB`,
@@ -173,10 +176,9 @@ export function useDeleteInstance(tenantId: string | null) {
 
   return useMutation({
     mutationFn: async ({ instanceId, force }: { instanceId: string; force?: boolean }) => {
-      const { error, response } = await apiClient.DELETE(
-        "/api/v1/compute/instances/{instanceId}",
-        { params: { path: { instanceId }, query: { force: force ?? false } } },
-      );
+      const { error, response } = await apiClient.DELETE("/api/v1/compute/instances/{instanceId}", {
+        params: { path: { instanceId }, query: { force: force ?? false } },
+      });
       if (error) {
         throw new Error(`compute.instance.delete: ${response?.status ?? "network"}`);
       }

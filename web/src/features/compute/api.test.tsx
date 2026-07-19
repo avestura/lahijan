@@ -172,15 +172,12 @@ describe("useLifecycle", () => {
       await result.current.mutateAsync({ instanceId: "i1", action: "start" });
     });
 
-    expect(mockPost).toHaveBeenCalledWith(
-      "/api/v1/compute/instances/{instanceId}/{action}",
-      {
-        params: expect.objectContaining({
-          path: { instanceId: "i1", action: "start" },
-          query: { force: false },
-        }),
-      },
-    );
+    expect(mockPost).toHaveBeenCalledWith("/api/v1/compute/instances/{instanceId}/{action}", {
+      params: expect.objectContaining({
+        path: { instanceId: "i1", action: "start" },
+        query: { force: false },
+      }),
+    });
   });
 });
 
@@ -209,14 +206,11 @@ describe("useDeleteInstance", () => {
       await result.current.mutateAsync({ instanceId: "i1", force: true });
     });
 
-    expect(mockDelete).toHaveBeenCalledWith(
-      "/api/v1/compute/instances/{instanceId}",
-      {
-        params: expect.objectContaining({
-          path: { instanceId: "i1" },
-          query: { force: true },
-        }),
-      },
-    );
+    expect(mockDelete).toHaveBeenCalledWith("/api/v1/compute/instances/{instanceId}", {
+      params: expect.objectContaining({
+        path: { instanceId: "i1" },
+        query: { force: true },
+      }),
+    });
   });
 });

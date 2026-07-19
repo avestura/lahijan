@@ -59,9 +59,7 @@ export function InstanceOverview({ instance }: Props) {
         )}
       </Field>
       <Field label={t("compute.detail.description")}>
-        <span className="text-sm">
-          {instance.description ?? t("compute.detail.noDescription")}
-        </span>
+        <span className="text-sm">{instance.description ?? t("compute.detail.noDescription")}</span>
       </Field>
     </dl>
   );

@@ -31,12 +31,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { LoadingState } from "@/components/layout/LoadingState";
-import {
-  useDisableTOTP,
-  useEnrollTOTP,
-  useRecoveryCodesMeta,
-  useVerifyTOTP,
-} from "../api";
+import { useDisableTOTP, useEnrollTOTP, useRecoveryCodesMeta, useVerifyTOTP } from "../api";
 import { disableTotpSchema, verifyTotpSchema, type VerifyTotpValues } from "../schemas";
 
 export function TOTPCard() {
@@ -99,9 +94,7 @@ export function TOTPCard() {
         {enroll.data && (
           <div className="space-y-4">
             <div className="flex flex-col items-center gap-2 rounded-md border border-border p-4">
-              <p className="text-sm text-muted-foreground">
-                {t("settings.security.totp.qr.alt")}
-              </p>
+              <p className="text-sm text-muted-foreground">{t("settings.security.totp.qr.alt")}</p>
               <QRCodeSVG value={enroll.data.provisioningUri} size={160} />
               <div className="space-y-1 text-center">
                 <p className="text-xs text-muted-foreground">
@@ -178,11 +171,7 @@ export function TOTPCard() {
                 />
               </div>
               <DialogFooter>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setDisableOpen(false)}
-                >
+                <Button type="button" variant="ghost" onClick={() => setDisableOpen(false)}>
                   {t("common.cancel")}
                 </Button>
                 <Button type="submit" variant="destructive" disabled={disable.isPending}>

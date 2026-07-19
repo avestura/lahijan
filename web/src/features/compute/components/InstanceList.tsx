@@ -119,9 +119,7 @@ export function InstanceList({ instances, isLoading, error, onRetry }: Props) {
                 size="sm"
                 variant="outline"
                 onClick={() =>
-                  selected.forEach((id) =>
-                    lifecycle.mutate({ instanceId: id, action: "start" }),
-                  )
+                  selected.forEach((id) => lifecycle.mutate({ instanceId: id, action: "start" }))
                 }
               >
                 <PlayIcon className="h-4 w-4" />
@@ -133,9 +131,7 @@ export function InstanceList({ instances, isLoading, error, onRetry }: Props) {
                 size="sm"
                 variant="outline"
                 onClick={() =>
-                  selected.forEach((id) =>
-                    lifecycle.mutate({ instanceId: id, action: "stop" }),
-                  )
+                  selected.forEach((id) => lifecycle.mutate({ instanceId: id, action: "stop" }))
                 }
               >
                 <SquareIcon className="h-4 w-4" />
@@ -147,9 +143,7 @@ export function InstanceList({ instances, isLoading, error, onRetry }: Props) {
                 size="sm"
                 variant="outline"
                 onClick={() =>
-                  selected.forEach((id) =>
-                    lifecycle.mutate({ instanceId: id, action: "restart" }),
-                  )
+                  selected.forEach((id) => lifecycle.mutate({ instanceId: id, action: "restart" }))
                 }
               >
                 <RotateCwIcon className="h-4 w-4" />
@@ -236,9 +230,7 @@ export function InstanceList({ instances, isLoading, error, onRetry }: Props) {
                           size="icon"
                           variant="ghost"
                           aria-label={t("compute.actions.start")}
-                          onClick={() =>
-                            lifecycle.mutate({ instanceId: inst.id, action: "start" })
-                          }
+                          onClick={() => lifecycle.mutate({ instanceId: inst.id, action: "start" })}
                         >
                           <PlayIcon className="h-4 w-4" />
                         </Button>
@@ -248,9 +240,7 @@ export function InstanceList({ instances, isLoading, error, onRetry }: Props) {
                           size="icon"
                           variant="ghost"
                           aria-label={t("compute.actions.stop")}
-                          onClick={() =>
-                            lifecycle.mutate({ instanceId: inst.id, action: "stop" })
-                          }
+                          onClick={() => lifecycle.mutate({ instanceId: inst.id, action: "stop" })}
                         >
                           <SquareIcon className="h-4 w-4" />
                         </Button>
@@ -307,9 +297,7 @@ export function InstanceList({ instances, isLoading, error, onRetry }: Props) {
                           {canDelete && (
                             <DropdownMenuItem
                               className="text-destructive focus:text-destructive"
-                              onClick={() =>
-                                destroy.mutate({ instanceId: inst.id, force: false })
-                              }
+                              onClick={() => destroy.mutate({ instanceId: inst.id, force: false })}
                             >
                               <Trash2Icon className="me-2 h-4 w-4" />
                               {t("compute.actions.delete")}

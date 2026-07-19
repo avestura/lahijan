@@ -80,10 +80,9 @@ export function useUnlinkIdentity() {
 
   return useMutation({
     mutationFn: async ({ identityId }: { identityId: string }) => {
-      const { error, response } = await apiClient.DELETE(
-        "/api/v1/me/identities/{identityId}",
-        { params: { path: { identityId } } },
-      );
+      const { error, response } = await apiClient.DELETE("/api/v1/me/identities/{identityId}", {
+        params: { path: { identityId } },
+      });
       if (error) {
         throw new Error(`me.identities.delete: ${response?.status ?? "network"}`);
       }
@@ -242,9 +241,7 @@ export function usePersonalAccessTokens() {
   return useQuery({
     queryKey: queryKeys.my.tokens(),
     queryFn: async (): Promise<PersonalAccessToken[]> => {
-      const { data, error, response } = await apiClient.GET(
-        "/api/v1/auth/personal-access-tokens",
-      );
+      const { data, error, response } = await apiClient.GET("/api/v1/auth/personal-access-tokens");
       if (error || !data) {
         throw new Error(`auth.pats.list: ${response?.status ?? "network"}`);
       }
