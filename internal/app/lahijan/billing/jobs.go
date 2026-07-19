@@ -1,17 +1,17 @@
 // Package billing: jobs.go defines the five River workers the WS-17
 // doc names:
 //
-//   * billing.meter.collect    per-minute usage collection (one per
-//                              active tenant); pulls from providers +
-//                              appends usage_events rows.
-//   * billing.usage.rollup     hourly rollup; aggregates usage_events
-//                              into a single charge per (user, period).
-//   * billing.ledger.post      post charges to ledger (from rollup).
-//                              Kept as a separate worker so the rollup
-//                              can be re-run without re-charging.
-//   * billing.balance.check    periodic zero-balance watcher; calls
-//                              EnforceZeroBalances for each tenant.
-//   * billing.receipt.generate daily/weekly/monthly receipt generation.
+//   - billing.meter.collect    per-minute usage collection (one per
+//     active tenant); pulls from providers +
+//     appends usage_events rows.
+//   - billing.usage.rollup     hourly rollup; aggregates usage_events
+//     into a single charge per (user, period).
+//   - billing.ledger.post      post charges to ledger (from rollup).
+//     Kept as a separate worker so the rollup
+//     can be re-run without re-charging.
+//   - billing.balance.check    periodic zero-balance watcher; calls
+//     EnforceZeroBalances for each tenant.
+//   - billing.receipt.generate daily/weekly/monthly receipt generation.
 //
 // Each worker is registered with the jobs.Registry at bootstrap
 // (program.Start); the periodic scheduler wires
@@ -78,7 +78,8 @@ func (w *MeterCollectWorker) Work(ctx context.Context, job *river.Job[MeterColle
 	if err != nil {
 		return err
 	}
-	log.InfoContext(ctx, "billing.meter.collect: done",
+	log.InfoContext(
+		ctx, "billing.meter.collect: done",
 		"tenant_id", tenantID,
 		"minute", job.Args.Minute.Format(time.RFC3339),
 		"inserted", n,
@@ -148,7 +149,8 @@ func (w *UsageRollupWorker) Work(ctx context.Context, job *river.Job[UsageRollup
 			tenantID, userID, job.Args.From.Unix(), job.Args.To.Unix())
 		total, errCharge := w.svc.ChargeForRollup(ctx, userID, job.Args.From, job.Args.To)
 		if errCharge != nil {
-			log.WarnContext(ctx, "billing.usage.rollup: charge failed",
+			log.WarnContext(
+				ctx, "billing.usage.rollup: charge failed",
 				"tenant_id", tenantID,
 				"user_id", userID,
 				"error", errCharge.Error(),
@@ -169,7 +171,8 @@ func (w *UsageRollupWorker) Work(ctx context.Context, job *river.Job[UsageRollup
 				"source":      "metering_rollup",
 			},
 		}); errPost != nil {
-			log.WarnContext(ctx, "billing.usage.rollup: post failed",
+			log.WarnContext(
+				ctx, "billing.usage.rollup: post failed",
 				"tenant_id", tenantID,
 				"user_id", userID,
 				"error", errPost.Error(),
@@ -177,7 +180,8 @@ func (w *UsageRollupWorker) Work(ctx context.Context, job *river.Job[UsageRollup
 			continue
 		}
 	}
-	log.InfoContext(ctx, "billing.usage.rollup: done",
+	log.InfoContext(
+		ctx, "billing.usage.rollup: done",
 		"tenant_id", tenantID,
 		"from", job.Args.From.Format(time.RFC3339),
 		"to", job.Args.To.Format(time.RFC3339),
@@ -266,7 +270,8 @@ func (w *BalanceCheckWorker) Work(ctx context.Context, job *river.Job[BalanceChe
 	if err != nil {
 		return err
 	}
-	log.InfoContext(ctx, "billing.balance.check: done",
+	log.InfoContext(
+		ctx, "billing.balance.check: done",
 		"tenant_id", tenantID,
 		"enforced", n,
 		"attempt", job.Attempt,
@@ -325,7 +330,8 @@ func (w *ReceiptGenerateWorker) Work(ctx context.Context, job *river.Job[Receipt
 	}); err != nil {
 		return err
 	}
-	log.InfoContext(ctx, "billing.receipt.generate: done",
+	log.InfoContext(
+		ctx, "billing.receipt.generate: done",
 		"tenant_id", tenantID,
 		"user_id", userID,
 		"period_start", job.Args.PeriodStart.Format(time.RFC3339),

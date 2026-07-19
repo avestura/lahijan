@@ -52,9 +52,10 @@ type (
 	StorageBucket     = gen.StorageBucket
 	StorageCredential = gen.StorageCredential
 
-	// Billing rows (WS-17). Aliases for prices, ledger_entries, usage_events,
-	// receipts, user_balances so services can reference database.Price /
-	// LedgerEntry / etc. without importing gen.
+	// Price is the billing price catalog row alias (WS-17).
+	// LedgerEntry / UsageEvent / Receipt / UserBalance mirror the
+	// other billing tables so services can reference them without
+	// importing gen.
 	Price       = gen.Price
 	LedgerEntry = gen.LedgerEntry
 	UsageEvent  = gen.UsageEvent

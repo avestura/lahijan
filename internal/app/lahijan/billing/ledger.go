@@ -60,11 +60,11 @@ func (s *Service) Topup(
 	}
 
 	auditID := s.auditEmit(ctx, AuditTopup, ResourceLedgerEntry, tenantID, actorID, uuid.Nil, map[string]any{
-		"user_id":     params.UserID,
-		"amount":      params.AmountCents,
-		"currency":    currency,
-		"reference":   params.Reference,
-		"privileged":  true,
+		"user_id":    params.UserID,
+		"amount":     params.AmountCents,
+		"currency":   currency,
+		"reference":  params.Reference,
+		"privileged": true,
 	})
 
 	row, err := s.repos.BillingLedger.Create(ctx, database.CreateLedgerEntryParams{
@@ -92,7 +92,7 @@ func (s *Service) Topup(
 		// be stale until the next rollup. Mark the outcome success
 		// with a warning.
 		s.auditMarkOutcome(ctx, auditID, true, map[string]any{
-			"ledger_id":    row.ID,
+			"ledger_id":     row.ID,
 			"cache_warning": errRefresh.Error(),
 		})
 	} else {
@@ -147,12 +147,12 @@ func (s *Service) Refund(
 	}
 
 	auditID := s.auditEmit(ctx, AuditRefund, ResourceLedgerEntry, tenantID, actorID, uuid.Nil, map[string]any{
-		"user_id":     params.UserID,
-		"amount":      params.AmountCents,
-		"currency":    currency,
-		"reference":   params.Reference,
-		"charge_id":   params.ChargeLedgerID,
-		"privileged":  true,
+		"user_id":    params.UserID,
+		"amount":     params.AmountCents,
+		"currency":   currency,
+		"reference":  params.Reference,
+		"charge_id":  params.ChargeLedgerID,
+		"privileged": true,
 	})
 
 	meta := map[string]any{

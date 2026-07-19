@@ -18,15 +18,15 @@ import (
 // strings that clients can switch on. Keep them in sync with the examples in
 // api/openapi.yaml.
 const (
-	CodeBadRequest       = "bad_request"
-	CodeUnauthorized     = "unauthorized"
-	CodeForbidden        = "forbidden"
-	CodeNotFound         = "not_found"
-	CodeConflict         = "conflict"
-	CodePayloadTooLarge  = "payload_too_large"
-	CodePaymentRequired  = "payment_required"
-	CodeInternal         = "internal"
-	CodeNotImplemented   = "not_implemented"
+	CodeBadRequest      = "bad_request"
+	CodeUnauthorized    = "unauthorized"
+	CodeForbidden       = "forbidden"
+	CodeNotFound        = "not_found"
+	CodeConflict        = "conflict"
+	CodePayloadTooLarge = "payload_too_large"
+	CodePaymentRequired = "payment_required"
+	CodeInternal        = "internal"
+	CodeNotImplemented  = "not_implemented"
 )
 
 // ErrorEnvelope is the standard error response body. Every error response in

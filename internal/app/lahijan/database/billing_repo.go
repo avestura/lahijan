@@ -231,7 +231,7 @@ func (r *BillingLedgerRepository) Create(
 	if currency == "" {
 		currency = "USD"
 	}
-	var meta json.RawMessage = json.RawMessage("{}")
+	meta := json.RawMessage("{}")
 	if arg.Metadata != nil {
 		raw, errM := json.Marshal(arg.Metadata)
 		if errM != nil {
@@ -597,13 +597,13 @@ func NewBillingReceiptsRepository(q *gen.Queries) *BillingReceiptsRepository {
 
 // CreateReceiptParams carries the fields of a new receipts row.
 type CreateReceiptParams struct {
-	UserID       uuid.UUID
-	PeriodStart  time.Time
-	PeriodEnd    time.Time
-	TotalCents   int64
-	Currency     string
-	PdfBytes     []byte
-	Status       string
+	UserID      uuid.UUID
+	PeriodStart time.Time
+	PeriodEnd   time.Time
+	TotalCents  int64
+	Currency    string
+	PdfBytes    []byte
+	Status      string
 }
 
 // Create inserts a new receipts row scoped to the tenant in ctx.

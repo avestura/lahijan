@@ -40,9 +40,10 @@ func (s *Service) EnforceZeroBalances(
 	for _, row := range rows {
 		// Tenant scoping is enforced at the repository seam; the
 		// rows returned here are already scoped to tenantID.
-		reason := fmt.Sprintf("zero balance since %s", row.LastEntryAt.Format(time.RFC3339))
+		reason := "zero balance since " + row.LastEntryAt.Format(time.RFC3339)
 		if errStop := s.enforcer.StopAllForUser(ctx, tenantID, row.UserID, reason); errStop != nil {
-			slog.WarnContext(ctx, "billing.enforce: stop failed",
+			slog.WarnContext(
+				ctx, "billing.enforce: stop failed",
 				"tenant_id", tenantID,
 				"user_id", row.UserID,
 				"error", errStop.Error(),
@@ -50,12 +51,20 @@ func (s *Service) EnforceZeroBalances(
 			continue
 		}
 		count++
-		slog.InfoContext(ctx, "billing.enforce: stopped user resources",
+		slog.InfoContext(
+			ctx, "billing.enforce: stopped user resources",
 			"tenant_id", tenantID,
 			"user_id", row.UserID,
 			"balance_cents", row.BalanceCents,
 			"last_entry_at", row.LastEntryAt.Format(time.RFC3339),
 		)
 	}
+	slog.DebugContext(
+		ctx, "billing.enforce: scan complete",
+		"tenant_id", tenantID,
+		"cutoff", cutoff.Format(time.RFC3339Nano),
+		"matched", len(rows),
+		"enforced", count,
+	)
 	return count, nil
 }

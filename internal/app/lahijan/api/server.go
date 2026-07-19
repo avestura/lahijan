@@ -285,6 +285,12 @@ func (s *Server) SetBillingService(svc *billing.Service) {
 	s.billingSvc = svc
 }
 
+// BillingService returns the wired billing service (or nil when the
+// billing subsystem is disabled). Exported so integration tests can
+// drive the service layer directly when the test setup is shared with
+// the HTTP layer.
+func (s *Server) BillingService() *billing.Service { return s.billingSvc }
+
 // Ping handles GET /api/v1/ping. It returns the current server timestamp and
 // emits an OpenTelemetry trace span to prove the api pipeline is wired.
 func (s *Server) Ping(c *fiber.Ctx) error {

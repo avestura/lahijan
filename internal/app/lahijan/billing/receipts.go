@@ -128,18 +128,18 @@ func (s *Service) emitReceiptEvent(
 	totalCents int64,
 ) {
 	auditID := s.auditEmit(ctx, AuditReceiptGen, ResourceReceipt, tenantID, actorID, receiptID, map[string]any{
-		"user_id":       params.UserID,
-		"period_start":  params.PeriodStart,
-		"period_end":    params.PeriodEnd,
-		"total_cents":   totalCents,
+		"user_id":      params.UserID,
+		"period_start": params.PeriodStart,
+		"period_end":   params.PeriodEnd,
+		"total_cents":  totalCents,
 	})
 	s.auditMarkOutcome(ctx, auditID, true, nil)
 	s.emitEvent(ctx, eventbus.BillingCharge, tenantID, params.UserID, receiptID, map[string]any{
-		"topic":         "billing.receipt.generated",
-		"period_start":  params.PeriodStart,
-		"period_end":    params.PeriodEnd,
-		"total_cents":   totalCents,
-		"receipt_id":    receiptID,
+		"topic":        "billing.receipt.generated",
+		"period_start": params.PeriodStart,
+		"period_end":   params.PeriodEnd,
+		"total_cents":  totalCents,
+		"receipt_id":   receiptID,
 	})
 }
 
@@ -246,7 +246,7 @@ func buildReceiptPDF(p receiptPDFParams) []byte {
 		fmt.Sprintf("Balance at end:   %s %d.%02d",
 			currency, p.BalanceCents/100, absCents(p.BalanceCents)%100),
 		"",
-		fmt.Sprintf("Generated: %s", p.GeneratedAt.Format(time.RFC3339)),
+		"Generated: " + p.GeneratedAt.Format(time.RFC3339),
 		"",
 		"This document was generated automatically by Lahijan.",
 	}
