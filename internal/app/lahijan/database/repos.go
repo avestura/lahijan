@@ -42,6 +42,17 @@ type Repos struct {
 	ComputeStorageVolumes *ComputeStorageVolumesRepository
 	StorageBuckets        *StorageBucketsRepository
 	StorageCredentials    *StorageCredentialsRepository
+
+	// WS-17: billing & metering. Five sub-repositories: the admin-managed
+	// price catalog (BillingPrices), the append-only per-user ledger
+	// (BillingLedger), the per-user balance cache (BillingBalances), the
+	// raw metering stream (BillingUsage), and the per-user-per-period
+	// receipts (BillingReceipts).
+	BillingPrices   *BillingPricesRepository
+	BillingLedger   *BillingLedgerRepository
+	BillingBalances *BillingBalancesRepository
+	BillingUsage    *BillingUsageRepository
+	BillingReceipts *BillingReceiptsRepository
 }
 
 // NewRepos builds the aggregate repository from a pool or transaction. The
@@ -77,5 +88,10 @@ func NewRepos(db DBTX) *Repos {
 		ComputeStorageVolumes: NewComputeStorageVolumesRepository(q),
 		StorageBuckets:        NewStorageBucketsRepository(q),
 		StorageCredentials:    NewStorageCredentialsRepository(q),
+		BillingPrices:         NewBillingPricesRepository(q),
+		BillingLedger:         NewBillingLedgerRepository(q),
+		BillingBalances:       NewBillingBalancesRepository(q),
+		BillingUsage:          NewBillingUsageRepository(q),
+		BillingReceipts:       NewBillingReceiptsRepository(q),
 	}
 }

@@ -51,6 +51,8 @@ type Querier interface {
 	CountDNSRecordsInZone(ctx context.Context, arg CountDNSRecordsInZoneParams) (int64, error)
 	//: tenant-scoped
 	CountDNSZones(ctx context.Context, tenantID uuid.UUID) (int64, error)
+	//: tenant-scoped.
+	CountLedgerEntriesForUser(ctx context.Context, arg CountLedgerEntriesForUserParams) (int64, error)
 	//: tenant-scoped
 	CountMembershipsForTenant(ctx context.Context, tenantID uuid.UUID) (int64, error)
 	CountOAuthIdentitiesForUser(ctx context.Context, userID uuid.UUID) (int64, error)
@@ -60,6 +62,10 @@ type Querier interface {
 	CountPluginsForTenant(ctx context.Context, tenantID *uuid.UUID) (int64, error)
 	//: admin-only; pagination counterpart to ListPluginsGlobal.
 	CountPluginsGlobal(ctx context.Context) (int64, error)
+	//: tenant-scoped.
+	CountPrices(ctx context.Context, tenantID uuid.UUID) (int64, error)
+	//: tenant-scoped.
+	CountReceiptsForUser(ctx context.Context, arg CountReceiptsForUserParams) (int64, error)
 	CountSAMLIdentitiesForUser(ctx context.Context, userID uuid.UUID) (int64, error)
 	//: tenant-scoped
 	CountStorageBuckets(ctx context.Context, tenantID uuid.UUID) (int64, error)
@@ -67,6 +73,8 @@ type Querier interface {
 	CountStorageCredentialsForBucket(ctx context.Context, arg CountStorageCredentialsForBucketParams) (int64, error)
 	CountTenants(ctx context.Context) (int64, error)
 	CountUnusedRecoveryCodesForUser(ctx context.Context, userID uuid.UUID) (int64, error)
+	//: tenant-scoped; pagination counterpart to ListUsageEventsForUser.
+	CountUsageEventsForUser(ctx context.Context, arg CountUsageEventsForUserParams) (int64, error)
 	CountUsers(ctx context.Context) (int64, error)
 	CountWebauthnCredentialsForUser(ctx context.Context, userID uuid.UUID) (int64, error)
 	// Audit log: append-only. tenant_id is nullable for system-level events.
@@ -123,6 +131,11 @@ type Querier interface {
 	// Email tokens: single-use, expiring tokens for email verification, password
 	// reset, and email change (WS-06). Global; only the SHA-256 hash is stored.
 	CreateEmailToken(ctx context.Context, arg CreateEmailTokenParams) (EmailToken, error)
+	// ===========================================================================
+	// ledger_entries: append-only per-user ledger. INSERT + SELECT only.
+	// ===========================================================================
+	//: tenant-scoped; one row per credit (topup, refund) or debit (charge).
+	CreateLedgerEntry(ctx context.Context, arg CreateLedgerEntryParams) (LedgerEntry, error)
 	// mfa_pending_sessions: short-lived, single-use pending session tokens
 	// issued during login when the user has MFA enabled (WS-07c).
 	CreateMFAPendingSession(ctx context.Context, arg CreateMFAPendingSessionParams) (MfaPendingSession, error)
@@ -161,6 +174,25 @@ type Querier interface {
 	// handler; on a hit it instantiates the plugin and calls the named export.
 	// Idempotent on (plugin_id, method, path).
 	CreatePluginHTTPHandler(ctx context.Context, arg CreatePluginHTTPHandlerParams) (PluginHttpHandler, error)
+	// Billing queries (WS-17, ADR-0013). Five tables, each tenant-scoped via
+	// WithTenant at the repository seam EXCEPT the price catalog's admin
+	// cross-tenant helpers (GetGlobalByID etc.) which are gated by
+	// RequirePerm("billing.price_catalog.update") at the service layer.
+	//
+	// The ledger_entries + usage_events tables are append-only at the DB level
+	// (trigger in migration 0035 / 0036); these query files therefore expose
+	// only INSERT and SELECT on either. user_balances is mutable (it's a
+	// cache) and receipts is mutable (status + pdf_bytes flip).
+	// ===========================================================================
+	// prices: admin-managed price catalog.
+	// ===========================================================================
+	//: tenant-scoped
+	CreatePrice(ctx context.Context, arg CreatePriceParams) (Price, error)
+	// ===========================================================================
+	// receipts: per-user-per-period billing summary. Mutable (status + pdf flip).
+	// ===========================================================================
+	//: tenant-scoped.
+	CreateReceipt(ctx context.Context, arg CreateReceiptParams) (Receipt, error)
 	// user_recovery_codes: per-user single-use recovery codes (WS-07c). The
 	// code_hash column carries the SHA-256 hex of the raw code; the raw code
 	// is never stored.
@@ -216,6 +248,11 @@ type Querier interface {
 	// Optional fields use explicit params (not COALESCE) so sqlc emits concrete
 	// types; the repository wrapper supplies defaults for omitted values.
 	CreateTenant(ctx context.Context, arg CreateTenantParams) (Tenant, error)
+	// ===========================================================================
+	// usage_events: raw metering stream. INSERT + SELECT only.
+	// ===========================================================================
+	//: tenant-scoped; one row per (tenant, user, resource, minute).
+	CreateUsageEvent(ctx context.Context, arg CreateUsageEventParams) (UsageEvent, error)
 	// Users: global table. password_hash is nullable for OAuth/SSO-only users.
 	// WS-06 adds display_name, email_verified_at, and locale.
 	// Optional fields use explicit params; the repository wrapper supplies defaults.
@@ -260,6 +297,10 @@ type Querier interface {
 	DeleteSAMLIdentity(ctx context.Context, arg DeleteSAMLIdentityParams) error
 	DeleteTOTPSecret(ctx context.Context, userID uuid.UUID) error
 	DeleteWebauthnCredential(ctx context.Context, arg DeleteWebauthnCredentialParams) error
+	//: tenant-scoped; closes the currently-in-effect price for the (resource,
+	//: unit) tuple by stamping effective_to. Called by SetCurrentPrice in a
+	//: transaction with the new price insert so the swap is atomic.
+	ExpireCurrentPrice(ctx context.Context, arg ExpireCurrentPriceParams) error
 	// Single-row lookup the router uses per request. The router further
 	// filters by tenant visibility (the tenant_id on the row must match
 	// the request's tenant OR be NULL for platform-wide plugins).
@@ -301,6 +342,9 @@ type Querier interface {
 	GetComputeStorageVolumeByID(ctx context.Context, arg GetComputeStorageVolumeByIDParams) (ComputeStorageVolume, error)
 	//: tenant-scoped; lookup by (pool, name) — the Incus composite key.
 	GetComputeStorageVolumeByName(ctx context.Context, arg GetComputeStorageVolumeByNameParams) (ComputeStorageVolume, error)
+	//: tenant-scoped; returns the one "effective_to IS NULL" row for the
+	//: (tenant, resource, unit) tuple, or no rows if none is currently in effect.
+	GetCurrentPrice(ctx context.Context, arg GetCurrentPriceParams) (Price, error)
 	//: tenant-scoped
 	GetDNSRecordByID(ctx context.Context, arg GetDNSRecordByIDParams) (DnsRecord, error)
 	//: tenant-scoped; looks up by (zone_id, name, type, content) — the unique
@@ -318,6 +362,10 @@ type Querier interface {
 	//: tenant-scoped
 	GetDNSZoneByID(ctx context.Context, arg GetDNSZoneByIDParams) (DnsZone, error)
 	GetEmailTokenByHash(ctx context.Context, tokenHash string) (EmailToken, error)
+	//: tenant-scoped.
+	GetLedgerEntryByID(ctx context.Context, arg GetLedgerEntryByIDParams) (LedgerEntry, error)
+	//: tenant-scoped; used by the metering de-dup check before insert.
+	GetLedgerEntryByIdempotencyKey(ctx context.Context, arg GetLedgerEntryByIdempotencyKeyParams) (LedgerEntry, error)
 	GetMFAPendingSessionByHash(ctx context.Context, tokenHash string) (MfaPendingSession, error)
 	//: tenant-scoped
 	GetMembership(ctx context.Context, arg GetMembershipParams) (Membership, error)
@@ -358,6 +406,15 @@ type Querier interface {
 	// the prefix-match loop. Returns the row when the plugin holds an exact
 	// grant for the permission string.
 	GetPluginPermission(ctx context.Context, arg GetPluginPermissionParams) (PluginPermission, error)
+	//: tenant-scoped; returns the price row effective for the given timestamp.
+	//: Used by the rollup job to pick the right price for a historical minute.
+	GetPriceAt(ctx context.Context, arg GetPriceAtParams) (Price, error)
+	//: tenant-scoped
+	GetPriceByID(ctx context.Context, arg GetPriceByIDParams) (Price, error)
+	//: tenant-scoped.
+	GetReceiptByID(ctx context.Context, arg GetReceiptByIDParams) (Receipt, error)
+	//: tenant-scoped; used by the generator to detect an existing receipt.
+	GetReceiptForPeriod(ctx context.Context, arg GetReceiptForPeriodParams) (Receipt, error)
 	// Lookup path: SHA-256 the user-supplied code, find a row scoped by
 	// (user_id, hash) where used_at IS NULL.
 	GetRecoveryCodeByUserAndHash(ctx context.Context, arg GetRecoveryCodeByUserAndHashParams) (UserRecoveryCode, error)
@@ -398,6 +455,15 @@ type Querier interface {
 	GetTOTPSecret(ctx context.Context, userID uuid.UUID) (UserTotpSecret, error)
 	GetTenantByID(ctx context.Context, id uuid.UUID) (Tenant, error)
 	GetTenantBySlug(ctx context.Context, slug string) (Tenant, error)
+	//: tenant-scoped; used by the metering de-dup check before insert.
+	GetUsageEventByIdempotencyKey(ctx context.Context, arg GetUsageEventByIdempotencyKeyParams) (UsageEvent, error)
+	// ===========================================================================
+	// user_balances: per-user balance cache. Mutable; the ledger post-processor
+	// updates this after every insert.
+	// ===========================================================================
+	//: tenant-scoped; returns the cached balance row for (tenant, user), or
+	//: no rows if no ledger entry has ever been written for the user.
+	GetUserBalance(ctx context.Context, arg GetUserBalanceParams) (UserBalance, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
 	GetWebauthnCredential(ctx context.Context, id uuid.UUID) (UserWebauthnCredential, error)
@@ -454,6 +520,8 @@ type Querier interface {
 	ListDNSRecordsInZone(ctx context.Context, arg ListDNSRecordsInZoneParams) ([]DnsRecord, error)
 	//: tenant-scoped
 	ListDNSZones(ctx context.Context, arg ListDNSZonesParams) ([]DnsZone, error)
+	//: tenant-scoped; paginated list of a single user's entries, newest first.
+	ListLedgerEntriesForUser(ctx context.Context, arg ListLedgerEntriesForUserParams) ([]LedgerEntry, error)
 	//: tenant-scoped
 	ListMembershipsForTenant(ctx context.Context, arg ListMembershipsForTenantParams) ([]Membership, error)
 	//: user-scoped (cross-tenant; used to list the tenants a user belongs to)
@@ -484,6 +552,11 @@ type Querier interface {
 	ListPluginsForTenant(ctx context.Context, arg ListPluginsForTenantParams) ([]Plugin, error)
 	//: admin-only; platform-wide listing across every tenant.
 	ListPluginsGlobal(ctx context.Context, arg ListPluginsGlobalParams) ([]Plugin, error)
+	//: tenant-scoped; ordered by resource_type then unit so the catalog reads
+	//: as a stable grouped list.
+	ListPrices(ctx context.Context, arg ListPricesParams) ([]Price, error)
+	//: tenant-scoped; newest first.
+	ListReceiptsForUser(ctx context.Context, arg ListReceiptsForUserParams) ([]Receipt, error)
 	ListRecoveryCodesForUser(ctx context.Context, userID uuid.UUID) ([]UserRecoveryCode, error)
 	ListRoles(ctx context.Context) ([]Role, error)
 	ListSAMLIdentitiesForUser(ctx context.Context, userID uuid.UUID) ([]UserSamlIdentity, error)
@@ -495,8 +568,14 @@ type Querier interface {
 	//: tenant-scoped
 	ListStorageCredentialsForUser(ctx context.Context, arg ListStorageCredentialsForUserParams) ([]StorageCredential, error)
 	ListTenants(ctx context.Context, arg ListTenantsParams) ([]Tenant, error)
+	//: tenant-scoped; paginated, filterable by resource + date range.
+	ListUsageEventsForUser(ctx context.Context, arg ListUsageEventsForUserParams) ([]UsageEvent, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
 	ListWebauthnCredentialsForUser(ctx context.Context, userID uuid.UUID) ([]UserWebauthnCredential, error)
+	//: tenant-scoped admin helper for the enforcement job. Returns every user
+	//: in the tenant whose balance is <= 0 and whose last_entry_at is older
+	//: than the supplied cutoff (so the grace period is enforced).
+	ListZeroBalances(ctx context.Context, arg ListZeroBalancesParams) ([]UserBalance, error)
 	RevokeAllRefreshTokensForUser(ctx context.Context, userID uuid.UUID) error
 	RevokeAllSessionsForUser(ctx context.Context, userID uuid.UUID) error
 	//: tenant-scoped
@@ -571,6 +650,21 @@ type Querier interface {
 	SoftDeleteStorageBucket(ctx context.Context, arg SoftDeleteStorageBucketParams) error
 	SoftDeleteTenant(ctx context.Context, id uuid.UUID) error
 	SoftDeleteUser(ctx context.Context, id uuid.UUID) error
+	//: tenant-scoped; total debits for a user in a [from, to] period. The
+	//: receipt generator uses this for the period's total charged. Cast to
+	//: BIGINT explicitly so sqlc emits int64.
+	SumChargesInPeriod(ctx context.Context, arg SumChargesInPeriodParams) (int64, error)
+	//: tenant-scoped; the authoritative balance computation. Returns the sum
+	//: of credits - debits in integer centimals. Cast to BIGINT explicitly so
+	//: sqlc emits int64 (SUM(BIGINT) would otherwise pick the default int32).
+	SumLedgerEntriesForUser(ctx context.Context, arg SumLedgerEntriesForUserParams) (int64, error)
+	//: tenant-scoped; the balance as-of a timestamp. Used by the receipt
+	//: generator to compute the period's total charges.
+	SumLedgerEntriesForUserUpTo(ctx context.Context, arg SumLedgerEntriesForUserUpToParams) (int64, error)
+	//: tenant-scoped; the rollup. Returns one row per (resource_type, unit) with
+	//: the total qty consumed in the [from, to] window. The rollup job then
+	//: joins this with prices to compute the charge.
+	SumUsageEventsForUserInPeriod(ctx context.Context, arg SumUsageEventsForUserInPeriodParams) ([]SumUsageEventsForUserInPeriodRow, error)
 	TouchPersonalAccessToken(ctx context.Context, tokenHash string) error
 	TouchSession(ctx context.Context, id uuid.UUID) error
 	//: tenant-scoped
@@ -596,6 +690,8 @@ type Querier interface {
 	// Rotates the stored tokens (and scopes + expiry) on every login or refresh.
 	// Called by the IdP service when the IdP hands back a fresh access_token.
 	UpdateOAuthIdentityTokens(ctx context.Context, arg UpdateOAuthIdentityTokensParams) error
+	//: tenant-scoped; attaches the generated PDF + flips status to ready.
+	UpdateReceiptPDF(ctx context.Context, arg UpdateReceiptPDFParams) error
 	// Refreshes the attribute snapshot on every login. Called by the IdP service
 	// on every successful ACS so the user's profile reflects the latest claims
 	// the IdP asserted.
@@ -628,6 +724,9 @@ type Querier interface {
 	// repository wrapper wraps this in a SELECT-after-INSERT for callers
 	// that need the row; the conflict target is the unique index.
 	UpsertPluginKV(ctx context.Context, arg UpsertPluginKVParams) (PluginKv, error)
+	//: tenant-scoped; atomic cache refresh. amount_cents is the freshly-computed
+	//: balance; last_entry_at is the timestamp of the ledger entry that produced it.
+	UpsertUserBalance(ctx context.Context, arg UpsertUserBalanceParams) error
 	VerifyUserEmail(ctx context.Context, id uuid.UUID) error
 }
 
