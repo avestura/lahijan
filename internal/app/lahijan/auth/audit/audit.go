@@ -107,6 +107,19 @@ const (
 	ActionS3CredentialMint   = "s3.credentials.create"
 	ActionS3CredentialRevoke = "s3.credentials.revoke"
 	ActionS3Presign          = "s3.presign"
+
+	// Billing & metering module actions (WS-17). Emitted by the billing
+	// service on every state-changing privileged admin action across
+	// topups, refunds, and price catalog changes. Each row carries the
+	// user_id (the user being credited/debited), the actor, and the
+	// amount + reference in metadata so the audit query API can render a
+	// stable history.
+	ActionBillingTopup        = "billing.balance.topup"
+	ActionBillingRefund       = "billing.balance.refund"
+	ActionBillingPriceUpsert  = "billing.price.upsert"
+	ActionBillingPriceExpire  = "billing.price.expire"
+	ActionBillingReceiptGen   = "billing.receipt.generate"
+	ActionBillingForceRebuild = "billing.balance.rebuild"
 )
 
 // Standard statuses recorded on audit_log.status and audit_log_outcomes.status.
@@ -142,6 +155,12 @@ const (
 	// types (WS-16). Emitted by the storage service.
 	ResourceBucket     = "storage_bucket"
 	ResourceCredential = "storage_credential"
+
+	// Billing resource types (WS-17). Emitted by the billing service.
+	ResourceLedgerEntry = "ledger_entry"
+	ResourcePrice       = "price"
+	ResourceReceipt     = "receipt"
+	ResourceBalance     = "balance"
 )
 
 // Event is the data an emitter records. TenantID is nil for system-level auth

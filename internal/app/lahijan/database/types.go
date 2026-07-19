@@ -51,4 +51,14 @@ type (
 	// services never need to import the gen package directly.
 	StorageBucket     = gen.StorageBucket
 	StorageCredential = gen.StorageCredential
+
+	// Price is the billing price catalog row alias (WS-17).
+	// LedgerEntry / UsageEvent / Receipt / UserBalance mirror the
+	// other billing tables so services can reference them without
+	// importing gen.
+	Price       = gen.Price
+	LedgerEntry = gen.LedgerEntry
+	UsageEvent  = gen.UsageEvent
+	Receipt     = gen.Receipt
+	UserBalance = gen.UserBalance
 )

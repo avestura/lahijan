@@ -41,19 +41,19 @@ import (
 // orchestration order without standing up a real httptest fake. (The
 // httptest fake has its own coverage in providers/powerdns/fake/.)
 type fakePDNS struct {
-	mu          sync.Mutex
-	zones       map[string]*fakeZoneState // canonical id -> zone state
-	rrsets      map[string][]powerdns.RRset
-	cryptokeys  map[string][]powerdns.CryptoKey
-	nextKeyID   int64
-	createErr   error
-	updateErr   error
-	deleteErr   error
-	replaceErr  error
-	enableErr   error
-	disableErr  error
-	toggledOn   int32
-	toggledOff  int32
+	mu         sync.Mutex
+	zones      map[string]*fakeZoneState // canonical id -> zone state
+	rrsets     map[string][]powerdns.RRset
+	cryptokeys map[string][]powerdns.CryptoKey
+	nextKeyID  int64
+	createErr  error
+	updateErr  error
+	deleteErr  error
+	replaceErr error
+	enableErr  error
+	disableErr error
+	toggledOn  int32
+	toggledOff int32
 }
 
 type fakeZoneState struct {
@@ -210,10 +210,10 @@ func (f *fakePDNS) EnableDNSSEC(_ context.Context, zoneID string) (*powerdns.Cry
 	}
 	f.nextKeyID++
 	k := powerdns.CryptoKey{
-		ID:       f.nextKeyID,
-		KeyType:  "csk",
-		Active:   true,
-		Bits:     256,
+		ID:        f.nextKeyID,
+		KeyType:   "csk",
+		Active:    true,
+		Bits:      256,
 		Published: true,
 	}
 	f.cryptokeys[zoneID] = append(f.cryptokeys[zoneID], k)
@@ -346,13 +346,13 @@ func (e *capturingEmitter) failureCount() int {
 
 // fixture wires the dependencies the suite shares.
 type fixture struct {
-	svc      *dns.Service
-	pdns     *fakePDNS
-	bus      *recorderBus
-	auditEm  *capturingEmitter
-	tenantID uuid.UUID
-	userID   uuid.UUID
-	ctx      context.Context
+	svc       *dns.Service
+	pdns      *fakePDNS
+	bus       *recorderBus
+	auditEm   *capturingEmitter
+	tenantID  uuid.UUID
+	userID    uuid.UUID
+	ctx       context.Context
 	tenantCtx context.Context
 }
 
@@ -363,12 +363,12 @@ func newFixture(t *testing.T) *fixture {
 	tenant := testutil.NewTenant(ctx, t, testutil.Pool())
 	user := testutil.NewUser(ctx, t, testutil.Pool(), false)
 	f := &fixture{
-		pdns:    newFakePDNS(),
-		bus:     &recorderBus{},
-		auditEm: newCapturingEmitter(),
-		tenantID: tenant.ID,
-		userID:   user.ID,
-		ctx:      ctx,
+		pdns:      newFakePDNS(),
+		bus:       &recorderBus{},
+		auditEm:   newCapturingEmitter(),
+		tenantID:  tenant.ID,
+		userID:    user.ID,
+		ctx:       ctx,
 		tenantCtx: database.WithTenant(ctx, tenant.ID),
 	}
 	f.svc = dns.New(f.pdns, repos, f.auditEm, f.bus, nil, dns.Config{

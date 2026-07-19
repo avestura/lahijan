@@ -43,6 +43,7 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/secrets"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/session"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/state"
+	"github.com/avestura/lahijan/internal/app/lahijan/billing"
 	"github.com/avestura/lahijan/internal/app/lahijan/compute"
 	"github.com/avestura/lahijan/internal/app/lahijan/conf"
 	"github.com/avestura/lahijan/internal/app/lahijan/conf/computeddefault"
@@ -308,6 +309,33 @@ func Start() error {
 		)
 	}
 
+	// WS-17: build the billing & metering module
+	// (internal/app/lahijan/billing/*). Always built — the module
+	// has no provider dependency (it sits above the providers via
+	// the Meter interface and above the compute module via the
+	// Enforcer interface). When the Incus provider is disabled the
+	// metering collectors run as no-ops; when compute is disabled
+	// enforcement runs as a no-op. The service is wired with the
+	// audit emitter + the WASM event bus + the shared policy
+	// evaluator. The River workers are registered with the job
+	// registry separately so they pick up the same service instance.
+	billingSvc := billing.New(
+		authDeps.repos,
+		authDeps.audit,
+		wasmDeps.bus,
+		rbac.NewEvaluator(authDeps.repos.Memberships),
+		billing.NoopEnforcer{},
+		billing.NoopMeter{},
+		billing.Config{},
+	)
+	// Register the billing River workers when jobs are enabled so
+	// the metering/rollup/enforcement/receipts pipelines are live
+	// the moment the supervisor starts. The workers share a
+	// slog.Default() logger; a future WS can pass a scoped logger.
+	if jobDeps.registry != nil {
+		billing.RegisterJobs(jobDeps.registry, billingSvc, slog.Default())
+	}
+
 	// Seed the RBAC catalog (permissions + default roles + grants). Idempotent
 	// so it is safe to run on every bootstrap. Fail-fast on error: without the
 	// seed, every privileged route returns 403.
@@ -379,6 +407,7 @@ func Start() error {
 		ComputeSvc:     computeSvc,
 		DNSSvc:         dnsSvc,
 		StorageSvc:     storageSvc,
+		BillingSvc:     billingSvc,
 	}), policy)
 
 	// WS-09: mount River's built-in web UI (admin-only). The UI ships its

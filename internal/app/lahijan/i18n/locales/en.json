@@ -265,5 +265,21 @@
   "audit.action_s3_bucket_quota_set": { "other": "Object storage bucket quota set" },
   "audit.action_s3_credentials_create": { "other": "Object storage credentials issued" },
   "audit.action_s3_credentials_revoke": { "other": "Object storage credentials revoked" },
-  "audit.action_s3_presign": { "other": "Object storage pre-signed URL issued" }
+  "audit.action_s3_presign": { "other": "Object storage pre-signed URL issued" },
+
+  "billing.err_disabled": { "other": "The billing subsystem is not enabled on this server." },
+  "billing.err_not_found": { "other": "Billing resource not found." },
+  "billing.err_bad_request": { "other": "The billing request was malformed." },
+  "billing.err_invalid_amount": { "other": "Amount must be a positive integer." },
+  "billing.err_invalid_currency": { "other": "Currency must be a 3-letter ISO 4217 code." },
+  "billing.err_invalid_period": { "other": "The supplied period is malformed." },
+  "billing.err_insufficient_balance": { "other": "Insufficient balance." },
+  "billing.err_duplicate": { "other": "A row with this idempotency key already exists." },
+
+  "audit.action_billing_balance_topup": { "other": "User balance topped up" },
+  "audit.action_billing_balance_refund": { "other": "User balance refunded" },
+  "audit.action_billing_balance_rebuild": { "other": "User balance cache rebuilt" },
+  "audit.action_billing_price_upsert": { "other": "Price catalog updated" },
+  "audit.action_billing_price_expire": { "other": "Price catalog entry expired" },
+  "audit.action_billing_receipt_generate": { "other": "Billing receipt generated" }
 }

@@ -22,6 +22,7 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/secrets"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/session"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/state"
+	"github.com/avestura/lahijan/internal/app/lahijan/billing"
 	"github.com/avestura/lahijan/internal/app/lahijan/compute"
 	"github.com/avestura/lahijan/internal/app/lahijan/database"
 	"github.com/avestura/lahijan/internal/app/lahijan/dns"
@@ -115,12 +116,22 @@ type Server struct {
 	// disabled; the handlers degrade to 501.
 	dnsSvc *dns.Service
 
-	// WS-16: object storage module deps. storageSvc is the entrypoint
+	// WS-16: object storage module deps. StorageSvc is the entrypoint
 	// every /api/v1/storage/* handler talks to; it wraps the SeaweedFS
 	// provider + the storage_buckets + storage_credentials repositories
 	// + the audit emitter + the WASM event bus. Nil-appropriate when
 	// the SeaweedFS provider is disabled; the handlers degrade to 501.
 	storageSvc *storage.Service
+
+	// WS-17: billing & metering module deps. BillingSvc is the
+	// entrypoint every /api/v1/me/{balance,usage,ledger,receipts}*
+	// + /api/v1/admin/billing/* + /api/v1/admin/users/{id}/{topup,
+	// refund,ledger,balance}* handler talks to; it wraps the price
+	// catalog + the append-only ledger + the per-user balance cache
+	// + the usage stream + the receipt PDF generator + the audit
+	// emitter + the WASM event bus. Nil-appropriate when the billing
+	// subsystem is disabled; the handlers degrade to 501.
+	billingSvc *billing.Service
 }
 
 // ServerDeps carries the dependencies NewServer requires. Wire it once from
@@ -189,6 +200,11 @@ type ServerDeps struct {
 	// every /api/v1/storage/* handler talks to. Nil-appropriate when
 	// the SeaweedFS provider is disabled; the handlers degrade to 501.
 	StorageSvc *storage.Service
+
+	// WS-17: billing & metering module deps. BillingSvc is the
+	// entrypoint every billing handler talks to. Nil-appropriate when
+	// the billing subsystem is disabled; the handlers degrade to 501.
+	BillingSvc *billing.Service
 }
 
 // NewServer builds the API server with the given dependencies.
@@ -219,6 +235,7 @@ func NewServer(deps ServerDeps) *Server {
 		computeSvc:      deps.ComputeSvc,
 		dnsSvc:          deps.DNSSvc,
 		storageSvc:      deps.StorageSvc,
+		billingSvc:      deps.BillingSvc,
 	}
 	if s.tracer == nil {
 		s.tracer = Tracer()
@@ -259,6 +276,20 @@ func (s *Server) SetComputeService(svc *compute.Service) {
 func (s *Server) SetStorageService(svc *storage.Service) {
 	s.storageSvc = svc
 }
+
+// SetBillingService mirrors SetStorageService for the billing module.
+// Used by integration tests that wire a real (DB-backed) billing service
+// after the standard newTestApp path has run. Production code passes
+// BillingSvc via ServerDeps at construction.
+func (s *Server) SetBillingService(svc *billing.Service) {
+	s.billingSvc = svc
+}
+
+// BillingService returns the wired billing service (or nil when the
+// billing subsystem is disabled). Exported so integration tests can
+// drive the service layer directly when the test setup is shared with
+// the HTTP layer.
+func (s *Server) BillingService() *billing.Service { return s.billingSvc }
 
 // Ping handles GET /api/v1/ping. It returns the current server timestamp and
 // emits an OpenTelemetry trace span to prove the api pipeline is wired.

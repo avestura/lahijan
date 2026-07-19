@@ -223,11 +223,11 @@ func TestCreateDNSZone_HappyPath(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 201, resp.StatusCode)
 	var envelope struct {
-		ID           string `json:"id"`
-		Name         string `json:"name"`
-		CanonicalID  string `json:"canonicalId"`
-		Kind         string `json:"kind"`
-		IsDNSSecEnabled bool `json:"isDnssecEnabled"`
+		ID              string `json:"id"`
+		Name            string `json:"name"`
+		CanonicalID     string `json:"canonicalId"`
+		Kind            string `json:"kind"`
+		IsDNSSecEnabled bool   `json:"isDnssecEnabled"`
 	}
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&envelope))
 	assert.Equal(t, "happy.example.com.", envelope.Name)

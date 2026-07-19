@@ -24,6 +24,7 @@ const (
 	CodeNotFound        = "not_found"
 	CodeConflict        = "conflict"
 	CodePayloadTooLarge = "payload_too_large"
+	CodePaymentRequired = "payment_required"
 	CodeInternal        = "internal"
 	CodeNotImplemented  = "not_implemented"
 )
@@ -94,6 +95,13 @@ func SendInternal(c *fiber.Ctx, message string) error {
 // SendNotImplemented is a convenience wrapper for a 501 not_implemented response.
 func SendNotImplemented(c *fiber.Ctx, message string) error {
 	return SendError(c, fiber.StatusNotImplemented, CodeNotImplemented, message, nil)
+}
+
+// SendPaymentRequired is a convenience wrapper for a 402 payment_required
+// response. Used by the billing module when an action would push the user's
+// balance below the configured floor.
+func SendPaymentRequired(c *fiber.Ctx, message string) error {
+	return SendError(c, fiber.StatusPaymentRequired, CodePaymentRequired, message, nil)
 }
 
 // codeForStatus maps an HTTP status code to the canonical snake_case error code

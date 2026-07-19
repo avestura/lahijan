@@ -113,6 +113,19 @@ func RegisterRoutes(app *fiber.App, server *Server, policy middleware.PolicyReso
 //	/api/v1/storage/buckets/{id}/quota POST           -> s3.bucket.update
 //	/api/v1/storage/buckets/{id}/usage GET            -> s3.bucket.read
 //
+//	/api/v1/me/balance GET                            -> billing.balance.read
+//	/api/v1/me/usage GET                              -> billing.balance.read
+//	/api/v1/me/ledger GET                             -> billing.ledger.read
+//	/api/v1/me/receipts GET / POST                    -> billing.receipt.read / .create
+//	/api/v1/me/receipts/{id} GET                      -> billing.receipt.read
+//	/api/v1/me/receipts/{id}.pdf GET                  -> billing.receipt.read
+//	/api/v1/admin/billing/prices GET / POST           -> billing.price_catalog.read / .update
+//	/api/v1/admin/users/{id}/topup POST               -> billing.balance.adjust
+//	/api/v1/admin/users/{id}/refund POST              -> billing.balance.adjust
+//	/api/v1/admin/users/{id}/ledger GET               -> billing.ledger.read
+//	/api/v1/admin/users/{id}/balance GET              -> billing.balance.read
+//	/api/v1/admin/users/{id}/balance POST             -> billing.balance.adjust
+//
 // Everything else: c.Next() (no enforcement; routes that need it must add
 // their own per-route RequirePerm or be gated through this same function as
 // the privileged surface grows).
@@ -280,6 +293,37 @@ func AuditGate(policy middleware.PolicyResolver) apigen.MiddlewareFunc {
 			return middleware.RequirePerm(policy, rbac.PermS3BucketUpdate)(c)
 		case isStorageUsagePath(path) && method == "GET":
 			return middleware.RequirePerm(policy, rbac.PermS3BucketRead)(c)
+
+		// WS-17: billing & metering endpoints. Every /api/v1/me/*
+		// path is the user reading their own data; every
+		// /api/v1/admin/billing/* and /api/v1/admin/users/{id}/*
+		// path is an admin privileged action.
+		case isBillingAdminUserTopupPath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermBillingBalanceAdjust)(c)
+		case isBillingAdminUserRefundPath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermBillingBalanceAdjust)(c)
+		case isBillingAdminUserBalancePath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermBillingBalanceRead)(c)
+		case isBillingAdminUserBalancePath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermBillingBalanceAdjust)(c)
+		case isBillingAdminUserLedgerPath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermBillingLedgerRead)(c)
+		case isBillingAdminPricesPath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermBillingPriceCatalogUpdate)(c)
+		case isBillingAdminPricesPath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermBillingPriceCatalogRead)(c)
+		case isBillingMeBalancePath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermBillingBalanceRead)(c)
+		case isBillingMeUsagePath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermBillingBalanceRead)(c)
+		case isBillingMeLedgerPath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermBillingLedgerRead)(c)
+		case isBillingMeReceiptsPDFPath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermBillingReceiptRead)(c)
+		case isBillingMeReceiptsPath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermBillingReceiptRead)(c)
+		case isBillingMeReceiptsPath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermBillingReceiptCreate)(c)
 		}
 		return c.Next()
 	}
@@ -455,4 +499,82 @@ func isStorageUsagePath(path string) bool {
 		return false
 	}
 	return strings.HasSuffix(path, "/usage")
+}
+
+// -------------------------------------------------------------------------
+// WS-17 billing path helpers.
+//
+// The billing surface has three roots:
+//
+//   * /api/v1/me/{balance, usage, ledger, receipts}*  (user self-service)
+//   * /api/v1/admin/billing/prices*                   (admin catalog)
+//   * /api/v1/admin/users/{userId}/{topup, refund, ledger, balance}
+//
+// Each helper matches a specific subtree so the audit gate dispatches
+// to the right RequirePerm slug.
+// -------------------------------------------------------------------------
+
+// isBillingMeBalancePath reports whether path is GET /api/v1/me/balance.
+func isBillingMeBalancePath(path string) bool {
+	return path == "/api/v1/me/balance"
+}
+
+// isBillingMeUsagePath reports whether path is GET /api/v1/me/usage.
+func isBillingMeUsagePath(path string) bool {
+	return path == "/api/v1/me/usage"
+}
+
+// isBillingMeLedgerPath reports whether path is GET /api/v1/me/ledger.
+func isBillingMeLedgerPath(path string) bool {
+	return path == "/api/v1/me/ledger"
+}
+
+// isBillingMeReceiptsPath reports whether path targets the receipts
+// collection (GET list or POST generate). The PDF + single-receipt
+// sub-paths are excluded.
+func isBillingMeReceiptsPath(path string) bool {
+	if path == "/api/v1/me/receipts" {
+		return true
+	}
+	if !strings.HasPrefix(path, "/api/v1/me/receipts/") {
+		return false
+	}
+	return !strings.HasSuffix(path, ".pdf")
+}
+
+// isBillingMeReceiptsPDFPath reports whether path is the PDF download
+// (GET /api/v1/me/receipts/{receiptId}.pdf).
+func isBillingMeReceiptsPDFPath(path string) bool {
+	return strings.HasPrefix(path, "/api/v1/me/receipts/") && strings.HasSuffix(path, ".pdf")
+}
+
+// isBillingAdminPricesPath reports whether path targets the price
+// catalog collection.
+func isBillingAdminPricesPath(path string) bool {
+	if path == "/api/v1/admin/billing/prices" {
+		return true
+	}
+	return strings.HasPrefix(path, "/api/v1/admin/billing/prices/")
+}
+
+// isBillingAdminUserTopupPath reports whether path is the topup endpoint.
+func isBillingAdminUserTopupPath(path string) bool {
+	return strings.HasPrefix(path, "/api/v1/admin/users/") && strings.HasSuffix(path, "/topup")
+}
+
+// isBillingAdminUserRefundPath reports whether path is the refund endpoint.
+func isBillingAdminUserRefundPath(path string) bool {
+	return strings.HasPrefix(path, "/api/v1/admin/users/") && strings.HasSuffix(path, "/refund")
+}
+
+// isBillingAdminUserLedgerPath reports whether path is the user ledger
+// listing endpoint.
+func isBillingAdminUserLedgerPath(path string) bool {
+	return strings.HasPrefix(path, "/api/v1/admin/users/") && strings.HasSuffix(path, "/ledger")
+}
+
+// isBillingAdminUserBalancePath reports whether path targets the
+// per-user balance (GET read or POST rebuild).
+func isBillingAdminUserBalancePath(path string) bool {
+	return strings.HasPrefix(path, "/api/v1/admin/users/") && strings.HasSuffix(path, "/balance")
 }

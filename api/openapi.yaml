@@ -46,6 +46,8 @@ tags:
     description: Platform-admin endpoints (cross-tenant; platform.admin role only).
   - name: compute
     description: Compute instances, images, profiles, networks, and storage volumes.
+  - name: billing
+    description: Billing & metering (balance, ledger, usage, receipts, price catalog).
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -2839,6 +2841,360 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "501": { $ref: "#/components/responses/NotImplemented" }
 
+  # -------------------------------------------------------------------------
+  # Billing & metering (WS-17). User-facing endpoints under /api/v1/me/*;
+  # admin endpoints under /api/v1/admin/billing/* and
+  # /api/v1/admin/users/{userId}/*. All amounts are integer centimals.
+  # -------------------------------------------------------------------------
+
+  /api/v1/me/balance:
+    get:
+      tags: [billing]
+      operationId: getMyBalance
+      summary: Get the caller's cached balance
+      description: |
+        Returns the cached per-user balance within the caller's tenant.
+        The cache is refreshed within 60s of any ledger change; the
+        ledger is the source of truth. A user with no ledger history
+        returns balance 0.
+      responses:
+        "200":
+          description: The cached balance.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingBalance" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/me/usage:
+    get:
+      tags: [billing]
+      operationId: listMyUsage
+      summary: List the caller's usage events
+      description: |
+        Returns a paginated list of the caller's usage events within the
+        tenant in scope. Filterable by resource type and date range.
+      parameters:
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+        - name: resourceType
+          in: query
+          description: Filter by resource type (compute.cpu, storage.size, ...).
+          schema: { type: string }
+        - name: from
+          in: query
+          description: Inclusive lower bound on started_at (RFC 3339).
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          description: Inclusive upper bound on started_at (RFC 3339).
+          schema: { type: string, format: date-time }
+      responses:
+        "200":
+          description: A page of usage events.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingUsagePage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/me/ledger:
+    get:
+      tags: [billing]
+      operationId: listMyLedger
+      summary: List the caller's ledger entries
+      description: |
+        Returns a paginated list of the caller's ledger entries within
+        the tenant in scope, newest first. The ledger is append-only.
+      parameters:
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+      responses:
+        "200":
+          description: A page of ledger entries.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingLedgerPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/me/receipts:
+    get:
+      tags: [billing]
+      operationId: listMyReceipts
+      summary: List the caller's receipts
+      description: |
+        Returns a paginated list of the caller's receipts within the
+        tenant in scope, newest period first.
+      parameters:
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+      responses:
+        "200":
+          description: A page of receipts.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingReceiptPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+    post:
+      tags: [billing]
+      operationId: generateMyReceipt
+      summary: Generate a receipt for a period
+      description: |
+        Generates (or refreshes) a receipt for the caller covering the
+        supplied [periodStart, periodEnd] window. Idempotent: a re-run
+        overwrites the PDF body.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BillingReceiptGenerateRequest" }
+      responses:
+        "201":
+          description: The generated receipt.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingReceipt" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/me/receipts/{receiptId}:
+    get:
+      tags: [billing]
+      operationId: getMyReceipt
+      summary: Get a receipt's metadata
+      description: |
+        Returns the receipt's metadata (period, total, currency). The
+        PDF body is NOT included; use GET /receipts/{receiptId}.pdf for
+        the binary.
+      parameters:
+        - name: receiptId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The receipt metadata.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingReceipt" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/me/receipts/{receiptId}.pdf:
+    get:
+      tags: [billing]
+      operationId: getMyReceiptPDF
+      summary: Download a receipt as PDF
+      description: |
+        Returns the receipt's PDF body (application/pdf). The body is
+        generated by the receipt job or by an on-demand POST to
+        /receipts. Stored in-row in the receipts table for MVP.
+      parameters:
+        - name: receiptId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The PDF body.
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/admin/billing/prices:
+    get:
+      tags: [billing, admin]
+      operationId: listAdminBillingPrices
+      summary: List the price catalog
+      description: |
+        Returns a paginated list of the tenant's price catalog entries.
+        Requires billing.price_catalog.read.
+      parameters:
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+      responses:
+        "200":
+          description: A page of price catalog rows.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingPricePage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+    post:
+      tags: [billing, admin]
+      operationId: upsertAdminBillingPrice
+      summary: Upsert (set-current) a price
+      description: |
+        Atomically closes the currently-in-effect price for (resource,
+        unit) and inserts a new one starting at effectiveFrom. Requires
+        billing.price_catalog.update. Emits an audit event before +
+        after the swap.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BillingPriceUpsertRequest" }
+      responses:
+        "201":
+          description: The new price row.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingPrice" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/admin/users/{userId}/topup:
+    post:
+      tags: [billing, admin]
+      operationId: topupAdminUser
+      summary: Top up a user's balance
+      description: |
+        Credits a user's balance with the supplied amount (integer
+        centimals). Requires billing.balance.adjust. Emits an audit
+        event before + after the insert.
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BillingTopupRequest" }
+      responses:
+        "201":
+          description: The new ledger row.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingLedgerEntry" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/admin/users/{userId}/refund:
+    post:
+      tags: [billing, admin]
+      operationId: refundAdminUser
+      summary: Refund a user (issue a credit row with source=refund)
+      description: |
+        Issues a credit row with source=refund referencing the original
+        charge in metadata. Requires billing.balance.adjust. Emits an
+        audit event before + after the insert.
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BillingRefundRequest" }
+      responses:
+        "201":
+          description: The new ledger row.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingLedgerEntry" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/admin/users/{userId}/ledger:
+    get:
+      tags: [billing, admin]
+      operationId: listAdminUserLedger
+      summary: List a user's ledger entries
+      description: |
+        Returns a paginated list of the user's ledger entries within
+        the tenant in scope. Requires billing.ledger.read.
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+      responses:
+        "200":
+          description: A page of ledger entries.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingLedgerPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/admin/users/{userId}/balance:
+    get:
+      tags: [billing, admin]
+      operationId: getAdminUserBalance
+      summary: Get a user's cached balance
+      description: |
+        Returns the cached per-user balance for the supplied user.
+        Requires billing.balance.read.
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The cached balance.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingBalance" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+    post:
+      tags: [billing, admin]
+      operationId: rebuildAdminUserBalance
+      summary: Force-rebuild a user's balance cache
+      description: |
+        Recomputes the user's balance from the ledger and updates the
+        cache. Requires billing.balance.adjust. Emits an audit event
+        before + after.
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The freshly-computed balance.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingBalance" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
 # ---------------------------------------------------------------------------
 # Components
 # ---------------------------------------------------------------------------
@@ -4602,3 +4958,242 @@ components:
           type: integer
           format: int64
           description: Cached total object count.
+
+    # -----------------------------------------------------------------
+    # Billing & metering schemas (WS-17). All amounts in integer
+    # centimals; the ledger is append-only.
+    # -----------------------------------------------------------------
+
+    BillingBalance:
+      type: object
+      required: [tenantId, userId, balanceCents, currency, lastEntryAt, updatedAt]
+      additionalProperties: false
+      properties:
+        tenantId:    { type: string, format: uuid }
+        userId:      { type: string, format: uuid }
+        balanceCents:
+          type: integer
+          format: int64
+          description: Cached balance in integer centimals. Can be slightly negative during the grace window.
+        currency:
+          type: string
+          description: ISO 4217 currency code (USD today; multi-currency is Phase 7).
+        lastEntryAt:
+          type: string
+          format: date-time
+          description: Timestamp of the latest ledger entry incorporated into balanceCents.
+        updatedAt:
+          type: string
+          format: date-time
+          description: Cache refresh timestamp; should be < 60s stale per the WS-17 DoD.
+
+    BillingLedgerEntry:
+      type: object
+      required: [id, tenantId, userId, type, amountCents, currency, source, createdAt]
+      additionalProperties: false
+      properties:
+        id:           { type: string, format: uuid }
+        tenantId:     { type: string, format: uuid }
+        userId:       { type: string, format: uuid }
+        type:
+          type: string
+          enum: [credit, debit]
+          description: credit (topup, refund) increases the balance; debit (charge) decreases it.
+        amountCents:
+          type: integer
+          format: int64
+          description: Amount in integer centimals; always positive.
+        currency:     { type: string }
+        source:
+          type: string
+          enum: [topup, charge, refund, adjustment]
+        reference:    { type: string }
+        idempotencyKey:
+          type: string
+          nullable: true
+          description: Idempotency key for metering de-duplication; NULL for admin rows.
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Structured details (resource type, period, breakdown, ...).
+        createdAt:    { type: string, format: date-time }
+
+    BillingLedgerPage:
+      type: object
+      required: [items, total, limit, offset]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/BillingLedgerEntry" }
+        total:  { type: integer }
+        limit:  { type: integer }
+        offset: { type: integer }
+
+    BillingUsageEvent:
+      type: object
+      required: [id, tenantId, userId, resourceType, qty, unit, startedAt, endedAt]
+      additionalProperties: false
+      properties:
+        id:           { type: string, format: uuid }
+        tenantId:     { type: string, format: uuid }
+        userId:       { type: string, format: uuid }
+        resourceType: { type: string }
+        qty:
+          type: integer
+          format: int64
+          description: Integer quantity; always positive.
+        unit:         { type: string }
+        startedAt:    { type: string, format: date-time }
+        endedAt:      { type: string, format: date-time }
+        idempotencyKey:
+          type: string
+          nullable: true
+        createdAt:    { type: string, format: date-time }
+
+    BillingUsagePage:
+      type: object
+      required: [items, total, limit, offset]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/BillingUsageEvent" }
+        total:  { type: integer }
+        limit:  { type: integer }
+        offset: { type: integer }
+
+    BillingPrice:
+      type: object
+      required: [id, tenantId, resourceType, unit, priceCents, currency, effectiveFrom]
+      additionalProperties: false
+      properties:
+        id:           { type: string, format: uuid }
+        tenantId:     { type: string, format: uuid }
+        resourceType: { type: string }
+        unit:         { type: string }
+        priceCents:
+          type: integer
+          format: int64
+          description: Unit price in integer centimals.
+        currency:     { type: string }
+        effectiveFrom: { type: string, format: date-time }
+        effectiveTo:
+          type: string
+          format: date-time
+          nullable: true
+          description: When this price stops being effective. NULL = currently in effect.
+        createdAt:    { type: string, format: date-time }
+        updatedAt:    { type: string, format: date-time }
+
+    BillingPricePage:
+      type: object
+      required: [items, total, limit, offset]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/BillingPrice" }
+        total:  { type: integer }
+        limit:  { type: integer }
+        offset: { type: integer }
+
+    BillingPriceUpsertRequest:
+      type: object
+      required: [resourceType, unit, priceCents]
+      additionalProperties: false
+      properties:
+        resourceType: { type: string }
+        unit:         { type: string }
+        priceCents:
+          type: integer
+          format: int64
+          minimum: 0
+        currency:
+          type: string
+          default: USD
+          description: ISO 4217 currency code. Defaults to USD.
+        effectiveFrom:
+          type: string
+          format: date-time
+          description: When the new price takes effect. Defaults to now.
+
+    BillingTopupRequest:
+      type: object
+      required: [amountCents]
+      additionalProperties: false
+      properties:
+        amountCents:
+          type: integer
+          format: int64
+          minimum: 1
+          description: The credit amount in integer centimals.
+        currency:
+          type: string
+          default: USD
+        reference:
+          type: string
+          maxLength: 200
+          description: Optional human-readable reference (invoice id, ...).
+
+    BillingRefundRequest:
+      type: object
+      required: [amountCents]
+      additionalProperties: false
+      properties:
+        amountCents:
+          type: integer
+          format: int64
+          minimum: 1
+        currency:
+          type: string
+          default: USD
+        reference:
+          type: string
+          maxLength: 200
+        chargeLedgerId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Optional reference to the original charge ledger row.
+
+    BillingReceipt:
+      type: object
+      required: [id, tenantId, userId, periodStart, periodEnd, totalCents, currency, status, createdAt]
+      additionalProperties: false
+      properties:
+        id:           { type: string, format: uuid }
+        tenantId:     { type: string, format: uuid }
+        userId:       { type: string, format: uuid }
+        periodStart:  { type: string, format: date-time }
+        periodEnd:    { type: string, format: date-time }
+        totalCents:
+          type: integer
+          format: int64
+          description: Total charged over the period in integer centimals.
+        currency:     { type: string }
+        status:
+          type: string
+          enum: [pending, ready]
+        createdAt:    { type: string, format: date-time }
+        updatedAt:    { type: string, format: date-time }
+
+    BillingReceiptPage:
+      type: object
+      required: [items, total, limit, offset]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/BillingReceipt" }
+        total:  { type: integer }
+        limit:  { type: integer }
+        offset: { type: integer }
+
+    BillingReceiptGenerateRequest:
+      type: object
+      required: [periodStart, periodEnd]
+      additionalProperties: false
+      properties:
+        periodStart: { type: string, format: date-time }
+        periodEnd:   { type: string, format: date-time }
