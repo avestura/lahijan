@@ -263,7 +263,12 @@ while (-not $proc.HasExited) {
         }
     }
     if ((Get-Date) -gt $deadline) {
-        try { $proc.Kill() } catch { Write-Warning "couldn't kill opencode: $($_.Exception.Message)" }
+        # taskkill /T /F walks the process tree and kills all descendants.
+        # opencode spawns a long-lived server subprocess; $proc.Kill() only
+        # terminates the parent and leaves the orphan server running for
+        # hours (see WS-19 2026-07-19 incident log). Same fix as
+        # Run-Workstreams.ps1's two kill sites.
+        try { & taskkill /PID $proc.Id /T /F 2>&1 | Out-Null } catch { Write-Warning "couldn't kill opencode tree: $($_.Exception.Message)" }
         $timedOut = $true
         Write-Fail "$WsId exceeded ${TimeoutMinutes}m timeout"
         break

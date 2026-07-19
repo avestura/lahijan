@@ -374,7 +374,12 @@ function Invoke-Ws {
                 }
             }
             if ((Get-Date) -gt $deadline) {
-                try { $proc.Kill() } catch { Write-Warning "couldn't kill opencode: $($_.Exception.Message)" }
+                # taskkill /T /F walks the process tree and kills all descendants.
+                # opencode spawns a long-lived server subprocess; $proc.Kill() only
+                # terminates the parent and leaves the orphan server running for
+                # hours (observed in the WS-19 2026-07-19 incident: the orphan
+                # kept writing to stderr for 13+ hours after the parent was killed).
+                try { & taskkill /PID $proc.Id /T /F 2>&1 | Out-Null } catch { Write-Warning "couldn't kill opencode tree: $($_.Exception.Message)" }
                 $timedOut = $true
                 Write-Fail "WS $WsId exceeded ${TimeoutMinutes}m timeout"
                 break
@@ -405,7 +410,9 @@ function Invoke-Ws {
         # Plain wait mode: block until exit or timeout, then print tail.
         $exited = $proc.WaitForExit($TimeoutMinutes * 60 * 1000)
         if (-not $exited) {
-            try { $proc.Kill() } catch { Write-Warning "couldn't kill opencode process" }
+            # taskkill /T /F walks the process tree (see LiveStream branch above
+            # for the rationale: $proc.Kill() leaves opencode's server orphaned).
+            try { & taskkill /PID $proc.Id /T /F 2>&1 | Out-Null } catch { Write-Warning "couldn't kill opencode tree" }
             $timedOut = $true
             Write-Fail "WS $WsId exceeded ${TimeoutMinutes}m timeout"
         }
