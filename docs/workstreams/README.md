@@ -68,7 +68,7 @@ The ws-implementer subagent (`.opencode/agent/ws-implementer.md`) and the
 | WS | Title | Status | Depends on |
 |----|-------|--------|------------|
 | [WS-14](./WS-14-compute-module.md) | Compute Module | done | WS-11, WS-08, WS-09 |
-| [WS-15](./WS-15-dns-module.md) | DNS Module | pending | WS-12, WS-08 |
+| [WS-15](./WS-15-dns-module.md) | DNS Module | done | WS-12, WS-08 |
 | [WS-16](./WS-16-storage-module.md) | Object Storage Module | pending | WS-13, WS-08 |
 | [WS-17](./WS-17-billing-metering.md) | Billing & Metering | pending | WS-08, WS-09 |
 
