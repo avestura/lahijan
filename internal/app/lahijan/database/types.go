@@ -43,4 +43,12 @@ type (
 	// (these are type aliases, not wrappers).
 	DNSZone   = gen.DnsZone
 	DNSRecord = gen.DnsRecord
+
+	// StorageBucket / StorageCredential are the row aliases (WS-16).
+	// Services reference these (e.g. database.StorageBucket) instead of
+	// gen.StorageBucket. The sqlc-generated names already match the
+	// idiomatic-Go form so the aliases are passthrough; they exist so
+	// services never need to import the gen package directly.
+	StorageBucket     = gen.StorageBucket
+	StorageCredential = gen.StorageCredential
 )

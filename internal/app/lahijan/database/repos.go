@@ -40,6 +40,8 @@ type Repos struct {
 	ComputeProfiles       *ComputeProfilesRepository
 	ComputeNetworks       *ComputeNetworksRepository
 	ComputeStorageVolumes *ComputeStorageVolumesRepository
+	StorageBuckets        *StorageBucketsRepository
+	StorageCredentials    *StorageCredentialsRepository
 }
 
 // NewRepos builds the aggregate repository from a pool or transaction. The
@@ -73,5 +75,7 @@ func NewRepos(db DBTX) *Repos {
 		ComputeProfiles:       NewComputeProfilesRepository(q),
 		ComputeNetworks:       NewComputeNetworksRepository(q),
 		ComputeStorageVolumes: NewComputeStorageVolumesRepository(q),
+		StorageBuckets:        NewStorageBucketsRepository(q),
+		StorageCredentials:    NewStorageCredentialsRepository(q),
 	}
 }
