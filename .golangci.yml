@@ -108,6 +108,8 @@ linters:
       - "third_party$"
       - "testdata$"
       - "examples$"
+      # Frontend node_modules may ship .go files (e.g. flatted); ignore them.
+      - "node_modules"
     rules:
       - linters: [lll]
         path: ".*\\.md$"
