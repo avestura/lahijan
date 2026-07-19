@@ -578,5 +578,49 @@
   },
   "audit.action_s3_presign": {
     "other": "نشانی از پیش امضاشدهٔ ذخیره‌ساز آبجکت صادر شد"
+  },
+
+  "billing.err_disabled": {
+    "other": "زیرسامانهٔ صورتحساب روی این کارساز فعال نیست."
+  },
+  "billing.err_not_found": {
+    "other": "منبع صورتحساب یافت نشد."
+  },
+  "billing.err_bad_request": {
+    "other": "درخواست صورتحساب نادرست بود."
+  },
+  "billing.err_invalid_amount": {
+    "other": "مقدار باید یک عدد صحیح مثبت باشد."
+  },
+  "billing.err_invalid_currency": {
+    "other": "واحد پول باید یک کد ۳حرفی ایزو ۴۲۱۷ باشد."
+  },
+  "billing.err_invalid_period": {
+    "other": "بازهٔ زمانی ارائه‌شده نادرست است."
+  },
+  "billing.err_insufficient_balance": {
+    "other": "موجودی ناکافی."
+  },
+  "billing.err_duplicate": {
+    "other": "رشته‌ای با این کلید قدرت‌نمایی از پیش وجود دارد."
+  },
+
+  "audit.action_billing_balance_topup": {
+    "other": "موجودی کاربر شارژ شد"
+  },
+  "audit.action_billing_balance_refund": {
+    "other": "موجودی کاربر بازگردانده شد"
+  },
+  "audit.action_billing_balance_rebuild": {
+    "other": "حافظهٔ نهان موجودی کاربر بازسازی شد"
+  },
+  "audit.action_billing_price_upsert": {
+    "other": "کتالگ قیمت به‌روزرسانی شد"
+  },
+  "audit.action_billing_price_expire": {
+    "other": "مدخل کاتالوگ قیمت منقضی شد"
+  },
+  "audit.action_billing_receipt_generate": {
+    "other": "رسید صورتحساب تولید شد"
   }
 }

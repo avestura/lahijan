@@ -65,6 +65,26 @@ const (
 	AuditOutcomeStatusSuccess AuditOutcomeStatus = "success"
 )
 
+// Defines values for BillingLedgerEntrySource.
+const (
+	BillingLedgerEntrySourceAdjustment BillingLedgerEntrySource = "adjustment"
+	BillingLedgerEntrySourceCharge     BillingLedgerEntrySource = "charge"
+	BillingLedgerEntrySourceRefund     BillingLedgerEntrySource = "refund"
+	BillingLedgerEntrySourceTopup      BillingLedgerEntrySource = "topup"
+)
+
+// Defines values for BillingLedgerEntryType.
+const (
+	BillingLedgerEntryTypeCredit BillingLedgerEntryType = "credit"
+	BillingLedgerEntryTypeDebit  BillingLedgerEntryType = "debit"
+)
+
+// Defines values for BillingReceiptStatus.
+const (
+	BillingReceiptStatusPending BillingReceiptStatus = "pending"
+	BillingReceiptStatusReady   BillingReceiptStatus = "ready"
+)
+
 // Defines values for ComputeImageSource.
 const (
 	ComputeImageSourceCustom   ComputeImageSource = "custom"
@@ -488,6 +508,174 @@ type AuditPage struct {
 // AuthResponse defines model for AuthResponse.
 type AuthResponse struct {
 	User User `json:"user"`
+}
+
+// BillingBalance defines model for BillingBalance.
+type BillingBalance struct {
+	// BalanceCents Cached balance in integer centimals. Can be slightly negative during the grace window.
+	BalanceCents int64 `json:"balanceCents"`
+
+	// Currency ISO 4217 currency code (USD today; multi-currency is Phase 7).
+	Currency string `json:"currency"`
+
+	// LastEntryAt Timestamp of the latest ledger entry incorporated into balanceCents.
+	LastEntryAt time.Time          `json:"lastEntryAt"`
+	TenantId    openapi_types.UUID `json:"tenantId"`
+
+	// UpdatedAt Cache refresh timestamp; should be < 60s stale per the WS-17 DoD.
+	UpdatedAt time.Time          `json:"updatedAt"`
+	UserId    openapi_types.UUID `json:"userId"`
+}
+
+// BillingLedgerEntry defines model for BillingLedgerEntry.
+type BillingLedgerEntry struct {
+	// AmountCents Amount in integer centimals; always positive.
+	AmountCents int64              `json:"amountCents"`
+	CreatedAt   time.Time          `json:"createdAt"`
+	Currency    string             `json:"currency"`
+	Id          openapi_types.UUID `json:"id"`
+
+	// IdempotencyKey Idempotency key for metering de-duplication; NULL for admin rows.
+	IdempotencyKey *string `json:"idempotencyKey"`
+
+	// Metadata Structured details (resource type, period, breakdown, ...).
+	Metadata  *map[string]interface{}  `json:"metadata,omitempty"`
+	Reference *string                  `json:"reference,omitempty"`
+	Source    BillingLedgerEntrySource `json:"source"`
+	TenantId  openapi_types.UUID       `json:"tenantId"`
+
+	// Type credit (topup, refund) increases the balance; debit (charge) decreases it.
+	Type   BillingLedgerEntryType `json:"type"`
+	UserId openapi_types.UUID     `json:"userId"`
+}
+
+// BillingLedgerEntrySource defines model for BillingLedgerEntry.Source.
+type BillingLedgerEntrySource string
+
+// BillingLedgerEntryType credit (topup, refund) increases the balance; debit (charge) decreases it.
+type BillingLedgerEntryType string
+
+// BillingLedgerPage defines model for BillingLedgerPage.
+type BillingLedgerPage struct {
+	Items  []BillingLedgerEntry `json:"items"`
+	Limit  int                  `json:"limit"`
+	Offset int                  `json:"offset"`
+	Total  int                  `json:"total"`
+}
+
+// BillingPrice defines model for BillingPrice.
+type BillingPrice struct {
+	CreatedAt     *time.Time `json:"createdAt,omitempty"`
+	Currency      string     `json:"currency"`
+	EffectiveFrom time.Time  `json:"effectiveFrom"`
+
+	// EffectiveTo When this price stops being effective. NULL = currently in effect.
+	EffectiveTo *time.Time         `json:"effectiveTo"`
+	Id          openapi_types.UUID `json:"id"`
+
+	// PriceCents Unit price in integer centimals.
+	PriceCents   int64              `json:"priceCents"`
+	ResourceType string             `json:"resourceType"`
+	TenantId     openapi_types.UUID `json:"tenantId"`
+	Unit         string             `json:"unit"`
+	UpdatedAt    *time.Time         `json:"updatedAt,omitempty"`
+}
+
+// BillingPricePage defines model for BillingPricePage.
+type BillingPricePage struct {
+	Items  []BillingPrice `json:"items"`
+	Limit  int            `json:"limit"`
+	Offset int            `json:"offset"`
+	Total  int            `json:"total"`
+}
+
+// BillingPriceUpsertRequest defines model for BillingPriceUpsertRequest.
+type BillingPriceUpsertRequest struct {
+	// Currency ISO 4217 currency code. Defaults to USD.
+	Currency *string `json:"currency,omitempty"`
+
+	// EffectiveFrom When the new price takes effect. Defaults to now.
+	EffectiveFrom *time.Time `json:"effectiveFrom,omitempty"`
+	PriceCents    int64      `json:"priceCents"`
+	ResourceType  string     `json:"resourceType"`
+	Unit          string     `json:"unit"`
+}
+
+// BillingReceipt defines model for BillingReceipt.
+type BillingReceipt struct {
+	CreatedAt   time.Time            `json:"createdAt"`
+	Currency    string               `json:"currency"`
+	Id          openapi_types.UUID   `json:"id"`
+	PeriodEnd   time.Time            `json:"periodEnd"`
+	PeriodStart time.Time            `json:"periodStart"`
+	Status      BillingReceiptStatus `json:"status"`
+	TenantId    openapi_types.UUID   `json:"tenantId"`
+
+	// TotalCents Total charged over the period in integer centimals.
+	TotalCents int64              `json:"totalCents"`
+	UpdatedAt  *time.Time         `json:"updatedAt,omitempty"`
+	UserId     openapi_types.UUID `json:"userId"`
+}
+
+// BillingReceiptStatus defines model for BillingReceipt.Status.
+type BillingReceiptStatus string
+
+// BillingReceiptGenerateRequest defines model for BillingReceiptGenerateRequest.
+type BillingReceiptGenerateRequest struct {
+	PeriodEnd   time.Time `json:"periodEnd"`
+	PeriodStart time.Time `json:"periodStart"`
+}
+
+// BillingReceiptPage defines model for BillingReceiptPage.
+type BillingReceiptPage struct {
+	Items  []BillingReceipt `json:"items"`
+	Limit  int              `json:"limit"`
+	Offset int              `json:"offset"`
+	Total  int              `json:"total"`
+}
+
+// BillingRefundRequest defines model for BillingRefundRequest.
+type BillingRefundRequest struct {
+	AmountCents int64 `json:"amountCents"`
+
+	// ChargeLedgerId Optional reference to the original charge ledger row.
+	ChargeLedgerId *openapi_types.UUID `json:"chargeLedgerId"`
+	Currency       *string             `json:"currency,omitempty"`
+	Reference      *string             `json:"reference,omitempty"`
+}
+
+// BillingTopupRequest defines model for BillingTopupRequest.
+type BillingTopupRequest struct {
+	// AmountCents The credit amount in integer centimals.
+	AmountCents int64   `json:"amountCents"`
+	Currency    *string `json:"currency,omitempty"`
+
+	// Reference Optional human-readable reference (invoice id, ...).
+	Reference *string `json:"reference,omitempty"`
+}
+
+// BillingUsageEvent defines model for BillingUsageEvent.
+type BillingUsageEvent struct {
+	CreatedAt      *time.Time         `json:"createdAt,omitempty"`
+	EndedAt        time.Time          `json:"endedAt"`
+	Id             openapi_types.UUID `json:"id"`
+	IdempotencyKey *string            `json:"idempotencyKey"`
+
+	// Qty Integer quantity; always positive.
+	Qty          int64              `json:"qty"`
+	ResourceType string             `json:"resourceType"`
+	StartedAt    time.Time          `json:"startedAt"`
+	TenantId     openapi_types.UUID `json:"tenantId"`
+	Unit         string             `json:"unit"`
+	UserId       openapi_types.UUID `json:"userId"`
+}
+
+// BillingUsagePage defines model for BillingUsagePage.
+type BillingUsagePage struct {
+	Items  []BillingUsageEvent `json:"items"`
+	Limit  int                 `json:"limit"`
+	Offset int                 `json:"offset"`
+	Total  int                 `json:"total"`
 }
 
 // ComputeExecRequest defines model for ComputeExecRequest.
@@ -1366,6 +1554,15 @@ type NotImplemented = Error
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = Error
 
+// ListAdminBillingPricesParams defines parameters for ListAdminBillingPrices.
+type ListAdminBillingPricesParams struct {
+	// Limit Maximum number of items to return (1..200).
+	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of items to skip for pagination.
+	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
 // ListAdminJobsParams defines parameters for ListAdminJobs.
 type ListAdminJobsParams struct {
 	// Limit Maximum number of items to return (1..200).
@@ -1405,6 +1602,15 @@ type UploadAdminPluginMultipartBody struct {
 
 // SetAdminPluginPermissionParamsAction defines parameters for SetAdminPluginPermission.
 type SetAdminPluginPermissionParamsAction string
+
+// ListAdminUserLedgerParams defines parameters for ListAdminUserLedger.
+type ListAdminUserLedgerParams struct {
+	// Limit Maximum number of items to return (1..200).
+	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of items to skip for pagination.
+	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
+}
 
 // ListAuditParams defines parameters for ListAudit.
 type ListAuditParams struct {
@@ -1549,6 +1755,42 @@ type ListDNSRecordsParams struct {
 	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
 }
 
+// ListMyLedgerParams defines parameters for ListMyLedger.
+type ListMyLedgerParams struct {
+	// Limit Maximum number of items to return (1..200).
+	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of items to skip for pagination.
+	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// ListMyReceiptsParams defines parameters for ListMyReceipts.
+type ListMyReceiptsParams struct {
+	// Limit Maximum number of items to return (1..200).
+	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of items to skip for pagination.
+	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// ListMyUsageParams defines parameters for ListMyUsage.
+type ListMyUsageParams struct {
+	// Limit Maximum number of items to return (1..200).
+	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of items to skip for pagination.
+	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// ResourceType Filter by resource type (compute.cpu, storage.size, ...).
+	ResourceType *string `form:"resourceType,omitempty" json:"resourceType,omitempty"`
+
+	// From Inclusive lower bound on started_at (RFC 3339).
+	From *time.Time `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Inclusive upper bound on started_at (RFC 3339).
+	To *time.Time `form:"to,omitempty" json:"to,omitempty"`
+}
+
 // ListStorageBucketsParams defines parameters for ListStorageBuckets.
 type ListStorageBucketsParams struct {
 	// Limit Maximum number of items to return (1..200).
@@ -1567,8 +1809,17 @@ type ListStorageCredentialsParams struct {
 	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
 }
 
+// UpsertAdminBillingPriceJSONRequestBody defines body for UpsertAdminBillingPrice for application/json ContentType.
+type UpsertAdminBillingPriceJSONRequestBody = BillingPriceUpsertRequest
+
 // UploadAdminPluginMultipartRequestBody defines body for UploadAdminPlugin for multipart/form-data ContentType.
 type UploadAdminPluginMultipartRequestBody UploadAdminPluginMultipartBody
+
+// RefundAdminUserJSONRequestBody defines body for RefundAdminUser for application/json ContentType.
+type RefundAdminUserJSONRequestBody = BillingRefundRequest
+
+// TopupAdminUserJSONRequestBody defines body for TopupAdminUser for application/json ContentType.
+type TopupAdminUserJSONRequestBody = BillingTopupRequest
 
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
@@ -1660,6 +1911,9 @@ type BeginWebAuthnRegistrationJSONRequestBody = WebAuthnBeginRequest
 // FinishWebAuthnRegistrationJSONRequestBody defines body for FinishWebAuthnRegistration for application/json ContentType.
 type FinishWebAuthnRegistrationJSONRequestBody = WebAuthnFinishRegistrationRequest
 
+// GenerateMyReceiptJSONRequestBody defines body for GenerateMyReceipt for application/json ContentType.
+type GenerateMyReceiptJSONRequestBody = BillingReceiptGenerateRequest
+
 // CreateStorageBucketJSONRequestBody defines body for CreateStorageBucket for application/json ContentType.
 type CreateStorageBucketJSONRequestBody = StorageBucketCreateRequest
 
@@ -1748,6 +2002,14 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// ListAdminBillingPrices request
+	ListAdminBillingPrices(ctx context.Context, params *ListAdminBillingPricesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpsertAdminBillingPriceWithBody request with any body
+	UpsertAdminBillingPriceWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpsertAdminBillingPrice(ctx context.Context, body UpsertAdminBillingPriceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListAdminJobs request
 	ListAdminJobs(ctx context.Context, params *ListAdminJobsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -1792,6 +2054,25 @@ type ClientInterface interface {
 
 	// SetAdminPluginPermission request
 	SetAdminPluginPermission(ctx context.Context, pluginId openapi_types.UUID, permission string, action SetAdminPluginPermissionParamsAction, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAdminUserBalance request
+	GetAdminUserBalance(ctx context.Context, userId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RebuildAdminUserBalance request
+	RebuildAdminUserBalance(ctx context.Context, userId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListAdminUserLedger request
+	ListAdminUserLedger(ctx context.Context, userId openapi_types.UUID, params *ListAdminUserLedgerParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RefundAdminUserWithBody request with any body
+	RefundAdminUserWithBody(ctx context.Context, userId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	RefundAdminUser(ctx context.Context, userId openapi_types.UUID, body RefundAdminUserJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// TopupAdminUserWithBody request with any body
+	TopupAdminUserWithBody(ctx context.Context, userId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	TopupAdminUser(ctx context.Context, userId openapi_types.UUID, body TopupAdminUserJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListAudit request
 	ListAudit(ctx context.Context, params *ListAuditParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2021,11 +2302,17 @@ type ClientInterface interface {
 
 	UpdateDNSRecord(ctx context.Context, zoneId openapi_types.UUID, recordId openapi_types.UUID, body UpdateDNSRecordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetMyBalance request
+	GetMyBalance(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListMyIdentities request
 	ListMyIdentities(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteMyIdentity request
 	DeleteMyIdentity(ctx context.Context, identityId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListMyLedger request
+	ListMyLedger(ctx context.Context, params *ListMyLedgerParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListMyRecoveryCodes request
 	ListMyRecoveryCodes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2068,6 +2355,23 @@ type ClientInterface interface {
 	FinishWebAuthnRegistrationWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	FinishWebAuthnRegistration(ctx context.Context, body FinishWebAuthnRegistrationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListMyReceipts request
+	ListMyReceipts(ctx context.Context, params *ListMyReceiptsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GenerateMyReceiptWithBody request with any body
+	GenerateMyReceiptWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	GenerateMyReceipt(ctx context.Context, body GenerateMyReceiptJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetMyReceipt request
+	GetMyReceipt(ctx context.Context, receiptId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetMyReceiptPDF request
+	GetMyReceiptPDF(ctx context.Context, receiptId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListMyUsage request
+	ListMyUsage(ctx context.Context, params *ListMyUsageParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// Ping request
 	Ping(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2117,6 +2421,42 @@ type ClientInterface interface {
 
 	// GetHealth request
 	GetHealth(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+func (c *Client) ListAdminBillingPrices(ctx context.Context, params *ListAdminBillingPricesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAdminBillingPricesRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpsertAdminBillingPriceWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpsertAdminBillingPriceRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpsertAdminBillingPrice(ctx context.Context, body UpsertAdminBillingPriceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpsertAdminBillingPriceRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 func (c *Client) ListAdminJobs(ctx context.Context, params *ListAdminJobsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -2289,6 +2629,90 @@ func (c *Client) EnableAdminPlugin(ctx context.Context, pluginId openapi_types.U
 
 func (c *Client) SetAdminPluginPermission(ctx context.Context, pluginId openapi_types.UUID, permission string, action SetAdminPluginPermissionParamsAction, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetAdminPluginPermissionRequest(c.Server, pluginId, permission, action)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetAdminUserBalance(ctx context.Context, userId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAdminUserBalanceRequest(c.Server, userId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) RebuildAdminUserBalance(ctx context.Context, userId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRebuildAdminUserBalanceRequest(c.Server, userId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListAdminUserLedger(ctx context.Context, userId openapi_types.UUID, params *ListAdminUserLedgerParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAdminUserLedgerRequest(c.Server, userId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) RefundAdminUserWithBody(ctx context.Context, userId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRefundAdminUserRequestWithBody(c.Server, userId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) RefundAdminUser(ctx context.Context, userId openapi_types.UUID, body RefundAdminUserJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRefundAdminUserRequest(c.Server, userId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) TopupAdminUserWithBody(ctx context.Context, userId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewTopupAdminUserRequestWithBody(c.Server, userId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) TopupAdminUser(ctx context.Context, userId openapi_types.UUID, body TopupAdminUserJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewTopupAdminUserRequest(c.Server, userId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -3307,6 +3731,18 @@ func (c *Client) UpdateDNSRecord(ctx context.Context, zoneId openapi_types.UUID,
 	return c.Client.Do(req)
 }
 
+func (c *Client) GetMyBalance(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetMyBalanceRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) ListMyIdentities(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListMyIdentitiesRequest(c.Server)
 	if err != nil {
@@ -3321,6 +3757,18 @@ func (c *Client) ListMyIdentities(ctx context.Context, reqEditors ...RequestEdit
 
 func (c *Client) DeleteMyIdentity(ctx context.Context, identityId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDeleteMyIdentityRequest(c.Server, identityId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListMyLedger(ctx context.Context, params *ListMyLedgerParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListMyLedgerRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -3513,6 +3961,78 @@ func (c *Client) FinishWebAuthnRegistrationWithBody(ctx context.Context, content
 
 func (c *Client) FinishWebAuthnRegistration(ctx context.Context, body FinishWebAuthnRegistrationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewFinishWebAuthnRegistrationRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListMyReceipts(ctx context.Context, params *ListMyReceiptsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListMyReceiptsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GenerateMyReceiptWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGenerateMyReceiptRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GenerateMyReceipt(ctx context.Context, body GenerateMyReceiptJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGenerateMyReceiptRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetMyReceipt(ctx context.Context, receiptId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetMyReceiptRequest(c.Server, receiptId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetMyReceiptPDF(ctx context.Context, receiptId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetMyReceiptPDFRequest(c.Server, receiptId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListMyUsage(ctx context.Context, params *ListMyUsageParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListMyUsageRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -3737,6 +4257,111 @@ func (c *Client) GetHealth(ctx context.Context, reqEditors ...RequestEditorFn) (
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+// NewListAdminBillingPricesRequest generates requests for ListAdminBillingPrices
+func NewListAdminBillingPricesRequest(server string, params *ListAdminBillingPricesParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/billing/prices")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpsertAdminBillingPriceRequest calls the generic UpsertAdminBillingPrice builder with application/json body
+func NewUpsertAdminBillingPriceRequest(server string, body UpsertAdminBillingPriceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpsertAdminBillingPriceRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewUpsertAdminBillingPriceRequestWithBody generates requests for UpsertAdminBillingPrice with any type of body
+func NewUpsertAdminBillingPriceRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/billing/prices")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
 }
 
 // NewListAdminJobsRequest generates requests for ListAdminJobs
@@ -4357,6 +4982,240 @@ func NewSetAdminPluginPermissionRequest(server string, pluginId openapi_types.UU
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewGetAdminUserBalanceRequest generates requests for GetAdminUserBalance
+func NewGetAdminUserBalanceRequest(server string, userId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "userId", runtime.ParamLocationPath, userId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/users/%s/balance", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRebuildAdminUserBalanceRequest generates requests for RebuildAdminUserBalance
+func NewRebuildAdminUserBalanceRequest(server string, userId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "userId", runtime.ParamLocationPath, userId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/users/%s/balance", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListAdminUserLedgerRequest generates requests for ListAdminUserLedger
+func NewListAdminUserLedgerRequest(server string, userId openapi_types.UUID, params *ListAdminUserLedgerParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "userId", runtime.ParamLocationPath, userId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/users/%s/ledger", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRefundAdminUserRequest calls the generic RefundAdminUser builder with application/json body
+func NewRefundAdminUserRequest(server string, userId openapi_types.UUID, body RefundAdminUserJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRefundAdminUserRequestWithBody(server, userId, "application/json", bodyReader)
+}
+
+// NewRefundAdminUserRequestWithBody generates requests for RefundAdminUser with any type of body
+func NewRefundAdminUserRequestWithBody(server string, userId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "userId", runtime.ParamLocationPath, userId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/users/%s/refund", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewTopupAdminUserRequest calls the generic TopupAdminUser builder with application/json body
+func NewTopupAdminUserRequest(server string, userId openapi_types.UUID, body TopupAdminUserJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewTopupAdminUserRequestWithBody(server, userId, "application/json", bodyReader)
+}
+
+// NewTopupAdminUserRequestWithBody generates requests for TopupAdminUser with any type of body
+func NewTopupAdminUserRequestWithBody(server string, userId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "userId", runtime.ParamLocationPath, userId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/users/%s/topup", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -7215,6 +8074,33 @@ func NewUpdateDNSRecordRequestWithBody(server string, zoneId openapi_types.UUID,
 	return req, nil
 }
 
+// NewGetMyBalanceRequest generates requests for GetMyBalance
+func NewGetMyBalanceRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/me/balance")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListMyIdentitiesRequest generates requests for ListMyIdentities
 func NewListMyIdentitiesRequest(server string) (*http.Request, error) {
 	var err error
@@ -7269,6 +8155,71 @@ func NewDeleteMyIdentityRequest(server string, identityId openapi_types.UUID) (*
 	}
 
 	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListMyLedgerRequest generates requests for ListMyLedger
+func NewListMyLedgerRequest(server string, params *ListMyLedgerParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/me/ledger")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -7627,6 +8578,292 @@ func NewFinishWebAuthnRegistrationRequestWithBody(server string, contentType str
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListMyReceiptsRequest generates requests for ListMyReceipts
+func NewListMyReceiptsRequest(server string, params *ListMyReceiptsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/me/receipts")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGenerateMyReceiptRequest calls the generic GenerateMyReceipt builder with application/json body
+func NewGenerateMyReceiptRequest(server string, body GenerateMyReceiptJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewGenerateMyReceiptRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewGenerateMyReceiptRequestWithBody generates requests for GenerateMyReceipt with any type of body
+func NewGenerateMyReceiptRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/me/receipts")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetMyReceiptRequest generates requests for GetMyReceipt
+func NewGetMyReceiptRequest(server string, receiptId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "receiptId", runtime.ParamLocationPath, receiptId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/me/receipts/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetMyReceiptPDFRequest generates requests for GetMyReceiptPDF
+func NewGetMyReceiptPDFRequest(server string, receiptId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "receiptId", runtime.ParamLocationPath, receiptId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/me/receipts/%s.pdf", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListMyUsageRequest generates requests for ListMyUsage
+func NewListMyUsageRequest(server string, params *ListMyUsageParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/me/usage")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ResourceType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "resourceType", runtime.ParamLocationQuery, *params.ResourceType); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.From != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "from", runtime.ParamLocationQuery, *params.From); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.To != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "to", runtime.ParamLocationQuery, *params.To); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -8236,6 +9473,14 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+	// ListAdminBillingPricesWithResponse request
+	ListAdminBillingPricesWithResponse(ctx context.Context, params *ListAdminBillingPricesParams, reqEditors ...RequestEditorFn) (*ListAdminBillingPricesResponse, error)
+
+	// UpsertAdminBillingPriceWithBodyWithResponse request with any body
+	UpsertAdminBillingPriceWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpsertAdminBillingPriceResponse, error)
+
+	UpsertAdminBillingPriceWithResponse(ctx context.Context, body UpsertAdminBillingPriceJSONRequestBody, reqEditors ...RequestEditorFn) (*UpsertAdminBillingPriceResponse, error)
+
 	// ListAdminJobsWithResponse request
 	ListAdminJobsWithResponse(ctx context.Context, params *ListAdminJobsParams, reqEditors ...RequestEditorFn) (*ListAdminJobsResponse, error)
 
@@ -8280,6 +9525,25 @@ type ClientWithResponsesInterface interface {
 
 	// SetAdminPluginPermissionWithResponse request
 	SetAdminPluginPermissionWithResponse(ctx context.Context, pluginId openapi_types.UUID, permission string, action SetAdminPluginPermissionParamsAction, reqEditors ...RequestEditorFn) (*SetAdminPluginPermissionResponse, error)
+
+	// GetAdminUserBalanceWithResponse request
+	GetAdminUserBalanceWithResponse(ctx context.Context, userId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetAdminUserBalanceResponse, error)
+
+	// RebuildAdminUserBalanceWithResponse request
+	RebuildAdminUserBalanceWithResponse(ctx context.Context, userId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RebuildAdminUserBalanceResponse, error)
+
+	// ListAdminUserLedgerWithResponse request
+	ListAdminUserLedgerWithResponse(ctx context.Context, userId openapi_types.UUID, params *ListAdminUserLedgerParams, reqEditors ...RequestEditorFn) (*ListAdminUserLedgerResponse, error)
+
+	// RefundAdminUserWithBodyWithResponse request with any body
+	RefundAdminUserWithBodyWithResponse(ctx context.Context, userId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RefundAdminUserResponse, error)
+
+	RefundAdminUserWithResponse(ctx context.Context, userId openapi_types.UUID, body RefundAdminUserJSONRequestBody, reqEditors ...RequestEditorFn) (*RefundAdminUserResponse, error)
+
+	// TopupAdminUserWithBodyWithResponse request with any body
+	TopupAdminUserWithBodyWithResponse(ctx context.Context, userId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*TopupAdminUserResponse, error)
+
+	TopupAdminUserWithResponse(ctx context.Context, userId openapi_types.UUID, body TopupAdminUserJSONRequestBody, reqEditors ...RequestEditorFn) (*TopupAdminUserResponse, error)
 
 	// ListAuditWithResponse request
 	ListAuditWithResponse(ctx context.Context, params *ListAuditParams, reqEditors ...RequestEditorFn) (*ListAuditResponse, error)
@@ -8509,11 +9773,17 @@ type ClientWithResponsesInterface interface {
 
 	UpdateDNSRecordWithResponse(ctx context.Context, zoneId openapi_types.UUID, recordId openapi_types.UUID, body UpdateDNSRecordJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateDNSRecordResponse, error)
 
+	// GetMyBalanceWithResponse request
+	GetMyBalanceWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetMyBalanceResponse, error)
+
 	// ListMyIdentitiesWithResponse request
 	ListMyIdentitiesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListMyIdentitiesResponse, error)
 
 	// DeleteMyIdentityWithResponse request
 	DeleteMyIdentityWithResponse(ctx context.Context, identityId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteMyIdentityResponse, error)
+
+	// ListMyLedgerWithResponse request
+	ListMyLedgerWithResponse(ctx context.Context, params *ListMyLedgerParams, reqEditors ...RequestEditorFn) (*ListMyLedgerResponse, error)
 
 	// ListMyRecoveryCodesWithResponse request
 	ListMyRecoveryCodesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListMyRecoveryCodesResponse, error)
@@ -8556,6 +9826,23 @@ type ClientWithResponsesInterface interface {
 	FinishWebAuthnRegistrationWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*FinishWebAuthnRegistrationResponse, error)
 
 	FinishWebAuthnRegistrationWithResponse(ctx context.Context, body FinishWebAuthnRegistrationJSONRequestBody, reqEditors ...RequestEditorFn) (*FinishWebAuthnRegistrationResponse, error)
+
+	// ListMyReceiptsWithResponse request
+	ListMyReceiptsWithResponse(ctx context.Context, params *ListMyReceiptsParams, reqEditors ...RequestEditorFn) (*ListMyReceiptsResponse, error)
+
+	// GenerateMyReceiptWithBodyWithResponse request with any body
+	GenerateMyReceiptWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*GenerateMyReceiptResponse, error)
+
+	GenerateMyReceiptWithResponse(ctx context.Context, body GenerateMyReceiptJSONRequestBody, reqEditors ...RequestEditorFn) (*GenerateMyReceiptResponse, error)
+
+	// GetMyReceiptWithResponse request
+	GetMyReceiptWithResponse(ctx context.Context, receiptId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetMyReceiptResponse, error)
+
+	// GetMyReceiptPDFWithResponse request
+	GetMyReceiptPDFWithResponse(ctx context.Context, receiptId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetMyReceiptPDFResponse, error)
+
+	// ListMyUsageWithResponse request
+	ListMyUsageWithResponse(ctx context.Context, params *ListMyUsageParams, reqEditors ...RequestEditorFn) (*ListMyUsageResponse, error)
 
 	// PingWithResponse request
 	PingWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PingResponse, error)
@@ -8605,6 +9892,57 @@ type ClientWithResponsesInterface interface {
 
 	// GetHealthWithResponse request
 	GetHealthWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetHealthResponse, error)
+}
+
+type ListAdminBillingPricesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *BillingPricePage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r ListAdminBillingPricesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListAdminBillingPricesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpsertAdminBillingPriceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *BillingPrice
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r UpsertAdminBillingPriceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpsertAdminBillingPriceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
 }
 
 type ListAdminJobsResponse struct {
@@ -8988,6 +10326,138 @@ func (r SetAdminPluginPermissionResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r SetAdminPluginPermissionResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetAdminUserBalanceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *BillingBalance
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAdminUserBalanceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAdminUserBalanceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type RebuildAdminUserBalanceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *BillingBalance
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r RebuildAdminUserBalanceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RebuildAdminUserBalanceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListAdminUserLedgerResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *BillingLedgerPage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r ListAdminUserLedgerResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListAdminUserLedgerResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type RefundAdminUserResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *BillingLedgerEntry
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r RefundAdminUserResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RefundAdminUserResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type TopupAdminUserResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *BillingLedgerEntry
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r TopupAdminUserResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r TopupAdminUserResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -10471,6 +11941,31 @@ func (r UpdateDNSRecordResponse) StatusCode() int {
 	return 0
 }
 
+type GetMyBalanceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *BillingBalance
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r GetMyBalanceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetMyBalanceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type ListMyIdentitiesResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -10513,6 +12008,31 @@ func (r DeleteMyIdentityResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r DeleteMyIdentityResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListMyLedgerResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *BillingLedgerPage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r ListMyLedgerResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListMyLedgerResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -10749,6 +12269,133 @@ func (r FinishWebAuthnRegistrationResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r FinishWebAuthnRegistrationResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListMyReceiptsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *BillingReceiptPage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r ListMyReceiptsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListMyReceiptsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GenerateMyReceiptResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *BillingReceipt
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r GenerateMyReceiptResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GenerateMyReceiptResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetMyReceiptResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *BillingReceipt
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r GetMyReceiptResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetMyReceiptResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetMyReceiptPDFResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r GetMyReceiptPDFResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetMyReceiptPDFResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListMyUsageResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *BillingUsagePage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r ListMyUsageResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListMyUsageResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -11087,6 +12734,32 @@ func (r GetHealthResponse) StatusCode() int {
 	return 0
 }
 
+// ListAdminBillingPricesWithResponse request returning *ListAdminBillingPricesResponse
+func (c *ClientWithResponses) ListAdminBillingPricesWithResponse(ctx context.Context, params *ListAdminBillingPricesParams, reqEditors ...RequestEditorFn) (*ListAdminBillingPricesResponse, error) {
+	rsp, err := c.ListAdminBillingPrices(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListAdminBillingPricesResponse(rsp)
+}
+
+// UpsertAdminBillingPriceWithBodyWithResponse request with arbitrary body returning *UpsertAdminBillingPriceResponse
+func (c *ClientWithResponses) UpsertAdminBillingPriceWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpsertAdminBillingPriceResponse, error) {
+	rsp, err := c.UpsertAdminBillingPriceWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpsertAdminBillingPriceResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpsertAdminBillingPriceWithResponse(ctx context.Context, body UpsertAdminBillingPriceJSONRequestBody, reqEditors ...RequestEditorFn) (*UpsertAdminBillingPriceResponse, error) {
+	rsp, err := c.UpsertAdminBillingPrice(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpsertAdminBillingPriceResponse(rsp)
+}
+
 // ListAdminJobsWithResponse request returning *ListAdminJobsResponse
 func (c *ClientWithResponses) ListAdminJobsWithResponse(ctx context.Context, params *ListAdminJobsParams, reqEditors ...RequestEditorFn) (*ListAdminJobsResponse, error) {
 	rsp, err := c.ListAdminJobs(ctx, params, reqEditors...)
@@ -11220,6 +12893,67 @@ func (c *ClientWithResponses) SetAdminPluginPermissionWithResponse(ctx context.C
 		return nil, err
 	}
 	return ParseSetAdminPluginPermissionResponse(rsp)
+}
+
+// GetAdminUserBalanceWithResponse request returning *GetAdminUserBalanceResponse
+func (c *ClientWithResponses) GetAdminUserBalanceWithResponse(ctx context.Context, userId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetAdminUserBalanceResponse, error) {
+	rsp, err := c.GetAdminUserBalance(ctx, userId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAdminUserBalanceResponse(rsp)
+}
+
+// RebuildAdminUserBalanceWithResponse request returning *RebuildAdminUserBalanceResponse
+func (c *ClientWithResponses) RebuildAdminUserBalanceWithResponse(ctx context.Context, userId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RebuildAdminUserBalanceResponse, error) {
+	rsp, err := c.RebuildAdminUserBalance(ctx, userId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRebuildAdminUserBalanceResponse(rsp)
+}
+
+// ListAdminUserLedgerWithResponse request returning *ListAdminUserLedgerResponse
+func (c *ClientWithResponses) ListAdminUserLedgerWithResponse(ctx context.Context, userId openapi_types.UUID, params *ListAdminUserLedgerParams, reqEditors ...RequestEditorFn) (*ListAdminUserLedgerResponse, error) {
+	rsp, err := c.ListAdminUserLedger(ctx, userId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListAdminUserLedgerResponse(rsp)
+}
+
+// RefundAdminUserWithBodyWithResponse request with arbitrary body returning *RefundAdminUserResponse
+func (c *ClientWithResponses) RefundAdminUserWithBodyWithResponse(ctx context.Context, userId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RefundAdminUserResponse, error) {
+	rsp, err := c.RefundAdminUserWithBody(ctx, userId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRefundAdminUserResponse(rsp)
+}
+
+func (c *ClientWithResponses) RefundAdminUserWithResponse(ctx context.Context, userId openapi_types.UUID, body RefundAdminUserJSONRequestBody, reqEditors ...RequestEditorFn) (*RefundAdminUserResponse, error) {
+	rsp, err := c.RefundAdminUser(ctx, userId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRefundAdminUserResponse(rsp)
+}
+
+// TopupAdminUserWithBodyWithResponse request with arbitrary body returning *TopupAdminUserResponse
+func (c *ClientWithResponses) TopupAdminUserWithBodyWithResponse(ctx context.Context, userId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*TopupAdminUserResponse, error) {
+	rsp, err := c.TopupAdminUserWithBody(ctx, userId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseTopupAdminUserResponse(rsp)
+}
+
+func (c *ClientWithResponses) TopupAdminUserWithResponse(ctx context.Context, userId openapi_types.UUID, body TopupAdminUserJSONRequestBody, reqEditors ...RequestEditorFn) (*TopupAdminUserResponse, error) {
+	rsp, err := c.TopupAdminUser(ctx, userId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseTopupAdminUserResponse(rsp)
 }
 
 // ListAuditWithResponse request returning *ListAuditResponse
@@ -11954,6 +13688,15 @@ func (c *ClientWithResponses) UpdateDNSRecordWithResponse(ctx context.Context, z
 	return ParseUpdateDNSRecordResponse(rsp)
 }
 
+// GetMyBalanceWithResponse request returning *GetMyBalanceResponse
+func (c *ClientWithResponses) GetMyBalanceWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetMyBalanceResponse, error) {
+	rsp, err := c.GetMyBalance(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetMyBalanceResponse(rsp)
+}
+
 // ListMyIdentitiesWithResponse request returning *ListMyIdentitiesResponse
 func (c *ClientWithResponses) ListMyIdentitiesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListMyIdentitiesResponse, error) {
 	rsp, err := c.ListMyIdentities(ctx, reqEditors...)
@@ -11970,6 +13713,15 @@ func (c *ClientWithResponses) DeleteMyIdentityWithResponse(ctx context.Context, 
 		return nil, err
 	}
 	return ParseDeleteMyIdentityResponse(rsp)
+}
+
+// ListMyLedgerWithResponse request returning *ListMyLedgerResponse
+func (c *ClientWithResponses) ListMyLedgerWithResponse(ctx context.Context, params *ListMyLedgerParams, reqEditors ...RequestEditorFn) (*ListMyLedgerResponse, error) {
+	rsp, err := c.ListMyLedger(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListMyLedgerResponse(rsp)
 }
 
 // ListMyRecoveryCodesWithResponse request returning *ListMyRecoveryCodesResponse
@@ -12108,6 +13860,59 @@ func (c *ClientWithResponses) FinishWebAuthnRegistrationWithResponse(ctx context
 		return nil, err
 	}
 	return ParseFinishWebAuthnRegistrationResponse(rsp)
+}
+
+// ListMyReceiptsWithResponse request returning *ListMyReceiptsResponse
+func (c *ClientWithResponses) ListMyReceiptsWithResponse(ctx context.Context, params *ListMyReceiptsParams, reqEditors ...RequestEditorFn) (*ListMyReceiptsResponse, error) {
+	rsp, err := c.ListMyReceipts(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListMyReceiptsResponse(rsp)
+}
+
+// GenerateMyReceiptWithBodyWithResponse request with arbitrary body returning *GenerateMyReceiptResponse
+func (c *ClientWithResponses) GenerateMyReceiptWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*GenerateMyReceiptResponse, error) {
+	rsp, err := c.GenerateMyReceiptWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGenerateMyReceiptResponse(rsp)
+}
+
+func (c *ClientWithResponses) GenerateMyReceiptWithResponse(ctx context.Context, body GenerateMyReceiptJSONRequestBody, reqEditors ...RequestEditorFn) (*GenerateMyReceiptResponse, error) {
+	rsp, err := c.GenerateMyReceipt(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGenerateMyReceiptResponse(rsp)
+}
+
+// GetMyReceiptWithResponse request returning *GetMyReceiptResponse
+func (c *ClientWithResponses) GetMyReceiptWithResponse(ctx context.Context, receiptId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetMyReceiptResponse, error) {
+	rsp, err := c.GetMyReceipt(ctx, receiptId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetMyReceiptResponse(rsp)
+}
+
+// GetMyReceiptPDFWithResponse request returning *GetMyReceiptPDFResponse
+func (c *ClientWithResponses) GetMyReceiptPDFWithResponse(ctx context.Context, receiptId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetMyReceiptPDFResponse, error) {
+	rsp, err := c.GetMyReceiptPDF(ctx, receiptId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetMyReceiptPDFResponse(rsp)
+}
+
+// ListMyUsageWithResponse request returning *ListMyUsageResponse
+func (c *ClientWithResponses) ListMyUsageWithResponse(ctx context.Context, params *ListMyUsageParams, reqEditors ...RequestEditorFn) (*ListMyUsageResponse, error) {
+	rsp, err := c.ListMyUsage(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListMyUsageResponse(rsp)
 }
 
 // PingWithResponse request returning *PingResponse
@@ -12265,6 +14070,107 @@ func (c *ClientWithResponses) GetHealthWithResponse(ctx context.Context, reqEdit
 		return nil, err
 	}
 	return ParseGetHealthResponse(rsp)
+}
+
+// ParseListAdminBillingPricesResponse parses an HTTP response from a ListAdminBillingPricesWithResponse call
+func ParseListAdminBillingPricesResponse(rsp *http.Response) (*ListAdminBillingPricesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListAdminBillingPricesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BillingPricePage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpsertAdminBillingPriceResponse parses an HTTP response from a UpsertAdminBillingPriceWithResponse call
+func ParseUpsertAdminBillingPriceResponse(rsp *http.Response) (*UpsertAdminBillingPriceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpsertAdminBillingPriceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest BillingPrice
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
 }
 
 // ParseListAdminJobsResponse parses an HTTP response from a ListAdminJobsWithResponse call
@@ -13050,6 +14956,290 @@ func ParseSetAdminPluginPermissionResponse(rsp *http.Response) (*SetAdminPluginP
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetAdminUserBalanceResponse parses an HTTP response from a GetAdminUserBalanceWithResponse call
+func ParseGetAdminUserBalanceResponse(rsp *http.Response) (*GetAdminUserBalanceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAdminUserBalanceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BillingBalance
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRebuildAdminUserBalanceResponse parses an HTTP response from a RebuildAdminUserBalanceWithResponse call
+func ParseRebuildAdminUserBalanceResponse(rsp *http.Response) (*RebuildAdminUserBalanceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RebuildAdminUserBalanceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BillingBalance
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListAdminUserLedgerResponse parses an HTTP response from a ListAdminUserLedgerWithResponse call
+func ParseListAdminUserLedgerResponse(rsp *http.Response) (*ListAdminUserLedgerResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListAdminUserLedgerResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BillingLedgerPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRefundAdminUserResponse parses an HTTP response from a RefundAdminUserWithResponse call
+func ParseRefundAdminUserResponse(rsp *http.Response) (*RefundAdminUserResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RefundAdminUserResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest BillingLedgerEntry
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseTopupAdminUserResponse parses an HTTP response from a TopupAdminUserWithResponse call
+func ParseTopupAdminUserResponse(rsp *http.Response) (*TopupAdminUserResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &TopupAdminUserResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest BillingLedgerEntry
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
 
 	}
 
@@ -15706,6 +17896,53 @@ func ParseUpdateDNSRecordResponse(rsp *http.Response) (*UpdateDNSRecordResponse,
 	return response, nil
 }
 
+// ParseGetMyBalanceResponse parses an HTTP response from a GetMyBalanceWithResponse call
+func ParseGetMyBalanceResponse(rsp *http.Response) (*GetMyBalanceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetMyBalanceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BillingBalance
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListMyIdentitiesResponse parses an HTTP response from a ListMyIdentitiesWithResponse call
 func ParseListMyIdentitiesResponse(rsp *http.Response) (*ListMyIdentitiesResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -15780,6 +18017,53 @@ func ParseDeleteMyIdentityResponse(rsp *http.Response) (*DeleteMyIdentityRespons
 			return nil, err
 		}
 		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListMyLedgerResponse parses an HTTP response from a ListMyLedgerWithResponse call
+func ParseListMyLedgerResponse(rsp *http.Response) (*ListMyLedgerResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListMyLedgerResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BillingLedgerPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
 
 	}
 
@@ -16152,6 +18436,255 @@ func ParseFinishWebAuthnRegistrationResponse(rsp *http.Response) (*FinishWebAuth
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListMyReceiptsResponse parses an HTTP response from a ListMyReceiptsWithResponse call
+func ParseListMyReceiptsResponse(rsp *http.Response) (*ListMyReceiptsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListMyReceiptsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BillingReceiptPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGenerateMyReceiptResponse parses an HTTP response from a GenerateMyReceiptWithResponse call
+func ParseGenerateMyReceiptResponse(rsp *http.Response) (*GenerateMyReceiptResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GenerateMyReceiptResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest BillingReceipt
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetMyReceiptResponse parses an HTTP response from a GetMyReceiptWithResponse call
+func ParseGetMyReceiptResponse(rsp *http.Response) (*GetMyReceiptResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetMyReceiptResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BillingReceipt
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetMyReceiptPDFResponse parses an HTTP response from a GetMyReceiptPDFWithResponse call
+func ParseGetMyReceiptPDFResponse(rsp *http.Response) (*GetMyReceiptPDFResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetMyReceiptPDFResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListMyUsageResponse parses an HTTP response from a ListMyUsageWithResponse call
+func ParseListMyUsageResponse(rsp *http.Response) (*ListMyUsageResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListMyUsageResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BillingUsagePage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
 
 	}
 
