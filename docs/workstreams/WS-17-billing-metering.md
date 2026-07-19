@@ -88,7 +88,12 @@ on zero balance); admins can top up; receipts are generated.
 - [x] ledger is append-only (UPDATE/DELETE rejected via trigger)
 - [x] balance = sum of ledger entries; cache refreshed within 60s of any change
 - [x] metering job survives restart (River durability test)
-- [x] zero-balance + grace period → instances stopped
+- [ ] zero-balance + grace period → instances stopped *(deferred: the
+      watcher fires correctly (tested via a recording enforcer); the
+      compute module does not yet implement `billing.Enforcer`, so the
+      default `NoopEnforcer` is wired today. The interface + the
+      watcher + the worker are all in place; a follow-up WS will plug
+      the compute-side implementation in.)*
 - [x] receipt PDF generates correctly for a sample period
 - [x] every privileged admin action (topup, price change, refund) emits audit
 - [x] multi-tenant isolation: tenant A's admin can't see tenant B's ledger
