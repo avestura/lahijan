@@ -79,10 +79,7 @@ export function useAuditEvent(auditId: string | undefined) {
  * (window.open or anchor download) — the response is text/csv or
  * application/json, and the cookie auth is sent automatically.
  */
-export function buildAuditExportURL(
-  format: "csv" | "json",
-  filters: AuditFilters,
-): string {
+export function buildAuditExportURL(format: "csv" | "json", filters: AuditFilters): string {
   const params = new URLSearchParams();
   params.set("format", format);
   for (const [k, v] of Object.entries(filters)) {

@@ -200,10 +200,7 @@ function ZoneMetadataCard({ zone }: { zone: DNSZone }) {
         <DetailRow label={t("dns.detail.id")} value={zone.id} />
         <DetailRow label={t("dns.detail.canonical")} value={zone.canonicalId} />
         <DetailRow label={t("dns.detail.kind")} value={t(`dns.kinds.${zone.kind}`)} />
-        <DetailRow
-          label={t("common.created")}
-          value={new Date(zone.createdAt).toLocaleString()}
-        />
+        <DetailRow label={t("common.created")} value={new Date(zone.createdAt).toLocaleString()} />
       </CardContent>
     </Card>
   );
@@ -213,7 +210,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid grid-cols-[120px_1fr] items-center gap-2">
       <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
-      <span className="font-mono text-xs break-all">{value}</span>
+      <span className="break-all font-mono text-xs">{value}</span>
     </div>
   );
 }

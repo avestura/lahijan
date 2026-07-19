@@ -68,7 +68,10 @@ function StorageBucketDetailPage() {
                 <DetailRow label={t("storage.detail.name")} value={bucket.name} />
                 <DetailRow label={t("storage.detail.slug")} value={bucket.slug} />
                 <DetailRow label={t("storage.detail.owner")} value={bucket.ownerId} />
-                <DetailRow label={t("storage.detail.label")} value={bucket.label ?? t("common.none")} />
+                <DetailRow
+                  label={t("storage.detail.label")}
+                  value={bucket.label ?? t("common.none")}
+                />
                 <DetailRow
                   label={t("storage.detail.description")}
                   value={bucket.description ?? t("storage.detail.noDescription")}
@@ -134,7 +137,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid grid-cols-[140px_1fr] items-center gap-2">
       <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
-      <span className="font-mono text-xs break-all">{value}</span>
+      <span className="break-all font-mono text-xs">{value}</span>
     </div>
   );
 }

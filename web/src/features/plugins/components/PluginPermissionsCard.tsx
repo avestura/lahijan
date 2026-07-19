@@ -46,10 +46,7 @@ export function PluginPermissionsCard({ plugin }: Props) {
       </CardHeader>
       <CardContent className="space-y-3">
         {all.length === 0 ? (
-          <EmptyState
-            icon={ShieldCheckIcon}
-            title={t("plugins.permissions.none")}
-          />
+          <EmptyState icon={ShieldCheckIcon} title={t("plugins.permissions.none")} />
         ) : (
           <ul className="space-y-2">
             {all.map((perm) => {

@@ -73,11 +73,7 @@ function DNSListPage() {
         onRetry={() => void query.refetch()}
       />
 
-      <CreateDNSZoneDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        tenantId={tenantId}
-      />
+      <CreateDNSZoneDialog open={createOpen} onOpenChange={setCreateOpen} tenantId={tenantId} />
     </div>
   );
 }

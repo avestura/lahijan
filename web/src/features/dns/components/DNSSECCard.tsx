@@ -76,9 +76,7 @@ export function DNSSECCard({ tenantId, zone }: Props) {
               {enabled ? t("dns.dnssec.disableConfirm.title") : t("dns.dnssec.enableConfirm.title")}
             </DialogTitle>
             <DialogDescription>
-              {enabled
-                ? t("dns.dnssec.disableConfirm.body")
-                : t("dns.dnssec.enableConfirm.body")}
+              {enabled ? t("dns.dnssec.disableConfirm.body") : t("dns.dnssec.enableConfirm.body")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

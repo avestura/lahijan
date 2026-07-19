@@ -45,12 +45,7 @@ import { EmptyState } from "@/components/layout/EmptyState";
 import { LoadingState } from "@/components/layout/LoadingState";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { usePerm } from "@/lib/perm";
-import {
-  useCreateDNSRecord,
-  useDeleteDNSRecord,
-  useDNSRecords,
-  useUpdateDNSRecord,
-} from "../api";
+import { useCreateDNSRecord, useDeleteDNSRecord, useDNSRecords, useUpdateDNSRecord } from "../api";
 import {
   createRecordSchema,
   updateRecordSchema,
@@ -197,7 +192,7 @@ export function DNSRecordList({ tenantId, zoneId, nameFilter, typeFilter }: Prop
                 <TableCell>
                   <Badge variant="outline">{rec.type}</Badge>
                 </TableCell>
-                <TableCell className="font-mono text-xs break-all">{rec.content}</TableCell>
+                <TableCell className="break-all font-mono text-xs">{rec.content}</TableCell>
                 <TableCell className="text-xs">{rec.ttl}</TableCell>
                 <TableCell>
                   {rec.disabled ? (
@@ -209,11 +204,7 @@ export function DNSRecordList({ tenantId, zoneId, nameFilter, typeFilter }: Prop
                 <TableCell className="text-end">
                   <div className="flex items-center justify-end gap-1">
                     {canUpdate && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setEditing(rec)}
-                      >
+                      <Button size="sm" variant="ghost" onClick={() => setEditing(rec)}>
                         {t("common.save")}
                       </Button>
                     )}
@@ -330,7 +321,13 @@ function CreateDNSRecordDialog({ open, onOpenChange, tenantId, zoneId }: CreateP
           </div>
           <div className="space-y-2">
             <Label htmlFor="dns-rec-ttl">{t("dns.records.create.ttl.label")}</Label>
-            <Input id="dns-rec-ttl" type="number" min={300} max={86400} {...form.register("ttl", { valueAsNumber: true })} />
+            <Input
+              id="dns-rec-ttl"
+              type="number"
+              min={300}
+              max={86400}
+              {...form.register("ttl", { valueAsNumber: true })}
+            />
             {form.formState.errors.ttl && (
               <p className="text-xs text-destructive">{form.formState.errors.ttl.message}</p>
             )}
@@ -347,7 +344,9 @@ function CreateDNSRecordDialog({ open, onOpenChange, tenantId, zoneId }: CreateP
               {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={create.isPending}>
-              {create.isPending ? t("dns.records.create.submitting") : t("dns.records.create.submit")}
+              {create.isPending
+                ? t("dns.records.create.submitting")
+                : t("dns.records.create.submit")}
             </Button>
           </DialogFooter>
         </form>

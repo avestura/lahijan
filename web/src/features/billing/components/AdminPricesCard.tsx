@@ -194,11 +194,7 @@ function UpsertPriceDialog({
             <Label htmlFor="price-from">
               {t("billing.admin.prices.upsert.effectiveFrom.label")}
             </Label>
-            <Input
-              id="price-from"
-              type="datetime-local"
-              {...form.register("effectiveFrom")}
-            />
+            <Input id="price-from" type="datetime-local" {...form.register("effectiveFrom")} />
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>

@@ -16,8 +16,7 @@ export const queryKeys = {
   me: () => ["auth", "me"] as const,
   tenants: () => ["auth", "tenants"] as const,
   audit: {
-    list: (filters?: Record<string, unknown>) =>
-      ["audit", "list", filters ?? {}] as const,
+    list: (filters?: Record<string, unknown>) => ["audit", "list", filters ?? {}] as const,
     detail: (id: string) => ["audit", "detail", id] as const,
   },
   compute: {
@@ -30,8 +29,7 @@ export const queryKeys = {
   },
   dns: {
     zones: (tenantId: string) => ["dns", tenantId, "zones"] as const,
-    zone: (tenantId: string, id: string) =>
-      ["dns", tenantId, "zones", "detail", id] as const,
+    zone: (tenantId: string, id: string) => ["dns", tenantId, "zones", "detail", id] as const,
     records: (tenantId: string, zoneId: string) =>
       ["dns", tenantId, "zones", zoneId, "records"] as const,
     templates: () => ["dns", "templates"] as const,
@@ -47,14 +45,11 @@ export const queryKeys = {
   },
   billing: {
     balance: () => ["billing", "balance"] as const,
-    usage: (filters?: Record<string, unknown>) =>
-      ["billing", "usage", filters ?? {}] as const,
-    ledger: (filters?: Record<string, unknown>) =>
-      ["billing", "ledger", filters ?? {}] as const,
+    usage: (filters?: Record<string, unknown>) => ["billing", "usage", filters ?? {}] as const,
+    ledger: (filters?: Record<string, unknown>) => ["billing", "ledger", filters ?? {}] as const,
     receipts: () => ["billing", "receipts"] as const,
     prices: () => ["billing", "prices"] as const,
-    adminUserBalance: (userId: string) =>
-      ["billing", "admin", "users", userId, "balance"] as const,
+    adminUserBalance: (userId: string) => ["billing", "admin", "users", userId, "balance"] as const,
     adminUserLedger: (userId: string, filters?: Record<string, unknown>) =>
       ["billing", "admin", "users", userId, "ledger", filters ?? {}] as const,
   },
@@ -62,8 +57,7 @@ export const queryKeys = {
     list: () => ["plugins", "list"] as const,
     detail: (id: string) => ["plugins", "detail", id] as const,
     marketplace: () => ["plugins", "marketplace"] as const,
-    marketplaceEntry: (name: string) =>
-      ["plugins", "marketplace", name] as const,
+    marketplaceEntry: (name: string) => ["plugins", "marketplace", name] as const,
   },
   my: {
     tokens: () => ["me", "tokens"] as const,

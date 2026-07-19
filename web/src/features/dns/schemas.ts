@@ -33,13 +33,7 @@ export type DNSRecordType = (typeof RECORD_TYPES)[number];
  * the zone is created).
  */
 export const createZoneSchema = z.object({
-  name: z
-    .string()
-    .min(1)
-    .regex(
-      /\.$/,
-      "Zone name must end with a trailing dot (canonical form).",
-    ),
+  name: z.string().min(1).regex(/\.$/, "Zone name must end with a trailing dot (canonical form)."),
   description: z.string().optional(),
   kind: z.enum(["Native", "Master", "Slave"]).default("Native"),
   templateId: z.string().optional(),

@@ -109,7 +109,11 @@ export function StorageBucketList({ buckets, isLoading, error, onRetry }: Props)
               <TableCell className="text-end">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button size="icon" variant="ghost" aria-label={t("storage.list.columns.actions")}>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label={t("storage.list.columns.actions")}
+                    >
                       <MoreHorizontalIcon className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>

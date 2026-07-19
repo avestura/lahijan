@@ -15,11 +15,7 @@ import { apiClient } from "@/lib/api/client";
 import { queryKeys } from "@/lib/api/keys";
 import { useToast } from "@/hooks/useToast";
 import { useTranslation } from "react-i18next";
-import type {
-  CreateRecordValues,
-  CreateZoneValues,
-  UpdateRecordValues,
-} from "./schemas";
+import type { CreateRecordValues, CreateZoneValues, UpdateRecordValues } from "./schemas";
 
 type DNSZone = components["schemas"]["DNSZone"];
 type DNSRecord = components["schemas"]["DNSRecord"];
@@ -50,8 +46,7 @@ export function useDNSZones(tenantId: string | null) {
 /** useDNSZone — single zone; reconciled on read by the backend. */
 export function useDNSZone(tenantId: string | null, zoneId: string | undefined) {
   return useQuery({
-    queryKey:
-      tenantId && zoneId ? queryKeys.dns.zone(tenantId, zoneId) : ["dns", "disabled"],
+    queryKey: tenantId && zoneId ? queryKeys.dns.zone(tenantId, zoneId) : ["dns", "disabled"],
     enabled: !!tenantId && !!zoneId,
     queryFn: async (): Promise<DNSZone> => {
       const { data, error, response } = await apiClient.GET("/api/v1/dns/zones/{zoneId}", {
@@ -205,14 +200,12 @@ export function useSetDNSSEC(tenantId: string | null, zoneId: string | undefined
  */
 export function useDNSRecords(tenantId: string | null, zoneId: string | undefined) {
   return useQuery({
-    queryKey:
-      tenantId && zoneId ? queryKeys.dns.records(tenantId, zoneId) : ["dns", "disabled"],
+    queryKey: tenantId && zoneId ? queryKeys.dns.records(tenantId, zoneId) : ["dns", "disabled"],
     enabled: !!tenantId && !!zoneId,
     queryFn: async (): Promise<DNSRecord[]> => {
-      const { data, error, response } = await apiClient.GET(
-        "/api/v1/dns/zones/{zoneId}/records",
-        { params: { path: { zoneId: zoneId! } } },
-      );
+      const { data, error, response } = await apiClient.GET("/api/v1/dns/zones/{zoneId}/records", {
+        params: { path: { zoneId: zoneId! } },
+      });
       if (error || !data) {
         throw new Error(`dns.records.list: ${response?.status ?? "network"}`);
       }
@@ -229,19 +222,16 @@ export function useCreateDNSRecord(tenantId: string | null, zoneId: string | und
 
   return useMutation({
     mutationFn: async (values: CreateRecordValues): Promise<DNSRecord> => {
-      const { data, error, response } = await apiClient.POST(
-        "/api/v1/dns/zones/{zoneId}/records",
-        {
-          params: { path: { zoneId: zoneId! } },
-          body: {
-            name: values.name,
-            type: values.type,
-            content: values.content,
-            ttl: values.ttl,
-            disabled: values.disabled,
-          },
+      const { data, error, response } = await apiClient.POST("/api/v1/dns/zones/{zoneId}/records", {
+        params: { path: { zoneId: zoneId! } },
+        body: {
+          name: values.name,
+          type: values.type,
+          content: values.content,
+          ttl: values.ttl,
+          disabled: values.disabled,
         },
-      );
+      });
       if (error || !data) {
         throw new Error(`dns.record.create: ${response?.status ?? "network"}`);
       }

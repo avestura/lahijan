@@ -41,11 +41,7 @@ import { EmptyState } from "@/components/layout/EmptyState";
 import { LoadingState } from "@/components/layout/LoadingState";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { usePerm } from "@/lib/perm";
-import {
-  buildAuditExportURL,
-  useAuditEvents,
-  type AuditFilters,
-} from "../api";
+import { buildAuditExportURL, useAuditEvents, type AuditFilters } from "../api";
 
 type AuditEvent = components["schemas"]["AuditEvent"];
 
@@ -131,9 +127,7 @@ export function AuditTable({ filters, setFilters }: Props) {
           <Input
             id="audit-resource"
             value={filters.resourceType ?? ""}
-            onChange={(e) =>
-              resetAndSet({ resourceType: e.target.value || undefined })
-            }
+            onChange={(e) => resetAndSet({ resourceType: e.target.value || undefined })}
           />
         </div>
         {canExport && (
@@ -283,13 +277,7 @@ function statusVariant(s: AuditEvent["status"]): "default" | "secondary" | "dest
  * AuditEventDialog — modal showing the event's full metadata + the
  * outcome trail. The metadata blob is rendered as pretty JSON.
  */
-function AuditEventDialog({
-  event,
-  onClose,
-}: {
-  event: AuditEvent | null;
-  onClose: () => void;
-}) {
+function AuditEventDialog({ event, onClose }: { event: AuditEvent | null; onClose: () => void }) {
   const { t } = useTranslation();
   if (!event) return null;
 
@@ -310,9 +298,7 @@ function AuditEventDialog({
         </h2>
         <dl className="space-y-2 text-sm">
           <DetailRow label={t("audit.detail.id")} value={event.id} />
-          {event.tenantId && (
-            <DetailRow label={t("audit.detail.tenant")} value={event.tenantId} />
-          )}
+          {event.tenantId && <DetailRow label={t("audit.detail.tenant")} value={event.tenantId} />}
           {event.actorType && (
             <DetailRow label={t("audit.detail.actorType")} value={event.actorType} />
           )}
@@ -348,7 +334,10 @@ function AuditEventDialog({
             <h3 className="text-sm font-medium">{t("audit.detail.outcomes")}</h3>
             <ul className="space-y-1 text-xs">
               {event.outcomes.map((o) => (
-                <li key={o.id} className="flex items-center justify-between gap-2 rounded-md border border-border p-2">
+                <li
+                  key={o.id}
+                  className="flex items-center justify-between gap-2 rounded-md border border-border p-2"
+                >
                   <Badge variant={statusVariant(o.status)}>
                     {t(`audit.filters.status.${o.status}`)}
                   </Badge>
@@ -375,7 +364,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid grid-cols-[140px_1fr] items-center gap-2">
       <dt className="text-xs uppercase tracking-wider text-muted-foreground">{label}</dt>
-      <dd className="font-mono text-xs break-all">{value}</dd>
+      <dd className="break-all font-mono text-xs">{value}</dd>
     </div>
   );
 }

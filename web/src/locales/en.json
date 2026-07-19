@@ -1067,7 +1067,10 @@
       "title": "Upload plugin",
       "subtitle": "Provide a .wasm binary and a manifest.",
       "wasm": { "label": "WASM file", "hint": "Drop a .wasm file or click to browse." },
-      "manifest": { "label": "Manifest", "hint": "Drop a lahijan.manifest.yaml or click to browse." },
+      "manifest": {
+        "label": "Manifest",
+        "hint": "Drop a lahijan.manifest.yaml or click to browse."
+      },
       "submit": "Upload",
       "submitting": "Uploading…",
       "summary": {

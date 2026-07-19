@@ -1066,8 +1066,14 @@
     "upload": {
       "title": "بارگذاری افزونه",
       "subtitle": "یک باینری .wasm و یک مانیفست ارائه کنید.",
-      "wasm": { "label": "پرونده WASM", "hint": "یک پروندهٔ .wasm بکشید یا برای انتخاب کلیک کنید." },
-      "manifest": { "label": "مانیفست", "hint": "یک lahijan.manifest.yaml بکشید یا برای انتخاب کلیک کنید." },
+      "wasm": {
+        "label": "پرونده WASM",
+        "hint": "یک پروندهٔ .wasm بکشید یا برای انتخاب کلیک کنید."
+      },
+      "manifest": {
+        "label": "مانیفست",
+        "hint": "یک lahijan.manifest.yaml بکشید یا برای انتخاب کلیک کنید."
+      },
       "submit": "بارگذاری",
       "submitting": "در حال بارگذاری…",
       "summary": {

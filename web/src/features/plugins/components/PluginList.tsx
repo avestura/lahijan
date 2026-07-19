@@ -29,11 +29,7 @@ import { EmptyState } from "@/components/layout/EmptyState";
 import { LoadingState } from "@/components/layout/LoadingState";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { usePerm } from "@/lib/perm";
-import {
-  useDeleteAdminPlugin,
-  useDisableAdminPlugin,
-  useEnableAdminPlugin,
-} from "../api";
+import { useDeleteAdminPlugin, useDisableAdminPlugin, useEnableAdminPlugin } from "../api";
 import { PluginStatusBadge } from "./PluginStatusBadge";
 
 type AdminPlugin = components["schemas"]["AdminPlugin"];
@@ -112,7 +108,9 @@ export function PluginList({ plugins, isLoading, error, onRetry }: Props) {
                     <Badge variant="secondary">{`+${(p.permissions ?? []).length - 3}`}</Badge>
                   )}
                   {(p.permissions ?? []).length === 0 && (
-                    <span className="text-xs text-muted-foreground">{t("plugins.permissions.none")}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {t("plugins.permissions.none")}
+                    </span>
                   )}
                 </div>
               </TableCell>
@@ -143,7 +141,11 @@ export function PluginList({ plugins, isLoading, error, onRetry }: Props) {
                   )}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button size="icon" variant="ghost" aria-label={t("plugins.list.columns.actions")}>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        aria-label={t("plugins.list.columns.actions")}
+                      >
                         <MoreHorizontalIcon className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>

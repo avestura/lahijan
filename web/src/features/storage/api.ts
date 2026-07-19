@@ -25,8 +25,7 @@ import type {
 
 type StorageBucket = components["schemas"]["StorageBucket"];
 type StorageCredential = components["schemas"]["StorageCredential"];
-type StorageCredentialWithSecret =
-  components["schemas"]["StorageCredentialWithSecret"];
+type StorageCredentialWithSecret = components["schemas"]["StorageCredentialWithSecret"];
 type StorageBucketUsage = components["schemas"]["StorageBucketUsage"];
 type StoragePresignResult = components["schemas"]["StoragePresignResult"];
 
@@ -56,10 +55,9 @@ export function useStorageBucket(tenantId: string | null, bucketId: string | und
       tenantId && bucketId ? queryKeys.storage.bucket(tenantId, bucketId) : ["storage", "disabled"],
     enabled: !!tenantId && !!bucketId,
     queryFn: async (): Promise<StorageBucket> => {
-      const { data, error, response } = await apiClient.GET(
-        "/api/v1/storage/buckets/{bucketId}",
-        { params: { path: { bucketId: bucketId! } } },
-      );
+      const { data, error, response } = await apiClient.GET("/api/v1/storage/buckets/{bucketId}", {
+        params: { path: { bucketId: bucketId! } },
+      });
       if (error || !data) {
         throw new Error(`storage.bucket.get: ${response?.status ?? "network"}`);
       }
@@ -151,9 +149,7 @@ export function useDeleteStorageBucket(tenantId: string | null) {
 export function useStorageBucketUsage(tenantId: string | null, bucketId: string | undefined) {
   return useQuery({
     queryKey:
-      tenantId && bucketId
-        ? queryKeys.storage.usage(tenantId, bucketId)
-        : ["storage", "disabled"],
+      tenantId && bucketId ? queryKeys.storage.usage(tenantId, bucketId) : ["storage", "disabled"],
     enabled: !!tenantId && !!bucketId,
     staleTime: 60_000,
     queryFn: async (): Promise<StorageBucketUsage> => {
@@ -177,13 +173,10 @@ export function useSetStorageBucketQuota(tenantId: string | null, bucketId: stri
 
   return useMutation({
     mutationFn: async (values: QuotaValues) => {
-      const { error, response } = await apiClient.POST(
-        "/api/v1/storage/buckets/{bucketId}/quota",
-        {
-          params: { path: { bucketId: bucketId! } },
-          body: { quotaBytes: values.quotaBytes, quotaObjects: values.quotaObjects },
-        },
-      );
+      const { error, response } = await apiClient.POST("/api/v1/storage/buckets/{bucketId}/quota", {
+        params: { path: { bucketId: bucketId! } },
+        body: { quotaBytes: values.quotaBytes, quotaObjects: values.quotaObjects },
+      });
       if (error) {
         throw new Error(`storage.bucket.quota: ${response?.status ?? "network"}`);
       }

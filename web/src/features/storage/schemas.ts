@@ -8,13 +8,7 @@ import { z } from "zod";
  * CREDENTIAL_ACTIONS mirrors StorageCredential.actions enum on the
  * StorageCredentialCreateRequest shape.
  */
-export const CREDENTIAL_ACTIONS = [
-  "Read",
-  "Write",
-  "List",
-  "Tagging",
-  "Admin",
-] as const;
+export const CREDENTIAL_ACTIONS = ["Read", "Write", "List", "Tagging", "Admin"] as const;
 
 export type CredentialAction = (typeof CREDENTIAL_ACTIONS)[number];
 

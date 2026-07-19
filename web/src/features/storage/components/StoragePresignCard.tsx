@@ -121,8 +121,7 @@ export function StoragePresignCard({ bucketId }: Props) {
             <div className="flex items-center justify-between">
               <Label>{t("storage.presign.result.title")}</Label>
               <span className="text-xs text-muted-foreground">
-                {t("storage.presign.result.expiresAt")}:
-                {" "}
+                {t("storage.presign.result.expiresAt")}:{" "}
                 {new Date(presign.data.expiresAt).toLocaleString()}
               </span>
             </div>

@@ -100,7 +100,9 @@ export function StorageCredentialsCard({ tenantId, bucketId }: Props) {
                   <TableHead>{t("storage.credentials.columns.label")}</TableHead>
                   <TableHead>{t("storage.credentials.columns.lastUsed")}</TableHead>
                   <TableHead>{t("storage.credentials.columns.expires")}</TableHead>
-                  <TableHead className="text-end">{t("storage.credentials.columns.actions")}</TableHead>
+                  <TableHead className="text-end">
+                    {t("storage.credentials.columns.actions")}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -174,10 +176,7 @@ function RevokeCredential({
               variant="destructive"
               disabled={revoke.isPending}
               onClick={() => {
-                revoke.mutate(
-                  { credentialId },
-                  { onSettled: () => setOpen(false) },
-                );
+                revoke.mutate({ credentialId }, { onSettled: () => setOpen(false) });
               }}
             >
               {t("storage.credentials.revoke")}
@@ -197,13 +196,7 @@ interface CreateProps {
   onCopied: () => void;
 }
 
-function CreateCredentialDialog({
-  open,
-  onOpenChange,
-  tenantId,
-  bucketId,
-  onCopied,
-}: CreateProps) {
+function CreateCredentialDialog({ open, onOpenChange, tenantId, bucketId, onCopied }: CreateProps) {
   const { t } = useTranslation();
   const create = useCreateStorageCredential(tenantId, bucketId);
   const [revealOpen, setRevealOpen] = React.useState(false);
@@ -274,7 +267,9 @@ function CreateCredentialDialog({
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="cred-exp">{t("storage.credentials.create.expiresInSeconds.label")}</Label>
+              <Label htmlFor="cred-exp">
+                {t("storage.credentials.create.expiresInSeconds.label")}
+              </Label>
               <Input
                 id="cred-exp"
                 type="number"
@@ -325,9 +320,7 @@ function CreateCredentialDialog({
               <div>
                 <Label>{t("storage.credentials.reveal.secretKey")}</Label>
                 <div className="rounded-md border border-border bg-muted/50 p-3">
-                  <code className="block break-all font-mono text-xs">
-                    {create.data.secretKey}
-                  </code>
+                  <code className="block break-all font-mono text-xs">{create.data.secretKey}</code>
                 </div>
               </div>
               <div className="flex flex-wrap gap-1">

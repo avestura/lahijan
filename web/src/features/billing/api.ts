@@ -46,11 +46,7 @@ export function useMyBalance() {
 }
 
 /** useMyUsage — GET /me/usage with optional resourceType + window. */
-export function useMyUsage(filters?: {
-  resourceType?: string;
-  from?: string;
-  to?: string;
-}) {
+export function useMyUsage(filters?: { resourceType?: string; from?: string; to?: string }) {
   return useQuery({
     queryKey: queryKeys.billing.usage(filters ?? {}),
     staleTime: 60_000,
@@ -223,10 +219,9 @@ export function useAdminUserLedger(userId: string | undefined, offset = 0, limit
       : ["billing", "disabled"],
     enabled: !!userId,
     queryFn: async (): Promise<{ items: BillingLedgerEntry[]; total: number }> => {
-      const { data, error, response } = await apiClient.GET(
-        "/api/v1/admin/users/{userId}/ledger",
-        { params: { path: { userId: userId! }, query: { offset, limit } } },
-      );
+      const { data, error, response } = await apiClient.GET("/api/v1/admin/users/{userId}/ledger", {
+        params: { path: { userId: userId! }, query: { offset, limit } },
+      });
       if (error || !data) {
         throw new Error(`admin.user.ledger: ${response?.status ?? "network"}`);
       }
@@ -248,10 +243,10 @@ export function useAdminTopupUser(userId: string | undefined) {
         currency: values.currency,
       };
       if (values.reference) body.reference = values.reference;
-      const { data, error, response } = await apiClient.POST(
-        "/api/v1/admin/users/{userId}/topup",
-        { params: { path: { userId: userId! } }, body },
-      );
+      const { data, error, response } = await apiClient.POST("/api/v1/admin/users/{userId}/topup", {
+        params: { path: { userId: userId! } },
+        body,
+      });
       if (error || !data) {
         throw new Error(`admin.user.topup: ${response?.status ?? "network"}`);
       }

@@ -5,12 +5,7 @@
 import { createFileRoute, getRouteApi } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
-import {
-  ArrowLeftIcon,
-  PowerIcon,
-  PowerOffIcon,
-  Trash2Icon,
-} from "lucide-react";
+import { ArrowLeftIcon, PowerIcon, PowerOffIcon, Trash2Icon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -82,10 +77,7 @@ function PluginDetailPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             {canInstall && plugin.status !== "active" && (
-              <Button
-                onClick={() => enable.mutate({ pluginId })}
-                disabled={enable.isPending}
-              >
+              <Button onClick={() => enable.mutate({ pluginId })} disabled={enable.isPending}>
                 <PowerIcon className="h-4 w-4" />
                 {t("plugins.actions.enable")}
               </Button>
@@ -139,10 +131,7 @@ function PluginDetailPage() {
             <DetailRow label={t("plugins.detail.tenant")} value={plugin.tenantId} />
           )}
           <DetailRow label={t("plugins.detail.wasmHash")} value={plugin.wasmHash} />
-          <DetailRow
-            label={t("plugins.detail.wasmSize")}
-            value={`${plugin.wasmSize} bytes`}
-          />
+          <DetailRow label={t("plugins.detail.wasmSize")} value={`${plugin.wasmSize} bytes`} />
         </CardContent>
       </Card>
     </div>
@@ -153,7 +142,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid grid-cols-[140px_1fr] items-center gap-2">
       <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
-      <span className="font-mono text-xs break-all">{value}</span>
+      <span className="break-all font-mono text-xs">{value}</span>
     </div>
   );
 }

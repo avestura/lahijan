@@ -102,7 +102,10 @@ export function CreateDNSZoneDialog({ open, onOpenChange, tenantId }: Props) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="dns-zone-kind">{t("dns.create.kind.label")}</Label>
-            <Select value={form.watch("kind")} onValueChange={(v) => form.setValue("kind", v as CreateZoneValues["kind"])}>
+            <Select
+              value={form.watch("kind")}
+              onValueChange={(v) => form.setValue("kind", v as CreateZoneValues["kind"])}
+            >
               <SelectTrigger id="dns-zone-kind">
                 <SelectValue />
               </SelectTrigger>

@@ -70,9 +70,7 @@ export function LedgerTable() {
                   {(query.data?.items ?? []).map((row) => (
                     <TableRow key={row.id}>
                       <TableCell>
-                        <Badge
-                          variant={row.type === "credit" ? "default" : "secondary"}
-                        >
+                        <Badge variant={row.type === "credit" ? "default" : "secondary"}>
                           {t(`billing.user.ledger.type.${row.type}`)}
                         </Badge>
                       </TableCell>
@@ -100,11 +98,7 @@ export function LedgerTable() {
             </div>
             {offset + PAGE_SIZE < (query.data?.total ?? 0) && (
               <div className="flex justify-end">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setOffset((o) => o + PAGE_SIZE)}
-                >
+                <Button variant="outline" size="sm" onClick={() => setOffset((o) => o + PAGE_SIZE)}>
                   {t("billing.user.ledger.loadMore")}
                 </Button>
               </div>

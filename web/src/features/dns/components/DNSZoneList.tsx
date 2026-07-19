@@ -53,7 +53,9 @@ export function DNSZoneList({ zones, isLoading, error, onRetry }: Props) {
     return <LoadingState rows={4} />;
   }
   if (error) {
-    return <ErrorState message={t("common.error")} retryLabel={t("common.retry")} onRetry={onRetry} />;
+    return (
+      <ErrorState message={t("common.error")} retryLabel={t("common.retry")} onRetry={onRetry} />
+    );
   }
   if (!zones || zones.length === 0) {
     return (

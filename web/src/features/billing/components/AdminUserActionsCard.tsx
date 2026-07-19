@@ -25,7 +25,13 @@ import {
 } from "@/components/ui/dialog";
 import { usePerm } from "@/lib/perm";
 import { useAdminRefundUser, useAdminTopupUser, useAdminUserBalance } from "../api";
-import { formatMoney, refundSchema, topupSchema, type RefundValues, type TopupValues } from "../schemas";
+import {
+  formatMoney,
+  refundSchema,
+  topupSchema,
+  type RefundValues,
+  type TopupValues,
+} from "../schemas";
 
 interface Props {
   userId: string;
@@ -76,16 +82,8 @@ export function AdminUserActionsCard({ userId }: Props) {
         </div>
       </CardContent>
 
-      <TopupDialog
-        open={topupOpen}
-        onOpenChange={setTopupOpen}
-        topup={topup}
-      />
-      <RefundDialog
-        open={refundOpen}
-        onOpenChange={setRefundOpen}
-        refund={refund}
-      />
+      <TopupDialog open={topupOpen} onOpenChange={setTopupOpen} topup={topup} />
+      <RefundDialog open={refundOpen} onOpenChange={setRefundOpen} refund={refund} />
     </Card>
   );
 }

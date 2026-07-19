@@ -43,10 +43,10 @@ export function MarketplaceList() {
   const upgrade = useUpgradeFromMarketplace();
   const { hasPerm } = usePerm("plugins.install");
 
-  const [pending, setPending] = React.useState<
-    | { kind: "install" | "upgrade"; name: string }
-    | null
-  >(null);
+  const [pending, setPending] = React.useState<{
+    kind: "install" | "upgrade";
+    name: string;
+  } | null>(null);
 
   const installedByName = new Map((installed.data ?? []).map((p) => [p.name, p]));
 
@@ -95,14 +95,15 @@ export function MarketplaceList() {
                 <TableHead>{t("plugins.marketplace.columns.version")}</TableHead>
                 <TableHead>{t("plugins.marketplace.columns.description")}</TableHead>
                 <TableHead>{t("plugins.marketplace.columns.license")}</TableHead>
-                <TableHead className="text-end">{t("plugins.marketplace.columns.actions")}</TableHead>
+                <TableHead className="text-end">
+                  {t("plugins.marketplace.columns.actions")}
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {(market.data ?? []).map((entry) => {
                 const installedRow = installedByName.get(entry.name);
-                const canUpgrade =
-                  !!installedRow && installedRow.version !== entry.version;
+                const canUpgrade = !!installedRow && installedRow.version !== entry.version;
                 return (
                   <TableRow key={entry.name}>
                     <TableCell className="font-medium">{entry.name}</TableCell>
@@ -123,9 +124,7 @@ export function MarketplaceList() {
                           size="sm"
                           variant="outline"
                           disabled={install.isPending}
-                          onClick={() =>
-                            setPending({ kind: "install", name: entry.name })
-                          }
+                          onClick={() => setPending({ kind: "install", name: entry.name })}
                         >
                           {t("plugins.actions.install")}
                         </Button>
@@ -135,17 +134,13 @@ export function MarketplaceList() {
                           size="sm"
                           variant="outline"
                           disabled={upgrade.isPending}
-                          onClick={() =>
-                            setPending({ kind: "upgrade", name: entry.name })
-                          }
+                          onClick={() => setPending({ kind: "upgrade", name: entry.name })}
                         >
                           {t("plugins.actions.upgrade")}
                         </Button>
                       )}
                       {installedRow && !canUpgrade && (
-                        <Badge variant="secondary">
-                          {t("plugins.status.active")}
-                        </Badge>
+                        <Badge variant="secondary">{t("plugins.status.active")}</Badge>
                       )}
                     </TableCell>
                   </TableRow>
@@ -174,10 +169,7 @@ export function MarketplaceList() {
             <Button variant="ghost" onClick={() => setPending(null)}>
               {t("common.cancel")}
             </Button>
-            <Button
-              disabled={install.isPending || upgrade.isPending}
-              onClick={onConfirm}
-            >
+            <Button disabled={install.isPending || upgrade.isPending} onClick={onConfirm}>
               {pending?.kind === "upgrade"
                 ? t("plugins.actions.upgrade")
                 : t("plugins.actions.install")}

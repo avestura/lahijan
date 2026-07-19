@@ -119,11 +119,7 @@ export function ReceiptsCard() {
         )}
       </CardContent>
 
-      <GenerateReceiptDialog
-        open={open}
-        onOpenChange={setOpen}
-        generate={generate}
-      />
+      <GenerateReceiptDialog open={open} onOpenChange={setOpen} generate={generate} />
     </Card>
   );
 }
