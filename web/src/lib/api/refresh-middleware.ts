@@ -19,11 +19,12 @@
  */
 import type { Middleware } from "openapi-fetch";
 
-import { clearSession } from "../stores/session-store";
+import { clearSession, useSessionStore } from "../stores/session-store";
 
 const REFRESH_PATH = "/api/v1/auth/refresh";
 const LOGIN_PATH = "/api/v1/auth/login";
 const LOGOUT_PATH = "/api/v1/auth/logout";
+const TENANT_HEADER = "X-Tenant-Id";
 
 let inflightRefresh: Promise<boolean> | null = null;
 
@@ -42,16 +43,38 @@ async function doRefresh(): Promise<boolean> {
 }
 
 /**
- * refreshMiddleware retries 401s once after a successful refresh.
+ * refreshMiddleware stamps the active tenant id (read from the session
+ * store) on every outbound request and retries 401s once after a
+ * successful refresh.
  *
- * It is the runtime companion to the TanStack Query `retry` setting: queries
- * will retry, but only after a successful refresh; otherwise they bubble to
- * the caller.
+ * The tenant header is what the backend's `tenant` middleware reads to
+ * scope the query at the repository layer; without it, tenant-scoped
+ * endpoints respond 400 ("a tenant scope is required"). Auth endpoints
+ * (login, refresh, logout) are intentionally tenant-agnostic and skip
+ * the header.
+ *
+ * The retry piece is the runtime companion to the TanStack Query `retry`
+ * setting: queries will retry, but only after a successful refresh;
+ * otherwise they bubble to the caller.
  */
 export const refreshMiddleware: Middleware = {
   onRequest({ request }) {
     // Make sure every request carries the HttpOnly cookies.
     request.headers.set("credentials", "include");
+    // Stamp the active tenant so the backend scopes the request. The
+    // auth endpoints don't need it (and login runs before the user has
+    // picked a tenant), so we skip them explicitly.
+    const url = new URL(request.url);
+    const isAuthPath =
+      url.pathname === REFRESH_PATH ||
+      url.pathname === LOGIN_PATH ||
+      url.pathname === LOGOUT_PATH;
+    if (!isAuthPath) {
+      const tenantId = useSessionStore.getState().currentTenantId;
+      if (tenantId) {
+        request.headers.set(TENANT_HEADER, tenantId);
+      }
+    }
     return request;
   },
   async onResponse({ request, response }) {

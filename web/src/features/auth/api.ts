@@ -69,7 +69,8 @@ export function useSignIn() {
     },
     onSuccess: (data) => {
       setUser(data.user);
-      void queryClient.invalidateQueries({ queryKey: queryKeys.me() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.my.tokens() });
+      void queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
     },
   });
 }
