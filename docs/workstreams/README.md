@@ -78,7 +78,7 @@ The ws-implementer subagent (`.opencode/agent/ws-implementer.md`) and the
 |----|-------|--------|------------|
 | [WS-18](./WS-18-frontend-foundation.md) | Frontend Foundation | done | WS-05 |
 | [WS-19](./WS-19-marketing-website.md) | Marketing Website | pending | WS-18 |
-| [WS-20](./WS-20-dashboard-shell-compute-ui.md) | Dashboard Shell + Compute UI | pending | WS-18, WS-14 |
+| [WS-20](./WS-20-dashboard-shell-compute-ui.md) | Dashboard Shell + Compute UI | done | WS-18, WS-14 |
 | [WS-21](./WS-21-module-uis.md) | DNS/S3/Billing/Plugins/Audit UIs | pending | WS-18, WS-15, WS-16, WS-17 |
 
 ## Phase 6 — Quality & Release
