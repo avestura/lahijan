@@ -162,11 +162,6 @@
   "audit.action_dns_record_create": { "other": "DNS record created" },
   "audit.action_dns_record_delete": { "other": "DNS record deleted" },
 
-  "audit.action_s3_bucket_create": { "other": "Object storage bucket created" },
-  "audit.action_s3_bucket_delete": { "other": "Object storage bucket deleted" },
-  "audit.action_s3_credentials_create": { "other": "Object storage credentials issued" },
-  "audit.action_s3_credentials_revoke": { "other": "Object storage credentials revoked" },
-
   "audit.action_billing_balance_adjust": { "other": "Balance adjusted" },
   "audit.action_billing_receipt_create": { "other": "Receipt generated" },
 

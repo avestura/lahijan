@@ -326,18 +326,6 @@
   "audit.action_dns_record_delete": {
     "other": "رکورد DNS پاک شد"
   },
-  "audit.action_s3_bucket_create": {
-    "other": "سطل ذخیره‌سازی اشیاء ساخته شد"
-  },
-  "audit.action_s3_bucket_delete": {
-    "other": "سطل ذخیره‌سازی اشیاء پاک شد"
-  },
-  "audit.action_s3_credentials_create": {
-    "other": "اعتبارنامهٔ ذخیره‌سازی اشیاء صادر شد"
-  },
-  "audit.action_s3_credentials_revoke": {
-    "other": "اعتبارنامهٔ ذخیره‌سازی اشیاء باطل شد"
-  },
   "audit.action_billing_balance_adjust": {
     "other": "مانده تعدیل شد"
   },
