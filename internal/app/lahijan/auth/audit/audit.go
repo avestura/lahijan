@@ -94,6 +94,19 @@ const (
 	ActionPluginEnable  = "plugins.enable"
 	ActionPluginDisable = "plugins.disable"
 	ActionPluginDelete  = "plugins.delete"
+
+	// Object storage module actions (WS-16). Emitted by the storage service
+	// on every state-changing privileged action across buckets +
+	// credentials + quotas + presign. Each row carries the bucket_id (or
+	// credential id), the actor, and the canonical bucket name + slug in
+	// metadata so the audit query API can render a stable history.
+	ActionS3BucketCreate     = "s3.bucket.create"
+	ActionS3BucketUpdate     = "s3.bucket.update"
+	ActionS3BucketDelete     = "s3.bucket.delete"
+	ActionS3BucketQuotaSet   = "s3.bucket.quota.set"
+	ActionS3CredentialMint   = "s3.credentials.create"
+	ActionS3CredentialRevoke = "s3.credentials.revoke"
+	ActionS3Presign          = "s3.presign"
 )
 
 // Standard statuses recorded on audit_log.status and audit_log_outcomes.status.
@@ -125,6 +138,10 @@ const (
 	ResourceTenant  = "tenant"
 	ResourceJob     = "job"
 	ResourcePlugin  = "plugin"
+	// ResourceBucket / ResourceCredential are the object-storage resource
+	// types (WS-16). Emitted by the storage service.
+	ResourceBucket     = "storage_bucket"
+	ResourceCredential = "storage_credential"
 )
 
 // Event is the data an emitter records. TenantID is nil for system-level auth

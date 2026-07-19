@@ -43,12 +43,17 @@ const (
 )
 
 // Storage module events (WS-13, WS-16). Emitted by the storage service
-// on bucket lifecycle. Plugins subscribe via "s3.bucket.*" for access
-// auditing or cross-tenant replication.
+// on bucket lifecycle + credential lifecycle. Plugins subscribe via
+// "s3.bucket.*" for access auditing or cross-tenant replication, and via
+// "s3.credential.*" for credential-rotation workflows.
 const (
-	S3BucketCreated = "s3.bucket.created"
-	S3BucketDeleted = "s3.bucket.deleted"
-	S3BucketUpdated = "s3.bucket.updated"
+	S3BucketCreated     = "s3.bucket.created"
+	S3BucketUpdated     = "s3.bucket.updated"
+	S3BucketDeleted     = "s3.bucket.deleted"
+	S3BucketQuotaSet    = "s3.bucket.quota.set"
+	S3CredentialMinted  = "s3.credential.minted"
+	S3CredentialRevoked = "s3.credential.revoked"
+	S3PresignIssued     = "s3.presign.issued"
 )
 
 // Billing module events (WS-17). Emitted by the metering + ledger
@@ -90,7 +95,8 @@ func AllEvents() []string {
 		DNSRecordCreated, DNSRecordUpdated, DNSRecordDeleted,
 		ComputeInstanceCreated, ComputeInstanceStarted, ComputeInstanceStopped,
 		ComputeInstanceRestarted, ComputeInstanceDeleted,
-		S3BucketCreated, S3BucketDeleted, S3BucketUpdated,
+		S3BucketCreated, S3BucketUpdated, S3BucketDeleted,
+		S3BucketQuotaSet, S3CredentialMinted, S3CredentialRevoked, S3PresignIssued,
 		BillingLowBalance, BillingToppedUp, BillingCharge, BillingRefund,
 		PluginInstalled, PluginEnabled, PluginDisabled, PluginDeleted,
 		UserRegistered, UserLogin, UserLogout,
