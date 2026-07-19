@@ -22,6 +22,7 @@
     },
     "admin": {
       "label": "مدیریت",
+      "billing": "صورتحساب",
       "jobs": "کارها",
       "plugins": "افزونه‌ها",
       "marketplace": "فروشگاه"
@@ -474,12 +475,652 @@
   },
   "audit": {
     "title": "رویدادهای حسابرسی",
+    "subtitle": "هر عمل ممتاز، به‌صورت غیرقابل‌تغییر ثبت می‌شود.",
+    "filters": {
+      "title": "فیلترها",
+      "action": "عمل",
+      "actorType": {
+        "label": "نوع کنش‌گر",
+        "all": "همه",
+        "user": "کاربر",
+        "system": "سیستم",
+        "plugin": "افزونه"
+      },
+      "status": {
+        "label": "وضعیت",
+        "all": "همه",
+        "success": "موفق",
+        "failure": "ناموفق",
+        "pending": "در انتظار"
+      },
+      "actionFilter": "اسلاگ عمل (مثلاً compute.instance.create)",
+      "resourceType": "نوع منبع",
+      "actorUserId": "شناسه کنش‌گر",
+      "fromTs": "از",
+      "toTs": "تا",
+      "reset": "بازنشانی فیلترها",
+      "apply": "اعمال"
+    },
     "columns": {
       "action": "عمل",
-      "actor": "actor",
+      "actor": "کنش‌گر",
       "resource": "منبع",
       "status": "وضعیت",
       "created": "زمان"
+    },
+    "list": {
+      "empty": {
+        "title": "هیچ رویدادی نیست",
+        "body": "عمل‌های ممتاز این مستأجر اینجا ثبت می‌شوند."
+      }
+    },
+    "detail": {
+      "title": "جزئیات رویداد",
+      "id": "شناسه رویداد",
+      "tenant": "مستأجر",
+      "actorUser": "کنش‌گر",
+      "actorType": "نوع کنش‌گر",
+      "action": "عمل",
+      "resourceType": "نوع منبع",
+      "resourceId": "شناسه منبع",
+      "status": "وضعیت",
+      "requestId": "شناسه درخواست",
+      "metadata": "فراداده",
+      "outcomes": "خروجی‌ها",
+      "createdAt": "زمان ثبت"
+    },
+    "actions": {
+      "export": "خروجی",
+      "exportCSV": "خروجی CSV",
+      "exportJSON": "خروجی JSON",
+      "viewDetail": "نمایش جزئیات"
+    },
+    "export": {
+      "filenamePrefix": "audit-export"
+    }
+  },
+  "dns": {
+    "title": "دی‌ان‌اس",
+    "subtitle": "زون‌های معتبر برای دامنه‌های شما.",
+    "list": {
+      "new": "زون جدید",
+      "empty": {
+        "title": "هنوز زونی وجود ندارد",
+        "body": "یک زون بسازید تا مدیریت رکوردها آغاز شود."
+      },
+      "filter": {
+        "placeholder": "فیلتر بر اساس نام…"
+      },
+      "columns": {
+        "name": "زون",
+        "kind": "نوع",
+        "dnssec": "DNSSEC",
+        "records": "رکوردها",
+        "created": "ساخته‌شده",
+        "actions": "عملیات"
+      }
+    },
+    "kinds": {
+      "Native": "بومی",
+      "Master": "اصلی",
+      "Slave": "ثانویه"
+    },
+    "dnssec": {
+      "on": "روشن",
+      "off": "خاموش",
+      "enable": "فعال‌سازی DNSSEC",
+      "disable": "غیرفعال‌سازی DNSSEC",
+      "enabling": "در حال فعال‌سازی…",
+      "disabling": "در حال غیرفعال‌سازی…",
+      "enableConfirm": {
+        "title": "فعال‌سازی DNSSEC؟",
+        "body": "سرور شروع به امضای این زون می‌کند. پس از فعال‌سازی، رکورد DS را در ثبت‌کننده به‌روزرسانی کنید."
+      },
+      "disableConfirm": {
+        "title": "غیرفعال‌سازی DNSSEC؟",
+        "body": "زون بدون امضا می‌شود. مطمئن شوید ثبت‌کننده دیگر رکورد DS انتظار ندارد."
+      }
+    },
+    "create": {
+      "title": "زون جدید",
+      "subtitle": "افزودن یک زون معتبر برای دامنه‌ای که دارید.",
+      "name": {
+        "label": "نام زون",
+        "placeholder": "example.com.",
+        "hint": "شکل قانونی با نقطهٔ انتهایی."
+      },
+      "description": {
+        "label": "توضیحات",
+        "placeholder": "این زون برای چیست؟"
+      },
+      "kind": {
+        "label": "نوع"
+      },
+      "template": {
+        "label": "اعمال قالب",
+        "none": "بدون قالب",
+        "hint": "رکوردهای پیش‌فرض پس از ساخت افزوده می‌شوند."
+      },
+      "submit": "ساخت زون",
+      "submitting": "در حال ساخت…"
+    },
+    "detail": {
+      "notFound": "زون یافت نشد.",
+      "tabs": {
+        "records": "رکوردها",
+        "settings": "تنظیمات"
+      },
+      "id": "شناسه زون",
+      "canonical": "شناسه قانونی",
+      "kind": "نوع",
+      "description": "توضیحات",
+      "noDescription": "بدون توضیح.",
+      "dnssec": "DNSSEC",
+      "axfr": "AXFR"
+    },
+    "records": {
+      "title": "رکوردها",
+      "new": "افزودن رکورد",
+      "filter": {
+        "placeholder": "فیلتر بر اساس نام یا محتوا…",
+        "type": {
+          "all": "همهٔ نوع‌ها",
+          "label": "نوع"
+        }
+      },
+      "columns": {
+        "name": "نام",
+        "type": "نوع",
+        "content": "محتوا",
+        "ttl": "TTL",
+        "prio": "اولویت",
+        "disabled": "غیرفعال",
+        "actions": "عملیات"
+      },
+      "empty": {
+        "title": "بدون رکورد",
+        "body": "برای شروع سرو DNS یک رکورد اضافه کنید."
+      },
+      "create": {
+        "title": "افزودن رکورد",
+        "name": { "label": "نام", "placeholder": "www.example.com." },
+        "type": { "label": "نوع" },
+        "content": { "label": "محتوا", "placeholder": "203.0.113.1" },
+        "ttl": { "label": "TTL (ثانیه)" },
+        "disabled": { "label": "غیرفعال (به‌صورت توضیح سرو می‌شود)" },
+        "submit": "افزودن",
+        "submitting": "در حال افزودن…"
+      },
+      "edit": {
+        "title": "ویرایش رکورد",
+        "content": { "label": "محتوا" },
+        "ttl": { "label": "TTL (ثانیه)" },
+        "disabled": { "label": "غیرفعال" },
+        "submit": "ذخیره",
+        "submitting": "در حال ذخیره…"
+      },
+      "deleteConfirm": {
+        "title": "حذف رکورد؟",
+        "body": "رکورد بلافاصله از زون زنده حذف می‌شود."
+      },
+      "bulkDelete": "حذف انتخاب‌شده‌ها",
+      "bulkDeleteConfirm": {
+        "title": "حذف {{count}} رکورد؟",
+        "body": "رکوردهای انتخاب‌شده بلافاصله از زون زنده حذف می‌شوند."
+      },
+      "selected": "{{count}} انتخاب‌شده"
+    },
+    "templates": {
+      "title": "قالب‌ها",
+      "subtitle": "اعمال مجموعه‌ای از رکوردهای از پیش تعریف‌شده در یک کلیک.",
+      "apply": "اعمال",
+      "applying": "در حال اعمال…",
+      "applied": "{{count}} رکورد افزوده شد.",
+      "columns": {
+        "name": "قالب",
+        "description": "توضیحات",
+        "actions": "عملیات"
+      },
+      "empty": {
+        "title": "قالبی در دسترس نیست",
+        "body": "فهرست سرور خالی است."
+      }
+    },
+    "mutations": {
+      "zoneCreateSuccess": "زون ساخته شد.",
+      "zoneDeleteSuccess": "زون حذف شد.",
+      "zoneUpdateSuccess": "زون به‌روزرسانی شد.",
+      "dnssecEnableSuccess": "DNSSEC فعال شد.",
+      "dnssecDisableSuccess": "DNSSEC غیرفعال شد.",
+      "recordCreateSuccess": "رکورد افزوده شد.",
+      "recordUpdateSuccess": "رکورد به‌روزرسانی شد.",
+      "recordDeleteSuccess": "رکورد حذف شد.",
+      "templateApplySuccess": "قالب اعمال شد."
+    }
+  },
+  "storage": {
+    "title": "ذخیره‌سازی اشیاء",
+    "subtitle": "باکت‌های سازگار با S3 که می‌توانید مستقیماً بنویسید.",
+    "list": {
+      "new": "باکت جدید",
+      "empty": {
+        "title": "هنوز باکتی وجود ندارد",
+        "body": "برای شروع ذخیره‌سازی اشیاء یک باکت بسازید."
+      },
+      "filter": {
+        "placeholder": "فیلتر بر اساس نام یا اسلاگ…"
+      },
+      "columns": {
+        "name": "باکت",
+        "slug": "اسلاگ",
+        "usage": "استفاده",
+        "objects": "اشیاء",
+        "quota": "سهمیه",
+        "created": "ساخته‌شده",
+        "actions": "عملیات"
+      }
+    },
+    "create": {
+      "title": "باکت جدید",
+      "subtitle": "یک باکت سراسری‌یکتا زیر مستأجر شما ساخته می‌شود.",
+      "slug": {
+        "label": "اسلاگ",
+        "placeholder": "my-bucket",
+        "hint": "حروف کوچک، اعداد و خط تیره (۱–۲۶ نویسه)."
+      },
+      "label": { "label": "برچسب", "placeholder": "باکت من" },
+      "description": { "label": "توضیحات" },
+      "quotaBytes": {
+        "label": "سهمیهٔ اندازه (بایت)",
+        "hint": "۰ = نامحدود."
+      },
+      "quotaObjects": {
+        "label": "سهمیهٔ تعداد اشیاء",
+        "hint": "۰ = نامحدود."
+      },
+      "submit": "ساخت باکت",
+      "submitting": "در حال ساخت…"
+    },
+    "detail": {
+      "notFound": "باکت یافت نشد.",
+      "tabs": {
+        "overview": "نمای کلی",
+        "credentials": "اعتبارنامه‌ها",
+        "presign": "آدرس‌های پیش‌امضا",
+        "quota": "سهمیه",
+        "settings": "تنظیمات"
+      },
+      "id": "شناسه باکت",
+      "name": "نام قانونی",
+      "slug": "اسلاگ",
+      "owner": "مالک",
+      "label": "برچسب",
+      "description": "توضیحات",
+      "noDescription": "بدون توضیح.",
+      "bytesUsed": "بایت استفاده‌شده",
+      "objectsUsed": "اشیاء استفاده‌شده"
+    },
+    "usage": {
+      "title": "استفاده",
+      "size": "اندازه",
+      "objects": "اشیاء",
+      "quotaBytes": "سهمیهٔ اندازه",
+      "quotaObjects": "سهمیهٔ تعداد",
+      "unlimited": "نامحدود",
+      "bar": "{{used}} از {{quota}}"
+    },
+    "credentials": {
+      "title": "اعتبارنامه‌ها",
+      "subtitle": "کلیدهای S3 برای هر برنامه، محدود به این باکت.",
+      "new": "ساخت اعتبارنامه",
+      "empty": {
+        "title": "بدون اعتبارنامه",
+        "body": "برای استفاده از این باکت در هر کلاینت S3 یک اعتبارنامه بسازید."
+      },
+      "columns": {
+        "accessKeyId": "کلید دسترسی",
+        "label": "برچسب",
+        "actions": "عملیات",
+        "lastUsed": "آخرین استفاده",
+        "expires": "انقضا",
+        "created": "ساخته‌شده"
+      },
+      "create": {
+        "title": "ساخت اعتبارنامه",
+        "label": { "label": "برچسب", "placeholder": "ci-uploader" },
+        "actions": { "label": "عملیات" },
+        "action": {
+          "Read": "خواندن",
+          "Write": "نوشتن",
+          "List": "فهرست",
+          "Tagging": "برچسب‌گذاری",
+          "Admin": "مدیر"
+        },
+        "expiresInSeconds": {
+          "label": "عمر (ثانیه)",
+          "hint": "خالی = بدون انقضا."
+        },
+        "submit": "ساخت",
+        "submitting": "در حال ساخت…"
+      },
+      "reveal": {
+        "title": "اعتبارنامه ساخته شد",
+        "warning": "هم‌اکنون از رمز رونوشت بگیرید. دیگر آن را نخواهید دید.",
+        "accessKeyId": "کلید دسترسی",
+        "secretKey": "کلید رمز",
+        "copySecret": "رونوشت از رمز",
+        "done": "ذخیره کردم"
+      },
+      "revoke": "ابطال",
+      "revokeConfirm": {
+        "title": "ابطال اعتبارنامه؟",
+        "body": "کلید دسترسی بلافاصله از امضای درخواست‌ها باز می‌ایستد."
+      }
+    },
+    "presign": {
+      "title": "آدرس‌های پیش‌امضا",
+      "subtitle": "صدور آدرس‌های مستقیم با عمر محدود.",
+      "method": { "label": "متد" },
+      "key": {
+        "label": "کلید شیء",
+        "placeholder": "path/to/object.bin",
+        "hint": "خالی = ریشهٔ باکت."
+      },
+      "expiresInSeconds": {
+        "label": "عمر (ثانیه)",
+        "hint": "۱ تا ۸۶۴۰۰ (نهایتاً ۲۴ ساعت)."
+      },
+      "submit": "تولید آدرس",
+      "submitting": "در حال تولید…",
+      "result": {
+        "title": "آدرس پیش‌امضا",
+        "expiresAt": "انقضا در",
+        "copy": "رونوشت از آدرس",
+        "warning": "هر کس این آدرس را داشته باشد تا زمان انقضا می‌تواند عمل امضاشده را انجام دهد."
+      }
+    },
+    "quota": {
+      "title": "سهمیه",
+      "subtitle": "سهمیه به باک‌اند ارسال می‌شود؛ هر PUT را روی هر دو سقف اعمال می‌کند.",
+      "quotaBytes": { "label": "سهمیهٔ اندازه (بایت)" },
+      "quotaObjects": { "label": "سهمیهٔ تعداد اشیاء" },
+      "submit": "به‌روزرسانی سهمیه",
+      "submitting": "در حال به‌روزرسانی…"
+    },
+    "mutations": {
+      "bucketCreateSuccess": "باکت ساخته شد.",
+      "bucketUpdateSuccess": "باکت به‌روزرسانی شد.",
+      "bucketDeleteSuccess": "باکت حذف شد.",
+      "credentialCreateSuccess": "اعتبارنامه ساخته شد.",
+      "credentialRevokeSuccess": "اعتبارنامه ابطال شد.",
+      "presignSuccess": "آدرس پیش‌امضا تولید شد.",
+      "quotaSuccess": "سهمیه به‌روزرسانی شد."
+    }
+  },
+  "billing": {
+    "title": "صورتحساب",
+    "subtitle": "موجودی، مصرف، دفتر و رسیدها.",
+    "user": {
+      "balance": {
+        "title": "موجودی",
+        "amount": "{{amount}}",
+        "lastEntry": "آخرین حرکت: {{at}}",
+        "updated": "به‌روزرسانی‌شده: {{at}}"
+      },
+      "usage": {
+        "title": "مصرف",
+        "subtitle": "تجمیع‌شده بر اساس نوع منبع در بازهٔ انتخاب‌شده.",
+        "window": {
+          "label": "بازه",
+          "7d": "۷ روز گذشته",
+          "30d": "۳۰ روز گذشته"
+        },
+        "empty": {
+          "title": "بدون مصرف",
+          "body": "رویدادهای مصرف پس از اجرای منابع اینجا نمایش داده می‌شوند."
+        },
+        "columns": {
+          "resourceType": "منبع",
+          "qty": "مقدار",
+          "unit": "واحد",
+          "startedAt": "شروع",
+          "endedAt": "پایان"
+        }
+      },
+      "ledger": {
+        "title": "دفتر",
+        "subtitle": "ثبت غیرقابل‌تغییر بستانکار و بدهکار.",
+        "columns": {
+          "type": "نوع",
+          "source": "منبع",
+          "amount": "مبلغ",
+          "currency": "ارز",
+          "reference": "مرجع",
+          "created": "زمان"
+        },
+        "type": {
+          "credit": "بستانکار",
+          "debit": "بدهکار"
+        },
+        "source": {
+          "topup": "شارژ",
+          "charge": "هزینه",
+          "refund": "بازپرداخت",
+          "adjustment": "تعدیل"
+        },
+        "empty": {
+          "title": "بدون حرکت دفتر",
+          "body": "شارژها و هزینه‌ها اینجا نمایش داده می‌شوند."
+        },
+        "loadMore": "بیشتر"
+      },
+      "receipts": {
+        "title": "رسیدها",
+        "subtitle": "خلاصه‌های PDF برای هر دوره.",
+        "columns": {
+          "period": "دوره",
+          "total": "مجموع",
+          "currency": "ارز",
+          "status": "وضعیت",
+          "actions": "عملیات"
+        },
+        "status": {
+          "pending": "در انتظار",
+          "ready": "آماده"
+        },
+        "download": "دریافت PDF",
+        "generate": {
+          "title": "تولید رسید",
+          "periodStart": { "label": "شروع دوره" },
+          "periodEnd": { "label": "پایان دوره" },
+          "submit": "تولید",
+          "submitting": "در حال تولید…"
+        },
+        "empty": {
+          "title": "بدون رسید",
+          "body": "رسیدها در پایان هر دورهٔ صورتحساب تولید می‌شوند."
+        }
+      }
+    },
+    "admin": {
+      "title": "مدیریت صورتحساب",
+      "tabs": {
+        "prices": "فهرست قیمت‌ها",
+        "users": "کاربران"
+      },
+      "prices": {
+        "title": "فهرست قیمت‌ها",
+        "subtitle": "قیمت واحد هر منبع به سانتیم صحیح.",
+        "new": "تعیین قیمت",
+        "columns": {
+          "resourceType": "منبع",
+          "unit": "واحد",
+          "priceCents": "قیمت (¢)",
+          "currency": "ارز",
+          "effectiveFrom": "از",
+          "effectiveTo": "تا",
+          "actions": "عملیات"
+        },
+        "empty": {
+          "title": "بدون قیمت",
+          "body": "برای شروع اندازه‌گیری حداقل یک قیمت تعیین کنید."
+        },
+        "upsert": {
+          "title": "تعیین قیمت",
+          "resourceType": { "label": "نوع منبع", "placeholder": "compute.cpu" },
+          "unit": { "label": "واحد", "placeholder": "vCPU-hour" },
+          "priceCents": { "label": "قیمت (¢)" },
+          "currency": { "label": "ارز" },
+          "effectiveFrom": { "label": "مؤثر از" },
+          "submit": "ذخیره",
+          "submitting": "در حال ذخیره…"
+        }
+      },
+      "users": {
+        "title": "موجودی کاربران",
+        "subtitle": "شارژ موجودی کاربر یا بازپرداخت هزینه.",
+        "columns": {
+          "user": "کاربر",
+          "balance": "موجودی",
+          "actions": "عملیات"
+        },
+        "topup": {
+          "title": "شارژ کاربر",
+          "userId": { "label": "شناسه کاربر" },
+          "amountCents": { "label": "مبلغ (¢)" },
+          "currency": { "label": "ارز" },
+          "reference": { "label": "مرجع" },
+          "submit": "شارژ",
+          "submitting": "در حال شارژ…"
+        },
+        "refund": {
+          "title": "بازپرداخت کاربر",
+          "amountCents": { "label": "مبلغ (¢)" },
+          "currency": { "label": "ارز" },
+          "reference": { "label": "مرجع" },
+          "submit": "بازپرداخت",
+          "submitting": "در حال بازپرداخت…"
+        },
+        "ledger": {
+          "title": "دفتر کاربر",
+          "back": "بازگشت به کاربران"
+        }
+      }
+    },
+    "mutations": {
+      "topupSuccess": "موجودی شارژ شد.",
+      "refundSuccess": "بازپرداخت ثبت شد.",
+      "priceSuccess": "قیمت به‌روزرسانی شد.",
+      "receiptGenerateSuccess": "رسید تولید شد."
+    }
+  },
+  "plugins": {
+    "title": "افزونه‌ها",
+    "subtitle": "افزونه‌های WASM پلتفرم را گسترش می‌دهند. فقط مدیر.",
+    "list": {
+      "new": "بارگذاری افزونه",
+      "empty": {
+        "title": "هیچ افزونه‌ای نصب نشده",
+        "body": "یک ماژول .wasm بارگذاری کنید تا لاهیجان گسترش یابد."
+      },
+      "columns": {
+        "name": "نام",
+        "version": "نسخه",
+        "status": "وضعیت",
+        "permissions": "دسترسی‌ها",
+        "updated": "به‌روزرسانی‌شده",
+        "actions": "عملیات"
+      }
+    },
+    "status": {
+      "pending": "در انتظار",
+      "active": "فعال",
+      "disabled": "غیرفعال"
+    },
+    "actions": {
+      "enable": "فعال‌سازی",
+      "disable": "غیرفعال‌سازی",
+      "delete": "حذف",
+      "viewDetail": "نمایش جزئیات",
+      "upgrade": "ارتقا",
+      "install": "نصب",
+      "grant": "اعطا",
+      "revoke": "ابطال"
+    },
+    "detail": {
+      "title": "جزئیات افزونه",
+      "notFound": "افزونه یافت نشد.",
+      "id": "شناسه افزونه",
+      "name": "نام",
+      "version": "نسخه",
+      "description": "توضیحات",
+      "noDescription": "بدون توضیح.",
+      "wasmHash": "درهم WASM",
+      "wasmSize": "اندازه WASM",
+      "status": "وضعیت",
+      "tenant": "مستأجر",
+      "permissions": "دسترسی‌ها",
+      "noPermissions": "هیچ دسترسیای اعطا نشده است.",
+      "manifest": "مانیفست"
+    },
+    "upload": {
+      "title": "بارگذاری افزونه",
+      "subtitle": "یک باینری .wasm و یک مانیفست ارائه کنید.",
+      "wasm": {
+        "label": "پرونده WASM",
+        "hint": "یک پروندهٔ .wasm بکشید یا برای انتخاب کلیک کنید."
+      },
+      "manifest": {
+        "label": "مانیفست",
+        "hint": "یک lahijan.manifest.yaml بکشید یا برای انتخاب کلیک کنید."
+      },
+      "submit": "بارگذاری",
+      "submitting": "در حال بارگذاری…",
+      "summary": {
+        "wasm": "WASM",
+        "manifest": "مانیفست"
+      }
+    },
+    "marketplace": {
+      "title": "فروشگاه",
+      "subtitle": "فهرست افزونه‌ها را مرور کنید.",
+      "columns": {
+        "name": "نام",
+        "version": "نسخه",
+        "description": "توضیحات",
+        "license": "پروانه",
+        "actions": "عملیات"
+      },
+      "installConfirm": {
+        "title": "نصب {{name}}؟",
+        "body": "افزونه در وضعیت در‌انتظار نصب می‌شود. سپس دسترسی‌های آن را بازبینی و اعطا کنید."
+      },
+      "upgradeConfirm": {
+        "title": "ارتقا {{name}}؟",
+        "body": "دسترسی‌های موجود تا حد ممکن حفظ می‌شوند؛ دسترسی‌های جدید نیاز به تأیید صریح دارند."
+      },
+      "empty": {
+        "title": "فروشگاه خالی است",
+        "body": "هیچ افزونه‌ای در نمایهٔ پیکربندی‌شده فهرست نشده است."
+      }
+    },
+    "permissions": {
+      "title": "دسترسی‌ها",
+      "granted": "اعطاشده",
+      "requested": "درخواست‌شده",
+      "none": "این افزونه هیچ دسترسیای درخواست نکرده است.",
+      "grant": "اعطا",
+      "revoke": "ابطال"
+    },
+    "mutations": {
+      "uploadSuccess": "افزونه بارگذاری شد.",
+      "installSuccess": "افزونه نصب شد.",
+      "upgradeSuccess": "افزونه ارتقا یافت.",
+      "enableSuccess": "افزونه فعال شد.",
+      "disableSuccess": "افزونه غیرفعال شد.",
+      "deleteSuccess": "افزونه حذف شد.",
+      "grantSuccess": "دسترسی اعطا شد.",
+      "revokeSuccess": "دسترسی ابطال شد."
     }
   }
 }

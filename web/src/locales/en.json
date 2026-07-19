@@ -22,6 +22,7 @@
     },
     "admin": {
       "label": "Administration",
+      "billing": "Billing",
       "jobs": "Jobs",
       "plugins": "Plugins",
       "marketplace": "Marketplace"
@@ -474,12 +475,649 @@
   },
   "audit": {
     "title": "Audit log",
+    "subtitle": "Every privileged action, recorded immutably.",
+    "filters": {
+      "title": "Filters",
+      "action": "Action",
+      "actorType": {
+        "label": "Actor type",
+        "all": "All",
+        "user": "User",
+        "system": "System",
+        "plugin": "Plugin"
+      },
+      "status": {
+        "label": "Status",
+        "all": "All",
+        "success": "Success",
+        "failure": "Failure",
+        "pending": "Pending"
+      },
+      "actionFilter": "Action slug (e.g. compute.instance.create)",
+      "resourceType": "Resource type",
+      "actorUserId": "Actor user id",
+      "fromTs": "From",
+      "toTs": "To",
+      "reset": "Reset filters",
+      "apply": "Apply"
+    },
     "columns": {
       "action": "Action",
       "actor": "Actor",
       "resource": "Resource",
       "status": "Status",
       "created": "At"
+    },
+    "list": {
+      "empty": {
+        "title": "No audit events",
+        "body": "Privileged actions in this tenant will be recorded here."
+      }
+    },
+    "detail": {
+      "title": "Event detail",
+      "id": "Event id",
+      "tenant": "Tenant",
+      "actorUser": "Actor user",
+      "actorType": "Actor type",
+      "action": "Action",
+      "resourceType": "Resource type",
+      "resourceId": "Resource id",
+      "status": "Status",
+      "requestId": "Request id",
+      "metadata": "Metadata",
+      "outcomes": "Outcomes",
+      "createdAt": "Recorded at"
+    },
+    "actions": {
+      "export": "Export",
+      "exportCSV": "Export as CSV",
+      "exportJSON": "Export as JSON",
+      "viewDetail": "View detail"
+    },
+    "export": {
+      "filenamePrefix": "audit-export"
+    }
+  },
+  "dns": {
+    "title": "DNS",
+    "subtitle": "Authoritative zones for your domains.",
+    "list": {
+      "new": "New zone",
+      "empty": {
+        "title": "No zones yet",
+        "body": "Create a DNS zone to start managing records."
+      },
+      "filter": {
+        "placeholder": "Filter by name…"
+      },
+      "columns": {
+        "name": "Zone",
+        "kind": "Kind",
+        "dnssec": "DNSSEC",
+        "records": "Records",
+        "created": "Created",
+        "actions": "Actions"
+      }
+    },
+    "kinds": {
+      "Native": "Native",
+      "Master": "Primary",
+      "Slave": "Secondary"
+    },
+    "dnssec": {
+      "on": "On",
+      "off": "Off",
+      "enable": "Enable DNSSEC",
+      "disable": "Disable DNSSEC",
+      "enabling": "Enabling…",
+      "disabling": "Disabling…",
+      "enableConfirm": {
+        "title": "Enable DNSSEC?",
+        "body": "PowerDNS will start signing this zone. Update your registrar with the DS record once enabled."
+      },
+      "disableConfirm": {
+        "title": "Disable DNSSEC?",
+        "body": "The zone will become unsigned. Make sure your registrar no longer expects the DS record."
+      }
+    },
+    "create": {
+      "title": "New zone",
+      "subtitle": "Add an authoritative zone for a domain you own.",
+      "name": {
+        "label": "Zone name",
+        "placeholder": "example.com.",
+        "hint": "Canonical form with trailing dot."
+      },
+      "description": {
+        "label": "Description",
+        "placeholder": "What is this zone used for?"
+      },
+      "kind": {
+        "label": "Kind"
+      },
+      "template": {
+        "label": "Apply a template",
+        "none": "No template",
+        "hint": "Predefined records will be added after creation."
+      },
+      "submit": "Create zone",
+      "submitting": "Creating…"
+    },
+    "detail": {
+      "notFound": "Zone not found.",
+      "tabs": {
+        "records": "Records",
+        "settings": "Settings"
+      },
+      "id": "Zone id",
+      "canonical": "Canonical id",
+      "kind": "Kind",
+      "description": "Description",
+      "noDescription": "No description.",
+      "dnssec": "DNSSEC",
+      "axfr": "AXFR"
+    },
+    "records": {
+      "title": "Records",
+      "new": "Add record",
+      "filter": {
+        "placeholder": "Filter by name or content…",
+        "type": {
+          "all": "All types",
+          "label": "Type"
+        }
+      },
+      "columns": {
+        "name": "Name",
+        "type": "Type",
+        "content": "Content",
+        "ttl": "TTL",
+        "prio": "Prio",
+        "disabled": "Disabled",
+        "actions": "Actions"
+      },
+      "empty": {
+        "title": "No records",
+        "body": "Add a record to start serving DNS."
+      },
+      "create": {
+        "title": "Add record",
+        "name": { "label": "Name", "placeholder": "www.example.com." },
+        "type": { "label": "Type" },
+        "content": { "label": "Content", "placeholder": "203.0.113.1" },
+        "ttl": { "label": "TTL (seconds)" },
+        "disabled": { "label": "Disabled (served commented-out)" },
+        "submit": "Add",
+        "submitting": "Adding…"
+      },
+      "edit": {
+        "title": "Edit record",
+        "content": { "label": "Content" },
+        "ttl": { "label": "TTL (seconds)" },
+        "disabled": { "label": "Disabled" },
+        "submit": "Save",
+        "submitting": "Saving…"
+      },
+      "deleteConfirm": {
+        "title": "Delete record?",
+        "body": "The record is removed from the live zone immediately."
+      },
+      "bulkDelete": "Delete selected",
+      "bulkDeleteConfirm": {
+        "title": "Delete {{count}} records?",
+        "body": "The selected records are removed from the live zone immediately."
+      },
+      "selected": "{{count}} selected"
+    },
+    "templates": {
+      "title": "Templates",
+      "subtitle": "Apply a predefined set of records in one click.",
+      "apply": "Apply",
+      "applying": "Applying…",
+      "applied": "{{count}} records upserted.",
+      "columns": {
+        "name": "Template",
+        "description": "Description",
+        "actions": "Actions"
+      },
+      "empty": {
+        "title": "No templates available",
+        "body": "The server catalog is empty."
+      }
+    },
+    "mutations": {
+      "zoneCreateSuccess": "Zone created.",
+      "zoneDeleteSuccess": "Zone deleted.",
+      "zoneUpdateSuccess": "Zone updated.",
+      "dnssecEnableSuccess": "DNSSEC enabled.",
+      "dnssecDisableSuccess": "DNSSEC disabled.",
+      "recordCreateSuccess": "Record added.",
+      "recordUpdateSuccess": "Record updated.",
+      "recordDeleteSuccess": "Record deleted.",
+      "templateApplySuccess": "Template applied."
+    }
+  },
+  "storage": {
+    "title": "Object Storage",
+    "subtitle": "S3-compatible buckets you can write to directly.",
+    "list": {
+      "new": "New bucket",
+      "empty": {
+        "title": "No buckets yet",
+        "body": "Create a bucket to start storing objects."
+      },
+      "filter": {
+        "placeholder": "Filter by name or slug…"
+      },
+      "columns": {
+        "name": "Bucket",
+        "slug": "Slug",
+        "usage": "Usage",
+        "objects": "Objects",
+        "quota": "Quota",
+        "created": "Created",
+        "actions": "Actions"
+      }
+    },
+    "create": {
+      "title": "New bucket",
+      "subtitle": "A globally-unique bucket is created under your tenant.",
+      "slug": {
+        "label": "Slug",
+        "placeholder": "my-bucket",
+        "hint": "Lowercase letters, digits, and dashes (1–26 chars)."
+      },
+      "label": { "label": "Label", "placeholder": "My Bucket" },
+      "description": { "label": "Description" },
+      "quotaBytes": {
+        "label": "Size quota (bytes)",
+        "hint": "0 = unlimited."
+      },
+      "quotaObjects": {
+        "label": "Object count quota",
+        "hint": "0 = unlimited."
+      },
+      "submit": "Create bucket",
+      "submitting": "Creating…"
+    },
+    "detail": {
+      "notFound": "Bucket not found.",
+      "tabs": {
+        "overview": "Overview",
+        "credentials": "Credentials",
+        "presign": "Pre-signed URLs",
+        "quota": "Quota",
+        "settings": "Settings"
+      },
+      "id": "Bucket id",
+      "name": "Canonical name",
+      "slug": "Slug",
+      "owner": "Owner",
+      "label": "Label",
+      "description": "Description",
+      "noDescription": "No description.",
+      "bytesUsed": "Bytes used",
+      "objectsUsed": "Objects used"
+    },
+    "usage": {
+      "title": "Usage",
+      "size": "Size",
+      "objects": "Objects",
+      "quotaBytes": "Size quota",
+      "quotaObjects": "Object quota",
+      "unlimited": "Unlimited",
+      "bar": "{{used}} of {{quota}}"
+    },
+    "credentials": {
+      "title": "Credentials",
+      "subtitle": "Per-app S3 keys scoped to this bucket.",
+      "new": "Mint credential",
+      "empty": {
+        "title": "No credentials",
+        "body": "Mint a credential to use this bucket from any S3 client."
+      },
+      "columns": {
+        "accessKeyId": "Access key",
+        "label": "Label",
+        "actions": "Actions",
+        "lastUsed": "Last used",
+        "expires": "Expires",
+        "created": "Created"
+      },
+      "create": {
+        "title": "Mint credential",
+        "label": { "label": "Label", "placeholder": "ci-uploader" },
+        "actions": { "label": "Actions" },
+        "action": {
+          "Read": "Read",
+          "Write": "Write",
+          "List": "List",
+          "Tagging": "Tagging",
+          "Admin": "Admin"
+        },
+        "expiresInSeconds": {
+          "label": "Lifetime (seconds)",
+          "hint": "Empty = no expiry."
+        },
+        "submit": "Mint",
+        "submitting": "Minting…"
+      },
+      "reveal": {
+        "title": "Credential minted",
+        "warning": "Copy the secret now. You will not see it again.",
+        "accessKeyId": "Access key",
+        "secretKey": "Secret key",
+        "copySecret": "Copy secret",
+        "done": "I've saved it"
+      },
+      "revoke": "Revoke",
+      "revokeConfirm": {
+        "title": "Revoke credential?",
+        "body": "The access key stops signing requests immediately."
+      }
+    },
+    "presign": {
+      "title": "Pre-signed URLs",
+      "subtitle": "Issue time-limited direct-access URLs.",
+      "method": { "label": "Method" },
+      "key": {
+        "label": "Object key",
+        "placeholder": "path/to/object.bin",
+        "hint": "Empty targets the bucket root."
+      },
+      "expiresInSeconds": {
+        "label": "Lifetime (seconds)",
+        "hint": "1–86400 (max 24h)."
+      },
+      "submit": "Generate URL",
+      "submitting": "Generating…",
+      "result": {
+        "title": "Pre-signed URL",
+        "expiresAt": "Expires at",
+        "copy": "Copy URL",
+        "warning": "Anyone with this URL can perform the signed action until it expires."
+      }
+    },
+    "quota": {
+      "title": "Quota",
+      "subtitle": "Push the quota to the backend; it enforces both ceilings on every PUT.",
+      "quotaBytes": { "label": "Size quota (bytes)" },
+      "quotaObjects": { "label": "Object count quota" },
+      "submit": "Update quota",
+      "submitting": "Updating…"
+    },
+    "mutations": {
+      "bucketCreateSuccess": "Bucket created.",
+      "bucketUpdateSuccess": "Bucket updated.",
+      "bucketDeleteSuccess": "Bucket deleted.",
+      "credentialCreateSuccess": "Credential minted.",
+      "credentialRevokeSuccess": "Credential revoked.",
+      "presignSuccess": "Pre-signed URL generated.",
+      "quotaSuccess": "Quota updated."
+    }
+  },
+  "billing": {
+    "title": "Billing",
+    "subtitle": "Balance, usage, ledger, and receipts.",
+    "user": {
+      "balance": {
+        "title": "Balance",
+        "amount": "{{amount}}",
+        "lastEntry": "Last entry: {{at}}",
+        "updated": "Updated: {{at}}"
+      },
+      "usage": {
+        "title": "Usage",
+        "subtitle": "Aggregated by resource type over the selected window.",
+        "window": {
+          "label": "Window",
+          "7d": "Last 7 days",
+          "30d": "Last 30 days"
+        },
+        "empty": {
+          "title": "No usage",
+          "body": "Metered usage events will appear here once you have running resources."
+        },
+        "columns": {
+          "resourceType": "Resource",
+          "qty": "Quantity",
+          "unit": "Unit",
+          "startedAt": "Started",
+          "endedAt": "Ended"
+        }
+      },
+      "ledger": {
+        "title": "Ledger",
+        "subtitle": "Append-only record of credits and debits.",
+        "columns": {
+          "type": "Type",
+          "source": "Source",
+          "amount": "Amount",
+          "currency": "Currency",
+          "reference": "Reference",
+          "created": "At"
+        },
+        "type": {
+          "credit": "Credit",
+          "debit": "Debit"
+        },
+        "source": {
+          "topup": "Top-up",
+          "charge": "Charge",
+          "refund": "Refund",
+          "adjustment": "Adjustment"
+        },
+        "empty": {
+          "title": "No ledger entries",
+          "body": "Top-ups and charges will appear here."
+        },
+        "loadMore": "Load more"
+      },
+      "receipts": {
+        "title": "Receipts",
+        "subtitle": "Per-period PDF summaries.",
+        "columns": {
+          "period": "Period",
+          "total": "Total",
+          "currency": "Currency",
+          "status": "Status",
+          "actions": "Actions"
+        },
+        "status": {
+          "pending": "Pending",
+          "ready": "Ready"
+        },
+        "download": "Download PDF",
+        "generate": {
+          "title": "Generate receipt",
+          "periodStart": { "label": "Period start" },
+          "periodEnd": { "label": "Period end" },
+          "submit": "Generate",
+          "submitting": "Generating…"
+        },
+        "empty": {
+          "title": "No receipts",
+          "body": "Receipts are generated at the end of each billing cycle."
+        }
+      }
+    },
+    "admin": {
+      "title": "Billing administration",
+      "tabs": {
+        "prices": "Price catalog",
+        "users": "Users"
+      },
+      "prices": {
+        "title": "Price catalog",
+        "subtitle": "Per-resource unit prices in integer centimals.",
+        "new": "Set price",
+        "columns": {
+          "resourceType": "Resource",
+          "unit": "Unit",
+          "priceCents": "Price (¢)",
+          "currency": "Currency",
+          "effectiveFrom": "From",
+          "effectiveTo": "To",
+          "actions": "Actions"
+        },
+        "empty": {
+          "title": "No prices",
+          "body": "Set a price for at least one resource to start metering."
+        },
+        "upsert": {
+          "title": "Set price",
+          "resourceType": { "label": "Resource type", "placeholder": "compute.cpu" },
+          "unit": { "label": "Unit", "placeholder": "vCPU-hour" },
+          "priceCents": { "label": "Price (¢)" },
+          "currency": { "label": "Currency" },
+          "effectiveFrom": { "label": "Effective from" },
+          "submit": "Save",
+          "submitting": "Saving…"
+        }
+      },
+      "users": {
+        "title": "User balances",
+        "subtitle": "Top up a user's balance or refund a charge.",
+        "columns": {
+          "user": "User",
+          "balance": "Balance",
+          "actions": "Actions"
+        },
+        "topup": {
+          "title": "Top up user",
+          "userId": { "label": "User id" },
+          "amountCents": { "label": "Amount (¢)" },
+          "currency": { "label": "Currency" },
+          "reference": { "label": "Reference" },
+          "submit": "Top up",
+          "submitting": "Topping up…"
+        },
+        "refund": {
+          "title": "Refund user",
+          "amountCents": { "label": "Amount (¢)" },
+          "currency": { "label": "Currency" },
+          "reference": { "label": "Reference" },
+          "submit": "Refund",
+          "submitting": "Refunding…"
+        },
+        "ledger": {
+          "title": "User ledger",
+          "back": "Back to users"
+        }
+      }
+    },
+    "mutations": {
+      "topupSuccess": "Balance topped up.",
+      "refundSuccess": "Refund issued.",
+      "priceSuccess": "Price updated.",
+      "receiptGenerateSuccess": "Receipt generated."
+    }
+  },
+  "plugins": {
+    "title": "Plugins",
+    "subtitle": "WASM plugins extend the platform. Admin only.",
+    "list": {
+      "new": "Upload plugin",
+      "empty": {
+        "title": "No plugins installed",
+        "body": "Upload a .wasm module to extend Lahijan."
+      },
+      "columns": {
+        "name": "Name",
+        "version": "Version",
+        "status": "Status",
+        "permissions": "Permissions",
+        "updated": "Updated",
+        "actions": "Actions"
+      }
+    },
+    "status": {
+      "pending": "Pending",
+      "active": "Active",
+      "disabled": "Disabled"
+    },
+    "actions": {
+      "enable": "Enable",
+      "disable": "Disable",
+      "delete": "Delete",
+      "viewDetail": "View detail",
+      "upgrade": "Upgrade",
+      "install": "Install",
+      "grant": "Grant",
+      "revoke": "Revoke"
+    },
+    "detail": {
+      "title": "Plugin detail",
+      "notFound": "Plugin not found.",
+      "id": "Plugin id",
+      "name": "Name",
+      "version": "Version",
+      "description": "Description",
+      "noDescription": "No description.",
+      "wasmHash": "WASM hash",
+      "wasmSize": "WASM size",
+      "status": "Status",
+      "tenant": "Tenant",
+      "permissions": "Permissions",
+      "noPermissions": "No permissions granted.",
+      "manifest": "Manifest"
+    },
+    "upload": {
+      "title": "Upload plugin",
+      "subtitle": "Provide a .wasm binary and a manifest.",
+      "wasm": { "label": "WASM file", "hint": "Drop a .wasm file or click to browse." },
+      "manifest": {
+        "label": "Manifest",
+        "hint": "Drop a lahijan.manifest.yaml or click to browse."
+      },
+      "submit": "Upload",
+      "submitting": "Uploading…",
+      "summary": {
+        "wasm": "WASM",
+        "manifest": "Manifest"
+      }
+    },
+    "marketplace": {
+      "title": "Marketplace",
+      "subtitle": "Browse the plugin index.",
+      "columns": {
+        "name": "Name",
+        "version": "Version",
+        "description": "Description",
+        "license": "License",
+        "actions": "Actions"
+      },
+      "installConfirm": {
+        "title": "Install {{name}}?",
+        "body": "The plugin will be installed in pending status. Review and grant its permissions next."
+      },
+      "upgradeConfirm": {
+        "title": "Upgrade {{name}}?",
+        "body": "Existing grants are preserved where possible; new permissions will need explicit approval."
+      },
+      "empty": {
+        "title": "Marketplace is empty",
+        "body": "No plugins are listed in the configured index."
+      }
+    },
+    "permissions": {
+      "title": "Permissions",
+      "granted": "Granted",
+      "requested": "Requested",
+      "none": "This plugin has not requested any permissions.",
+      "grant": "Grant",
+      "revoke": "Revoke"
+    },
+    "mutations": {
+      "uploadSuccess": "Plugin uploaded.",
+      "installSuccess": "Plugin installed.",
+      "upgradeSuccess": "Plugin upgraded.",
+      "enableSuccess": "Plugin enabled.",
+      "disableSuccess": "Plugin disabled.",
+      "deleteSuccess": "Plugin deleted.",
+      "grantSuccess": "Permission granted.",
+      "revokeSuccess": "Permission revoked."
     }
   }
 }

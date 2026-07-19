@@ -24,30 +24,59 @@ export interface UsePermResult {
 const PLATFORM_ADMIN = "platform.admin";
 
 // Coarse role → scope.grant mapping used until the backend exposes explicit
-// permissions on /auth/me. Adjust as ADR-0002 + WS-08 land a richer model.
+// permissions on /auth/me. Aligns with the slug strings in
+// internal/app/lahijan/auth/rbac/permissions.go. The scope-prefix check
+// (`${scope}.admin`) at the call site still catches anything missing here.
 const ROLE_IMPLICATIONS: Record<string, Set<string>> = {
   owner: new Set<unknown>(["*"]) as Set<string>,
   admin: new Set<unknown>(["*"]) as Set<string>,
   member: new Set<unknown>([
+    // Compute.
     "compute.read",
     "compute.instance.create",
     "compute.instance.start",
     "compute.instance.stop",
     "compute.instance.restart",
-    "dns.read",
+    "compute.instance.delete",
+    // DNS.
     "dns.zone.create",
+    "dns.zone.read",
+    "dns.zone.update",
+    "dns.zone.delete",
     "dns.record.create",
-    "storage.read",
-    "storage.bucket.create",
-    "billing.read",
+    "dns.record.read",
+    "dns.record.update",
+    "dns.record.delete",
+    // Object storage.
+    "s3.bucket.create",
+    "s3.bucket.read",
+    "s3.bucket.update",
+    "s3.bucket.delete",
+    "s3.object.read",
+    "s3.object.delete",
+    "s3.credentials.create",
+    "s3.credentials.revoke",
+    // Billing (user-side).
+    "billing.balance.read",
+    "billing.ledger.read",
+    "billing.receipt.read",
+    "billing.receipt.create",
+    "billing.price_catalog.read",
+    // Audit (own tenant).
     "audit.read",
+    // Plugins (read only).
     "plugins.read",
   ]) as Set<string>,
   viewer: new Set<unknown>([
     "compute.read",
-    "dns.read",
-    "storage.read",
-    "billing.read",
+    "dns.zone.read",
+    "dns.record.read",
+    "s3.bucket.read",
+    "s3.object.read",
+    "billing.balance.read",
+    "billing.ledger.read",
+    "billing.receipt.read",
+    "billing.price_catalog.read",
     "audit.read",
     "plugins.read",
   ]) as Set<string>,
