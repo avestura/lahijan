@@ -268,8 +268,11 @@ export type StatusBucket = "running" | "stopped" | "frozen" | "other";
 export function classifyStatus(status: string | undefined): StatusBucket {
   if (!status) return "other";
   const s = status.toLowerCase();
-  if (s.includes("run")) return "running";
-  if (s.includes("stop")) return "stopped";
-  if (s.includes("freez")) return "frozen";
+  // Incus' canonical status strings: "Running", "Stopped", "Frozen".
+  // Transitional states ("Starting", "Stopping", "Freezing") map to
+  // "other" so the filter dropdown keeps them visible to the user.
+  if (s === "running" || s.includes("run")) return "running";
+  if (s === "stopped" || s.includes("stop")) return "stopped";
+  if (s === "frozen" || s.includes("froz") || s.includes("freez")) return "frozen";
   return "other";
 }
