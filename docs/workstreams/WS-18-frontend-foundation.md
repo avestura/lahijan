@@ -1,7 +1,7 @@
 # WS-18 · Frontend Foundation
 
 ```
-Status: pending
+Status: done
 Phase: 5
 Depends on: WS-05
 Unblocks: WS-19, WS-20, WS-21
@@ -71,18 +71,18 @@ subsequent UI WS just plugs in routes.
 
 ## Definition of Done
 
-- [ ] `npm run dev` boots without console errors
-- [ ] `tsc --noEmit` clean (strict mode)
-- [ ] `npm run lint` clean (ESLint + Prettier)
-- [ ] locale switch to fa flips layout to RTL
-- [ ] no hardcoded English strings (ESLint rule blocks them)
-- [ ] `en.json` and `fa.json` key-for-key identical
-- [ ] login flow round-trips with WS-06 backend
-- [ ] token + refresh handled (TanStack Query interceptor)
-- [ ] logout clears session
-- [ ] dark/light persists across reloads
-- [ ] design tokens match the design-system skill's three-layer architecture
-- [ ] CI's `frontend.yml` workflow builds + lints + tests
+- [x] `npm run dev` boots without console errors
+- [x] `tsc --noEmit` clean (strict mode)
+- [x] `npm run lint` clean (ESLint + Prettier)
+- [x] locale switch to fa flips layout to RTL
+- [x] no hardcoded English strings (ESLint rule blocks them)
+- [x] `en.json` and `fa.json` key-for-key identical
+- [x] login flow round-trips with WS-06 backend
+- [x] token + refresh handled (TanStack Query interceptor)
+- [x] logout clears session
+- [x] dark/light persists across reloads
+- [x] design tokens match the design-system skill's three-layer architecture
+- [x] CI's `frontend.yml` workflow builds + lints + tests
 
 ## Open questions
 
