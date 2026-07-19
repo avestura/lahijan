@@ -51,6 +51,7 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/jobs"
 	notifyemail "github.com/avestura/lahijan/internal/app/lahijan/notify/email"
 	"github.com/avestura/lahijan/internal/app/lahijan/providers/incus"
+	"github.com/avestura/lahijan/internal/app/lahijan/storage"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/eventbus"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/eventservice"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/hostfuncs"
@@ -289,7 +290,23 @@ func Start() error {
 	if err != nil {
 		log.Fatalf("failed to build seaweedfs deps: %s", err.Error())
 	}
-	_ = seaweedfsDeps // consumed by WS-16 (storage module)
+
+	// WS-16: build the storage module (internal/app/lahijan/storage/*).
+	// Returns a nil service when the SeaweedFS provider is disabled; the
+	// api handlers degrade to 501 in that case. Built AFTER wasmDeps +
+	// seaweedfsDeps so it can wire both into the service. The policy
+	// evaluator mirrors the compute / dns module's wiring.
+	var storageSvc *storage.Service
+	if seaweedfsDeps.provider != nil {
+		storageSvc = storage.New(
+			seaweedfsDeps.provider,
+			authDeps.repos,
+			authDeps.audit,
+			wasmDeps.bus,
+			rbac.NewEvaluator(authDeps.repos.Memberships),
+			storage.Config{},
+		)
+	}
 
 	// Seed the RBAC catalog (permissions + default roles + grants). Idempotent
 	// so it is safe to run on every bootstrap. Fail-fast on error: without the
@@ -361,6 +378,7 @@ func Start() error {
 		MarketplaceSvc: wasmDeps.marketplace,
 		ComputeSvc:     computeSvc,
 		DNSSvc:         dnsSvc,
+		StorageSvc:     storageSvc,
 	}), policy)
 
 	// WS-09: mount River's built-in web UI (admin-only). The UI ships its

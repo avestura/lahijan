@@ -326,18 +326,6 @@
   "audit.action_dns_record_delete": {
     "other": "رکورد DNS پاک شد"
   },
-  "audit.action_s3_bucket_create": {
-    "other": "سطل ذخیره‌سازی اشیاء ساخته شد"
-  },
-  "audit.action_s3_bucket_delete": {
-    "other": "سطل ذخیره‌سازی اشیاء پاک شد"
-  },
-  "audit.action_s3_credentials_create": {
-    "other": "اعتبارنامهٔ ذخیره‌سازی اشیاء صادر شد"
-  },
-  "audit.action_s3_credentials_revoke": {
-    "other": "اعتبارنامهٔ ذخیره‌سازی اشیاء باطل شد"
-  },
   "audit.action_billing_balance_adjust": {
     "other": "مانده تعدیل شد"
   },
@@ -555,5 +543,40 @@
   },
   "audit.action_dns_zone_template_apply": {
     "other": "قالب دی‌ان‌اس روی ناحیه اعمال شد"
+  },
+
+  "s3.err_disabled": {
+    "other": "زیرسامانهٔ ذخیره‌ساز آبجکت روی این کارساز فعال نیست."
+  },
+  "s3.err_not_found": {
+    "other": "منبع ذخیره‌ساز آبجکت یافت نشد."
+  },
+  "s3.err_already_exists": {
+    "other": "منبع ذخیره‌ساز آبجکت با این نام از پیش وجود دارد."
+  },
+  "s3.err_bad_request": {
+    "other": "درخواست ذخیره‌ساز آبجکت نادرست بود."
+  },
+
+  "audit.action_s3_bucket_create": {
+    "other": "سطل ذخیره‌ساز آبجکت ساخته شد"
+  },
+  "audit.action_s3_bucket_update": {
+    "other": "سطل ذخیره‌ساز آبجکت به‌روزرسانی شد"
+  },
+  "audit.action_s3_bucket_delete": {
+    "other": "سطل ذخیره‌ساز آبجکت حذف شد"
+  },
+  "audit.action_s3_bucket_quota_set": {
+    "other": "سهمیهٔ سطل ذخیره‌ساز آبجکت تنظیم شد"
+  },
+  "audit.action_s3_credentials_create": {
+    "other": "اعتبارنامهٔ ذخیره‌ساز آبجکت صادر شد"
+  },
+  "audit.action_s3_credentials_revoke": {
+    "other": "اعتبارنامهٔ ذخیره‌ساز آبجکت باطل شد"
+  },
+  "audit.action_s3_presign": {
+    "other": "نشانی از پیش امضاشدهٔ ذخیره‌ساز آبجکت صادر شد"
   }
 }

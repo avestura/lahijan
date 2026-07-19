@@ -162,11 +162,6 @@
   "audit.action_dns_record_create": { "other": "DNS record created" },
   "audit.action_dns_record_delete": { "other": "DNS record deleted" },
 
-  "audit.action_s3_bucket_create": { "other": "Object storage bucket created" },
-  "audit.action_s3_bucket_delete": { "other": "Object storage bucket deleted" },
-  "audit.action_s3_credentials_create": { "other": "Object storage credentials issued" },
-  "audit.action_s3_credentials_revoke": { "other": "Object storage credentials revoked" },
-
   "audit.action_billing_balance_adjust": { "other": "Balance adjusted" },
   "audit.action_billing_receipt_create": { "other": "Receipt generated" },
 
@@ -257,5 +252,18 @@
   "audit.action_dns_record_delete": { "other": "DNS record deleted" },
   "audit.action_dns_zone_dnssec_enable": { "other": "DNSSEC enabled for zone" },
   "audit.action_dns_zone_dnssec_disable": { "other": "DNSSEC disabled for zone" },
-  "audit.action_dns_zone_template_apply": { "other": "DNS template applied to zone" }
+  "audit.action_dns_zone_template_apply": { "other": "DNS template applied to zone" },
+
+  "s3.err_disabled": { "other": "The object storage subsystem is not enabled on this server." },
+  "s3.err_not_found": { "other": "Object storage resource not found." },
+  "s3.err_already_exists": { "other": "An object storage resource with this name already exists." },
+  "s3.err_bad_request": { "other": "The object storage request was malformed." },
+
+  "audit.action_s3_bucket_create": { "other": "Object storage bucket created" },
+  "audit.action_s3_bucket_update": { "other": "Object storage bucket updated" },
+  "audit.action_s3_bucket_delete": { "other": "Object storage bucket deleted" },
+  "audit.action_s3_bucket_quota_set": { "other": "Object storage bucket quota set" },
+  "audit.action_s3_credentials_create": { "other": "Object storage credentials issued" },
+  "audit.action_s3_credentials_revoke": { "other": "Object storage credentials revoked" },
+  "audit.action_s3_presign": { "other": "Object storage pre-signed URL issued" }
 }

@@ -2542,6 +2542,303 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "501": { $ref: "#/components/responses/NotImplemented" }
 
+  # =========================================================================
+  # Object Storage (WS-16). Per ADR-0011 the data plane is direct from the
+  # user's S3 client to the backend; Lahijan only manages the control plane
+  # (bucket CRUD, credential mint, presign URL generation, quota config).
+  # Every endpoint is tenant-scoped via the X-Tenant-Id header.
+  # =========================================================================
+
+  /api/v1/storage/buckets:
+    get:
+      tags: [storage]
+      operationId: listStorageBuckets
+      summary: List object storage buckets
+      description: |
+        Returns a paginated list of the caller's buckets within the tenant
+        in scope. The list reflects the cached state in the Lahijan DB;
+        per-bucket usage is refreshed by the WS-17 metering job.
+      parameters:
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+      responses:
+        "200":
+          description: A page of buckets.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StorageBucketPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+    post:
+      tags: [storage]
+      operationId: createStorageBucket
+      summary: Create an object storage bucket
+      description: |
+        Creates a new bucket in the caller's tenant. The slug must be
+        1-26 lowercase alphanumeric characters or dashes per ADR-0011;
+        the canonical name "<tenant-uuid>-<slug>" is globally unique.
+        The bucket is created on the backend (SeaweedFS) and a row is
+        inserted into storage_buckets.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StorageBucketCreateRequest" }
+      responses:
+        "201":
+          description: Bucket created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StorageBucket" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409":
+          description: Bucket name (canonical form) is already claimed by another tenant.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/storage/buckets/{bucketId}:
+    get:
+      tags: [storage]
+      operationId: getStorageBucket
+      summary: Get an object storage bucket
+      parameters:
+        - name: bucketId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The bucket.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StorageBucket" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+    patch:
+      tags: [storage]
+      operationId: updateStorageBucket
+      summary: Update a bucket's label or description
+      description: |
+        Replaces the cached label and/or description for the bucket.
+        Quota changes go through POST /quota (separate privileged
+        action).
+      parameters:
+        - name: bucketId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StorageBucketUpdateRequest" }
+      responses:
+        "200":
+          description: The updated bucket.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StorageBucket" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+    delete:
+      tags: [storage]
+      operationId: deleteStorageBucket
+      summary: Delete an object storage bucket
+      description: |
+        Removes the bucket from the backend, revokes every credential
+        scoped to it, and soft-deletes the storage_buckets row (the
+        row stays for the audit trail). Idempotent on the backend
+        side: if the daemon reports 404 we still proceed so the row is
+        removed.
+      parameters:
+        - name: bucketId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204": { description: Bucket deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/storage/buckets/{bucketId}/credentials:
+    get:
+      tags: [storage]
+      operationId: listStorageCredentials
+      summary: List S3 credentials for a bucket
+      description: |
+        Returns a paginated list of the non-revoked credentials scoped
+        to the bucket. The plaintext secret is NEVER returned; it is
+        shown exactly once at mint time.
+      parameters:
+        - name: bucketId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+      responses:
+        "200":
+          description: A page of credentials.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StorageCredentialPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+    post:
+      tags: [storage]
+      operationId: createStorageCredential
+      summary: Mint an S3 credential for a bucket
+      description: |
+        Mints a new per-user S3 credential scoped to the bucket. The
+        plaintext secret is returned in the response body EXACTLY ONCE;
+        subsequent reads return only the access key. Store the secret
+        securely — Lahijan cannot recover it.
+      parameters:
+        - name: bucketId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StorageCredentialCreateRequest" }
+      responses:
+        "201":
+          description: Credential minted. The plaintext secret is in the response.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StorageCredentialWithSecret" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/storage/buckets/{bucketId}/credentials/{credentialId}:
+    delete:
+      tags: [storage]
+      operationId: revokeStorageCredential
+      summary: Revoke an S3 credential
+      description: |
+        Revokes the credential on the backend and marks the
+        storage_credentials row revoked. The access key stops signing
+        requests immediately. Idempotent.
+      parameters:
+        - name: bucketId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: credentialId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204": { description: Credential revoked. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/storage/buckets/{bucketId}/presign:
+    post:
+      tags: [storage]
+      operationId: presignStorageObject
+      summary: Generate a pre-signed URL for an object
+      description: |
+        Returns a SigV4-signed URL the caller can open directly against
+        the backend for a limited time. GET URLs are for download; PUT
+        URLs are for upload. Per ADR-0011 the data plane is direct —
+        the bytes do NOT flow through Lahijan.
+      parameters:
+        - name: bucketId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StoragePresignRequest" }
+      responses:
+        "200":
+          description: The pre-signed URL.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StoragePresignResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/storage/buckets/{bucketId}/quota:
+    post:
+      tags: [storage]
+      operationId: setStorageBucketQuota
+      summary: Set per-bucket quota
+      description: |
+        Pushes the new quota dimensions to the backend so the daemon
+        enforces them on every subsequent PUT. A zero value on either
+        dimension clears that ceiling.
+      parameters:
+        - name: bucketId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StorageQuotaRequest" }
+      responses:
+        "204": { description: Quota set. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/storage/buckets/{bucketId}/usage:
+    get:
+      tags: [storage]
+      operationId: getStorageBucketUsage
+      summary: Get cached bucket usage
+      description: |
+        Returns the cached per-bucket usage (size + object count) plus
+        the configured quota. The cache is refreshed by the WS-17
+        metering job; a future WS may add a `?live=true` query param
+        that triggers a reconcile-on-read.
+      parameters:
+        - name: bucketId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The cached usage.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StorageBucketUsage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
 # ---------------------------------------------------------------------------
 # Components
 # ---------------------------------------------------------------------------
@@ -4048,3 +4345,260 @@ components:
         applied:
           type: integer
           description: Number of records upserted by the template.
+
+    # -------------------------------------------------------------------------
+    # Object Storage (WS-16)
+    # -------------------------------------------------------------------------
+
+    StorageBucket:
+      type: object
+      required: [id, tenantId, name, slug, ownerId, quotaBytes, quotaObjects, bytesUsed, objectsUsed, createdAt]
+      additionalProperties: false
+      properties:
+        id:             { type: string, format: uuid }
+        tenantId:       { type: string, format: uuid }
+        name:
+          type: string
+          description: Canonical "<tenant-uuid>-<slug>" form (ADR-0011); globally unique.
+        slug:
+          type: string
+          description: User-picked slug portion (1-26 lowercase alphanumeric + dashes).
+        ownerId:
+          type: string
+          format: uuid
+          description: The user who created (and therefore owns) the bucket.
+        label:
+          type: string
+          description: Optional user-facing label.
+        description:
+          type: string
+          description: Optional free-form description.
+        quotaBytes:
+          type: integer
+          format: int64
+          description: Per-bucket size ceiling in bytes; 0 = unlimited. Enforced server-side.
+        quotaObjects:
+          type: integer
+          format: int64
+          description: Per-bucket object-count ceiling; 0 = unlimited.
+        bytesUsed:
+          type: integer
+          format: int64
+          description: Cached total object size in bytes; refreshed by the metering job.
+        objectsUsed:
+          type: integer
+          format: int64
+          description: Cached total object count; refreshed by the metering job.
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    StorageBucketPage:
+      type: object
+      required: [items, total, limit, offset]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/StorageBucket" }
+        total:  { type: integer }
+        limit:  { type: integer }
+        offset: { type: integer }
+
+    StorageBucketCreateRequest:
+      type: object
+      required: [slug]
+      additionalProperties: false
+      properties:
+        slug:
+          type: string
+          minLength: 1
+          maxLength: 26
+          pattern: '^[a-z0-9][a-z0-9-]{0,24}[a-z0-9]$|^[a-z0-9]$'
+          description: User-picked bucket slug per ADR-0011.
+        label:       { type: string, maxLength: 100 }
+        description: { type: string }
+        quotaBytes:
+          type: integer
+          format: int64
+          minimum: 0
+          default: 0
+          description: Per-bucket size ceiling in bytes; 0 = unlimited.
+        quotaObjects:
+          type: integer
+          format: int64
+          minimum: 0
+          default: 0
+          description: Per-bucket object-count ceiling; 0 = unlimited.
+
+    StorageBucketUpdateRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        label:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+
+    StorageCredential:
+      type: object
+      required: [id, bucketId, tenantId, userId, accessKeyId, actions, createdAt]
+      additionalProperties: false
+      properties:
+        id:          { type: string, format: uuid }
+        bucketId:    { type: string, format: uuid }
+        tenantId:    { type: string, format: uuid }
+        userId:      { type: string, format: uuid }
+        accessKeyId:
+          type: string
+          description: S3 access key string. Globally unique across the platform.
+        label:
+          type: string
+          description: User-supplied label so the user can tell credentials apart.
+        actions:
+          type: array
+          items:
+            type: string
+            enum: [Read, Write, List, Tagging, Admin]
+          description: High-level actions the credential permits on the bucket.
+        lastUsedAt:
+          type: string
+          format: date-time
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Optional expiry. The metering job revokes the credential past this.
+        createdAt: { type: string, format: date-time }
+        revokedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    StorageCredentialWithSecret:
+      type: object
+      required: [credential, secretKey]
+      additionalProperties: false
+      properties:
+        credential:
+          $ref: "#/components/schemas/StorageCredential"
+        secretKey:
+          type: string
+          description: |
+            The plaintext S3 secret key. SENSITIVE — shown exactly once at
+            mint time. Store it securely; Lahijan cannot recover it.
+
+    StorageCredentialPage:
+      type: object
+      required: [items, total, limit, offset]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/StorageCredential" }
+        total:  { type: integer }
+        limit:  { type: integer }
+        offset: { type: integer }
+
+    StorageCredentialCreateRequest:
+      type: object
+      required: [actions]
+      additionalProperties: false
+      properties:
+        label:
+          type: string
+          maxLength: 100
+        actions:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            enum: [Read, Write, List, Tagging, Admin]
+          description: At least one action is required.
+        expiresInSeconds:
+          type: integer
+          minimum: 1
+          description: |
+            Optional lifetime in seconds. When set, the credential expires
+            at created_at + expiresInSeconds; the metering job revokes it
+            past that point. Absent means "no expiry".
+
+    StoragePresignRequest:
+      type: object
+      required: [method]
+      additionalProperties: false
+      properties:
+        method:
+          type: string
+          enum: [GET, PUT]
+          description: HTTP method the URL is signed for.
+        key:
+          type: string
+          description: Object key within the bucket. Empty targets the bucket root.
+        expiresInSeconds:
+          type: integer
+          minimum: 1
+          maximum: 86400
+          default: 3600
+          description: URL lifetime in seconds; clamped to [1, 86400].
+
+    StoragePresignResult:
+      type: object
+      required: [url, method, bucket, expiresAt]
+      additionalProperties: false
+      properties:
+        url:
+          type: string
+          description: The SigV4-signed URL the user opens directly against the backend.
+        method:
+          type: string
+          enum: [GET, PUT]
+        bucket:
+          type: string
+          description: Canonical bucket name the URL targets.
+        key:
+          type: string
+          description: Object key within the bucket.
+        expiresAt:
+          type: string
+          format: date-time
+          description: When the signature stops being valid.
+
+    StorageQuotaRequest:
+      type: object
+      required: [quotaBytes, quotaObjects]
+      additionalProperties: false
+      properties:
+        quotaBytes:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Per-bucket size ceiling in bytes; 0 clears the size ceiling.
+        quotaObjects:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Per-bucket object-count ceiling; 0 clears the count ceiling.
+
+    StorageBucketUsage:
+      type: object
+      required: [quotaBytes, quotaObjects, bytesUsed, objectsUsed]
+      additionalProperties: false
+      properties:
+        quotaBytes:
+          type: integer
+          format: int64
+          description: Configured size ceiling; 0 = unlimited.
+        quotaObjects:
+          type: integer
+          format: int64
+          description: Configured object-count ceiling; 0 = unlimited.
+        bytesUsed:
+          type: integer
+          format: int64
+          description: Cached total object size in bytes.
+        objectsUsed:
+          type: integer
+          format: int64
+          description: Cached total object count.

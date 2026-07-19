@@ -1662,6 +1662,186 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/storage/buckets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List object storage buckets
+         * @description Returns a paginated list of the caller's buckets within the tenant
+         *     in scope. The list reflects the cached state in the Lahijan DB;
+         *     per-bucket usage is refreshed by the WS-17 metering job.
+         */
+        get: operations["listStorageBuckets"];
+        put?: never;
+        /**
+         * Create an object storage bucket
+         * @description Creates a new bucket in the caller's tenant. The slug must be
+         *     1-26 lowercase alphanumeric characters or dashes per ADR-0011;
+         *     the canonical name "<tenant-uuid>-<slug>" is globally unique.
+         *     The bucket is created on the backend (SeaweedFS) and a row is
+         *     inserted into storage_buckets.
+         */
+        post: operations["createStorageBucket"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/storage/buckets/{bucketId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get an object storage bucket */
+        get: operations["getStorageBucket"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete an object storage bucket
+         * @description Removes the bucket from the backend, revokes every credential
+         *     scoped to it, and soft-deletes the storage_buckets row (the
+         *     row stays for the audit trail). Idempotent on the backend
+         *     side: if the daemon reports 404 we still proceed so the row is
+         *     removed.
+         */
+        delete: operations["deleteStorageBucket"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a bucket's label or description
+         * @description Replaces the cached label and/or description for the bucket.
+         *     Quota changes go through POST /quota (separate privileged
+         *     action).
+         */
+        patch: operations["updateStorageBucket"];
+        trace?: never;
+    };
+    "/api/v1/storage/buckets/{bucketId}/credentials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List S3 credentials for a bucket
+         * @description Returns a paginated list of the non-revoked credentials scoped
+         *     to the bucket. The plaintext secret is NEVER returned; it is
+         *     shown exactly once at mint time.
+         */
+        get: operations["listStorageCredentials"];
+        put?: never;
+        /**
+         * Mint an S3 credential for a bucket
+         * @description Mints a new per-user S3 credential scoped to the bucket. The
+         *     plaintext secret is returned in the response body EXACTLY ONCE;
+         *     subsequent reads return only the access key. Store the secret
+         *     securely — Lahijan cannot recover it.
+         */
+        post: operations["createStorageCredential"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/storage/buckets/{bucketId}/credentials/{credentialId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke an S3 credential
+         * @description Revokes the credential on the backend and marks the
+         *     storage_credentials row revoked. The access key stops signing
+         *     requests immediately. Idempotent.
+         */
+        delete: operations["revokeStorageCredential"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/storage/buckets/{bucketId}/presign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate a pre-signed URL for an object
+         * @description Returns a SigV4-signed URL the caller can open directly against
+         *     the backend for a limited time. GET URLs are for download; PUT
+         *     URLs are for upload. Per ADR-0011 the data plane is direct —
+         *     the bytes do NOT flow through Lahijan.
+         */
+        post: operations["presignStorageObject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/storage/buckets/{bucketId}/quota": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set per-bucket quota
+         * @description Pushes the new quota dimensions to the backend so the daemon
+         *     enforces them on every subsequent PUT. A zero value on either
+         *     dimension clears that ceiling.
+         */
+        post: operations["setStorageBucketQuota"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/storage/buckets/{bucketId}/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get cached bucket usage
+         * @description Returns the cached per-bucket usage (size + object count) plus
+         *     the configured quota. The cache is refreshed by the WS-17
+         *     metering job; a future WS may add a `?live=true` query param
+         *     that triggers a reconcile-on-read.
+         */
+        get: operations["getStorageBucketUsage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2569,6 +2749,192 @@ export interface components {
         ApplyDNSTemplateResult: {
             /** @description Number of records upserted by the template. */
             applied: number;
+        };
+        StorageBucket: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            tenantId: string;
+            /** @description Canonical "<tenant-uuid>-<slug>" form (ADR-0011); globally unique. */
+            name: string;
+            /** @description User-picked slug portion (1-26 lowercase alphanumeric + dashes). */
+            slug: string;
+            /**
+             * Format: uuid
+             * @description The user who created (and therefore owns) the bucket.
+             */
+            ownerId: string;
+            /** @description Optional user-facing label. */
+            label?: string;
+            /** @description Optional free-form description. */
+            description?: string;
+            /**
+             * Format: int64
+             * @description Per-bucket size ceiling in bytes; 0 = unlimited. Enforced server-side.
+             */
+            quotaBytes: number;
+            /**
+             * Format: int64
+             * @description Per-bucket object-count ceiling; 0 = unlimited.
+             */
+            quotaObjects: number;
+            /**
+             * Format: int64
+             * @description Cached total object size in bytes; refreshed by the metering job.
+             */
+            bytesUsed: number;
+            /**
+             * Format: int64
+             * @description Cached total object count; refreshed by the metering job.
+             */
+            objectsUsed: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        StorageBucketPage: {
+            items: components["schemas"]["StorageBucket"][];
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        StorageBucketCreateRequest: {
+            /** @description User-picked bucket slug per ADR-0011. */
+            slug: string;
+            label?: string;
+            description?: string;
+            /**
+             * Format: int64
+             * @description Per-bucket size ceiling in bytes; 0 = unlimited.
+             * @default 0
+             */
+            quotaBytes: number;
+            /**
+             * Format: int64
+             * @description Per-bucket object-count ceiling; 0 = unlimited.
+             * @default 0
+             */
+            quotaObjects: number;
+        };
+        StorageBucketUpdateRequest: {
+            label?: string;
+            description?: string;
+        };
+        StorageCredential: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            bucketId: string;
+            /** Format: uuid */
+            tenantId: string;
+            /** Format: uuid */
+            userId: string;
+            /** @description S3 access key string. Globally unique across the platform. */
+            accessKeyId: string;
+            /** @description User-supplied label so the user can tell credentials apart. */
+            label?: string;
+            /** @description High-level actions the credential permits on the bucket. */
+            actions: ("Read" | "Write" | "List" | "Tagging" | "Admin")[];
+            /** Format: date-time */
+            lastUsedAt?: string | null;
+            /**
+             * Format: date-time
+             * @description Optional expiry. The metering job revokes the credential past this.
+             */
+            expiresAt?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            revokedAt?: string | null;
+        };
+        StorageCredentialWithSecret: {
+            credential: components["schemas"]["StorageCredential"];
+            /**
+             * @description The plaintext S3 secret key. SENSITIVE — shown exactly once at
+             *     mint time. Store it securely; Lahijan cannot recover it.
+             */
+            secretKey: string;
+        };
+        StorageCredentialPage: {
+            items: components["schemas"]["StorageCredential"][];
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        StorageCredentialCreateRequest: {
+            label?: string;
+            /** @description At least one action is required. */
+            actions: ("Read" | "Write" | "List" | "Tagging" | "Admin")[];
+            /**
+             * @description Optional lifetime in seconds. When set, the credential expires
+             *     at created_at + expiresInSeconds; the metering job revokes it
+             *     past that point. Absent means "no expiry".
+             */
+            expiresInSeconds?: number;
+        };
+        StoragePresignRequest: {
+            /**
+             * @description HTTP method the URL is signed for.
+             * @enum {string}
+             */
+            method: "GET" | "PUT";
+            /** @description Object key within the bucket. Empty targets the bucket root. */
+            key?: string;
+            /**
+             * @description URL lifetime in seconds; clamped to [1, 86400].
+             * @default 3600
+             */
+            expiresInSeconds: number;
+        };
+        StoragePresignResult: {
+            /** @description The SigV4-signed URL the user opens directly against the backend. */
+            url: string;
+            /** @enum {string} */
+            method: "GET" | "PUT";
+            /** @description Canonical bucket name the URL targets. */
+            bucket: string;
+            /** @description Object key within the bucket. */
+            key?: string;
+            /**
+             * Format: date-time
+             * @description When the signature stops being valid.
+             */
+            expiresAt: string;
+        };
+        StorageQuotaRequest: {
+            /**
+             * Format: int64
+             * @description Per-bucket size ceiling in bytes; 0 clears the size ceiling.
+             */
+            quotaBytes: number;
+            /**
+             * Format: int64
+             * @description Per-bucket object-count ceiling; 0 clears the count ceiling.
+             */
+            quotaObjects: number;
+        };
+        StorageBucketUsage: {
+            /**
+             * Format: int64
+             * @description Configured size ceiling; 0 = unlimited.
+             */
+            quotaBytes: number;
+            /**
+             * Format: int64
+             * @description Configured object-count ceiling; 0 = unlimited.
+             */
+            quotaObjects: number;
+            /**
+             * Format: int64
+             * @description Cached total object size in bytes.
+             */
+            bytesUsed: number;
+            /**
+             * Format: int64
+             * @description Cached total object count.
+             */
+            objectsUsed: number;
         };
     };
     responses: {
@@ -5313,6 +5679,325 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    listStorageBuckets: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of items to return (1..200). */
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Number of items to skip for pagination. */
+                offset?: components["parameters"]["PageOffset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of buckets. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageBucketPage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    createStorageBucket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StorageBucketCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Bucket created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageBucket"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Bucket name (canonical form) is already claimed by another tenant. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    getStorageBucket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bucketId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The bucket. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageBucket"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    deleteStorageBucket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bucketId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bucket deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    updateStorageBucket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bucketId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StorageBucketUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description The updated bucket. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageBucket"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    listStorageCredentials: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of items to return (1..200). */
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Number of items to skip for pagination. */
+                offset?: components["parameters"]["PageOffset"];
+            };
+            header?: never;
+            path: {
+                bucketId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of credentials. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageCredentialPage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    createStorageCredential: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bucketId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StorageCredentialCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Credential minted. The plaintext secret is in the response. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageCredentialWithSecret"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    revokeStorageCredential: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bucketId: string;
+                credentialId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Credential revoked. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    presignStorageObject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bucketId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoragePresignRequest"];
+            };
+        };
+        responses: {
+            /** @description The pre-signed URL. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoragePresignResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    setStorageBucketQuota: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bucketId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StorageQuotaRequest"];
+            };
+        };
+        responses: {
+            /** @description Quota set. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    getStorageBucketUsage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bucketId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The cached usage. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageBucketUsage"];
+                };
+            };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];

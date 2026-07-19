@@ -26,6 +26,7 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/database"
 	"github.com/avestura/lahijan/internal/app/lahijan/dns"
 	"github.com/avestura/lahijan/internal/app/lahijan/i18n"
+	"github.com/avestura/lahijan/internal/app/lahijan/storage"
 	"github.com/avestura/lahijan/internal/app/lahijan/version"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/installer"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/marketplace"
@@ -113,6 +114,13 @@ type Server struct {
 	// the WASM event bus. Nil-appropriate when the PowerDNS provider is
 	// disabled; the handlers degrade to 501.
 	dnsSvc *dns.Service
+
+	// WS-16: object storage module deps. storageSvc is the entrypoint
+	// every /api/v1/storage/* handler talks to; it wraps the SeaweedFS
+	// provider + the storage_buckets + storage_credentials repositories
+	// + the audit emitter + the WASM event bus. Nil-appropriate when
+	// the SeaweedFS provider is disabled; the handlers degrade to 501.
+	storageSvc *storage.Service
 }
 
 // ServerDeps carries the dependencies NewServer requires. Wire it once from
@@ -176,6 +184,11 @@ type ServerDeps struct {
 	// /api/v1/dns/* handler talks to. Nil-appropriate when the PowerDNS
 	// provider is disabled; the handlers degrade to 501.
 	DNSSvc *dns.Service
+
+	// WS-16: object storage module deps. StorageSvc is the entrypoint
+	// every /api/v1/storage/* handler talks to. Nil-appropriate when
+	// the SeaweedFS provider is disabled; the handlers degrade to 501.
+	StorageSvc *storage.Service
 }
 
 // NewServer builds the API server with the given dependencies.
@@ -205,6 +218,7 @@ func NewServer(deps ServerDeps) *Server {
 		marketplaceSvc:  deps.MarketplaceSvc,
 		computeSvc:      deps.ComputeSvc,
 		dnsSvc:          deps.DNSSvc,
+		storageSvc:      deps.StorageSvc,
 	}
 	if s.tracer == nil {
 		s.tracer = Tracer()
@@ -236,6 +250,14 @@ func (s *Server) SetDNSService(svc *dns.Service) {
 // SetComputeService mirrors SetDNSService for the compute module.
 func (s *Server) SetComputeService(svc *compute.Service) {
 	s.computeSvc = svc
+}
+
+// SetStorageService mirrors SetDNSService for the storage module.
+// Used by integration tests that wire a real (fake-server-backed) storage
+// service after the standard newTestApp path has run. Production code
+// passes StorageSvc via ServerDeps at construction.
+func (s *Server) SetStorageService(svc *storage.Service) {
+	s.storageSvc = svc
 }
 
 // Ping handles GET /api/v1/ping. It returns the current server timestamp and
