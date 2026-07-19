@@ -69,6 +69,18 @@
     Set up the branch and write the prompt + wrapper files, but don't
     actually launch opencode. Useful for inspecting the generated inputs.
 
+.PARAMETER AutoMerge
+    Skip the interactive 'Merge to main? (y/N)' prompt. After opencode
+    exits and `make lint test` passes, automatically commit any leftover
+    tracked-file modifications and merge the branch to main (--no-ff).
+    Useful when invoking the launcher from a non-interactive context
+    (CI, a parent opencode session, scheduled task).
+
+.PARAMETER NoMerge
+    Opposite of -AutoMerge: never merge, even if verification passes.
+    Leaves the branch as-is for manual review. Useful for first-time
+    WS runs where you want to inspect the diff before merging.
+
 .EXAMPLE
     .\scripts\Invoke-WorkstreamTui.ps1 WS-21
     # Open WS-21 in a new Windows Terminal tab; verify + merge on close.
@@ -80,6 +92,11 @@
 .EXAMPLE
     .\scripts\Invoke-WorkstreamTui.ps1 WS-21 -DryRun
     # See what would be launched without actually launching it.
+
+.EXAMPLE
+    .\scripts\Invoke-WorkstreamTui.ps1 WS-21 -AutoMerge
+    # Run + auto-merge on green verification, no prompt. Use this when
+    # invoking the launcher from another opencode session or a script.
 #>
 
 [CmdletBinding()]
@@ -91,7 +108,11 @@ param(
 
     [switch]$Resume,
 
-    [switch]$DryRun
+    [switch]$DryRun,
+
+    [switch]$AutoMerge,
+
+    [switch]$NoMerge
 )
 
 $ErrorActionPreference = "Stop"
@@ -449,16 +470,29 @@ if ($verifyExit -ne 0) {
 }
 
 # ---------------------------------------------------------------------------
-# Confirm merge with the user
+# Confirm merge with the user (unless -AutoMerge or -NoMerge)
 # ---------------------------------------------------------------------------
 
-Write-Host ""
-Write-Host "Lint+test green." -ForegroundColor Green
-Write-Host "Did the opencode window show this exact line?" -ForegroundColor Yellow
-Write-Host "    WS_IMPLEMENTATION_COMPLETE: $WsId" -ForegroundColor Green
-$answer = Read-Host "Merge $branchName to main? (y/N)"
+if ($NoMerge) {
+    Write-Skip "-NoMerge set; branch $branchName left as-is even though verification passed"
+    Write-Info "to merge manually: git checkout main; git merge --no-ff $branchName"
+    return
+}
 
-if ($answer -ne 'y' -and $answer -ne 'Y') {
+$shouldMerge = $false
+if ($AutoMerge) {
+    Write-OK "-AutoMerge set; will merge automatically on green verification"
+    $shouldMerge = $true
+} else {
+    Write-Host ""
+    Write-Host "Lint+test green." -ForegroundColor Green
+    Write-Host "Did the opencode window show this exact line?" -ForegroundColor Yellow
+    Write-Host "    WS_IMPLEMENTATION_COMPLETE: $WsId" -ForegroundColor Green
+    $answer = Read-Host "Merge $branchName to main? (y/N)"
+    $shouldMerge = ($answer -eq 'y' -or $answer -eq 'Y')
+}
+
+if (-not $shouldMerge) {
     Write-Skip "merge declined; branch $branchName left as-is"
     Write-Info "to resume later: .\scripts\Invoke-WorkstreamTui.ps1 -WsId $WsId -Resume"
     return
