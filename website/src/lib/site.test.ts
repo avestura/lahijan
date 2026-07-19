@@ -3,7 +3,14 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { DASHBOARD_BASE_URL, SITE_URL, absoluteUrl, NAV_ENTRIES, LEGAL_ENTRIES } from "@/lib/site";
+import {
+  DASHBOARD_BASE_URL,
+  DOCS_URL,
+  SITE_URL,
+  absoluteUrl,
+  LEGAL_ENTRIES,
+  NAV_ENTRIES,
+} from "@/lib/site";
 
 describe("site config", () => {
   it("SITE_URL has no trailing slash", () => {
@@ -12,6 +19,10 @@ describe("site config", () => {
 
   it("DASHBOARD_BASE_URL ends with a slash", () => {
     expect(DASHBOARD_BASE_URL.endsWith("/")).toBe(true);
+  });
+
+  it("DOCS_URL ends with a slash (deep links append cleanly)", () => {
+    expect(DOCS_URL.endsWith("/")).toBe(true);
   });
 
   it("absoluteUrl builds correct URLs for paths", () => {

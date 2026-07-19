@@ -9,6 +9,7 @@
 
 const RAW_SITE_URL = (import.meta.env.VITE_SITE_URL ?? "http://localhost:4173").trim();
 const RAW_DASHBOARD_BASE_URL = (import.meta.env.VITE_DASHBOARD_BASE_URL ?? "/web/").trim();
+const RAW_DOCS_URL = (import.meta.env.VITE_DOCS_URL ?? "/docs/").trim();
 
 /** Normalize a base URL to its canonical form (no trailing slash). */
 function normalizeUrl(url: string): string {
@@ -22,6 +23,13 @@ export const SITE_URL = normalizeUrl(RAW_SITE_URL);
 export const DASHBOARD_BASE_URL: string = RAW_DASHBOARD_BASE_URL.endsWith("/")
   ? RAW_DASHBOARD_BASE_URL
   : `${RAW_DASHBOARD_BASE_URL}/`;
+
+/**
+ * Docs site base URL (always ends in `/`). Either an absolute URL
+ * (`https://docs.lahijan.dev/`) or a sibling-deploy path (`/docs/`). Deep
+ * links from the marketing /docs page append a section anchor to this.
+ */
+export const DOCS_URL: string = RAW_DOCS_URL.endsWith("/") ? RAW_DOCS_URL : `${RAW_DOCS_URL}/`;
 
 /** Default OpenGraph image (relative; prerendered as an absolute URL at render time). */
 export const DEFAULT_OG_IMAGE = "/favicon.svg";

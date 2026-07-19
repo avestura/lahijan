@@ -15,7 +15,7 @@ import { Section } from "@/components/marketing/Section";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SeoHead } from "@/components/seo/SeoHead";
-import { absoluteUrl } from "@/lib/site";
+import { DOCS_URL } from "@/lib/site";
 
 interface DocLink {
   icon: LucideIcon;
@@ -29,33 +29,27 @@ const DOC_LINKS: readonly DocLink[] = [
     icon: TerminalIcon,
     titleKey: "page.docs.links.quickstart",
     bodyKey: "page.docs.links.quickstartBody",
-    anchor: "/docs/quickstart",
+    anchor: "quickstart",
   },
   {
     icon: CompassIcon,
     titleKey: "page.docs.links.concepts",
     bodyKey: "page.docs.links.conceptsBody",
-    anchor: "/docs/concepts",
+    anchor: "concepts",
   },
   {
     icon: BookOpenIcon,
     titleKey: "page.docs.links.api",
     bodyKey: "page.docs.links.apiBody",
-    anchor: "/docs/api",
+    anchor: "api",
   },
   {
     icon: ServerIcon,
     titleKey: "page.docs.links.operators",
     bodyKey: "page.docs.links.operatorsBody",
-    anchor: "/docs/operators",
+    anchor: "operators",
   },
 ];
-
-/**
- * Canonical docs site URL. Defaults to a sibling /docs-site deploy; deployers
- * override by setting VITE_DOCS_URL or by editing this default.
- */
-const DOCS_URL = absoluteUrl("/docs/");
 
 export function DocsPage() {
   const { t } = useTranslation();
