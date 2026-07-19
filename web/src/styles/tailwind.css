@@ -1,0 +1,55 @@
+/*
+ * Tailwind entrypoint. Layers:
+ *   - tokens.css       (primitives)
+ *   - theme.css        (semantic + component; light + dark)  [via @import]
+ *   - tailwind.css     (this file; directives + base styles)
+ *
+ * Vite resolves @import in CSS source order, so the tokens must be imported
+ * before Tailwind directives for the utilities to compile.
+ */
+
+@import "./tokens.css";
+@import "./theme.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    /* Disable the iOS tap-highlight; the design system provides its own
+       focus ring tokens via --color-ring. */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
+  }
+
+  /* Headings inherit the foreground color; sizes come from the typography
+     scale in tailwind.config.ts. */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply text-foreground;
+  }
+
+  /* Focus ring tokens; respects dark mode via the semantic layer. */
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid hsl(var(--color-ring));
+    outline-offset: 2px;
+  }
+
+  /* RTL helpers: when <html dir="rtl"> is set, the icon-only buttons should
+     mirror horizontally; the .rtl-flip utility opts elements in. */
+  [dir="rtl"] .rtl-flip {
+    transform: scaleX(-1);
+  }
+}
