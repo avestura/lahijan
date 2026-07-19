@@ -485,6 +485,53 @@ type Session struct {
 	IpAddress  *netip.Addr `json:"ip_address"`
 }
 
+// Per-tenant object storage buckets. Mirrors SeaweedFS buckets; the storage service (WS-16) upserts on every change.
+type StorageBucket struct {
+	ID       uuid.UUID `json:"id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+	// Canonical "<tenant-uuid>-<slug>" form (ADR-0011); globally unique.
+	Name string `json:"name"`
+	// User-picked slug portion (1-26 lowercase alphanumeric + dashes).
+	Slug string `json:"slug"`
+	// The user who created the bucket; fixed unless transferred by an admin.
+	OwnerUserID uuid.UUID `json:"owner_user_id"`
+	Label       string    `json:"label"`
+	Description string    `json:"description"`
+	// Per-bucket size ceiling in bytes; 0 = unlimited. Enforced server-side by SeaweedFS.
+	QuotaBytes int64 `json:"quota_bytes"`
+	// Per-bucket object-count ceiling; 0 = unlimited. Enforced server-side by SeaweedFS.
+	QuotaObjects int64 `json:"quota_objects"`
+	// Cached total object size in bytes; refreshed by the WS-17 metering job.
+	BytesUsed int64 `json:"bytes_used"`
+	// Cached total object count; refreshed by the WS-17 metering job.
+	ObjectsUsed int64     `json:"objects_used"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	// Soft-delete timestamp; the row stays for the audit trail after the SeaweedFS bucket is removed.
+	DeletedAt *time.Time `json:"deleted_at"`
+}
+
+// Per-tenant object storage credentials. Mirrors SeaweedFS identities; the storage service (WS-16) upserts on every change.
+type StorageCredential struct {
+	ID       uuid.UUID `json:"id"`
+	BucketID uuid.UUID `json:"bucket_id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+	UserID   uuid.UUID `json:"user_id"`
+	// S3 access key string; globally unique across the platform.
+	AccessKeyID string `json:"access_key_id"`
+	// sha256(secret) — forensic fingerprint only; plaintext secret is shown once at mint time and never persisted.
+	SecretHash string `json:"secret_hash"`
+	Label      string `json:"label"`
+	// Cached high-level action list ("Read", "Write", ...). Expanded by the provider into per-bucket scope at mint time.
+	Actions    []string   `json:"actions"`
+	LastUsedAt *time.Time `json:"last_used_at"`
+	// Optional expiry. Lahijan revokes the credential past this timestamp; SeaweedFS does not enforce S3 expiries today.
+	ExpiresAt *time.Time `json:"expires_at"`
+	CreatedAt time.Time  `json:"created_at"`
+	// Soft-delete timestamp. The SeaweedFS identity is removed at revoke time; the Lahijan row stays for the audit trail.
+	RevokedAt *time.Time `json:"revoked_at"`
+}
+
 // Top-level tenancy boundary; one row per organization.
 type Tenant struct {
 	ID uuid.UUID `json:"id"`

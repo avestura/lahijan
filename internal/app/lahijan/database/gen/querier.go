@@ -61,6 +61,10 @@ type Querier interface {
 	//: admin-only; pagination counterpart to ListPluginsGlobal.
 	CountPluginsGlobal(ctx context.Context) (int64, error)
 	CountSAMLIdentitiesForUser(ctx context.Context, userID uuid.UUID) (int64, error)
+	//: tenant-scoped
+	CountStorageBuckets(ctx context.Context, tenantID uuid.UUID) (int64, error)
+	//: tenant-scoped
+	CountStorageCredentialsForBucket(ctx context.Context, arg CountStorageCredentialsForBucketParams) (int64, error)
 	CountTenants(ctx context.Context) (int64, error)
 	CountUnusedRecoveryCodesForUser(ctx context.Context, userID uuid.UUID) (int64, error)
 	CountUsers(ctx context.Context) (int64, error)
@@ -182,6 +186,23 @@ type Querier interface {
 	// Sessions: a logical login session (WS-06). Global, backed by an opaque
 	// signed cookie whose SHA-256 hash matches sessions.token_hash.
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
+	// Storage buckets: tenant-scoped mapping (WS-16). The SeaweedFS driver
+	// operates on the canonical bucket name (output of providers/seaweedfs.BucketName);
+	// the storage service consults this table to translate a tenant context into
+	// the canonical name before calling the SeaweedFS driver. Every query is
+	// tenant-scoped via WithTenant (database/tenant.go) EXCEPT the admin-only
+	// "canonical name -> row" lookup which is global.
+	//: tenant-scoped
+	CreateStorageBucket(ctx context.Context, arg CreateStorageBucketParams) (StorageBucket, error)
+	// Storage credentials: tenant-scoped per-bucket S3 credentials (WS-16).
+	// The SeaweedFS driver mints per-user credentials scoped to specific buckets
+	// (providers/seaweedfs.MintCredentials); this table caches the Lahijan-side
+	// view so the dashboard / list endpoints do not need a Filer round-trip.
+	// The plaintext secret is shown to the caller exactly once at mint time;
+	// only the sha256 fingerprint is persisted in the secret_hash column.
+	// Every query is tenant-scoped via WithTenant (database/tenant.go).
+	//: tenant-scoped
+	CreateStorageCredential(ctx context.Context, arg CreateStorageCredentialParams) (StorageCredential, error)
 	// user_totp_secrets: per-user TOTP (RFC 6238) secret used as a second
 	// factor at login (WS-07c). The secret column carries AES-GCM ciphertext
 	// produced by auth/secrets.Crypto; this query file treats it as opaque
@@ -352,6 +373,28 @@ type Querier interface {
 	GetSAMLIdentityForUser(ctx context.Context, arg GetSAMLIdentityForUserParams) (UserSamlIdentity, error)
 	GetSession(ctx context.Context, id uuid.UUID) (Session, error)
 	GetSessionByTokenHash(ctx context.Context, tokenHash string) (Session, error)
+	//: tenant-scoped
+	GetStorageBucketByCanonicalName(ctx context.Context, arg GetStorageBucketByCanonicalNameParams) (StorageBucket, error)
+	// Admin-only path: no tenant scoping. Used by the storage service's
+	// cross-tenant "is this canonical name owned by anyone?" check at create
+	// time. Includes soft-deleted rows so a re-create after delete is rejected
+	// with a clear "name claimed" error rather than colliding silently.
+	GetStorageBucketByCanonicalNameGlobal(ctx context.Context, name string) (StorageBucket, error)
+	//: tenant-scoped
+	GetStorageBucketByID(ctx context.Context, arg GetStorageBucketByIDParams) (StorageBucket, error)
+	//: tenant-scoped
+	GetStorageBucketBySlug(ctx context.Context, arg GetStorageBucketBySlugParams) (StorageBucket, error)
+	// Tenant-scoped lookup by access key string. Used by the storage service on
+	// every privileged call to enforce tenant isolation at the repository seam
+	// (a tenant cannot operate on a credential they do not own).
+	//: tenant-scoped
+	GetStorageCredentialByAccessKey(ctx context.Context, arg GetStorageCredentialByAccessKeyParams) (StorageCredential, error)
+	// Admin-only path: no tenant scoping. Used by the storage service's
+	// cross-tenant revoke-by-access-key path (e.g. the WS-17 janitor revoking
+	// expired credentials regardless of which tenant owns them).
+	GetStorageCredentialByAccessKeyGlobal(ctx context.Context, accessKeyID string) (StorageCredential, error)
+	//: tenant-scoped
+	GetStorageCredentialByID(ctx context.Context, arg GetStorageCredentialByIDParams) (StorageCredential, error)
 	GetTOTPSecret(ctx context.Context, userID uuid.UUID) (UserTotpSecret, error)
 	GetTenantByID(ctx context.Context, id uuid.UUID) (Tenant, error)
 	GetTenantBySlug(ctx context.Context, slug string) (Tenant, error)
@@ -445,11 +488,22 @@ type Querier interface {
 	ListRoles(ctx context.Context) ([]Role, error)
 	ListSAMLIdentitiesForUser(ctx context.Context, userID uuid.UUID) ([]UserSamlIdentity, error)
 	ListSessionsForUser(ctx context.Context, userID uuid.UUID) ([]Session, error)
+	//: tenant-scoped
+	ListStorageBuckets(ctx context.Context, arg ListStorageBucketsParams) ([]StorageBucket, error)
+	//: tenant-scoped
+	ListStorageCredentialsForBucket(ctx context.Context, arg ListStorageCredentialsForBucketParams) ([]StorageCredential, error)
+	//: tenant-scoped
+	ListStorageCredentialsForUser(ctx context.Context, arg ListStorageCredentialsForUserParams) ([]StorageCredential, error)
 	ListTenants(ctx context.Context, arg ListTenantsParams) ([]Tenant, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
 	ListWebauthnCredentialsForUser(ctx context.Context, userID uuid.UUID) ([]UserWebauthnCredential, error)
 	RevokeAllRefreshTokensForUser(ctx context.Context, userID uuid.UUID) error
 	RevokeAllSessionsForUser(ctx context.Context, userID uuid.UUID) error
+	//: tenant-scoped
+	// Bulk-revokes every credential scoped to the bucket. Called by the
+	// storage service at bucket-delete time so no orphaned credentials outlive
+	// their parent bucket.
+	RevokeAllStorageCredentialsForBucket(ctx context.Context, arg RevokeAllStorageCredentialsForBucketParams) error
 	// Invalidate every outstanding email token of a kind for a user (e.g. when
 	// re-issuing a verification token, revoke the previous one).
 	RevokeEmailTokensForUser(ctx context.Context, arg RevokeEmailTokensForUserParams) error
@@ -464,6 +518,11 @@ type Querier interface {
 	RevokeRefreshTokenFamily(ctx context.Context, familyID uuid.UUID) error
 	RevokeRefreshTokensForSession(ctx context.Context, sessionID uuid.UUID) error
 	RevokeSession(ctx context.Context, id uuid.UUID) error
+	//: tenant-scoped
+	// Marks the credential as revoked. The SeaweedFS identity is removed
+	// separately by the storage service via the provider's RevokeCredentials
+	// so the access key stops signing requests immediately.
+	RevokeStorageCredential(ctx context.Context, arg RevokeStorageCredentialParams) error
 	//: tenant-scoped; records the resolved fingerprint after a successful
 	//: CreateInstance against Incus.
 	SetComputeInstanceImageFingerprint(ctx context.Context, arg SetComputeInstanceImageFingerprintParams) error
@@ -481,6 +540,15 @@ type Querier interface {
 	// Promote a plugin from pending -> active, or active -> disabled. The
 	// CHECK constraint on the column rejects any other value at the DB layer.
 	SetPluginStatus(ctx context.Context, arg SetPluginStatusParams) error
+	//: tenant-scoped
+	// Pushes the new quota dimensions to the row. The SeaweedFS daemon is
+	// updated separately by the storage service via the provider's
+	// SetBucketQuota so the daemon enforces the ceiling server-side.
+	SetStorageBucketQuota(ctx context.Context, arg SetStorageBucketQuotaParams) error
+	//: tenant-scoped
+	// Updates the cached bytes_used / objects_used columns. Called by the
+	// WS-17 metering job after it polls SeaweedFS for the live bucket size.
+	SetStorageBucketUsage(ctx context.Context, arg SetStorageBucketUsageParams) error
 	SetTenantActive(ctx context.Context, arg SetTenantActiveParams) error
 	//: tenant-scoped
 	SoftDeleteComputeImage(ctx context.Context, arg SoftDeleteComputeImageParams) error
@@ -496,10 +564,19 @@ type Querier interface {
 	SoftDeleteComputeStorageVolume(ctx context.Context, arg SoftDeleteComputeStorageVolumeParams) error
 	//: tenant-scoped
 	SoftDeleteMembership(ctx context.Context, arg SoftDeleteMembershipParams) error
+	//: tenant-scoped
+	// Marks the row as deleted. The SeaweedFS bucket is removed separately by
+	// the storage service via the provider's DeleteBucket; the row stays so
+	// the audit trail can reference it.
+	SoftDeleteStorageBucket(ctx context.Context, arg SoftDeleteStorageBucketParams) error
 	SoftDeleteTenant(ctx context.Context, id uuid.UUID) error
 	SoftDeleteUser(ctx context.Context, id uuid.UUID) error
 	TouchPersonalAccessToken(ctx context.Context, tokenHash string) error
 	TouchSession(ctx context.Context, id uuid.UUID) error
+	//: tenant-scoped
+	// Updates the cached last_used_at column. Called by the access-log shipping
+	// pipeline (Phase 7) when SeaweedFS emits a per-identity access event.
+	TouchStorageCredentialLastUsed(ctx context.Context, arg TouchStorageCredentialLastUsedParams) error
 	//: tenant-scoped; replaces the cached config snapshot after a PATCH.
 	UpdateComputeInstanceConfig(ctx context.Context, arg UpdateComputeInstanceConfigParams) error
 	//: tenant-scoped
@@ -523,6 +600,10 @@ type Querier interface {
 	// on every successful ACS so the user's profile reflects the latest claims
 	// the IdP asserted.
 	UpdateSAMLIdentityAttributes(ctx context.Context, arg UpdateSAMLIdentityAttributesParams) error
+	//: tenant-scoped
+	UpdateStorageBucketDescription(ctx context.Context, arg UpdateStorageBucketDescriptionParams) error
+	//: tenant-scoped
+	UpdateStorageBucketLabel(ctx context.Context, arg UpdateStorageBucketLabelParams) error
 	UpdateUserEmail(ctx context.Context, arg UpdateUserEmailParams) error
 	UpdateUserLocale(ctx context.Context, arg UpdateUserLocaleParams) error
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
