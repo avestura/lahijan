@@ -22,6 +22,7 @@
     },
     "admin": {
       "label": "مدیریت",
+      "billing": "صورتحساب",
       "jobs": "کارها",
       "plugins": "افزونه‌ها",
       "marketplace": "فروشگاه"

@@ -22,6 +22,7 @@ import {
   SettingsIcon,
   ShieldIcon,
   UserIcon,
+  WalletIcon,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
@@ -57,6 +58,7 @@ const SETTINGS_NAV: NavItem[] = [
 ];
 
 const ADMIN_NAV: NavItem[] = [
+  { to: "/admin/billing", labelKey: "nav.admin.billing", icon: WalletIcon },
   { to: "/admin/jobs", labelKey: "nav.admin.jobs", icon: BoxesIcon },
   { to: "/admin/plugins", labelKey: "nav.admin.plugins", icon: PlugIcon },
   { to: "/admin/marketplace", labelKey: "nav.admin.marketplace", icon: BookOpenIcon },
