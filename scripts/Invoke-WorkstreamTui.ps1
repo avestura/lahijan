@@ -193,6 +193,8 @@ if ($Resume) {
 
     $aheadRaw = Invoke-GitCapture 'rev-list','--count',"main..$branchName"
     $aheadCount = [int]$aheadRaw.Trim()
+    $behindRaw = Invoke-GitCapture 'rev-list','--count',"$branchName..main"
+    $behindCount = [int]$behindRaw.Trim()
     if ($aheadCount -eq 0) {
         Write-Skip "branch has no commits ahead of main; resuming anyway"
     } else {
@@ -200,13 +202,39 @@ if ($Resume) {
         Invoke-GitCapture 'log','--oneline','-5',"main..$branchName" |
             ForEach-Object { Write-Info "  $_" }
     }
+    # Stale-branch guard: if the branch is significantly behind main, the
+    # WS will be missing recent context (AGENTS.md updates, new ADRs, helper
+    # scripts, etc.). The agent will be operating on outdated foundations.
+    # 30 commits behind is ~2-3 merged WS worth of drift; above that, refuse.
+    if ($behindCount -gt 30) {
+        Write-Fail "branch is $behindCount commit(s) BEHIND main (merge-base is very old)"
+        Write-Info "this branch predates significant recent work and is unsafe to resume"
+        Write-Info "to start fresh on a new branch from current main:"
+        Write-Info "  git branch -D $branchName"
+        Write-Info "  .\scripts\Invoke-WorkstreamTui.ps1 -WsId $WsId"
+        throw "stale branch; refusing to resume (see above)"
+    } elseif ($behindCount -gt 5) {
+        Write-Skip "warning: branch is $behindCount commit(s) behind main"
+        Write-Info "consider rebasing onto main if the agent hits missing-context errors"
+    }
 
     $uncommitted = Invoke-GitCapture 'status','--porcelain'
     if ($uncommitted.Trim()) {
-        Write-Step "committing uncommitted leftover from prior session"
-        Invoke-Git 'add','-A'
+        # CRITICAL: use `git add -u` (only tracked modifications), NOT `git add -A`.
+        # `git add -A` would also stage untracked junk files like web/src/routeTree.gen.ts
+        # (a TanStack Router generated file that's gitignored but in some checkouts
+        # slips through) or random debugging artifacts. The leftover-commit is only
+        # meant as a safety net for tracked files the agent forgot to commit.
+        Write-Step "committing tracked-file modifications from prior session"
+        Invoke-Git 'add','-u'
         Invoke-GitCapture 'commit','-m',("wip: $WsId leftover from prior session (Invoke-WorkstreamTui)") | Out-Null
         Write-OK "leftover committed"
+        # Warn about untracked files left behind.
+        $stillUntracked = (Invoke-GitCapture 'status','--porcelain') -split "`n" | Where-Object { $_ -match '^\?\?' }
+        if ($stillUntracked) {
+            Write-Skip "untracked files left as-is (review manually if needed):"
+            $stillUntracked | ForEach-Object { Write-Info "  $_" }
+        }
     }
 
     $templatePath = Join-Path $PSScriptRoot "_ws-resume-prompt.template"
@@ -437,10 +465,12 @@ if ($answer -ne 'y' -and $answer -ne 'Y') {
 }
 
 # Commit any uncommitted leftovers, then merge.
+# Same `git add -u` rationale as the resume-mode leftover commit above:
+# only stage tracked modifications, not untracked junk files.
 $uncommitted = Invoke-GitCapture 'status','--porcelain'
 if ($uncommitted.Trim()) {
-    Write-Step "committing leftover uncommitted work"
-    Invoke-Git 'add','-A'
+    Write-Step "committing tracked-file modifications"
+    Invoke-Git 'add','-u'
     Invoke-GitCapture 'commit','-m',("feat($slug): $WsId leftover from TUI run") | Out-Null
 }
 
