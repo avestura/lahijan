@@ -1471,6 +1471,197 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dns/zones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List DNS zones
+         * @description Returns a paginated list of the caller's DNS zones within the tenant
+         *     in scope. The list reflects the cached state in the Lahijan DB; a
+         *     per-zone Reconcile call refreshes the DNSSEC flag from PDNS on
+         *     demand.
+         */
+        get: operations["listDNSZones"];
+        put?: never;
+        /**
+         * Create a DNS zone
+         * @description Creates a new zone in the caller's tenant. The canonical name must
+         *     be globally unique (per WS-15 Open Question 3: per-tenant
+         *     uniqueness at the API, but two tenants cannot own the same
+         *     canonical id because the canonical_id column is globally unique).
+         *     The PowerDNS daemon is asked to bootstrap the zone with the
+         *     configured default nameservers; DNSSEC is off by default per
+         *     WS-12 Open Question 1.
+         */
+        post: operations["createDNSZone"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dns/zones/{zoneId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a DNS zone (reconciled)
+         * @description Returns the zone, reconciling the cached DNSSEC flag with the live
+         *     PDNS state. A flaky daemon returns the cached state instead of
+         *     erroring so the UI does not 500 on a backend blip.
+         */
+        get: operations["getDNSZone"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a DNS zone
+         * @description Removes the zone from PowerDNS, drops every owned dns_records row,
+         *     and removes the dns_zones row. Idempotent on the daemon side: if
+         *     PDNS reports 404 we still proceed so the dns_zones row is removed.
+         */
+        delete: operations["deleteDNSZone"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a DNS zone's settings
+         * @description Replaces the zone's description and/or kind. The kind change also
+         *     propagates to PowerDNS so the daemon's view matches.
+         */
+        patch: operations["updateDNSZone"];
+        trace?: never;
+    };
+    "/api/v1/dns/zones/{zoneId}/records": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List DNS records in a zone
+         * @description Returns a paginated list of the records in the zone. The cache is
+         *     returned; reconciliation is implicit on every read because the
+         *     dns_records table is the source of truth on the Lahijan side.
+         */
+        get: operations["listDNSRecords"];
+        put?: never;
+        /**
+         * Create a DNS record
+         * @description Creates a new record in the zone. The content is validated per
+         *     type before being submitted to PowerDNS; a malformed content
+         *     returns 400 with a per-type message. CNAME at the zone apex is
+         *     rejected per WS-15 Open Question 2 (strict RFC).
+         */
+        post: operations["createDNSRecord"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dns/zones/{zoneId}/records/{recordId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a DNS record */
+        get: operations["getDNSRecord"];
+        put?: never;
+        post?: never;
+        /** Delete a DNS record */
+        delete: operations["deleteDNSRecord"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a DNS record
+         * @description Replaces the record's content / TTL / disabled flag. The name and
+         *     type are immutable — callers wanting a rename issue a delete +
+         *     create so the audit trail stays honest.
+         */
+        patch: operations["updateDNSRecord"];
+        trace?: never;
+    };
+    "/api/v1/dns/zones/{zoneId}/dnssec/{action}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                zoneId: string;
+                action: "enable" | "disable";
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enable or disable DNSSEC for a zone
+         * @description Turns DNSSEC on or off for the zone. Enable creates a combined
+         *     signing key (CSK) via PowerDNS; disable removes every cryptokey.
+         *     Both are idempotent: a double-click is safe.
+         */
+        post: operations["setDNSZoneDNSSEC"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dns/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List built-in zone templates
+         * @description Returns the read-only catalog of predefined zone templates
+         *     (Google Workspace setup, Microsoft 365 setup, Google Search
+         *     Console verification, ...). Templates are pure data; apply via
+         *     POST /zones/{id}/apply-template.
+         */
+        get: operations["listDNSTemplates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dns/zones/{zoneId}/apply-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                zoneId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply a predefined template to a zone
+         * @description Upserts every record the template defines into the zone. Idempotent:
+         *     running the same template twice updates the records (REPLACE
+         *     semantics) rather than duplicating them.
+         */
+        post: operations["applyDNSTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2257,6 +2448,127 @@ export interface components {
             config?: {
                 [key: string]: string;
             };
+        };
+        DNSZone: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            tenantId: string;
+            /** @description The PDNS-assigned canonical id (typically the canonical name lowercased). Unique across the platform. */
+            canonicalId: string;
+            /** @description Canonical zone name with trailing dot ("example.com."). */
+            name: string;
+            /**
+             * @description Zone topology. Lahijan uses Native by default.
+             * @enum {string}
+             */
+            kind: "Native" | "Master" | "Slave";
+            description?: string;
+            /** @description Cached DNSSEC state. Flipped by the DNS service on enable/disable. */
+            isDnssecEnabled: boolean;
+            /** @description Cached AXFR state. Off by default per WS-12. */
+            isAxfrEnabled?: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        DNSZonePage: {
+            items: components["schemas"]["DNSZone"][];
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        DNSZoneCreateRequest: {
+            /** @description Canonical zone name; must end with a dot and be lowercase. */
+            name: string;
+            description?: string;
+            /**
+             * @default Native
+             * @enum {string}
+             */
+            kind: "Native" | "Master" | "Slave";
+        };
+        DNSZoneUpdateRequest: {
+            description?: string;
+            /** @enum {string} */
+            kind?: "Native" | "Master" | "Slave";
+        };
+        DNSRecord: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            tenantId: string;
+            /** Format: uuid */
+            zoneId: string;
+            /** @description Canonical record name with trailing dot. */
+            name: string;
+            /** @description DNS record type. */
+            type: string;
+            /** @description Zone-file wire form. */
+            content: string;
+            /** @description TTL in seconds. */
+            ttl: number;
+            /** @description Priority for MX / SRV; 0 for types with no priority. */
+            prio?: number;
+            /** @description When true the record is served commented-out. */
+            disabled?: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        DNSRecordPage: {
+            items: components["schemas"]["DNSRecord"][];
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        DNSRecordCreateRequest: {
+            /** @description Canonical record name with trailing dot; must belong to the zone. */
+            name: string;
+            /**
+             * @description DNS record type. Validated per-type.
+             * @enum {string}
+             */
+            type: "A" | "AAAA" | "CAA" | "CNAME" | "DS" | "MX" | "NS" | "PTR" | "SOA" | "SRV" | "TLSA" | "TXT";
+            /** @description Zone-file wire form. Validated per-type. */
+            content: string;
+            /**
+             * @description TTL in seconds; clamped to [300, 86400].
+             * @default 3600
+             */
+            ttl: number;
+            /** @default false */
+            disabled: boolean;
+        };
+        DNSRecordUpdateRequest: {
+            content?: string;
+            ttl?: number;
+            disabled?: boolean;
+        };
+        DNSTemplate: {
+            id: string;
+            name: string;
+            description: string;
+            records: components["schemas"]["DNSTemplateRecord"][];
+        };
+        DNSTemplateRecord: {
+            /** @description Canonical record name. "%s" expands to the zone id; "%w" to the zone id without the trailing dot. */
+            name: string;
+            /** @enum {string} */
+            type: "A" | "AAAA" | "CAA" | "CNAME" | "DS" | "MX" | "NS" | "PTR" | "SOA" | "SRV" | "TLSA" | "TXT";
+            /** @description Zone-file wire form. Same "%s"/"%w" expansion as Name. */
+            content: string;
+            ttl?: number;
+        };
+        ApplyDNSTemplateRequest: {
+            /** @description The template id from GET /api/v1/dns/templates. */
+            templateId: string;
+        };
+        ApplyDNSTemplateResult: {
+            /** @description Number of records upserted by the template. */
+            applied: number;
         };
     };
     responses: {
@@ -4624,6 +4936,387 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listDNSZones: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of items to return (1..200). */
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Number of items to skip for pagination. */
+                offset?: components["parameters"]["PageOffset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of zones. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DNSZonePage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    createDNSZone: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DNSZoneCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Zone created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DNSZone"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Zone already exists (canonical id claimed by another tenant). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    getDNSZone: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                zoneId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The zone. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DNSZone"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    deleteDNSZone: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                zoneId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Zone deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    updateDNSZone: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                zoneId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DNSZoneUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description The updated zone. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DNSZone"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    listDNSRecords: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of items to return (1..200). */
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Number of items to skip for pagination. */
+                offset?: components["parameters"]["PageOffset"];
+            };
+            header?: never;
+            path: {
+                zoneId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of records. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DNSRecordPage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    createDNSRecord: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                zoneId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DNSRecordCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Record created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DNSRecord"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description A record with the same (name, type, content) already exists. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    getDNSRecord: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                zoneId: string;
+                recordId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The record. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DNSRecord"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    deleteDNSRecord: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                zoneId: string;
+                recordId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Record deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    updateDNSRecord: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                zoneId: string;
+                recordId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DNSRecordUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description The updated record. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DNSRecord"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    setDNSZoneDNSSEC: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                zoneId: string;
+                action: "enable" | "disable";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description DNSSEC toggle applied. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    listDNSTemplates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The template catalog. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["DNSTemplate"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    applyDNSTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                zoneId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplyDNSTemplateRequest"];
+            };
+        };
+        responses: {
+            /** @description Template applied. Returns the count of records upserted. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplyDNSTemplateResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
         };
     };
 }

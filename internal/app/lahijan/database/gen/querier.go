@@ -44,6 +44,11 @@ type Querier interface {
 	CountComputeProfiles(ctx context.Context, tenantID uuid.UUID) (int64, error)
 	//: tenant-scoped
 	CountComputeStorageVolumes(ctx context.Context, tenantID uuid.UUID) (int64, error)
+	//: tenant-scoped; the quota checker uses this to enforce the per-tenant
+	//: record cap.
+	CountDNSRecordsForTenant(ctx context.Context, tenantID uuid.UUID) (int64, error)
+	//: tenant-scoped
+	CountDNSRecordsInZone(ctx context.Context, arg CountDNSRecordsInZoneParams) (int64, error)
 	//: tenant-scoped
 	CountDNSZones(ctx context.Context, tenantID uuid.UUID) (int64, error)
 	//: tenant-scoped
@@ -93,6 +98,17 @@ type Querier interface {
 	// compute_storage_volumes (WS-14): tenant-scoped custom storage volumes.
 	//: tenant-scoped
 	CreateComputeStorageVolume(ctx context.Context, arg CreateComputeStorageVolumeParams) (ComputeStorageVolume, error)
+	// dns_records (WS-15): tenant-scoped records for the DNS module. Every
+	// query here filters by tenant_id (set by WithTenant at the repo seam).
+	// The zone_id is always supplied by the caller (the DNS service resolves
+	// it from the dns_zones table first); tenant + zone scoping together
+	// enforce isolation at the repository boundary.
+	//
+	// Rows are NOT soft-deleted: deleting an RR removes the row because every
+	// historical query goes through audit_log instead. This keeps the unique
+	// constraint honest and the table small.
+	//: tenant-scoped
+	CreateDNSRecord(ctx context.Context, arg CreateDNSRecordParams) (DnsRecord, error)
 	// DNS zones: tenant-scoped mapping (WS-12). The PowerDNS driver operates on
 	// the canonical zone id; the DNS service (WS-15) consults this table to
 	// translate a tenant context into the canonical id. Every query is
@@ -185,8 +201,13 @@ type Querier interface {
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	// user_webauthn_credentials: per-user WebAuthn / passkey credentials (WS-07c).
 	CreateWebauthnCredential(ctx context.Context, arg CreateWebauthnCredentialParams) (UserWebauthnCredential, error)
+	//: tenant-scoped; used by the zone-delete path so the FK cascade is
+	//: explicit even before the zone row goes away.
+	DeleteAllDNSRecordsInZone(ctx context.Context, arg DeleteAllDNSRecordsInZoneParams) error
 	// Used before regenerating a fresh batch: every old code is invalidated.
 	DeleteAllRecoveryCodesForUser(ctx context.Context, userID uuid.UUID) error
+	//: tenant-scoped
+	DeleteDNSRecord(ctx context.Context, arg DeleteDNSRecordParams) error
 	//: tenant-scoped
 	DeleteDNSZone(ctx context.Context, arg DeleteDNSZoneParams) error
 	// Bulk-delete every expired row. The cleanup job (post-MVP) calls this
@@ -259,6 +280,12 @@ type Querier interface {
 	GetComputeStorageVolumeByID(ctx context.Context, arg GetComputeStorageVolumeByIDParams) (ComputeStorageVolume, error)
 	//: tenant-scoped; lookup by (pool, name) — the Incus composite key.
 	GetComputeStorageVolumeByName(ctx context.Context, arg GetComputeStorageVolumeByNameParams) (ComputeStorageVolume, error)
+	//: tenant-scoped
+	GetDNSRecordByID(ctx context.Context, arg GetDNSRecordByIDParams) (DnsRecord, error)
+	//: tenant-scoped; looks up by (zone_id, name, type, content) — the unique
+	//: identity of an RR. Used by the DNS service to short-circuit "this RR
+	//: already exists" before issuing a PDNS REPLACE.
+	GetDNSRecordByIdentity(ctx context.Context, arg GetDNSRecordByIdentityParams) (DnsRecord, error)
 	// Admin-only path: no tenant scoping. Used by the DNS service's
 	// cross-tenant "is this canonical id owned by anyone?" check.
 	GetDNSZoneByCanonical(ctx context.Context, canonicalID string) (DnsZone, error)
@@ -379,6 +406,9 @@ type Querier interface {
 	ListComputeProfiles(ctx context.Context, arg ListComputeProfilesParams) ([]ComputeProfile, error)
 	//: tenant-scoped
 	ListComputeStorageVolumes(ctx context.Context, arg ListComputeStorageVolumesParams) ([]ComputeStorageVolume, error)
+	//: tenant-scoped; returns every RR in the zone, ordered by (name, type)
+	//: so the UI renders a stable list.
+	ListDNSRecordsInZone(ctx context.Context, arg ListDNSRecordsInZoneParams) ([]DnsRecord, error)
 	//: tenant-scoped
 	ListDNSZones(ctx context.Context, arg ListDNSZonesParams) ([]DnsZone, error)
 	//: tenant-scoped
@@ -478,6 +508,10 @@ type Querier interface {
 	UpdateComputeProfile(ctx context.Context, arg UpdateComputeProfileParams) error
 	//: tenant-scoped
 	UpdateComputeStorageVolume(ctx context.Context, arg UpdateComputeStorageVolumeParams) error
+	//: tenant-scoped; replaces content / ttl / prio / disabled. The name and
+	//: type are immutable — callers wanting a "rename" issue a delete + create
+	//: so the audit trail stays honest.
+	UpdateDNSRecord(ctx context.Context, arg UpdateDNSRecordParams) error
 	//: tenant-scoped
 	UpdateDNSZoneDescription(ctx context.Context, arg UpdateDNSZoneDescriptionParams) error
 	//: tenant-scoped

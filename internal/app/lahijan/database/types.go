@@ -34,4 +34,13 @@ type (
 	ComputeProfile       = gen.ComputeProfile
 	ComputeNetwork       = gen.ComputeNetwork
 	ComputeStorageVolume = gen.ComputeStorageVolume
+
+	// DNSZone / DNSRecord are the row aliases (WS-12, WS-15). Services
+	// reference these (e.g. database.DNSZone) instead of gen.DnsZone.
+	// The sqlc-generated names use the snake_case table name (DnsZone /
+	// DnsRecord); the database package re-exports them under the
+	// idiomatic-Go DNS prefix without changing the underlying type
+	// (these are type aliases, not wrappers).
+	DNSZone   = gen.DnsZone
+	DNSRecord = gen.DnsRecord
 )

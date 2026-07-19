@@ -24,6 +24,7 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/state"
 	"github.com/avestura/lahijan/internal/app/lahijan/compute"
 	"github.com/avestura/lahijan/internal/app/lahijan/database"
+	"github.com/avestura/lahijan/internal/app/lahijan/dns"
 	"github.com/avestura/lahijan/internal/app/lahijan/i18n"
 	"github.com/avestura/lahijan/internal/app/lahijan/version"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/installer"
@@ -105,6 +106,13 @@ type Server struct {
 	// bus. Nil-appropriate when the Incus provider is disabled; the
 	// handlers degrade to 501.
 	computeSvc *compute.Service
+
+	// WS-15: DNS module deps. dnsSvc is the entrypoint every
+	// /api/v1/dns/* handler talks to; it wraps the PowerDNS provider +
+	// the dns_zones + dns_records repositories + the audit emitter +
+	// the WASM event bus. Nil-appropriate when the PowerDNS provider is
+	// disabled; the handlers degrade to 501.
+	dnsSvc *dns.Service
 }
 
 // ServerDeps carries the dependencies NewServer requires. Wire it once from
@@ -163,6 +171,11 @@ type ServerDeps struct {
 	// /api/v1/compute/* handler talks to. Nil-appropriate when the Incus
 	// provider is disabled; the handlers degrade to 501.
 	ComputeSvc *compute.Service
+
+	// WS-15: DNS module deps. DNSSvc is the entrypoint every
+	// /api/v1/dns/* handler talks to. Nil-appropriate when the PowerDNS
+	// provider is disabled; the handlers degrade to 501.
+	DNSSvc *dns.Service
 }
 
 // NewServer builds the API server with the given dependencies.
@@ -191,6 +204,7 @@ func NewServer(deps ServerDeps) *Server {
 		pluginSvc:       deps.PluginSvc,
 		marketplaceSvc:  deps.MarketplaceSvc,
 		computeSvc:      deps.ComputeSvc,
+		dnsSvc:          deps.DNSSvc,
 	}
 	if s.tracer == nil {
 		s.tracer = Tracer()
@@ -207,6 +221,21 @@ func NewServer(deps ServerDeps) *Server {
 		s.idpCookies = DefaultExternalIDPCookies
 	}
 	return s
+}
+
+// SetDNSService swaps the DNS service after the server has been built.
+// Used by integration tests that wire a real (httptest-backed) DNS
+// service after the standard newTestApp path has run. The handler
+// closures capture s.dnsSvc at request time, so the swap takes effect
+// immediately for every subsequent request without re-registering
+// routes. Production code passes DNSSvc via ServerDeps at construction.
+func (s *Server) SetDNSService(svc *dns.Service) {
+	s.dnsSvc = svc
+}
+
+// SetComputeService mirrors SetDNSService for the compute module.
+func (s *Server) SetComputeService(svc *compute.Service) {
+	s.computeSvc = svc
 }
 
 // Ping handles GET /api/v1/ping. It returns the current server timestamp and

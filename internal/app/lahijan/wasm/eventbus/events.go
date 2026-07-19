@@ -15,14 +15,20 @@ package eventbus
 
 // DNS module events (WS-12, WS-15). Emitted by the DNS service whenever
 // a zone or record changes. Plugins subscribe via "dns.record.*" to get
-// every record change in one stream.
+// every record change in one stream. DNSSEC events fire when the per-zone
+// signing toggle flips; key-rotation events fire when the operator
+// rotates the zone-signing key (Phase 7 candidate, but the topics are
+// part of the canonical registry from day one so the bus + docs agree).
 const (
-	DNSZoneCreated   = "dns.zone.created"
-	DNSZoneUpdated   = "dns.zone.updated"
-	DNSZoneDeleted   = "dns.zone.deleted"
-	DNSRecordCreated = "dns.record.created"
-	DNSRecordUpdated = "dns.record.updated"
-	DNSRecordDeleted = "dns.record.deleted"
+	DNSZoneCreated        = "dns.zone.created"
+	DNSZoneUpdated        = "dns.zone.updated"
+	DNSZoneDeleted        = "dns.zone.deleted"
+	DNSZoneDNSECSecured   = "dns.zone.dnssec.enabled"
+	DNSZoneDNSSECDisabled = "dns.zone.dnssec.disabled"
+	DNSZoneDNSSECRotated  = "dns.zone.dnssec.rotated"
+	DNSRecordCreated      = "dns.record.created"
+	DNSRecordUpdated      = "dns.record.updated"
+	DNSRecordDeleted      = "dns.record.deleted"
 )
 
 // Compute module events (WS-11, WS-14). Emitted by the compute service
@@ -80,6 +86,7 @@ const (
 func AllEvents() []string {
 	return []string{
 		DNSZoneCreated, DNSZoneUpdated, DNSZoneDeleted,
+		DNSZoneDNSECSecured, DNSZoneDNSSECDisabled, DNSZoneDNSSECRotated,
 		DNSRecordCreated, DNSRecordUpdated, DNSRecordDeleted,
 		ComputeInstanceCreated, ComputeInstanceStarted, ComputeInstanceStopped,
 		ComputeInstanceRestarted, ComputeInstanceDeleted,

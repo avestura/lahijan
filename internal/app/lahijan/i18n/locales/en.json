@@ -226,6 +226,12 @@
   "compute.err_quota_exceeded": { "other": "Quota exceeded for this tenant." },
   "compute.err_insufficient_balance": { "other": "Insufficient balance to perform this action." },
 
+  "dns.err_disabled": { "other": "The DNS subsystem is not enabled on this server." },
+  "dns.err_not_found": { "other": "DNS resource not found." },
+  "dns.err_already_exists": { "other": "A DNS resource with this name already exists." },
+  "dns.err_template_not_found": { "other": "DNS template not found." },
+  "dns.err_bad_request": { "other": "The DNS request was malformed." },
+
   "audit.action_compute_instance_create": { "other": "Compute instance created" },
   "audit.action_compute_instance_start": { "other": "Compute instance started" },
   "audit.action_compute_instance_stop": { "other": "Compute instance stopped" },
@@ -241,5 +247,15 @@
   "audit.action_compute_network_create": { "other": "Compute network created" },
   "audit.action_compute_network_delete": { "other": "Compute network deleted" },
   "audit.action_compute_storage_volume_create": { "other": "Compute storage volume created" },
-  "audit.action_compute_storage_volume_delete": { "other": "Compute storage volume deleted" }
+  "audit.action_compute_storage_volume_delete": { "other": "Compute storage volume deleted" },
+
+  "audit.action_dns_zone_create": { "other": "DNS zone created" },
+  "audit.action_dns_zone_update": { "other": "DNS zone updated" },
+  "audit.action_dns_zone_delete": { "other": "DNS zone deleted" },
+  "audit.action_dns_record_create": { "other": "DNS record created" },
+  "audit.action_dns_record_update": { "other": "DNS record updated" },
+  "audit.action_dns_record_delete": { "other": "DNS record deleted" },
+  "audit.action_dns_zone_dnssec_enable": { "other": "DNSSEC enabled for zone" },
+  "audit.action_dns_zone_dnssec_disable": { "other": "DNSSEC disabled for zone" },
+  "audit.action_dns_zone_template_apply": { "other": "DNS template applied to zone" }
 }

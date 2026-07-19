@@ -47,6 +47,7 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/conf"
 	"github.com/avestura/lahijan/internal/app/lahijan/conf/computeddefault"
 	"github.com/avestura/lahijan/internal/app/lahijan/database"
+	"github.com/avestura/lahijan/internal/app/lahijan/dns"
 	"github.com/avestura/lahijan/internal/app/lahijan/jobs"
 	notifyemail "github.com/avestura/lahijan/internal/app/lahijan/notify/email"
 	"github.com/avestura/lahijan/internal/app/lahijan/providers/incus"
@@ -258,7 +259,26 @@ func Start() error {
 	if err != nil {
 		log.Fatalf("failed to build powerdns deps: %s", err.Error())
 	}
-	_ = powerdnsDeps // consumed by WS-15 (DNS module)
+
+	// WS-15: build the DNS module (internal/app/lahijan/dns/*). Returns a
+	// nil service when the PowerDNS provider is disabled; the api handlers
+	// degrade to 501 in that case. Built AFTER wasmDeps + powerdnsDeps so
+	// it can wire both into the service. The policy evaluator mirrors the
+	// compute module's wiring.
+	var dnsSvc *dns.Service
+	if powerdnsDeps.provider != nil {
+		dnsSvc = dns.New(
+			powerdnsDeps.provider,
+			authDeps.repos,
+			authDeps.audit,
+			wasmDeps.bus,
+			rbac.NewEvaluator(authDeps.repos.Memberships),
+			dns.Config{
+				DefaultNameservers:   conf.GetProvidersPowerDNSDefaultNameservers(),
+				DefaultDNSSECEnabled: conf.GetProvidersPowerDNSDefaultDNSSECEnabled(),
+			},
+		)
+	}
 
 	// WS-13: build the SeaweedFS driver (providers/seaweedfs/*). Returns a
 	// zero-value seaweedfsDeps when providers.seaweedfs.enabled is false;
@@ -340,6 +360,7 @@ func Start() error {
 		PluginSvc:      wasmDeps.svc,
 		MarketplaceSvc: wasmDeps.marketplace,
 		ComputeSvc:     computeSvc,
+		DNSSvc:         dnsSvc,
 	}), policy)
 
 	// WS-09: mount River's built-in web UI (admin-only). The UI ships its

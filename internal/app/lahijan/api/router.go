@@ -90,6 +90,16 @@ func RegisterRoutes(app *fiber.App, server *Server, policy middleware.PolicyReso
 //	/api/v1/compute/storage/{id} GET                  -> compute.storage_pool.read
 //	/api/v1/compute/storage/{id} DELETE               -> compute.storage_pool.read
 //
+//	/api/v1/dns/zones GET / POST                      -> dns.zone.read / .create
+//	/api/v1/dns/zones/{id} GET / PATCH                -> dns.zone.read / .update
+//	/api/v1/dns/zones/{id} DELETE                     -> dns.zone.delete
+//	/api/v1/dns/zones/{id}/records GET / POST         -> dns.record.read / .create
+//	/api/v1/dns/zones/{id}/records/{id} GET / PATCH   -> dns.record.read / .update
+//	/api/v1/dns/zones/{id}/records/{id} DELETE        -> dns.record.delete
+//	/api/v1/dns/zones/{id}/dnssec/{enable|disable}    -> dns.zone.update
+//	/api/v1/dns/zones/{id}/apply-template POST        -> dns.zone.update
+//	/api/v1/dns/templates GET                         -> dns.zone.read
+//
 // Everything else: c.Next() (no enforcement; routes that need it must add
 // their own per-route RequirePerm or be gated through this same function as
 // the privileged surface grows).
@@ -199,6 +209,36 @@ func AuditGate(policy middleware.PolicyResolver) apigen.MiddlewareFunc {
 			return middleware.RequirePerm(policy, rbac.PermComputeStoragePoolRead)(c)
 		case isComputeStoragePath(path) && method == "DELETE":
 			return middleware.RequirePerm(policy, rbac.PermComputeStoragePoolRead)(c)
+
+		// WS-15: DNS module endpoints. Every /api/v1/dns/* path is gated;
+		// the slug maps 1:1 with the rbac.PermDNS* registry so the policy
+		// evaluator can answer with the caller's role grant
+		// (tenant.viewer / member / admin / owner). The DNSSEC toggle +
+		// the apply-template path both reuse dns.zone.update so a tenant
+		// admin can manage DNSSEC + templates without needing a separate
+		// permission.
+		case isDNSRecordPath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermDNSRecordCreate)(c)
+		case isDNSRecordPath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermDNSRecordRead)(c)
+		case isDNSRecordPath(path) && method == "PATCH":
+			return middleware.RequirePerm(policy, rbac.PermDNSRecordUpdate)(c)
+		case isDNSRecordPath(path) && method == "DELETE":
+			return middleware.RequirePerm(policy, rbac.PermDNSRecordDelete)(c)
+		case isDNSApplyTemplatePath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermDNSZoneUpdate)(c)
+		case isDNSDNSSECPath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermDNSZoneUpdate)(c)
+		case isDNSZonePath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermDNSZoneCreate)(c)
+		case isDNSZonePath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermDNSZoneRead)(c)
+		case isDNSZonePath(path) && method == "PATCH":
+			return middleware.RequirePerm(policy, rbac.PermDNSZoneUpdate)(c)
+		case isDNSZonePath(path) && method == "DELETE":
+			return middleware.RequirePerm(policy, rbac.PermDNSZoneDelete)(c)
+		case isDNSTemplatePath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermDNSZoneRead)(c)
 		}
 		return c.Next()
 	}
@@ -278,4 +318,49 @@ func isComputeStoragePath(path string) bool {
 		return true
 	}
 	return strings.HasPrefix(path, "/api/v1/compute/storage/")
+}
+
+// isDNSZonePath reports whether path targets the zones collection or a
+// specific zone (but not the records / dnssec / apply-template sub-paths).
+func isDNSZonePath(path string) bool {
+	if path == "/api/v1/dns/zones" {
+		return true
+	}
+	if !strings.HasPrefix(path, "/api/v1/dns/zones/") {
+		return false
+	}
+	return !isDNSRecordPath(path) &&
+		!isDNSApplyTemplatePath(path) &&
+		!isDNSDNSSECPath(path)
+}
+
+// isDNSRecordPath reports whether path targets the records collection of
+// a zone or a specific record within it.
+func isDNSRecordPath(path string) bool {
+	if !strings.HasPrefix(path, "/api/v1/dns/zones/") {
+		return false
+	}
+	return strings.Contains(path, "/records")
+}
+
+// isDNSDNSSECPath reports whether path is the DNSSEC toggle endpoint.
+func isDNSDNSSECPath(path string) bool {
+	if !strings.HasPrefix(path, "/api/v1/dns/zones/") {
+		return false
+	}
+	return strings.Contains(path, "/dnssec/enable") || strings.Contains(path, "/dnssec/disable")
+}
+
+// isDNSApplyTemplatePath reports whether path is the apply-template endpoint.
+func isDNSApplyTemplatePath(path string) bool {
+	if !strings.HasPrefix(path, "/api/v1/dns/zones/") {
+		return false
+	}
+	return strings.HasSuffix(path, "/apply-template")
+}
+
+// isDNSTemplatePath reports whether path targets the read-only templates
+// catalog.
+func isDNSTemplatePath(path string) bool {
+	return path == "/api/v1/dns/templates"
 }
