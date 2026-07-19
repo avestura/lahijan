@@ -100,6 +100,19 @@ func RegisterRoutes(app *fiber.App, server *Server, policy middleware.PolicyReso
 //	/api/v1/dns/zones/{id}/apply-template POST        -> dns.zone.update
 //	/api/v1/dns/templates GET                         -> dns.zone.read
 //
+//	/api/v1/storage/buckets GET / POST                -> s3.bucket.read / .create
+//	/api/v1/storage/buckets/{id} GET / PATCH          -> s3.bucket.read / .update
+//	/api/v1/storage/buckets/{id} DELETE               -> s3.bucket.delete
+//	/api/v1/storage/buckets/{id}/credentials GET / POST
+//	                                                  -> s3.credentials.create / .create
+//	                                                      (list reuses s3.bucket.read)
+//	/api/v1/storage/buckets/{id}/credentials/{id} DELETE
+//	                                                  -> s3.credentials.revoke
+//	/api/v1/storage/buckets/{id}/presign POST         -> s3.object.read (GET) /
+//	                                                      s3.object.read (PUT; upload needs read perm too)
+//	/api/v1/storage/buckets/{id}/quota POST           -> s3.bucket.update
+//	/api/v1/storage/buckets/{id}/usage GET            -> s3.bucket.read
+//
 // Everything else: c.Next() (no enforcement; routes that need it must add
 // their own per-route RequirePerm or be gated through this same function as
 // the privileged surface grows).
@@ -239,6 +252,34 @@ func AuditGate(policy middleware.PolicyResolver) apigen.MiddlewareFunc {
 			return middleware.RequirePerm(policy, rbac.PermDNSZoneDelete)(c)
 		case isDNSTemplatePath(path) && method == "GET":
 			return middleware.RequirePerm(policy, rbac.PermDNSZoneRead)(c)
+
+		// WS-16: storage module endpoints. Every /api/v1/storage/* path
+		// is gated; the slug maps 1:1 with the rbac.PermS3* registry so
+		// the policy evaluator can answer with the caller's role grant
+		// (tenant.viewer / member / admin / owner). The presign path
+		// (POST) reuses s3.object.read for both GET + PUT URLs because
+		// the Lahijan permission catalog does not split upload vs
+		// download today; a future WS may add s3.object.write.
+		case isStorageBucketPath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermS3BucketCreate)(c)
+		case isStorageBucketPath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermS3BucketRead)(c)
+		case isStorageBucketPath(path) && method == "PATCH":
+			return middleware.RequirePerm(policy, rbac.PermS3BucketUpdate)(c)
+		case isStorageBucketPath(path) && method == "DELETE":
+			return middleware.RequirePerm(policy, rbac.PermS3BucketDelete)(c)
+		case isStorageCredentialsPath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermS3CredentialsCreate)(c)
+		case isStorageCredentialsPath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermS3BucketRead)(c)
+		case isStorageCredentialsPath(path) && method == "DELETE":
+			return middleware.RequirePerm(policy, rbac.PermS3CredentialsRevoke)(c)
+		case isStoragePresignPath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermS3ObjectRead)(c)
+		case isStorageQuotaPath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermS3BucketUpdate)(c)
+		case isStorageUsagePath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermS3BucketRead)(c)
 		}
 		return c.Next()
 	}
@@ -363,4 +404,55 @@ func isDNSApplyTemplatePath(path string) bool {
 // catalog.
 func isDNSTemplatePath(path string) bool {
 	return path == "/api/v1/dns/templates"
+}
+
+// isStorageBucketPath reports whether path targets the buckets collection
+// or a specific bucket (but not the credentials / presign / quota / usage
+// sub-paths). Used by the audit gate so the bucket-level permission
+// (s3.bucket.read / create / update / delete) is enforced on every
+// bucket-rooted call.
+func isStorageBucketPath(path string) bool {
+	if path == "/api/v1/storage/buckets" {
+		return true
+	}
+	if !strings.HasPrefix(path, "/api/v1/storage/buckets/") {
+		return false
+	}
+	return !isStorageCredentialsPath(path) &&
+		!isStoragePresignPath(path) &&
+		!isStorageQuotaPath(path) &&
+		!isStorageUsagePath(path)
+}
+
+// isStorageCredentialsPath reports whether path targets the credentials
+// collection of a bucket or a specific credential within it.
+func isStorageCredentialsPath(path string) bool {
+	if !strings.HasPrefix(path, "/api/v1/storage/buckets/") {
+		return false
+	}
+	return strings.Contains(path, "/credentials")
+}
+
+// isStoragePresignPath reports whether path is the presign endpoint.
+func isStoragePresignPath(path string) bool {
+	if !strings.HasPrefix(path, "/api/v1/storage/buckets/") {
+		return false
+	}
+	return strings.HasSuffix(path, "/presign")
+}
+
+// isStorageQuotaPath reports whether path is the quota endpoint.
+func isStorageQuotaPath(path string) bool {
+	if !strings.HasPrefix(path, "/api/v1/storage/buckets/") {
+		return false
+	}
+	return strings.HasSuffix(path, "/quota")
+}
+
+// isStorageUsagePath reports whether path is the usage endpoint.
+func isStorageUsagePath(path string) bool {
+	if !strings.HasPrefix(path, "/api/v1/storage/buckets/") {
+		return false
+	}
+	return strings.HasSuffix(path, "/usage")
 }
