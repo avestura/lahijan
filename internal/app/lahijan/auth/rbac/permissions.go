@@ -81,6 +81,29 @@ const (
 	PermComputeNetworkCreate      = "compute.network.create"
 	PermComputeStoragePoolRead    = "compute.storage_pool.read"
 
+	// --- compute snapshots / backups / schedules (WS-25) ---
+	// Snapshots: a tenant member can create + read + delete snapshots of
+	// instances they can already manage. Restore replaces instance state
+	// and therefore needs the higher "instance.update" perm (mapped via
+	// the audit gate) — but the snapshot perm covers the snapshot surface.
+	PermComputeSnapshotCreate = "compute.snapshot.create"
+	PermComputeSnapshotRead   = "compute.snapshot.read"
+	PermComputeSnapshotDelete = "compute.snapshot.delete"
+	// Backup targets + backups: tenant admin territory (managing off-host
+	// destinations + reading exported backups).
+	PermComputeBackupTargetCreate = "compute.backup.target.create"
+	PermComputeBackupTargetRead   = "compute.backup.target.read"
+	PermComputeBackupTargetUpdate = "compute.backup.target.update"
+	PermComputeBackupTargetDelete = "compute.backup.target.delete"
+	PermComputeBackupRead         = "compute.backup.read"
+	PermComputeBackupDelete       = "compute.backup.delete"
+	PermComputeBackupRestore      = "compute.backup.restore"
+	// Snapshot schedule policies: tenant admin territory.
+	PermComputeSnapshotPolicyCreate = "compute.snapshot_policy.create"
+	PermComputeSnapshotPolicyRead   = "compute.snapshot_policy.read"
+	PermComputeSnapshotPolicyUpdate = "compute.snapshot_policy.update"
+	PermComputeSnapshotPolicyDelete = "compute.snapshot_policy.delete"
+
 	// --- dns (WS-15) ---
 	PermDNSZoneCreate   = "dns.zone.create"
 	PermDNSZoneRead     = "dns.zone.read"
@@ -162,6 +185,13 @@ var allPermissions = []Permission{
 	{Slug: PermTenantUpdate, Description: "Update tenant metadata."},
 
 	// compute
+	{Slug: PermComputeBackupDelete, Description: "Delete an off-host backup."},
+	{Slug: PermComputeBackupRead, Description: "View off-host backups."},
+	{Slug: PermComputeBackupRestore, Description: "Restore an instance from an off-host backup."},
+	{Slug: PermComputeBackupTargetCreate, Description: "Create an off-host backup target."},
+	{Slug: PermComputeBackupTargetDelete, Description: "Delete an off-host backup target."},
+	{Slug: PermComputeBackupTargetRead, Description: "View off-host backup targets."},
+	{Slug: PermComputeBackupTargetUpdate, Description: "Update an off-host backup target."},
 	{Slug: PermComputeImageRead, Description: "List and inspect instance images."},
 	{Slug: PermComputeInstanceConsoleVNC, Description: "Open a graphical (noVNC) console session to a running virtual-machine instance."},
 	{Slug: PermComputeInstanceCreate, Description: "Create an instance."},
@@ -175,6 +205,13 @@ var allPermissions = []Permission{
 	{Slug: PermComputeNetworkRead, Description: "View tenant networks."},
 	{Slug: PermComputeProfileApply, Description: "Apply a profile to an instance."},
 	{Slug: PermComputeProfileRead, Description: "View instance profiles."},
+	{Slug: PermComputeSnapshotCreate, Description: "Take a snapshot of an instance."},
+	{Slug: PermComputeSnapshotDelete, Description: "Delete an instance snapshot."},
+	{Slug: PermComputeSnapshotRead, Description: "View instance snapshots."},
+	{Slug: PermComputeSnapshotPolicyCreate, Description: "Create a snapshot schedule policy."},
+	{Slug: PermComputeSnapshotPolicyDelete, Description: "Delete a snapshot schedule policy."},
+	{Slug: PermComputeSnapshotPolicyRead, Description: "View snapshot schedule policies."},
+	{Slug: PermComputeSnapshotPolicyUpdate, Description: "Update a snapshot schedule policy."},
 	{Slug: PermComputeStoragePoolRead, Description: "View storage pools."},
 
 	// dns

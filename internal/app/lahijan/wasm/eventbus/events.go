@@ -42,6 +42,17 @@ const (
 	ComputeInstanceDeleted   = "compute.instance.deleted"
 )
 
+// Compute snapshot + backup events (WS-25). Emitted by the snapshot +
+// backup pipelines. Plugins subscribe via "compute.snapshot.*" /
+// "compute.backup.*" to drive retention auditing, off-site replication,
+// or post-backup reporting.
+const (
+	ComputeSnapshotTaken  = "compute.snapshot.taken"
+	ComputeSnapshotPruned = "compute.snapshot.pruned"
+	ComputeBackupCreated  = "compute.backup.created"
+	ComputeBackupDeleted  = "compute.backup.deleted"
+)
+
 // Storage module events (WS-13, WS-16). Emitted by the storage service
 // on bucket lifecycle + credential lifecycle. Plugins subscribe via
 // "s3.bucket.*" for access auditing or cross-tenant replication, and via
@@ -95,6 +106,8 @@ func AllEvents() []string {
 		DNSRecordCreated, DNSRecordUpdated, DNSRecordDeleted,
 		ComputeInstanceCreated, ComputeInstanceStarted, ComputeInstanceStopped,
 		ComputeInstanceRestarted, ComputeInstanceDeleted,
+		ComputeSnapshotTaken, ComputeSnapshotPruned,
+		ComputeBackupCreated, ComputeBackupDeleted,
 		S3BucketCreated, S3BucketUpdated, S3BucketDeleted,
 		S3BucketQuotaSet, S3CredentialMinted, S3CredentialRevoked, S3PresignIssued,
 		BillingLowBalance, BillingToppedUp, BillingCharge, BillingRefund,

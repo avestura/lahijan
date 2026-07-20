@@ -94,6 +94,21 @@ var defaultRoles = []RoleDefinition{
 			PermComputeNetworkRead,
 			PermComputeNetworkCreate,
 			PermComputeStoragePoolRead,
+			// compute snapshots / backups / schedules (WS-25, admin = full)
+			PermComputeSnapshotCreate,
+			PermComputeSnapshotRead,
+			PermComputeSnapshotDelete,
+			PermComputeBackupTargetCreate,
+			PermComputeBackupTargetRead,
+			PermComputeBackupTargetUpdate,
+			PermComputeBackupTargetDelete,
+			PermComputeBackupRead,
+			PermComputeBackupDelete,
+			PermComputeBackupRestore,
+			PermComputeSnapshotPolicyCreate,
+			PermComputeSnapshotPolicyRead,
+			PermComputeSnapshotPolicyUpdate,
+			PermComputeSnapshotPolicyDelete,
 			// dns (full)
 			PermDNSZoneCreate,
 			PermDNSZoneRead,
@@ -153,6 +168,13 @@ var defaultRoles = []RoleDefinition{
 			PermComputeImageRead,
 			PermComputeNetworkRead,
 			PermComputeStoragePoolRead,
+			// compute snapshots / backups / schedules (WS-25, member =
+			// create + read; deletes + target management are admin-only).
+			PermComputeSnapshotCreate,
+			PermComputeSnapshotRead,
+			PermComputeBackupRead,
+			PermComputeBackupRestore,
+			PermComputeSnapshotPolicyRead,
 			// dns (no zone delete)
 			PermDNSZoneCreate,
 			PermDNSZoneRead,
@@ -192,6 +214,11 @@ var defaultRoles = []RoleDefinition{
 			PermComputeImageRead,
 			PermComputeNetworkRead,
 			PermComputeStoragePoolRead,
+			// compute snapshots / backups / schedules (WS-25 reads)
+			PermComputeSnapshotRead,
+			PermComputeBackupRead,
+			PermComputeBackupTargetRead,
+			PermComputeSnapshotPolicyRead,
 			// dns reads
 			PermDNSZoneRead,
 			PermDNSRecordRead,

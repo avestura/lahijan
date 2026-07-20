@@ -62,6 +62,35 @@ const (
 	// graphical (noVNC) console session to a running VM (WS-24). Distinct
 	// from exec: VM-only, RFB protocol, longer-lived session.
 	AuditInstanceConsoleVNCConnect = "compute.instance.console.vnc.connect"
+
+	// WS-25: snapshot + backup + policy audit actions. Mirror the rbac
+	// slugs but use past-tense verbs so the audit row reads "what
+	// happened" not "what was requested".
+	AuditSnapshotCreate           = "compute.snapshot.create"
+	AuditSnapshotDelete           = "compute.snapshot.delete"
+	AuditSnapshotRestore          = "compute.snapshot.restore"
+	AuditSnapshotPolicyCreate     = "compute.snapshot_policy.create"
+	AuditSnapshotPolicyUpdate     = "compute.snapshot_policy.update"
+	AuditSnapshotPolicyDelete     = "compute.snapshot_policy.delete"
+	AuditBackupTargetCreate       = "compute.backup.target.create"
+	AuditBackupTargetUpdate       = "compute.backup.target.update"
+	AuditBackupTargetDelete       = "compute.backup.target.delete"
+	AuditBackupCreate             = "compute.backup.create"
+	AuditBackupDelete             = "compute.backup.delete"
+	AuditBackupRestore            = "compute.backup.restore"
+	AuditScheduledSnapshotTaken   = "compute.snapshot.taken"
+	AuditScheduledSnapshotPruned  = "compute.snapshot.pruned"
+	AuditScheduledBackupCompleted = "compute.backup.completed"
+)
+
+// ResourceSnapshot / ResourceSnapshotPolicy / ResourceBackupTarget /
+// ResourceBackup mirror the audit_log.resource_type vocabulary for the
+// WS-25 snapshot + backup surface.
+const (
+	ResourceSnapshot      = "compute_snapshot"
+	ResourceSnapshotPolicy = "compute_snapshot_policy"
+	ResourceBackupTarget  = "compute_backup_target"
+	ResourceBackup        = "compute_backup"
 )
 
 // Service is the entrypoint every compute API handler talks to. It owns the
