@@ -141,6 +141,22 @@ const (
 	PermBillingPriceCatalogRead   = "billing.price_catalog.read"
 	PermBillingPriceCatalogUpdate = "billing.price_catalog.update"
 
+	// --- billing payments + subscriptions (WS-27, ADR-0034) ---
+	// User-scoped (the caller manages their own payment methods +
+	// subscriptions). The audit gate routes the user-tree paths to
+	// these slugs; admin-tree paths use the *Manage variants.
+	PermBillingPaymentMethodManage = "billing.payment_method.manage" // create/list/delete own cards
+	PermBillingPaymentIntentCreate = "billing.payment_intent.create" // top-up via Stripe
+	PermBillingSubscriptionManage  = "billing.subscription.manage"   // create/list/cancel own subs
+	PermBillingPromoCodeRedeem     = "billing.promo_code.redeem"     // redeem a code
+
+	// Admin-scoped (the caller manages the tenant's catalog of plans +
+	// promo codes + can see webhook events).
+	PermBillingPlanManage      = "billing.plan.manage"       // create/update/delete plans
+	PermBillingPlanRead        = "billing.plan.read"         // read plans
+	PermBillingPromoCodeManage = "billing.promo_code.manage" // create/revoke codes
+	PermBillingWebhookRead     = "billing.webhook.read"      // inspect webhook events log
+
 	// --- plugins (WS-10) ---
 	PermPluginsRead              = "plugins.read"
 	PermPluginsInstall           = "plugins.install"
@@ -249,10 +265,18 @@ var allPermissions = []Permission{
 	{Slug: PermBillingBalanceAdjust, Description: "Adjust a user's balance (admin top-up/debit)."},
 	{Slug: PermBillingBalanceRead, Description: "View a user's balance."},
 	{Slug: PermBillingLedgerRead, Description: "View the user's ledger entries."},
+	{Slug: PermBillingPaymentIntentCreate, Description: "Create a Stripe PaymentIntent to top up own balance."},
+	{Slug: PermBillingPaymentMethodManage, Description: "Manage own Stripe payment methods (cards)."},
+	{Slug: PermBillingPlanManage, Description: "Create / update / delete subscription plans (admin)."},
+	{Slug: PermBillingPlanRead, Description: "View subscription plans."},
 	{Slug: PermBillingPriceCatalogRead, Description: "View the price catalog."},
 	{Slug: PermBillingPriceCatalogUpdate, Description: "Update the price catalog."},
+	{Slug: PermBillingPromoCodeManage, Description: "Create / revoke admin-issued promo codes."},
+	{Slug: PermBillingPromoCodeRedeem, Description: "Redeem a promo code for own balance."},
 	{Slug: PermBillingReceiptCreate, Description: "Generate a receipt."},
 	{Slug: PermBillingReceiptRead, Description: "View receipts."},
+	{Slug: PermBillingSubscriptionManage, Description: "Create / list / cancel own subscriptions."},
+	{Slug: PermBillingWebhookRead, Description: "Inspect the Stripe webhook events log (admin)."},
 
 	// plugins
 	{Slug: PermPluginsInstall, Description: "Install a plugin."},

@@ -132,15 +132,24 @@ var defaultRoles = []RoleDefinition{
 			PermS3ObjectDelete,
 			PermS3CredentialsCreate,
 			PermS3CredentialsRevoke,
-			// billing
-			PermBillingBalanceRead,
-			PermBillingBalanceAdjust,
-			PermBillingLedgerRead,
-			PermBillingReceiptRead,
-			PermBillingReceiptCreate,
-			PermBillingPriceCatalogRead,
-			PermBillingPriceCatalogUpdate,
-			// plugins
+		// billing
+		PermBillingBalanceRead,
+		PermBillingBalanceAdjust,
+		PermBillingLedgerRead,
+		PermBillingReceiptRead,
+		PermBillingReceiptCreate,
+		PermBillingPriceCatalogRead,
+		PermBillingPriceCatalogUpdate,
+		// billing payments + subscriptions (WS-27, admin = full)
+		PermBillingPaymentMethodManage,
+		PermBillingPaymentIntentCreate,
+		PermBillingSubscriptionManage,
+		PermBillingPromoCodeRedeem,
+		PermBillingPlanManage,
+		PermBillingPlanRead,
+		PermBillingPromoCodeManage,
+		PermBillingWebhookRead,
+		// plugins
 			PermPluginsRead,
 			PermPluginsInstall,
 			PermPluginsUninstall,
@@ -200,12 +209,18 @@ var defaultRoles = []RoleDefinition{
 			PermS3ObjectDelete,
 			PermS3CredentialsCreate,
 			PermS3CredentialsRevoke,
-			// billing (own only — no balance.adjust)
-			PermBillingBalanceRead,
-			PermBillingLedgerRead,
-			PermBillingReceiptRead,
-			PermBillingPriceCatalogRead,
-			// plugins (read-only)
+		// billing (own only — no balance.adjust)
+		PermBillingBalanceRead,
+		PermBillingLedgerRead,
+		PermBillingReceiptRead,
+		PermBillingPriceCatalogRead,
+		// billing payments + subscriptions (WS-27, member = own only)
+		PermBillingPaymentMethodManage,
+		PermBillingPaymentIntentCreate,
+		PermBillingSubscriptionManage,
+		PermBillingPromoCodeRedeem,
+		PermBillingPlanRead,
+		// plugins (read-only)
 			PermPluginsRead,
 		},
 		IsSystem: true,
@@ -236,12 +251,14 @@ var defaultRoles = []RoleDefinition{
 			// s3 reads
 			PermS3BucketRead,
 			PermS3ObjectRead,
-			// billing reads
-			PermBillingBalanceRead,
-			PermBillingLedgerRead,
-			PermBillingReceiptRead,
-			PermBillingPriceCatalogRead,
-			// plugins reads
+		// billing reads
+		PermBillingBalanceRead,
+		PermBillingLedgerRead,
+		PermBillingReceiptRead,
+		PermBillingPriceCatalogRead,
+		// billing payments + subscriptions (WS-27 reads)
+		PermBillingPlanRead,
+		// plugins reads
 			PermPluginsRead,
 		},
 		IsSystem: true,

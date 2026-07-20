@@ -120,6 +120,24 @@ const (
 	ActionBillingPriceExpire  = "billing.price.expire"
 	ActionBillingReceiptGen   = "billing.receipt.generate"
 	ActionBillingForceRebuild = "billing.balance.rebuild"
+
+	// Billing payments + subscriptions actions (WS-27, ADR-0034).
+	// Emitted by the payments service on every state-changing action
+	// across plans, payment methods, subscriptions, promo codes, and
+	// webhook ingestion. Each row carries the relevant ids + the actor
+	// in metadata so the audit query API can render a stable history.
+	ActionBillingPlanCreate        = "billing.plan.create"
+	ActionBillingPlanUpdate        = "billing.plan.update"
+	ActionBillingPlanDelete        = "billing.plan.delete"
+	ActionBillingPaymentMethodAdd  = "billing.payment_method.add"
+	ActionBillingPaymentMethodDrop = "billing.payment_method.drop"
+	ActionBillingSubscriptionCreate  = "billing.subscription.create"
+	ActionBillingSubscriptionCancel  = "billing.subscription.cancel"
+	ActionBillingPromoCodeCreate    = "billing.promo_code.create"
+	ActionBillingPromoCodeRevoke    = "billing.promo_code.revoke"
+	ActionBillingPromoCodeRedeem    = "billing.promo_code.redeem"
+	ActionBillingWebhookReceived    = "billing.webhook.received"
+	ActionBillingWebhookApplied     = "billing.webhook.applied"
 )
 
 // Standard statuses recorded on audit_log.status and audit_log_outcomes.status.
@@ -161,6 +179,13 @@ const (
 	ResourcePrice       = "price"
 	ResourceReceipt     = "receipt"
 	ResourceBalance     = "balance"
+
+	// Billing payments + subscriptions resource types (WS-27).
+	ResourceBillingPlan           = "billing_plan"
+	ResourceBillingPaymentMethod  = "billing_payment_method"
+	ResourceBillingSubscription   = "billing_subscription"
+	ResourceBillingPromoCode      = "billing_promo_code"
+	ResourceBillingWebhookEvent   = "billing_webhook_event"
 )
 
 // Event is the data an emitter records. TenantID is nil for system-level auth
