@@ -49,6 +49,7 @@ sql:
       - "queries/compute_backups.sql"
       - "queries/compute_snapshot_policies.sql"
       - "queries/billing.sql"
+      - "queries/billing_payments.sql"
     schema:
       - "migrations/*.up.sql"
     gen:
