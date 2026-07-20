@@ -207,6 +207,39 @@ func AuditGate(policy middleware.PolicyResolver) apigen.MiddlewareFunc {
 			// exec needs a running instance; reuse the start permission
 			// since both involve "interact with a running instance".
 			return middleware.RequirePerm(policy, rbac.PermComputeInstanceStart)(c)
+		case isComputeSnapshotRestorePath(path) && method == "POST":
+			// WS-25: restore replaces instance state wholesale; requires
+			// the higher instance.update perm.
+			return middleware.RequirePerm(policy, rbac.PermComputeInstanceUpdate)(c)
+		case isComputeSnapshotPath(path) && method == "POST":
+			// WS-25: snapshot create / take.
+			return middleware.RequirePerm(policy, rbac.PermComputeSnapshotCreate)(c)
+		case isComputeSnapshotPath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermComputeSnapshotRead)(c)
+		case isComputeSnapshotPath(path) && method == "DELETE":
+			return middleware.RequirePerm(policy, rbac.PermComputeSnapshotDelete)(c)
+		case isComputeSnapshotPolicyPath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermComputeSnapshotPolicyCreate)(c)
+		case isComputeSnapshotPolicyPath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermComputeSnapshotPolicyRead)(c)
+		case isComputeSnapshotPolicyPath(path) && method == "PATCH":
+			return middleware.RequirePerm(policy, rbac.PermComputeSnapshotPolicyUpdate)(c)
+		case isComputeSnapshotPolicyPath(path) && method == "DELETE":
+			return middleware.RequirePerm(policy, rbac.PermComputeSnapshotPolicyDelete)(c)
+		case isComputeBackupTargetPath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermComputeBackupTargetCreate)(c)
+		case isComputeBackupTargetPath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermComputeBackupTargetRead)(c)
+		case isComputeBackupTargetPath(path) && method == "DELETE":
+			return middleware.RequirePerm(policy, rbac.PermComputeBackupTargetDelete)(c)
+		case isComputeBackupPath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermComputeBackupRead)(c)
+		case isComputeBackupPath(path) && method == "DELETE":
+			return middleware.RequirePerm(policy, rbac.PermComputeBackupDelete)(c)
+		case isComputeInstanceBackupsPath(path) && method == "GET":
+			// WS-25: per-instance backup listing. Reuses the snapshot
+			// read perm so tenant.viewer can see backups alongside snapshots.
+			return middleware.RequirePerm(policy, rbac.PermComputeBackupRead)(c)
 		case isComputeInstanceLifecyclePath(path) && method == "POST":
 			return middleware.RequirePerm(policy, computeInstanceActionPerm(path))(c)
 		case isComputeInstancePath(path) && method == "POST":
@@ -344,7 +377,10 @@ func isComputeInstancePath(path string) bool {
 	return strings.HasPrefix(path, "/api/v1/compute/instances/") &&
 		!isComputeInstanceLifecyclePath(path) &&
 		!isComputeInstanceExecPath(path) &&
-		!isComputeInstanceVNCPath(path)
+		!isComputeInstanceVNCPath(path) &&
+		!isComputeSnapshotPath(path) &&
+		!isComputeSnapshotRestorePath(path) &&
+		!isComputeInstanceBackupsPath(path)
 }
 
 // isComputeInstanceLifecyclePath reports whether path is one of the
@@ -369,6 +405,68 @@ func isComputeInstanceExecPath(path string) bool {
 // tenant.member reach the handler.
 func isComputeInstanceVNCPath(path string) bool {
 	return strings.HasPrefix(path, "/api/v1/compute/instances/") && strings.HasSuffix(path, "/vnc")
+}
+
+// -------------------------------------------------------------------------
+// WS-25 path helpers
+// -------------------------------------------------------------------------
+
+// isComputeSnapshotPath reports whether path targets the snapshots
+// collection of an instance or a specific snapshot (but NOT the restore
+// sub-path which has its own perm gate).
+func isComputeSnapshotPath(path string) bool {
+	if !strings.HasPrefix(path, "/api/v1/compute/instances/") {
+		return false
+	}
+	if strings.HasSuffix(path, "/snapshots") {
+		return true
+	}
+	if isComputeSnapshotRestorePath(path) {
+		return false
+	}
+	return strings.Contains(path, "/snapshots/")
+}
+
+// isComputeSnapshotRestorePath reports whether path is the snapshot
+// restore endpoint (POST /instances/{id}/snapshots/{snap}/restore).
+func isComputeSnapshotRestorePath(path string) bool {
+	return strings.HasPrefix(path, "/api/v1/compute/instances/") &&
+		strings.Contains(path, "/snapshots/") &&
+		strings.HasSuffix(path, "/restore")
+}
+
+// isComputeInstanceBackupsPath reports whether path is the per-instance
+// backups listing endpoint.
+func isComputeInstanceBackupsPath(path string) bool {
+	return strings.HasPrefix(path, "/api/v1/compute/instances/") &&
+		strings.HasSuffix(path, "/backups")
+}
+
+// isComputeSnapshotPolicyPath reports whether path targets the
+// snapshot-policies collection or a specific policy.
+func isComputeSnapshotPolicyPath(path string) bool {
+	if path == "/api/v1/compute/snapshot-policies" {
+		return true
+	}
+	return strings.HasPrefix(path, "/api/v1/compute/snapshot-policies/")
+}
+
+// isComputeBackupTargetPath reports whether path targets the backup-targets
+// collection or a specific target.
+func isComputeBackupTargetPath(path string) bool {
+	if path == "/api/v1/compute/backup-targets" {
+		return true
+	}
+	return strings.HasPrefix(path, "/api/v1/compute/backup-targets/")
+}
+
+// isComputeBackupPath reports whether path targets the backups collection
+// or a specific backup.
+func isComputeBackupPath(path string) bool {
+	if path == "/api/v1/compute/backups" {
+		return true
+	}
+	return strings.HasPrefix(path, "/api/v1/compute/backups/")
 }
 
 // computeInstanceActionPerm maps the trailing path segment to the matching

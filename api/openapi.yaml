@@ -2240,6 +2240,353 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
 
   # ===========================================================================
+  # Compute snapshots + backups + policies (WS-25)
+  # ===========================================================================
+
+  /api/v1/compute/instances/{instanceId}/snapshots:
+    parameters:
+      - name: instanceId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: limit
+        in: query
+        schema: { type: integer, minimum: 1, maximum: 200 }
+      - name: offset
+        in: query
+        schema: { type: integer, minimum: 0 }
+    get:
+      tags: [compute]
+      operationId: listComputeSnapshots
+      summary: List snapshots of an instance
+      responses:
+        "200":
+          description: A page of snapshots.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeSnapshotPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [compute]
+      operationId: createComputeSnapshot
+      summary: Take a snapshot of an instance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComputeSnapshotCreateRequest" }
+      responses:
+        "201":
+          description: The snapshot row.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeSnapshot" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/compute/instances/{instanceId}/snapshots/{snapshotId}:
+    parameters:
+      - name: instanceId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: snapshotId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [compute]
+      operationId: getComputeSnapshot
+      summary: Get a snapshot
+      responses:
+        "200":
+          description: The snapshot.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeSnapshot" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [compute]
+      operationId: deleteComputeSnapshot
+      summary: Delete a snapshot
+      responses:
+        "204": { description: Snapshot deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/compute/instances/{instanceId}/snapshots/{snapshotId}/restore:
+    parameters:
+      - name: instanceId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: snapshotId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [compute]
+      operationId: restoreComputeSnapshot
+      summary: Restore the instance to a snapshot
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComputeSnapshotRestoreRequest" }
+      responses:
+        "200":
+          description: The restored snapshot row.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeSnapshot" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/compute/instances/{instanceId}/backups:
+    parameters:
+      - name: instanceId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: limit
+        in: query
+        schema: { type: integer, minimum: 1, maximum: 200 }
+      - name: offset
+        in: query
+        schema: { type: integer, minimum: 0 }
+    get:
+      tags: [compute]
+      operationId: listComputeBackupsByInstance
+      summary: List off-host backups for an instance
+      responses:
+        "200":
+          description: A page of backups.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeBackupPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/compute/snapshot-policies:
+    parameters:
+      - name: limit
+        in: query
+        schema: { type: integer, minimum: 1, maximum: 200 }
+      - name: offset
+        in: query
+        schema: { type: integer, minimum: 0 }
+    get:
+      tags: [compute]
+      operationId: listComputeSnapshotPolicies
+      summary: List snapshot schedule policies
+      responses:
+        "200":
+          description: A page of policies.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeSnapshotPolicyPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [compute]
+      operationId: createComputeSnapshotPolicy
+      summary: Create a snapshot schedule policy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComputeSnapshotPolicyCreateRequest" }
+      responses:
+        "201":
+          description: The policy row.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeSnapshotPolicy" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/compute/snapshot-policies/{policyId}:
+    parameters:
+      - name: policyId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [compute]
+      operationId: getComputeSnapshotPolicy
+      summary: Get a snapshot schedule policy
+      responses:
+        "200":
+          description: The policy.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeSnapshotPolicy" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [compute]
+      operationId: updateComputeSnapshotPolicy
+      summary: Update a snapshot schedule policy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComputeSnapshotPolicyUpdateRequest" }
+      responses:
+        "200":
+          description: The updated policy.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeSnapshotPolicy" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [compute]
+      operationId: deleteComputeSnapshotPolicy
+      summary: Delete a snapshot schedule policy
+      responses:
+        "204": { description: Policy deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/compute/backup-targets:
+    parameters:
+      - name: limit
+        in: query
+        schema: { type: integer, minimum: 1, maximum: 200 }
+      - name: offset
+        in: query
+        schema: { type: integer, minimum: 0 }
+    get:
+      tags: [compute]
+      operationId: listComputeBackupTargets
+      summary: List off-host backup targets
+      responses:
+        "200":
+          description: A page of targets.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeBackupTargetPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [compute]
+      operationId: createComputeBackupTarget
+      summary: Create an off-host backup target
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComputeBackupTargetCreateRequest" }
+      responses:
+        "201":
+          description: The target row.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeBackupTarget" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/compute/backup-targets/{targetId}:
+    parameters:
+      - name: targetId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [compute]
+      operationId: getComputeBackupTarget
+      summary: Get a backup target
+      responses:
+        "200":
+          description: The target.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeBackupTarget" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [compute]
+      operationId: deleteComputeBackupTarget
+      summary: Delete a backup target
+      responses:
+        "204": { description: Target deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/compute/backups:
+    parameters:
+      - name: limit
+        in: query
+        schema: { type: integer, minimum: 1, maximum: 200 }
+      - name: offset
+        in: query
+        schema: { type: integer, minimum: 0 }
+    get:
+      tags: [compute]
+      operationId: listComputeBackups
+      summary: List off-host backups
+      responses:
+        "200":
+          description: A page of backups.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeBackupPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/v1/compute/backups/{backupId}:
+    parameters:
+      - name: backupId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [compute]
+      operationId: getComputeBackup
+      summary: Get a backup
+      responses:
+        "200":
+          description: The backup.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeBackup" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [compute]
+      operationId: deleteComputeBackup
+      summary: Delete a backup (removes remote bytes + soft-deletes the row)
+      responses:
+        "204": { description: Backup deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ===========================================================================
   # DNS module (WS-15)
   # ===========================================================================
 
@@ -4554,6 +4901,187 @@ components:
         config:
           type: object
           additionalProperties: { type: string }
+
+    # =========================================================================
+    # Compute snapshots + backups + policies schemas (WS-25)
+    # =========================================================================
+
+    ComputeSnapshot:
+      type: object
+      required: [id, instanceId, name, stateful, createdAt]
+      additionalProperties: false
+      properties:
+        id:          { type: string, format: uuid }
+        instanceId:  { type: string, format: uuid }
+        name:        { type: string }
+        description: { type: string }
+        stateful:    { type: boolean }
+        sizeBytes:   { type: integer, format: int64 }
+        expiresAt:   { type: string, format: date-time, nullable: true }
+        policyId:    { type: string, format: uuid, nullable: true }
+        createdAt:   { type: string, format: date-time }
+        updatedAt:   { type: string, format: date-time }
+
+    ComputeSnapshotPage:
+      type: object
+      required: [items, total, limit, offset]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ComputeSnapshot" }
+        total:  { type: integer }
+        limit:  { type: integer }
+        offset: { type: integer }
+
+    ComputeSnapshotCreateRequest:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name:        { type: string, minLength: 1, maxLength: 63 }
+        description: { type: string }
+        stateful:    { type: boolean, default: false }
+
+    ComputeSnapshotRestoreRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        stateful: { type: boolean, default: false }
+
+    ComputeSnapshotPolicy:
+      type: object
+      required: [id, name, cadence, retainCount, enabled, createdAt]
+      additionalProperties: false
+      properties:
+        id:          { type: string, format: uuid }
+        instanceId:  { type: string, format: uuid, nullable: true }
+        name:        { type: string }
+        cadence:     { type: string }
+        retainCount: { type: integer }
+        targetId:    { type: string, format: uuid, nullable: true }
+        enabled:     { type: boolean }
+        lastRunAt:   { type: string, format: date-time, nullable: true }
+        nextRunAt:   { type: string, format: date-time, nullable: true }
+        createdAt:   { type: string, format: date-time }
+        updatedAt:   { type: string, format: date-time }
+
+    ComputeSnapshotPolicyPage:
+      type: object
+      required: [items, total, limit, offset]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ComputeSnapshotPolicy" }
+        total:  { type: integer }
+        limit:  { type: integer }
+        offset: { type: integer }
+
+    ComputeSnapshotPolicyCreateRequest:
+      type: object
+      required: [name, cadence]
+      additionalProperties: false
+      properties:
+        name:        { type: string, minLength: 1, maxLength: 63 }
+        instanceId:  { type: string, format: uuid, nullable: true }
+        cadence:     { type: string, description: "ISO 8601 duration: PT1H, P1D, P1W, P1DT2H..." }
+        retainCount: { type: integer, minimum: 1, default: 7 }
+        targetId:    { type: string, format: uuid, nullable: true }
+        enabled:     { type: boolean, default: true }
+
+    ComputeSnapshotPolicyUpdateRequest:
+      type: object
+      required: [name, cadence]
+      additionalProperties: false
+      properties:
+        name:        { type: string, minLength: 1, maxLength: 63 }
+        instanceId:  { type: string, format: uuid, nullable: true }
+        cadence:     { type: string }
+        retainCount: { type: integer, minimum: 1 }
+        targetId:    { type: string, format: uuid, nullable: true }
+        enabled:     { type: boolean }
+
+    ComputeBackupTarget:
+      type: object
+      required: [id, name, kind, enabled, createdAt]
+      additionalProperties: false
+      properties:
+        id:          { type: string, format: uuid }
+        name:        { type: string }
+        kind:
+          type: string
+          enum: [s3, nfs, ssh]
+        description: { type: string }
+        config:
+          type: object
+          additionalProperties: true
+          description: Per-kind non-sensitive config (endpoint, bucket, path, host, ...).
+        enabled:   { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    ComputeBackupTargetPage:
+      type: object
+      required: [items, total, limit, offset]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ComputeBackupTarget" }
+        total:  { type: integer }
+        limit:  { type: integer }
+        offset: { type: integer }
+
+    ComputeBackupTargetCreateRequest:
+      type: object
+      required: [name, kind, config, secret]
+      additionalProperties: false
+      properties:
+        name:        { type: string, minLength: 1, maxLength: 63 }
+        kind:
+          type: string
+          enum: [s3, nfs, ssh]
+        description: { type: string }
+        config:
+          type: object
+          additionalProperties: true
+        secret:
+          type: object
+          additionalProperties: true
+          description: Per-kind credentials envelope (S3 access keys, SSH private key, ...). Encrypted at rest.
+        enabled: { type: boolean, default: true }
+
+    ComputeBackup:
+      type: object
+      required: [id, snapshotId, instanceId, targetId, status, createdAt]
+      additionalProperties: false
+      properties:
+        id:             { type: string, format: uuid }
+        snapshotId:     { type: string, format: uuid }
+        instanceId:     { type: string, format: uuid }
+        targetId:       { type: string, format: uuid }
+        remoteLocation: { type: string }
+        sizeBytes:      { type: integer, format: int64 }
+        checksumSha256: { type: string }
+        status:
+          type: string
+          enum: [pending, uploading, completed, failed]
+        errorMessage: { type: string }
+        createdAt:    { type: string, format: date-time }
+        updatedAt:    { type: string, format: date-time }
+
+    ComputeBackupPage:
+      type: object
+      required: [items, total, limit, offset]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ComputeBackup" }
+        total:  { type: integer }
+        limit:  { type: integer }
+        offset: { type: integer }
 
     # =========================================================================
     # DNS module schemas (WS-15)
