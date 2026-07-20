@@ -62,6 +62,18 @@ type Repos struct {
 	BillingBalances *BillingBalancesRepository
 	BillingUsage    *BillingUsageRepository
 	BillingReceipts *BillingReceiptsRepository
+
+	// WS-27: payment gateway (Stripe). Five sub-repositories: the
+	// admin-managed subscription plan catalog (BillingPlans), the
+	// per-user Stripe PaymentMethod cache (BillingPaymentMethods),
+	// the per-user recurring subscriptions (BillingSubscriptions),
+	// the admin-issued promo codes (BillingPromoCodes), and the
+	// idempotent Stripe webhook ingestion log (BillingWebhookEvents).
+	BillingPlans           *BillingPlansRepository
+	BillingPaymentMethods  *BillingPaymentMethodsRepository
+	BillingSubscriptions   *BillingSubscriptionsRepository
+	BillingPromoCodes      *BillingPromoCodesRepository
+	BillingWebhookEvents   *BillingWebhookEventsRepository
 }
 
 // NewRepos builds the aggregate repository from a pool or transaction. The
@@ -106,5 +118,10 @@ func NewRepos(db DBTX) *Repos {
 		BillingBalances:         NewBillingBalancesRepository(q),
 		BillingUsage:            NewBillingUsageRepository(q),
 		BillingReceipts:         NewBillingReceiptsRepository(q),
+		BillingPlans:            NewBillingPlansRepository(q),
+		BillingPaymentMethods:   NewBillingPaymentMethodsRepository(q),
+		BillingSubscriptions:    NewBillingSubscriptionsRepository(q),
+		BillingPromoCodes:       NewBillingPromoCodesRepository(q),
+		BillingWebhookEvents:    NewBillingWebhookEventsRepository(q),
 	}
 }
