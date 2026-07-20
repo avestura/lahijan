@@ -108,9 +108,9 @@ const (
 	// Granted to tenant.admin (member-list + migrate) + tenant.viewer
 	// (member-list only) so the cluster status panel renders without
 	// elevating. ---
-	PermComputeClusterMemberList    = "compute.cluster.member.list"
+	PermComputeClusterMemberList     = "compute.cluster.member.list"
 	PermComputeClusterMemberEvacuate = "compute.cluster.member.evacuate"
-	PermComputeInstanceMigrate      = "compute.instance.migrate"
+	PermComputeInstanceMigrate       = "compute.instance.migrate"
 
 	// --- dns (WS-15) ---
 	PermDNSZoneCreate   = "dns.zone.create"

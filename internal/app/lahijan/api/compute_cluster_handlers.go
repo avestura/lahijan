@@ -19,7 +19,6 @@ import (
 	"errors"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/avestura/lahijan/api/gen/go"
@@ -131,7 +130,7 @@ func (s *Server) MigrateComputeInstance(c *fiber.Ctx, instanceID openapi_types.U
 		return SendBadRequest(c, i18n.T(c.UserContext(), "compute.err_bad_request", nil), nil)
 	}
 	row, err := s.computeSvc.MigrateInstance(c.UserContext(), tid, uid, compute.MigrateInstanceParams{
-		InstanceID:   uuid.UUID(instanceID),
+		InstanceID:   instanceID,
 		TargetMember: req.TargetMember,
 		Live:         boolValue(req.Live),
 	})

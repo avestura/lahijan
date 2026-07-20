@@ -244,7 +244,7 @@ func (d *ClusterPlacementDriver) MigrateInstance(
 	params MigrateParams,
 ) (*incus.Operation, error) {
 	if params.TargetMember == "" {
-		return nil, fmt.Errorf("compute: migrate requires target")
+		return nil, errors.New("compute: migrate requires target")
 	}
 	op, err := d.provider.MigrateInstance(ctx, incus.MigrateInstanceParams{
 		Project:      params.Project,

@@ -16,6 +16,7 @@ package compute
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -54,7 +55,12 @@ type clusterLister interface {
 // forwarding path.
 //
 // The seam is split from clusterLister so a test that exercises only
-// the migrate path can stub just the methods it needs.
+// the migrate path can stub just the methods it needs. Kept for
+// future use (today the migrate path uses the placement driver + the
+// provider's GetInstance directly); the lint suppression documents
+// why the type is retained.
+//
+//nolint:unused // future-proofing seam; see comment above
 type clusterMigrator interface {
 	GetInstance(ctx context.Context, project, name string) (*incus.Instance, error)
 }
@@ -146,13 +152,12 @@ func (s *Service) MigrateInstance(
 		return database.ComputeInstance{}, ErrProviderDisabled
 	}
 	if params.TargetMember == "" {
-		return database.ComputeInstance{}, fmt.Errorf("compute: migrate requires target member")
+		return database.ComputeInstance{}, errors.New("compute: migrate requires target member")
 	}
 	row, err := s.repos.ComputeInstances.Get(ctx, params.InstanceID)
 	if err != nil {
 		return database.ComputeInstance{}, fmt.Errorf("compute: get instance for migrate: %w", err)
 	}
-
 	auditID, _ := s.audit.Emit(ctx, audit.Event{
 		TenantID:     &tenantID,
 		ActorUserID:  &userID,

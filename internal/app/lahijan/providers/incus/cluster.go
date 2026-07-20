@@ -17,6 +17,7 @@ package incus
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 
@@ -255,8 +256,8 @@ func (p *Provider) MigrateInstance(ctx context.Context, params MigrateInstancePa
 		attribute.String("incus.cluster_target", params.TargetMember))
 	defer span.End()
 	if params.TargetMember == "" {
-		setStatus(span, fmt.Errorf("incus: migrate requires target"))
-		return nil, fmt.Errorf("incus: migrate requires target")
+		setStatus(span, errors.New("incus: migrate requires target"))
+		return nil, errors.New("incus: migrate requires target")
 	}
 	path := "instances/" + url.QueryEscape(params.Instance) +
 		"?project=" + url.QueryEscape(params.Project) +
