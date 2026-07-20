@@ -60,6 +60,14 @@ type Server struct {
 	// default which echoes the command back on stdout + sets exit code 0.
 	execHandler func(project, instance string, params incus.InstanceExecPost) (stdout, stderr []byte, exitCode int)
 
+	// consoleHandler is called when a WS client (the driver, then the
+	// browser via WS-24's bridge) dials the per-fd websocket for an Incus
+	// console operation opened against a VM. Tests can override the
+	// default which echoes every received byte back to the writer (a
+	// minimal RFB round-trip stand-in). The handler owns the conn's
+	// lifetime: it MUST close the conn before returning.
+	consoleHandler func(conn *websocket.Conn)
+
 	// serverInfo overrides for Capabilities assertions.
 	serverClustered bool
 	serverVersion   string
@@ -122,6 +130,7 @@ func newServer() *Server {
 		},
 	}
 	s.execHandler = defaultExecHandler
+	s.consoleHandler = defaultConsoleHandler
 	s.execAccept = make(map[string]chan *websocket.Conn)
 
 	// Seed: default storage pool + default project.
@@ -169,6 +178,16 @@ func (s *Server) SetExecHandler(h func(project, instance string, params incus.In
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.execHandler = h
+}
+
+// SetConsoleHandler overrides the per-console-WS handler. The handler is
+// invoked once the driver dials the per-fd websocket for an Incus console
+// operation opened against a VM. The default handler echoes received bytes
+// back to the writer (a minimal RFB round-trip stand-in).
+func (s *Server) SetConsoleHandler(h func(conn *websocket.Conn)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.consoleHandler = h
 }
 
 // EmitLifecycleEvent broadcasts a lifecycle event to every connected events
@@ -247,6 +266,9 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 		return
 	case strings.HasPrefix(path, "instances/") && strings.HasSuffix(path, "/exec"):
 		s.handleExec(w, r, strings.TrimSuffix(strings.TrimPrefix(path, "instances/"), "/exec"))
+		return
+	case strings.HasPrefix(path, "instances/") && strings.HasSuffix(path, "/console"):
+		s.handleConsole(w, r, strings.TrimSuffix(strings.TrimPrefix(path, "instances/"), "/console"))
 		return
 	case strings.HasPrefix(path, "instances/") && strings.HasSuffix(path, "/state"):
 		s.handleInstanceState(w, r, strings.TrimSuffix(strings.TrimPrefix(path, "instances/"), "/state"))
@@ -432,4 +454,21 @@ func newOpID() string { return uuid.NewString() }
 func defaultExecHandler(_, _ string, params incus.InstanceExecPost) ([]byte, []byte, int) {
 	out := []byte(strings.Join(params.Command, " "))
 	return out, nil, 0
+}
+
+// defaultConsoleHandler is the default per-console-WS handler: it echoes
+// every received byte back to the writer as a minimal RFB round-trip
+// stand-in. Tests that need richer behaviour (e.g. negotiate a fake RFB
+// handshake) override via SetConsoleHandler.
+func defaultConsoleHandler(conn *websocket.Conn) {
+	defer func() { _ = conn.Close() }()
+	for {
+		msgType, data, err := conn.ReadMessage()
+		if err != nil {
+			return
+		}
+		if err := conn.WriteMessage(msgType, data); err != nil {
+			return
+		}
+	}
 }
