@@ -25,6 +25,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/audit"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/rbac"
@@ -57,6 +58,10 @@ const (
 	AuditInstanceDelete  = "compute.instance.delete"
 	AuditInstanceUpdate  = "compute.instance.update"
 	AuditInstanceExec    = "compute.instance.exec"
+	// AuditInstanceConsoleVNCConnect records that a user opened a
+	// graphical (noVNC) console session to a running VM (WS-24). Distinct
+	// from exec: VM-only, RFB protocol, longer-lived session.
+	AuditInstanceConsoleVNCConnect = "compute.instance.console.vnc.connect"
 )
 
 // Service is the entrypoint every compute API handler talks to. It owns the
@@ -86,6 +91,7 @@ type incusProvider interface {
 	incusNetworkOps
 	incusVolumeOps
 	incusExecOps
+	incusConsoleOps
 }
 
 // incusProjectOps covers tenant -> Incus project mapping + bootstrap.
@@ -129,6 +135,14 @@ type incusVolumeOps interface {
 // incusExecOps covers the exec websocket proxy.
 type incusExecOps interface {
 	Exec(ctx context.Context, params incus.ExecParams) (*incus.ExecResult, error)
+}
+
+// incusConsoleOps covers the WS-24 VNC console proxy: open an Incus console
+// operation (returns the op id + per-fd secret) and dial the per-fd
+// websocket (returns a *websocket.Conn speaking raw RFB bytes).
+type incusConsoleOps interface {
+	OpenVNCConsole(ctx context.Context, project, instance string) (incus.ConsoleSession, error)
+	DialVNCConsole(ctx context.Context, opID, secret string) (*websocket.Conn, error)
 }
 
 // eventBus is the narrow seam the service needs from *eventbus.Bus.
