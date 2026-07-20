@@ -878,3 +878,43 @@ func GetProvidersSeaweedFSDefaultQuotaMiB() int64 {
 func GetProvidersSeaweedFSEventsEnabled() bool {
 	return viper.GetBool("providers.seaweedfs.events.enabled")
 }
+
+// ---------------------------------------------------------------------------
+// First-run admin bootstrap (WS-23). Every getter reads a key under
+// bootstrap.*. The bootstrap runs at program.Start time after RBAC seeding
+// when the DB has zero users; it creates a platform.admin user from the
+// configured email + password (generated if absent).
+// ---------------------------------------------------------------------------
+
+// GetBootstrapEnabled reports whether the first-run admin bootstrap is on.
+// When false, program.Start never attempts to create the platform.admin
+// user even on an empty database.
+func GetBootstrapEnabled() bool {
+	return viper.GetBool("bootstrap.enabled")
+}
+
+// GetBootstrapAdminEmail returns the email of the platform.admin user to
+// create on first run. Empty string means "skip bootstrap" (even when
+// enabled is true). Sourced from env LAHIJAN_BOOTSTRAP_ADMIN_EMAIL.
+func GetBootstrapAdminEmail() string {
+	return viper.GetString("bootstrap.adminEmail")
+}
+
+// GetBootstrapAdminPassword returns the optional pre-set password for the
+// bootstrap admin. Empty means "generate a random one and print it once".
+// Sourced from env LAHIJAN_BOOTSTRAP_ADMIN_PASSWORD.
+func GetBootstrapAdminPassword() string {
+	return viper.GetString("bootstrap.adminPassword")
+}
+
+// GetBootstrapAdminDisplayName returns the display name written on the
+// bootstrap admin row. Defaults to "Platform Administrator".
+func GetBootstrapAdminDisplayName() string {
+	return viper.GetString("bootstrap.adminDisplayName")
+}
+
+// GetBootstrapGeneratedPasswordLength returns the length of the random
+// password the bootstrap mints when adminPassword is empty. Default 24.
+func GetBootstrapGeneratedPasswordLength() int {
+	return viper.GetInt("bootstrap.generatedPasswordLength")
+}

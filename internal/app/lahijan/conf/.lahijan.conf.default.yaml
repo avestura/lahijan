@@ -542,3 +542,29 @@ providers:
     # have a WASM bus attached.
     events:
       enabled: true
+
+# First-run admin bootstrap (WS-23). On a fresh database (no users at all),
+# program.Start creates a platform.admin user from bootstrap.adminEmail and
+# either bootstrap.adminPassword (when set) or a freshly-generated random
+# password printed once to stdout. The bootstrap is idempotent: it skips
+# silently when ANY user already exists, so a stable deploy never re-runs it.
+# Disable by leaving bootstrap.adminEmail empty.
+bootstrap:
+  # toggles the first-run admin bootstrap. When false, program.Start never
+  # tries to create the platform.admin user even on an empty DB.
+  enabled: true
+  # email of the platform.admin user to create on first run. When empty the
+  # bootstrap is skipped (even when enabled is true). Set via env
+  # LAHIJAN_BOOTSTRAP_ADMIN_EMAIL in the prod compose stack.
+  adminEmail: ""
+  # optional pre-set password for the bootstrap admin. When empty the
+  # bootstrap generates a 24-character random password and prints it once
+  # to stdout (visible via `docker compose logs lahijan`). The operator
+  # must rotate it immediately after first login. Sourced from env
+  # LAHIJAN_BOOTSTRAP_ADMIN_PASSWORD; never commit a real value.
+  adminPassword: ""
+  # optional display name written on the bootstrap admin row.
+  adminDisplayName: "Platform Administrator"
+  # length of the generated random password when adminPassword is empty.
+  # 24 chars over the alphanumeric+symbol alphabet is ~150 bits of entropy.
+  generatedPasswordLength: 24
