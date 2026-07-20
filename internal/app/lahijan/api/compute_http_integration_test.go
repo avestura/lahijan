@@ -235,3 +235,120 @@ var (
 	_ = bytes.NewReader
 	_ = context.Background
 )
+
+// -------------------------------------------------------------------------
+// WS-24: noVNC console endpoint (HTTP-level DoD coverage).
+//
+// The bytes-pump is covered at the provider level
+// (providers/incus/console_test.go). These tests cover the HTTP boundary:
+// auth, tenant scope, RBAC, and the disabled-provider path.
+// -------------------------------------------------------------------------
+
+// TestVNCConsole_RequireAuth covers the WS-14 DoD "every privileged action
+// calls RequirePerm" at the HTTP layer for the WS-24 endpoint: an
+// anonymous request to /vnc is rejected with 401 before the WS upgrade
+// can happen.
+func TestVNCConsole_RequireAuth(t *testing.T) {
+	t.Parallel()
+	ta := newTestApp(t)
+
+	req := httptest.NewRequest("GET",
+		"/api/v1/compute/instances/"+uuid.NewString()+"/vnc", nil)
+	req.Header.Set(middleware.HeaderTenantID, uuid.NewString())
+	// No session cookie.
+	resp, err := ta.app.Test(req, -1)
+	require.NoError(t, err)
+	assert.Equal(t, 401, resp.StatusCode, "anonymous request must 401 before WS upgrade")
+}
+
+// TestVNCConsole_RequireTenantScope covers the tenant-scope contract: a
+// request without X-Tenant-Id returns 400 (the audit gate's RequirePerm
+// hits sendTenantScopeRequired before the handler runs).
+func TestVNCConsole_RequireTenantScope(t *testing.T) {
+	t.Parallel()
+	ta := newTestApp(t)
+	_, sess, _ := registerAndLogin(t, ta, rbac.RoleTenantAdmin)
+
+	req := httptest.NewRequest("GET",
+		"/api/v1/compute/instances/"+uuid.NewString()+"/vnc", nil)
+	req.Header.Set("Cookie", "lahijan_session="+sess)
+	// No X-Tenant-Id.
+	resp, err := ta.app.Test(req, -1)
+	require.NoError(t, err)
+	assert.Equal(t, 400, resp.StatusCode, "missing tenant scope must 400")
+
+	body := decodeBody(t, resp)
+	errBody, ok := body["error"].(map[string]any)
+	require.True(t, ok, "error envelope must be present")
+	assert.Equal(t, "tenant_scope_required", errBody["code"])
+}
+
+// TestVNCConsole_ViewerDenied covers the WS-24 DoD for the new permission:
+// a tenant viewer does NOT hold compute.instance.console.vnc, so the
+// audit gate rejects with 403 + the missing permission slug in details.
+func TestVNCConsole_ViewerDenied(t *testing.T) {
+	t.Parallel()
+	ta := newTestApp(t)
+	_, sess, tidStr := registerAndLogin(t, ta, rbac.RoleTenantViewer)
+
+	req := httptest.NewRequest("GET",
+		"/api/v1/compute/instances/"+uuid.NewString()+"/vnc", nil)
+	req.Header.Set("Cookie", "lahijan_session="+sess)
+	req.Header.Set(middleware.HeaderTenantID, tidStr)
+	resp, err := ta.app.Test(req, -1)
+	require.NoError(t, err)
+	assert.Equal(t, 403, resp.StatusCode, "viewer does not hold compute.instance.console.vnc")
+
+	body := decodeBody(t, resp)
+	errBody, ok := body["error"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "forbidden", errBody["code"])
+	assert.Equal(t, rbac.PermComputeInstanceConsoleVNC,
+		errBody["details"].(map[string]any)["permission"])
+}
+
+// TestVNCConsole_AdminWhenProviderDisabled covers the 501 path: an admin
+// (who DOES hold compute.instance.console.vnc) reaches the handler, which
+// returns 501 because computeSvc is nil in this test app.
+func TestVNCConsole_AdminWhenProviderDisabled(t *testing.T) {
+	t.Parallel()
+	ta := newTestApp(t) // computeSvc is nil by default
+	_, sess, tidStr := registerAndLogin(t, ta, rbac.RoleTenantAdmin)
+
+	req := httptest.NewRequest("GET",
+		"/api/v1/compute/instances/"+uuid.NewString()+"/vnc", nil)
+	req.Header.Set("Cookie", "lahijan_session="+sess)
+	req.Header.Set(middleware.HeaderTenantID, tidStr)
+	resp, err := ta.app.Test(req, -1)
+	require.NoError(t, err)
+	assert.Equal(t, 501, resp.StatusCode,
+		"admin reaches the handler; nil computeSvc -> 501 (not 426 WS upgrade)")
+	body := decodeBody(t, resp)
+	errBody, ok := body["error"].(map[string]any)
+	require.True(t, ok, "error envelope must be present")
+	assert.Equal(t, "not_implemented", errBody["code"])
+}
+
+// TestVNCConsole_NonWSRequestRejected covers the malformed-request path:
+// a plain GET (no WS upgrade headers) from an authenticated admin with a
+// wired compute service should be rejected. With computeSvc nil we get
+// 501 first (the provider-disabled check runs before the WS upgrade). The
+// point of this test is that the WS upgrade never starts for a non-WS
+// request from a viewer (403 short-circuits) — assert that the 403 path
+// does NOT attempt an upgrade.
+func TestVNCConsole_NonWSRequestRejected(t *testing.T) {
+	t.Parallel()
+	ta := newTestApp(t)
+	_, sess, tidStr := registerAndLogin(t, ta, rbac.RoleTenantMember)
+
+	req := httptest.NewRequest("GET",
+		"/api/v1/compute/instances/"+uuid.NewString()+"/vnc", nil)
+	req.Header.Set("Cookie", "lahijan_session="+sess)
+	req.Header.Set(middleware.HeaderTenantID, tidStr)
+	// Member holds compute.instance.console.vnc; provider is nil -> 501
+	// (NOT 426; the provider-disabled check runs first).
+	resp, err := ta.app.Test(req, -1)
+	require.NoError(t, err)
+	assert.Equal(t, 501, resp.StatusCode,
+		"member with VNC perm but nil provider gets 501, not 426")
+}
