@@ -460,6 +460,12 @@
   "compute.err_not_running": {
     "other": "نمونه باید در حال اجرا باشد."
   },
+  "compute.err_not_vm": {
+    "other": "کنسول گرافیکی تنها برای نمونه‌های ماشین مجازی در دسترس است."
+  },
+  "compute.err_vnc_unavailable": {
+    "other": "کنسول گرافیکی برای این نمونه قابل باز کردن نیست."
+  },
   "compute.err_bad_request": {
     "other": "درخواست نادرست بود."
   },
@@ -492,6 +498,9 @@
   },
   "audit.action_compute_instance_exec": {
     "other": "فرمان در نمونهٔ محاسباتی اجرا شد"
+  },
+  "audit.action_compute_instance_console_vnc_connect": {
+    "other": "نشست کنسول گرافیکی (VNC) برای نمونهٔ محاسباتی باز شد"
   },
   "audit.action_compute_image_upload": {
     "other": "تصویر محاسباتی بارگذاری شد"

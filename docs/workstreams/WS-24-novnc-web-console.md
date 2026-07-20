@@ -1,15 +1,15 @@
-# WS-24 · noVNC Web Console for VMs (DEFERRED)
+# WS-24 · noVNC Web Console for VMs
 
 ```
-Status: deferred
+Status: in-progress
 Phase: 7
 Depends on: WS-11 (Incus provider), WS-20 (dashboard)
 Unblocks: —
 ```
 
-> This workstream is **deferred** past MVP. The doc exists so we don't lose
-> the scope. WS-14 ships xterm.js for container exec; this WS adds noVNC for
-> full graphical VM console access.
+> Originally **deferred** past MVP. Implementing now per explicit request so
+> the scope, design, and ADR trail are not lost. WS-14 ships xterm.js for
+> container exec; this WS adds noVNC for full graphical VM console access.
 
 ## Goal
 

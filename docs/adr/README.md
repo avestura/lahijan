@@ -38,6 +38,7 @@ Accepted; corrections land as new ADRs that supersede prior ones.
 | [0028](./0028-website-prerendering-stack.md) | Marketing website prerendering stack — react-router-dom + vite-react-ssg (deviation from TanStack Router, scoped to `website/`) | Accepted | 2026-07-19 |
 | [0029](./0029-test-sandbox-topology.md) | Test sandbox topology — fakes per provider, coverage gate at the unit-test baseline | Accepted | 2026-07-20 |
 | [0030](./0030-production-deployment-topology.md) | Production deployment topology — Caddy, single-host, four-script ops | Accepted | 2026-07-20 |
+| [0031](./0031-novnc-web-console-proxy.md) | noVNC web console proxy — vendor assets under web/public/novnc/, in-process WebSocket bridge | Accepted | 2026-07-20 |
 
 ## How to write a new ADR
 
