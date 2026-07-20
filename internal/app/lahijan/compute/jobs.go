@@ -71,7 +71,7 @@ type SnapshotTakeWorker struct {
 // be nil (defaults to slog.Default() at Work time).
 func NewSnapshotTakeWorker(svc *Service, log *slog.Logger) *SnapshotTakeWorker {
 	w := &SnapshotTakeWorker{svc: svc, log: log, batchLimit: 50}
-	w.enqueueBackup = func(_ context.Context, _, _ uuid.UUID, _ uuid.UUID) error { return nil }
+	w.enqueueBackup = func(_ context.Context, _, _, _ uuid.UUID) error { return nil }
 	return w
 }
 
@@ -135,9 +135,9 @@ func (w *SnapshotTakeWorker) fireOne(ctx context.Context, log *slog.Logger, poli
 	if policy.InstanceID != nil {
 		instanceIDs = []uuid.UUID{*policy.InstanceID}
 	} else {
-		rows, err := w.svc.repos.ComputeInstances.List(tenantCtx, 500, 0)
-		if err != nil {
-			return fmt.Errorf("list instances for tenant-default policy: %w", err)
+		rows, listErr := w.svc.repos.ComputeInstances.List(tenantCtx, 500, 0)
+		if listErr != nil {
+			return fmt.Errorf("list instances for tenant-default policy: %w", listErr)
 		}
 		for _, r := range rows {
 			instanceIDs = append(instanceIDs, r.ID)
@@ -163,9 +163,9 @@ func (w *SnapshotTakeWorker) fireOne(ctx context.Context, log *slog.Logger, poli
 		}
 		// Queue the backup when the policy has a target_id.
 		if policy.TargetID != nil {
-			if err := w.enqueueBackup(tenantCtx, policy.TenantID, uuid.Nil, *policy.TargetID); err != nil {
+			if qErr := w.enqueueBackup(tenantCtx, policy.TenantID, uuid.Nil, *policy.TargetID); qErr != nil {
 				log.WarnContext(ctx, "compute.snapshot.take: enqueue backup failed",
-					"policy_id", policyID, "instance_id", instID, "error", err.Error())
+					"policy_id", policyID, "instance_id", instID, "error", qErr.Error())
 			}
 		}
 	}

@@ -86,10 +86,10 @@ func (s *Service) TakeSnapshot(
 	}
 
 	// Pre-flight: name uniqueness within the instance.
-	if existing, err := s.repos.ComputeSnapshots.GetByName(ctx, params.InstanceID, params.Name); err == nil && existing.ID != uuid.Nil {
+	if existing, lookupErr := s.repos.ComputeSnapshots.GetByName(ctx, params.InstanceID, params.Name); lookupErr == nil && existing.ID != uuid.Nil {
 		return database.ComputeSnapshot{}, fmt.Errorf("%w: name=%s", ErrSnapshotNameTaken, params.Name)
-	} else if err != nil && !database.IsNoRows(err) {
-		return database.ComputeSnapshot{}, fmt.Errorf("compute: snapshot lookup name: %w", err)
+	} else if lookupErr != nil && !database.IsNoRows(lookupErr) {
+		return database.ComputeSnapshot{}, fmt.Errorf("compute: snapshot lookup name: %w", lookupErr)
 	}
 
 	// Insert the row before the Incus call so a daemon timeout leaves the

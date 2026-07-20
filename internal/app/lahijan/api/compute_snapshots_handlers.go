@@ -597,7 +597,7 @@ func openAPIUUIDPtr(p *openapi_types.UUID) *uuid.UUID {
 	if p == nil {
 		return nil
 	}
-	v := uuid.UUID(*p)
+	v := *p
 	return &v
 }
 

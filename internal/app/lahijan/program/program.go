@@ -238,7 +238,7 @@ func Start() error {
 		// the deployer did not set auth.secrets.encryptionKey; the
 		// backup-target CRUD surfaces ErrCryptoRequired in that case.
 		var computeCrypto *secrets.Crypto
-		if c, err := buildCrypto(); err == nil {
+		if c, cryptoErr := buildCrypto(); cryptoErr == nil {
 			computeCrypto = c
 		}
 		computeSvc = compute.New(

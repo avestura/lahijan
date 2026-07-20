@@ -17,7 +17,6 @@ package compute
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -365,10 +364,10 @@ func (s *Service) PushBackup(
 	row.Status = database.BackupStatusCompleted
 
 	s.emitEvent(ctx, eventbus.ComputeBackupCreated, tenantID, uuid.Nil, row.ID, map[string]any{
-		"snapshot_id":  snapshotID,
-		"target_id":    targetID,
-		"size_bytes":   size,
-		"remote":       remoteLoc,
+		"snapshot_id": snapshotID,
+		"target_id":   targetID,
+		"size_bytes":  size,
+		"remote":      remoteLoc,
 	})
 	return row, nil
 }
@@ -452,7 +451,3 @@ func backupRemoteLocation(kind, key string) string {
 	}
 	return key
 }
-
-// errBackupNotFound is a sentinel used internally by the helpers; the
-// public surface uses ErrBackupNotFound from errors.go.
-var errBackupNotFound = errors.New("compute: backup not found")

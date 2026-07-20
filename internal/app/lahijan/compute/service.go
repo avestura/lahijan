@@ -87,10 +87,10 @@ const (
 // ResourceBackup mirror the audit_log.resource_type vocabulary for the
 // WS-25 snapshot + backup surface.
 const (
-	ResourceSnapshot      = "compute_snapshot"
+	ResourceSnapshot       = "compute_snapshot"
 	ResourceSnapshotPolicy = "compute_snapshot_policy"
-	ResourceBackupTarget  = "compute_backup_target"
-	ResourceBackup        = "compute_backup"
+	ResourceBackupTarget   = "compute_backup_target"
+	ResourceBackup         = "compute_backup"
 )
 
 // Service is the entrypoint every compute API handler talks to. It owns the
@@ -127,6 +127,8 @@ type cryptoEnvelope interface {
 // dragging the full incus surface into the test file. Split into per-area
 // sub-interfaces so the surface stays reviewable; the concrete
 // *incus.Provider satisfies the union.
+//
+//nolint:interfacebloat // intentional: 8 sub-interfaces composed by category; each is small
 type incusProvider interface {
 	incusProjectOps
 	incusInstanceOps
@@ -193,7 +195,7 @@ type incusConsoleOps interface {
 // get / rename / delete / restore / export. ExportSnapshot returns the
 // raw tarball bytes the backup worker streams to a BackupTarget.
 //
-//nolint:interfacebloat // intentional: 7 small methods mirroring the Incus REST surface
+//nolint:interfacebloat // intentional: 8 small methods mirroring the Incus REST surface
 type incusSnapshotOps interface {
 	CreateSnapshot(ctx context.Context, params incus.CreateSnapshotParams) (*incus.Operation, error)
 	ListInstanceSnapshots(ctx context.Context, project, instance string) ([]incus.InstanceSnapshot, error)

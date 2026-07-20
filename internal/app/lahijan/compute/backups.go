@@ -111,10 +111,10 @@ type BackupTargetConfig struct {
 	NFSSubPath    string `json:"sub_path,omitempty"`
 
 	// SSH fields (Kind == "ssh").
-	SSHHost           string `json:"host,omitempty"`
-	SSHPort           int    `json:"port,omitempty"`
-	SSHUser           string `json:"user,omitempty"`
-	SSHRemotePath     string `json:"remote_path,omitempty"`
+	SSHHost               string `json:"host,omitempty"`
+	SSHPort               int    `json:"port,omitempty"`
+	SSHUser               string `json:"user,omitempty"`
+	SSHRemotePath         string `json:"remote_path,omitempty"`
 	SSHHostKeyFingerprint string `json:"host_key_fingerprint,omitempty"`
 }
 

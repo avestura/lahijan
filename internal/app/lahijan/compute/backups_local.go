@@ -65,8 +65,8 @@ func (d *LocalDriver) Upload(_ context.Context, key string, body io.Reader) (int
 	if err != nil {
 		return 0, "", err
 	}
-	if err := os.MkdirAll(filepath.Dir(cleaned), 0o750); err != nil {
-		return 0, "", fmt.Errorf("compute: nfs mkdir key: %w", err)
+	if mkErr := os.MkdirAll(filepath.Dir(cleaned), 0o750); mkErr != nil {
+		return 0, "", fmt.Errorf("compute: nfs mkdir key: %w", mkErr)
 	}
 	tmp := cleaned + ".lahijan-tmp"
 	f, err := os.Create(tmp)
