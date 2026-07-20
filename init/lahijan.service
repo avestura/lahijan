@@ -1,11 +1,37 @@
 [Unit]
 Description=Lahijan
+Documentation=https://github.com/avestura/lahijan
+After=network-online.target postgresql.service
+Wants=network-online.target
 
 [Service]
 Type=simple
 User=lahijan
-ExecStart=lahijan serve
+Group=lahijan
+EnvironmentFile=-/etc/lahijan/lahijan.env
+# The Lahijan binary is single-mode today (no `serve` subcommand yet).
+# Migrations + first-run admin bootstrap run inside program.Start().
+# All configuration is sourced from env (EnvironmentFile above) or
+# /etc/lahijan/lahijan.yaml.
+ExecStart=/usr/local/bin/lahijan
 Restart=on-failure
+RestartSec=5s
+
+# Hardening — adjust to taste. The defaults are conservative; lift them
+# only if your deploy genuinely needs more (e.g. CAP_NET_BIND_SERVICE for
+# binding to ports < 1024).
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/lahijan
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LockPersonality=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
 
 [Install]
 WantedBy=multi-user.target

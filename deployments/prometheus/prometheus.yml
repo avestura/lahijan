@@ -1,0 +1,25 @@
+# Prometheus scrape config for Lahijan prod (ADR-0016).
+#
+# Prometheus scrapes the OTel collector's prometheus exporter (which in
+# turn scrapes Lahijan's /metrics via the prometheusreceiver). The
+# collector is the fan-out hub; Prometheus does not scrape Lahijan
+# directly so we have one place to add / remove scrape targets.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: lahijan-prod
+    environment: prd
+
+scrape_configs:
+  # The OTel collector re-exposes metrics on :8889 (its prometheusexporter).
+  # Lahijan's metrics fan out through here.
+  - job_name: otel-collector
+    static_configs:
+      - targets: ["otel-colector:8889"]
+
+  # Self-scrape for Prometheus health.
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

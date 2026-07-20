@@ -345,6 +345,15 @@ func Start() error {
 		log.Fatalf("failed to seed rbac catalog: %s", err.Error())
 	}
 
+	// WS-23: first-run admin bootstrap. Creates a default tenant + a
+	// platform.admin user on a fresh DB. Idempotent — silent no-op as soon
+	// as any user exists. Runs AFTER RBAC seeding so the platform.admin
+	// role row is present. Logs the credentials banner once via slog at
+	// WARN level when a new admin is created.
+	bootstrapCtx, bootstrapCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer bootstrapCancel()
+	runBootstrap(bootstrapCtx, authDeps)
+
 	app := fiber.New(fiber.Config{
 		ServerHeader: "Lahijan",
 		AppName:      "Lahijan",
