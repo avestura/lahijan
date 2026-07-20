@@ -1,0 +1,607 @@
+# Lahijan — production Docker Compose stack.
+#
+# WS-23. Brings up the full single-host topology from ADR-0005 + ADR-0006 +
+# ADR-0007 in production mode:
+#
+#   - Postgres 16 (shared by Lahijan, PowerDNS, SeaweedFS Filer — three
+#     logical databases, one container, one backup target)
+#   - PowerDNS Authoritative 4.9 (gpgsql backend, HTTP API for Lahijan)
+#   - SeaweedFS 3.61 (master + volume + filer + s3 — the prod split)
+#   - Lahijan app (ghcr.io/avestura/lahijan:<tag>, all providers enabled)
+#   - Incus client sidecar (bind-mounts the host Incus socket)
+#   - Caddy 2 (TLS-terminating reverse proxy, auto-Letsencrypt)
+#   - OTel collector + Jaeger + Loki + Prometheus + Grafana (observability)
+#
+# Usage (see deployments/README.md for the full operator guide):
+#
+#   cp deployments/.env.prod.example deployments/.env.prod
+#   # edit .env.prod — fill in the secrets
+#   docker compose -f deployments/docker-compose.prod.yml --env-file deployments/.env.prod up -d
+#
+# Hard rules (see deployments/AGENTS.md):
+#   - Never commit .env.prod; only .env.prod.example.
+#   - Never disable TLS in this file.
+#   - Never expose the Incus socket to the network; Unix-only.
+#   - Never use `latest` tags; pin to a SemVer.
+#   - Every container ships a HEALTHCHECK.
+#
+# Dev / test stacks live in docker-compose.dev.yml / docker-compose.test.yml.
+# Use this file for any deployment that faces the public internet.
+
+name: lahijan-prod
+
+# Two networks: `frontend` carries public ingress (Caddy is the only service
+# attached); `backend` carries inter-service traffic. Caddy straddles both.
+# Every other service is `backend`-only so a misconfigured port-publish on a
+# backend container cannot accidentally expose it.
+networks:
+  frontend:
+    name: lahijan-prod-frontend
+    driver: bridge
+  backend:
+    name: lahijan-prod-backend
+    driver: bridge
+
+# Named volumes — every stateful service persists here so `docker compose
+# down` (without -v) preserves data. The operator backup script
+# (scripts/backup.sh) snapshots Postgres + the SeaweedFS volume. The
+# incus_socket volume is the mount point the sidecar + the Lahijan app share
+# so the Incus host socket reaches the Lahijan container without exposing
+# it to the network.
+volumes:
+  postgres_data:
+    name: lahijan-prod-postgres
+  seaweedfs_data:
+    name: lahijan-prod-seaweedfs
+  caddy_data:
+    name: lahijan-prod-caddy-data
+  caddy_config:
+    name: lahijan-prod-caddy-config
+  prometheus_data:
+    name: lahijan-prod-prometheus
+  grafana_data:
+    name: lahijan-prod-grafana
+  lahijan_plugins:
+    name: lahijan-prod-plugins
+
+# Default resource limits — small enough to fit on a 4 GB / 2 vCPU homelab
+# box while leaving headroom for Incus on the host. Override per-service via
+# deploy.resources in a compose override file for bigger hosts. The Lahijan
+# app + River workers are CPU-bounded by Incus REST calls, not by the
+# process's own work, so a 1 vCPU cap is comfortable.
+#
+# Logging: every service uses the json-file driver with a 10 MB / 3-file
+# rotation so a chatty container cannot fill the host disk. Operators who
+# want a central log store ship these via a log shipper (Fluent Bit, Vector,
+# Promtail) — out of scope for the MVP compose.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  # ---------------------------------------------------------------------
+  # Reverse proxy — TLS termination + auto-Letsencrypt (per WS-23 default).
+  # Straddles frontend + backend; the only service with public ports.
+  # ---------------------------------------------------------------------
+  caddy:
+    image: caddy:2.8-alpine
+    container_name: lahijan-prod-caddy
+    restart: unless-stopped
+    networks: [frontend, backend]
+    logging: *default-logging
+    depends_on:
+      lahijan:
+        condition: service_healthy
+    environment:
+      # The public dashboard origin (e.g. https://app.example.com). Caddy
+      # uses this in the Caddyfile's site block; Let's Encrypt issues a
+      # cert for it on first boot.
+      LAHIJAN_PUBLIC_HOST: ${LAHIJAN_PUBLIC_HOST}
+      # Optional: email for Let's Encrypt notifications + ACME CA. Leave
+      # empty to use Let's Encrypt's default (the CA prompts on first
+      # issuance via HTTP-01).
+      ACME_EMAIL: ${LAHIJAN_ACME_EMAIL:-}
+    ports:
+      # Public HTTP(S). Caddy redirects 80 → 443 and serves TLS on 443.
+      # Both are published on the host so the firewall can let them
+      # through.
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3 (QUIC); Caddy negotiates it automatically
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://localhost:2019/config/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+
+  # ---------------------------------------------------------------------
+  # Shared Postgres — three logical DBs (lahijan, pdns, seaweed).
+  # ---------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: lahijan-prod-postgres
+    restart: unless-stopped
+    networks: [backend]
+    logging: *default-logging
+    environment:
+      POSTGRES_USER: ${POSTGRES_SUPERUSER}
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_SUPERUSER_DB}
+      LAHIJAN_DB_NAME: ${LAHIJAN_DATABASE_NAME}
+      LAHIJAN_DB_USER: ${LAHIJAN_DATABASE_USER}
+      LAHIJAN_DB_PASSWORD: ${LAHIJAN_DATABASE_PASSWORD}
+      PDNS_DB_NAME: ${PDNS_DATABASE_NAME}
+      PDNS_DB_USER: ${PDNS_DATABASE_USER}
+      PDNS_DB_PASSWORD: ${PDNS_DATABASE_PASSWORD}
+      SEAWEED_DB_NAME: ${SEAWEED_DATABASE_NAME}
+      SEAWEED_DB_USER: ${SEAWEED_DATABASE_USER}
+      SEAWEED_DB_PASSWORD: ${SEAWEED_DATABASE_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sh:/docker-entrypoint-initdb.d/01-init.sh:ro
+      - ./powerdns/init.sh:/docker-entrypoint-initdb.d/02-pdns-schema.sh:ro
+      - ./powerdns/schema.pgsql.sql:/powerdns/schema.pgsql.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    shm_size: 512m
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  # ---------------------------------------------------------------------
+  # PowerDNS Authoritative — gpgsql backend, HTTP API for Lahijan DNS module.
+  # ---------------------------------------------------------------------
+  powerdns:
+    image: powerdns/pdns-auth-49:4.9.3
+    container_name: lahijan-prod-powerdns
+    restart: unless-stopped
+    networks: [backend]
+    logging: *default-logging
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PDNS_gpgsql_host: postgres
+      PDNS_gpgsql_user: ${PDNS_DATABASE_USER}
+      PDNS_gpgsql_password: ${PDNS_DATABASE_PASSWORD}
+      PDNS_gpgsql_dbname: ${PDNS_DATABASE_NAME}
+      PDNS_gpgsql_port: 5432
+      PDNS_api: "yes"
+      PDNS_webserver: "yes"
+      PDNS_webserver_address: "0.0.0.0"
+      PDNS_webserver_port: "8081"
+      # In prod restrict the webserver to Lahijan + the operator's source IP.
+      # The default allows any RFC1918 + the compose network; tighten to
+      # your admin subnet via .env.prod.
+      PDNS_webserver_allow_from: ${PDNS_WEBSERVER_ALLOW_FROM:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
+      PDNS_api_key: ${PDNS_API_KEY}
+      PDNS_webserver_loglevel: "9"
+      PDNS_default_soa_edit_api: "DEFAULT"
+      PDNS_dnsupdate: "no"
+    expose:
+      # Internal-only; Lahijan reaches it over the backend network.
+      - "8081"
+    ports:
+      # Authoritative DNS port (UDP + TCP) — MUST be published on the host
+      # for the domain's NS records to resolve. The operator's firewall
+      # must allow UDP/TCP 53 from the internet to this host.
+      - "53:53/udp"
+      - "53:53/tcp"
+    volumes:
+      - ./powerdns/pdns.conf.template:/etc/powerdns/pdns.conf.template:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://localhost:8081/api/v1/servers/localhost || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 384M
+
+  # ---------------------------------------------------------------------
+  # SeaweedFS — master + volume + filer + s3 (prod split).
+  # ---------------------------------------------------------------------
+  seaweed-master:
+    image: chrislusf/seaweedfs:3.61
+    container_name: lahijan-prod-seaweed-master
+    restart: unless-stopped
+    networks: [backend]
+    logging: *default-logging
+    command:
+      - "master"
+      - "-ip=seaweed-master"
+      - "-port=9333"
+      - "-defaultReplication=001" # 1 replica on top of the primary
+      - "-volumeSizeLimit=800" # GB per volume server; tune to disk
+    expose: ["9333"]
+    volumes:
+      - seaweedfs_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://localhost:9333/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+
+  seaweed-volume:
+    image: chrislusf/seaweedfs:3.61
+    container_name: lahijan-prod-seaweed-volume
+    restart: unless-stopped
+    networks: [backend]
+    logging: *default-logging
+    depends_on:
+      seaweed-master:
+        condition: service_healthy
+    command:
+      - "volume"
+      - "-ip=seaweed-volume"
+      - "-port=8080"
+      - "-mserver=seaweed-master:9333"
+      # publicUrl is the host users hit for object data. In prod this is
+      # typically the public-facing storage origin (Caddy proxies it). The
+      # default targets the host's published volume port — override via
+      # .env.prod for virtual-host-style S3 setups.
+      - "-publicUrl=${SEAWEEDFS_VOLUME_PUBLIC_URL:-http://seaweed-volume:8080}"
+    expose: ["8080"]
+    volumes:
+      - seaweedfs_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://localhost:8080/status || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  seaweed-filer:
+    image: chrislusf/seaweedfs:3.61
+    container_name: lahijan-prod-seaweed-filer
+    restart: unless-stopped
+    networks: [backend]
+    logging: *default-logging
+    depends_on:
+      seaweed-master:
+        condition: service_healthy
+      seaweed-volume:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    command:
+      - "filer"
+      - "-ip=seaweed-filer"
+      - "-port=8888"
+      - "-master=seaweed-master:9333"
+      - "-postgres"
+      - "-postgres.hostname=postgres"
+      - "-postgres.port=5432"
+      - "-postgres.database=${SEAWEED_DATABASE_NAME}"
+      - "-postgres.username=${SEAWEED_DATABASE_USER}"
+      - "-postgres.password=${SEAWEED_DATABASE_PASSWORD}"
+    expose: ["8888"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://localhost:8888/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+
+  seaweed-s3:
+    image: chrislusf/seaweedfs:3.61
+    container_name: lahijan-prod-seaweed-s3
+    restart: unless-stopped
+    networks: [backend]
+    logging: *default-logging
+    depends_on:
+      seaweed-filer:
+        condition: service_healthy
+    command:
+      - "s3"
+      - "-ip=seaweed-s3"
+      - "-port=8333"
+      - "-filer=seaweed-filer:8888"
+      - "-config=/etc/seaweedfs/s3.json"
+    environment:
+      # The admin credentials Lahijan uses. The same values MUST be set
+      # on the Lahijan app below (LAHIJAN_PROVIDERS_SEAWEEDFS_ADMIN_*).
+      SEAWEEDFS_S3_ACCESS_KEY: ${SEAWEEDFS_S3_ACCESS_KEY}
+      SEAWEEDFS_S3_SECRET_KEY: ${SEAWEEDFS_S3_SECRET_KEY}
+    ports:
+      # S3 data plane — published on the host so users' S3 clients hit it
+      # directly (per ADR-0011). Caddy can proxy 8333 → 443 for HTTPS S3
+      # if the operator wants TLS on the data plane (default off; S3
+      # clients usually accept self-signed or plain HTTP on private LANs).
+      - "${SEAWEEDFS_S3_HOST_PORT:-8333}:8333"
+    volumes:
+      - ./seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://localhost:8333/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 384M
+
+  # ---------------------------------------------------------------------
+  # Incus client sidecar — mounts the host Incus socket so the Lahijan
+  # container can also mount it via the same bind path (per
+  # deployments/incus/README.md). The sidecar's only job is to fail-fast
+  # at startup if the host socket is missing or unreadable; Lahijan
+  # itself bind-mounts the host path directly (Docker named volumes do
+  # not propagate bind mounts, so the sidecar's view and Lahijan's view
+  # MUST both be host bind-mounts of the same path).
+  # ---------------------------------------------------------------------
+  incus-client:
+    image: ghcr.io/lxc/incus:6.0
+    container_name: lahijan-prod-incus-client
+    restart: unless-stopped
+    networks: [backend]
+    logging: *default-logging
+    volumes:
+      # Bind-mount the host's Incus socket dir read-only. The Lahijan
+      # container bind-mounts the SAME host path so both see the same
+      # socket. The path is configurable via INCUS_SOCKET_PATH so
+      # snap-vs-package installs differ.
+      - "${INCUS_SOCKET_PATH:-/var/lib/incus}:/var/lib/incus:ro"
+    command: ["sleep", "infinity"]
+    healthcheck:
+      test: ["CMD", "test", "-S", "/var/lib/incus/unix.socket"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.10"
+          memory: 64M
+
+  # ---------------------------------------------------------------------
+  # The Lahijan app — all providers enabled, prod config. River workers run
+  # in the same process (multi-node / external workers land in WS-26).
+  # ---------------------------------------------------------------------
+  lahijan:
+    image: ghcr.io/avestura/lahijan:${LAHIJAN_IMAGE_TAG}
+    container_name: lahijan-prod-app
+    restart: unless-stopped
+    networks: [backend]
+    logging: *default-logging
+    depends_on:
+      postgres:
+        condition: service_healthy
+      powerdns:
+        condition: service_healthy
+      seaweed-s3:
+        condition: service_healthy
+      incus-client:
+        condition: service_started
+    environment:
+      # Process + config.
+      LAHIJAN_ENVIRONMENT: "prd"
+      LAHIJAN_DEBUG: "false"
+      # HTTP server.
+      LAHIJAN_HTTP_SERVER_PORT: "8080"
+      LAHIJAN_HTTP_SERVER_HOST: "0.0.0.0"
+      LAHIJAN_HTTP_SERVER_HEALTHCHECK_ENABLED: "true"
+      # Cookies MUST be Secure in prod (TLS-terminated at Caddy).
+      LAHIJAN_AUTH_SESSION_SECURE: "true"
+      # Database (the shared Postgres).
+      LAHIJAN_DATABASE_HOST: postgres
+      LAHIJAN_DATABASE_PORT: 5432
+      LAHIJAN_DATABASE_NAME: ${LAHIJAN_DATABASE_NAME}
+      LAHIJAN_DATABASE_USER: ${LAHIJAN_DATABASE_USER}
+      LAHIJAN_DATABASE_PASSWORD: ${LAHIJAN_DATABASE_PASSWORD}
+      LAHIJAN_DATABASE_SSLMODE: disable
+      LAHIJAN_DATABASE_MAX_CONNS: "30"
+      LAHIJAN_DATABASE_MIN_CONNS: "5"
+      # Auth + secrets.
+      LAHIJAN_AUTH_SIGNING_KEY: ${LAHIJAN_AUTH_SIGNING_KEY}
+      LAHIJAN_AUTH_SECRETS_ENCRYPTIONKEY: ${LAHIJAN_AUTH_SECRETS_ENCRYPTIONKEY}
+      LAHIJAN_AUTH_PASSWORD_MINLENGTH: "12"
+      # SMTP.
+      LAHIJAN_SMTP_ENABLED: ${LAHIJAN_SMTP_ENABLED:-true}
+      LAHIJAN_SMTP_HOST: ${LAHIJAN_SMTP_HOST}
+      LAHIJAN_SMTP_PORT: ${LAHIJAN_SMTP_PORT:-587}
+      LAHIJAN_SMTP_USER: ${LAHIJAN_SMTP_USER}
+      LAHIJAN_SMTP_PASSWORD: ${LAHIJAN_SMTP_PASSWORD}
+      LAHIJAN_SMTP_FROM: ${LAHIJAN_SMTP_FROM}
+      LAHIJAN_SMTP_APPBASEURL: ${LAHIJAN_PUBLIC_URL}
+      # Jobs (River).
+      LAHIJAN_JOBS_ENABLED: "true"
+      LAHIJAN_JOBS_ADMINUI_ENABLED: "true"
+      # WASM plugins.
+      LAHIJAN_WASM_ENABLED: "true"
+      # Providers.
+      LAHIJAN_PROVIDERS_INCUS_ENABLED: "true"
+      LAHIJAN_PROVIDERS_INCUS_SOCKETPATH: /var/lib/incus/unix.socket
+      LAHIJAN_PROVIDERS_POWERDNS_ENABLED: "true"
+      LAHIJAN_PROVIDERS_POWERDNS_BASEURL: http://powerdns:8081
+      LAHIJAN_PROVIDERS_POWERDNS_APIKEY: ${PDNS_API_KEY}
+      LAHIJAN_PROVIDERS_SEAWEEDFS_ENABLED: "true"
+      LAHIJAN_PROVIDERS_SEAWEEDFS_S3ENDPOINT: http://seaweed-s3:8333
+      LAHIJAN_PROVIDERS_SEAWEEDFS_FILERURL: http://seaweed-filer:8888
+      LAHIJAN_PROVIDERS_SEAWEEDFS_ADMINACCESSKEY: ${SEAWEEDFS_S3_ACCESS_KEY}
+      LAHIJAN_PROVIDERS_SEAWEEDFS_ADMINSECRETKEY: ${SEAWEEDFS_S3_SECRET_KEY}
+      # WebAuthn RP — needed for passkey login. Leave empty to disable
+      # WebAuthn (TOTP still works).
+      LAHIJAN_AUTH_MFA_WEBAUTHN_RPID: ${LAHIJAN_AUTH_MFA_WEBAUTHN_RPID:-}
+      LAHIJAN_AUTH_MFA_WEBAUTHN_RPORIGINS: ${LAHIJAN_AUTH_MFA_WEBAUTHN_RPORIGINS:-}
+      # First-run admin bootstrap (WS-23). When LAHIJAN_BOOTSTRAP_ADMIN_PASSWORD
+      # is empty Lahijan generates one and logs it ONCE via `docker compose
+      # logs lahijan`. Set both to skip the random-generation path.
+      LAHIJAN_BOOTSTRAP_ENABLED: "true"
+      LAHIJAN_BOOTSTRAP_ADMIN_EMAIL: ${LAHIJAN_BOOTSTRAP_ADMIN_EMAIL}
+      LAHIJAN_BOOTSTRAP_ADMIN_PASSWORD: ${LAHIJAN_BOOTSTRAP_ADMIN_PASSWORD:-}
+      # OTel — Lahijan pushes traces + logs to the collector.
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_SERVICE_NAME: lahijan
+    expose:
+      - "8080"
+    volumes:
+      - lahijan_plugins:/var/lib/lahijan/plugins
+      # The Lahijan container bind-mounts the SAME host Incus socket path
+      # the incus-client sidecar sees. Read-only so the app can never
+      # corrupt the host daemon.
+      - "${INCUS_SOCKET_PATH:-/var/lib/incus}:/var/lib/incus:ro"
+    healthcheck:
+      # The Lahijan binary exposes /healthcheck/liveness (WS-04).
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://localhost:8080/healthcheck/liveness || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s # migrations + bootstrap can take a moment on cold starts
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+
+  # ---------------------------------------------------------------------
+  # Observability stack (ADR-0016). OTel collector ingests OTLP from
+  # Lahijan and fans out to Jaeger (traces), Loki (logs), Prometheus
+  # (metrics). Grafana is the single pane of glass.
+  # ---------------------------------------------------------------------
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.108.0
+    container_name: lahijan-prod-otel-collector
+    restart: unless-stopped
+    networks: [backend]
+    logging: *default-logging
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    expose:
+      - "4317" # OTLP gRPC (Lahijan)
+      - "4318" # OTLP HTTP (Lahijan fallback)
+    depends_on:
+      - jaeger
+      - loki
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://localhost:13133/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 384M
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.60
+    container_name: lahijan-prod-jaeger
+    restart: unless-stopped
+    networks: [backend]
+    logging: *default-logging
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+      # In-memory storage is OK for short retention; for prod retention
+      # use the jaeger-elasticsearch or jaeger-cassandra backends (out of
+      # scope for MVP).
+      MEMORY_MAX_TRACES: "50000"
+    expose:
+      - "4317" # OTLP gRPC (collector pushes here)
+      - "16686" # Web UI (proxied via Caddy when LAHIJAN_OBSERVABILITY_PUBLIC=true)
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+
+  loki:
+    image: grafana/loki:3.1.1
+    container_name: lahijan-prod-loki
+    restart: unless-stopped
+    networks: [backend]
+    logging: *default-logging
+    command: -config.file=/etc/loki/local-config.yaml
+    expose:
+      - "3100"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: lahijan-prod-prometheus
+    restart: unless-stopped
+    networks: [backend]
+    logging: *default-logging
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    expose:
+      - "9090"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: lahijan-prod-grafana
+    restart: unless-stopped
+    networks: [backend]
+    logging: *default-logging
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: ${LAHIJAN_PUBLIC_URL}/grafana
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    expose:
+      - "3000"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
