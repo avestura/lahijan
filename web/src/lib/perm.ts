@@ -38,6 +38,8 @@ const ROLE_IMPLICATIONS: Record<string, Set<string>> = {
     "compute.instance.stop",
     "compute.instance.restart",
     "compute.instance.delete",
+    // WS-24: graphical (noVNC) console, distinct from xterm.js exec.
+    "compute.instance.console.vnc",
     // DNS.
     "dns.zone.create",
     "dns.zone.read",
