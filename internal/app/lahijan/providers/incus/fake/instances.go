@@ -33,6 +33,29 @@ func (s *Server) handleInstanceCreate(w http.ResponseWriter, r *http.Request) {
 	if body.Project == "" {
 		body.Project = queryProject(r)
 	}
+	// WS-26: the optional ?target=<member> query string pins the
+	// instance to a specific cluster member. The fake records the
+	// target on the instance's Location field so the driver-side
+	// GetInstance path round-trips it back to the caller.
+	target := r.URL.Query().Get("target")
+	if target != "" {
+		// Validate the target exists; an unknown member surfaces
+		// the same 400 the real daemon would return so the
+		// placement-driver tests can assert the error path.
+		s.mu.Lock()
+		var found bool
+		for _, m := range s.cluster.members {
+			if m.ServerName == target {
+				found = true
+				break
+			}
+		}
+		s.mu.Unlock()
+		if !found {
+			writeIncusError(w, http.StatusBadRequest, "target member %q not in cluster", target)
+			return
+		}
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	fp, ok := s.projects[body.Project]
@@ -55,6 +78,7 @@ func (s *Server) handleInstanceCreate(w http.ResponseWriter, r *http.Request) {
 		Type:        body.Type,
 		Status:      "Stopped",
 		StatusCode:  102,
+		Location:    target,
 	}
 	if inst.Type == "" {
 		inst.Type = "container"
@@ -124,9 +148,68 @@ func (s *Server) handleInstance(w http.ResponseWriter, r *http.Request, name str
 		opID := newOpID()
 		s.registerOp(opID, nil)
 		writeIncusAsync(w, opID)
+	case http.MethodPost:
+		// WS-26: POST /instances/<name>?target=<member> with body
+		// {"migration": true} is the live-migrate call. The fake
+		// updates the instance's Location field and returns an
+		// async op; no actual data is moved.
+		s.handleInstanceMigrate(w, r, project, name)
 	default:
 		writeIncusError(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
 	}
+}
+
+// handleInstanceMigrate processes the WS-26 migration POST. The body
+// must include {"migration": true}; any other body is rejected with 400
+// (the real daemon accepts rename-via-POST too; the fake does not need
+// it).
+func (s *Server) handleInstanceMigrate(w http.ResponseWriter, r *http.Request, project, name string) {
+	var body incus.InstanceMigratePost
+	if err := decodeBody(r, &body); err != nil {
+		writeIncusError(w, http.StatusBadRequest, "decode: %v", err)
+		return
+	}
+	if !body.Migration {
+		writeIncusError(w, http.StatusBadRequest, "POST on instance requires migration=true (use PUT to update)")
+		return
+	}
+	target := r.URL.Query().Get("target")
+	if target == "" {
+		writeIncusError(w, http.StatusBadRequest, "migration requires target=<member>")
+		return
+	}
+	s.mu.Lock()
+	fp, ok := s.projects[project]
+	if !ok {
+		s.mu.Unlock()
+		writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+		return
+	}
+	inst, ok := fp.Instances[name]
+	if !ok {
+		s.mu.Unlock()
+		writeIncusError(w, http.StatusNotFound, "Instance %q not found", name)
+		return
+	}
+	// Validate the target exists in the fake cluster.
+	var found bool
+	for _, m := range s.cluster.members {
+		if m.ServerName == target {
+			found = true
+			break
+		}
+	}
+	if !found {
+		s.mu.Unlock()
+		writeIncusError(w, http.StatusBadRequest, "target member %q not in cluster", target)
+		return
+	}
+	inst.Location = target
+	s.mu.Unlock()
+
+	opID := newOpID()
+	s.registerOp(opID, nil)
+	writeIncusAsync(w, opID)
 }
 
 func (s *Server) handleInstanceState(w http.ResponseWriter, r *http.Request, name string) {
