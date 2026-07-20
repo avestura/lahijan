@@ -20,10 +20,10 @@ import (
 // Incus surface. Tests seed the members slice + the migrate op to
 // return so scheduling decisions are deterministic.
 type fakeClusterProvider struct {
-	members   []incus.ClusterMember
-	listErr   error
-	migrateOp *incus.Operation
-	migrateFn func(params incus.MigrateInstanceParams) (*incus.Operation, error)
+	members       []incus.ClusterMember
+	listErr       error
+	migrateOp     *incus.Operation
+	migrateFn     func(params incus.MigrateInstanceParams) (*incus.Operation, error)
 	migrate_calls []incus.MigrateInstanceParams
 }
 
@@ -49,7 +49,7 @@ func (f *fakeClusterProvider) MigrateInstance(_ context.Context, params incus.Mi
 // the cluster driver actually took the lock by reading the recorded
 // tenant ids.
 type recordingLocker struct {
-	calls   []uuid.UUID
+	calls []uuid.UUID
 }
 
 func (r *recordingLocker) LockTenant(_ context.Context, tenantID uuid.UUID) (func(), error) {
@@ -91,12 +91,18 @@ func TestClusterPlacementDriver_SelectTarget_LeastLoaded(t *testing.T) {
 	t.Parallel()
 	fcp := &fakeClusterProvider{
 		members: []incus.ClusterMember{
-			{ServerName: "node-a", Status: "Online",
-				Config: map[string]string{"lahijan.free_cpu_mhz": "1000"}},
-			{ServerName: "node-b", Status: "Online",
-				Config: map[string]string{"lahijan.free_cpu_mhz": "4000"}},
-			{ServerName: "node-c", Status: "Online",
-				Config: map[string]string{"lahijan.free_cpu_mhz": "2000"}},
+			{
+				ServerName: "node-a", Status: "Online",
+				Config: map[string]string{"lahijan.free_cpu_mhz": "1000"},
+			},
+			{
+				ServerName: "node-b", Status: "Online",
+				Config: map[string]string{"lahijan.free_cpu_mhz": "4000"},
+			},
+			{
+				ServerName: "node-c", Status: "Online",
+				Config: map[string]string{"lahijan.free_cpu_mhz": "2000"},
+			},
 		},
 	}
 	locker := &recordingLocker{}
@@ -176,8 +182,10 @@ func TestClusterPlacementDriver_SelectTarget_MaintenanceMode(t *testing.T) {
 	t.Parallel()
 	fcp := &fakeClusterProvider{
 		members: []incus.ClusterMember{
-			{ServerName: "node-a", Status: "Online",
-				Config: map[string]string{"scheduler.instance": "maintenance"}},
+			{
+				ServerName: "node-a", Status: "Online",
+				Config: map[string]string{"scheduler.instance": "maintenance"},
+			},
 			{ServerName: "node-b", Status: "Online", Config: map[string]string{}},
 		},
 	}
@@ -253,9 +261,9 @@ func TestClusterPlacementDriver_Migrate_PropagatesError(t *testing.T) {
 func TestFilterEligible(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
-		name    string
-		in      []incus.ClusterMember
-		want    []string
+		name string
+		in   []incus.ClusterMember
+		want []string
 	}{
 		{
 			name: "all online",

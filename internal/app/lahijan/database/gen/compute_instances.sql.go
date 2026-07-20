@@ -370,8 +370,8 @@ ORDER BY created_at DESC
 `
 
 type ListComputeInstancesByClusterMemberParams struct {
-	TenantID     uuid.UUID `json:"tenant_id"`
-	ClusterMember string   `json:"cluster_member"`
+	TenantID      uuid.UUID `json:"tenant_id"`
+	ClusterMember string    `json:"cluster_member"`
 }
 
 // : tenant-scoped; used by the cluster admin UI + by the evacuate
