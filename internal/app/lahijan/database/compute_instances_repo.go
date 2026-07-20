@@ -275,3 +275,39 @@ func (r *ComputeInstancesRepository) SoftDelete(ctx context.Context, id uuid.UUI
 		TenantID: tenantID, ID: id,
 	})
 }
+
+// SetClusterMember caches the Incus-reported cluster member (the
+// instance's "Location" field) after a create, migrate, or reconcile.
+// Pass nil to clear the column (single-node daemons report an empty
+// Location). The column is informational; the source of truth is the
+// daemon. (WS-26)
+func (r *ComputeInstancesRepository) SetClusterMember(
+	ctx context.Context,
+	id uuid.UUID,
+	member *string,
+) error {
+	tenantID, err := TenantFromContext(ctx)
+	if err != nil {
+		return err
+	}
+	return r.q.SetComputeInstanceClusterMember(ctx, gen.SetComputeInstanceClusterMemberParams{
+		TenantID: tenantID, ID: id, ClusterMember: member,
+	})
+}
+
+// ListByClusterMember returns every non-deleted instance in the tenant
+// that is hosted on the given cluster member. Used by the cluster admin
+// UI + by the evacuate pre-flight that lists instances that would be
+// migrated. (WS-26)
+func (r *ComputeInstancesRepository) ListByClusterMember(
+	ctx context.Context,
+	member string,
+) ([]gen.ComputeInstance, error) {
+	tenantID, err := TenantFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return r.q.ListComputeInstancesByClusterMember(ctx, gen.ListComputeInstancesByClusterMemberParams{
+		TenantID: tenantID, ClusterMember: member,
+	})
+}

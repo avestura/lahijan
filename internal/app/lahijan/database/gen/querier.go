@@ -564,6 +564,9 @@ type Querier interface {
 	ListComputeInstanceConfigsForQuota(ctx context.Context, tenantID uuid.UUID) ([]ListComputeInstanceConfigsForQuotaRow, error)
 	//: tenant-scoped
 	ListComputeInstances(ctx context.Context, arg ListComputeInstancesParams) ([]ComputeInstance, error)
+	//: tenant-scoped; used by the cluster admin UI + by the evacuate
+	//: pre-flight that lists instances that would be migrated.
+	ListComputeInstancesByClusterMember(ctx context.Context, arg ListComputeInstancesByClusterMemberParams) ([]ComputeInstance, error)
 	//: tenant-scoped
 	ListComputeNetworks(ctx context.Context, arg ListComputeNetworksParams) ([]ComputeNetwork, error)
 	//: tenant-scoped
@@ -694,6 +697,10 @@ type Querier interface {
 	//: tenant-scoped; records the resolved fingerprint after a successful
 	//: CreateInstance against Incus.
 	SetComputeInstanceImageFingerprint(ctx context.Context, arg SetComputeInstanceImageFingerprintParams) error
+	//: tenant-scoped; caches the Incus-reported cluster member (Location)
+	//: after a create / migrate / reconcile. NULL means the daemon is not
+	//: clustered or the instance has no placement metadata.
+	SetComputeInstanceClusterMember(ctx context.Context, arg SetComputeInstanceClusterMemberParams) error
 	//: tenant-scoped; caches the last-known Incus status. Called after every
 	//: lifecycle transition (start/stop/restart/freeze) and on read-reconcile.
 	SetComputeInstanceStatus(ctx context.Context, arg SetComputeInstanceStatusParams) error

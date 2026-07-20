@@ -58,7 +58,7 @@ INSERT INTO compute_instances (
     config_json,
     description
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-RETURNING id, tenant_id, project_name, name, type, status, status_code, image_alias, image_fingerprint, profiles, config_json, description, created_at, updated_at, deleted_at
+RETURNING id, tenant_id, project_name, name, type, status, status_code, image_alias, image_fingerprint, profiles, config_json, description, created_at, updated_at, deleted_at, cluster_member
 `
 
 type CreateComputeInstanceParams struct {
@@ -113,12 +113,13 @@ func (q *Queries) CreateComputeInstance(ctx context.Context, arg CreateComputeIn
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.ClusterMember,
 	)
 	return i, err
 }
 
 const getComputeInstanceByID = `-- name: GetComputeInstanceByID :one
-SELECT id, tenant_id, project_name, name, type, status, status_code, image_alias, image_fingerprint, profiles, config_json, description, created_at, updated_at, deleted_at FROM compute_instances
+SELECT id, tenant_id, project_name, name, type, status, status_code, image_alias, image_fingerprint, profiles, config_json, description, created_at, updated_at, deleted_at, cluster_member FROM compute_instances
 WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL
 `
 
@@ -147,12 +148,13 @@ func (q *Queries) GetComputeInstanceByID(ctx context.Context, arg GetComputeInst
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.ClusterMember,
 	)
 	return i, err
 }
 
 const getComputeInstanceByName = `-- name: GetComputeInstanceByName :one
-SELECT id, tenant_id, project_name, name, type, status, status_code, image_alias, image_fingerprint, profiles, config_json, description, created_at, updated_at, deleted_at FROM compute_instances
+SELECT id, tenant_id, project_name, name, type, status, status_code, image_alias, image_fingerprint, profiles, config_json, description, created_at, updated_at, deleted_at, cluster_member FROM compute_instances
 WHERE tenant_id = $1 AND name = $2 AND deleted_at IS NULL
 `
 
@@ -181,6 +183,7 @@ func (q *Queries) GetComputeInstanceByName(ctx context.Context, arg GetComputeIn
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.ClusterMember,
 	)
 	return i, err
 }
@@ -221,7 +224,7 @@ func (q *Queries) ListComputeInstanceConfigsForQuota(ctx context.Context, tenant
 }
 
 const listComputeInstances = `-- name: ListComputeInstances :many
-SELECT id, tenant_id, project_name, name, type, status, status_code, image_alias, image_fingerprint, profiles, config_json, description, created_at, updated_at, deleted_at FROM compute_instances
+SELECT id, tenant_id, project_name, name, type, status, status_code, image_alias, image_fingerprint, profiles, config_json, description, created_at, updated_at, deleted_at, cluster_member FROM compute_instances
 WHERE tenant_id = $1 AND deleted_at IS NULL
 ORDER BY created_at DESC
 LIMIT $2 OFFSET $3
@@ -259,6 +262,7 @@ func (q *Queries) ListComputeInstances(ctx context.Context, arg ListComputeInsta
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.ClusterMember,
 		); err != nil {
 			return nil, err
 		}
@@ -356,5 +360,75 @@ func (q *Queries) UpdateComputeInstanceConfig(ctx context.Context, arg UpdateCom
 		arg.Profiles,
 		arg.Description,
 	)
+	return err
+}
+
+const listComputeInstancesByClusterMember = `-- name: ListComputeInstancesByClusterMember :many
+SELECT id, tenant_id, project_name, name, type, status, status_code, image_alias, image_fingerprint, profiles, config_json, description, created_at, updated_at, deleted_at, cluster_member FROM compute_instances
+WHERE tenant_id = $1 AND cluster_member = $2 AND deleted_at IS NULL
+ORDER BY created_at DESC
+`
+
+type ListComputeInstancesByClusterMemberParams struct {
+	TenantID     uuid.UUID `json:"tenant_id"`
+	ClusterMember string   `json:"cluster_member"`
+}
+
+// : tenant-scoped; used by the cluster admin UI + by the evacuate
+// : pre-flight that lists instances that would be migrated.
+func (q *Queries) ListComputeInstancesByClusterMember(ctx context.Context, arg ListComputeInstancesByClusterMemberParams) ([]ComputeInstance, error) {
+	rows, err := q.db.Query(ctx, listComputeInstancesByClusterMember, arg.TenantID, arg.ClusterMember)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ComputeInstance{}
+	for rows.Next() {
+		var i ComputeInstance
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.ProjectName,
+			&i.Name,
+			&i.Type,
+			&i.Status,
+			&i.StatusCode,
+			&i.ImageAlias,
+			&i.ImageFingerprint,
+			&i.Profiles,
+			&i.ConfigJson,
+			&i.Description,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.ClusterMember,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setComputeInstanceClusterMember = `-- name: SetComputeInstanceClusterMember :exec
+UPDATE compute_instances
+SET cluster_member = $3, updated_at = now()
+WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL
+`
+
+type SetComputeInstanceClusterMemberParams struct {
+	TenantID      uuid.UUID `json:"tenant_id"`
+	ID            uuid.UUID `json:"id"`
+	ClusterMember *string   `json:"cluster_member"`
+}
+
+// : tenant-scoped; caches the Incus-reported cluster member (Location)
+// after a create / migrate / reconcile. NULL means the daemon is not
+// clustered or the instance has no placement metadata.
+func (q *Queries) SetComputeInstanceClusterMember(ctx context.Context, arg SetComputeInstanceClusterMemberParams) error {
+	_, err := q.db.Exec(ctx, setComputeInstanceClusterMember, arg.TenantID, arg.ID, arg.ClusterMember)
 	return err
 }

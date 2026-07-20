@@ -172,6 +172,9 @@ type ComputeInstance struct {
 	CreatedAt   time.Time       `json:"created_at"`
 	UpdatedAt   time.Time       `json:"updated_at"`
 	DeletedAt   *time.Time      `json:"deleted_at"`
+	// Incus cluster member hosting the instance. NULL = single-node daemon.
+	// Reconciled from the daemon on read. (WS-26)
+	ClusterMember *string `json:"cluster_member"`
 }
 
 // Per-tenant Incus network catalog. Mirrors Incus networks within the tenant project.

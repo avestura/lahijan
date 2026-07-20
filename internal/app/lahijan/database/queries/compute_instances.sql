@@ -85,3 +85,18 @@ WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL;
 UPDATE compute_instances
 SET deleted_at = now(), status = 'deleted', status_code = 0, updated_at = now()
 WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL;
+
+-- name: SetComputeInstanceClusterMember :exec
+--: tenant-scoped; caches the Incus-reported cluster member (Location)
+--: after a create / migrate / reconcile. NULL means the daemon is not
+--: clustered or the instance has no placement metadata.
+UPDATE compute_instances
+SET cluster_member = $3, updated_at = now()
+WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL;
+
+-- name: ListComputeInstancesByClusterMember :many
+--: tenant-scoped; used by the cluster admin UI + by the evacuate
+--: pre-flight that lists instances that would be migrated.
+SELECT * FROM compute_instances
+WHERE tenant_id = $1 AND cluster_member = $2 AND deleted_at IS NULL
+ORDER BY created_at DESC;
