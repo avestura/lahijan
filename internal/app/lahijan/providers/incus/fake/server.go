@@ -89,6 +89,27 @@ type fakeOperation struct {
 // tests do not need to bootstrap one every time.
 func NewServer(t testing.TB) *Server {
 	t.Helper()
+	s := newServer()
+	s.HTTP = httptest.NewServer(http.HandlerFunc(s.handler))
+	t.Cleanup(func() { s.HTTP.Close() })
+	return s
+}
+
+// NewServerStandalone returns a started fake Incus server without wiring
+// testing.TB.Cleanup. The caller MUST call s.HTTP.Close() when done
+// (typically via defer). Used by non-test-binary callers (e.g. the WS-22
+// e2e harness under test/e2e/harness/, which drives the app from a
+// long-running process instead of a *testing.T).
+func NewServerStandalone() *Server {
+	s := newServer()
+	s.HTTP = httptest.NewServer(http.HandlerFunc(s.handler))
+	return s
+}
+
+// newServer builds the per-fake state. Both NewServer and
+// NewServerStandalone share this constructor so the seed + handler wiring
+// cannot drift between them.
+func newServer() *Server {
 	s := &Server{
 		projects:      make(map[string]*fakeProject),
 		images:        make(map[string]*incus.Image),
@@ -111,8 +132,6 @@ func NewServer(t testing.TB) *Server {
 	}
 	s.projects["default"] = newFakeProject(incus.Project{Name: "default"})
 
-	s.HTTP = httptest.NewServer(http.HandlerFunc(s.handler))
-	t.Cleanup(func() { s.HTTP.Close() })
 	return s
 }
 

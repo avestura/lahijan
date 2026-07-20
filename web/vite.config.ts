@@ -44,6 +44,22 @@ export default defineConfig({
       },
     },
   },
+  preview: {
+    port: 4173,
+    strictPort: true,
+    // Mirror the dev proxy so `vite preview` (used by the WS-22 e2e harness)
+    // routes /api + /health to the running Go backend on :8080.
+    proxy: {
+      "/api": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      "/health": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+    },
+  },
   build: {
     target: "es2022",
     sourcemap: true,
