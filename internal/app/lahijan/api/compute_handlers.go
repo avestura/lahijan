@@ -786,6 +786,13 @@ func toComputeInstanceDTO(row database.ComputeInstance) apigen.ComputeInstance {
 			out.Devices = &cfg.Devices
 		}
 	}
+	// WS-26: surface the cached cluster_member column. NULL on a
+	// single-node daemon; the API contract carries it as a nullable
+	// string so the UI can render "where does this instance live".
+	if row.ClusterMember != nil {
+		cm := *row.ClusterMember
+		out.ClusterMember = &cm
+	}
 	return out
 }
 

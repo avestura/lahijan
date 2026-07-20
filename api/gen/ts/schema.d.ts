@@ -1715,6 +1715,113 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/compute/cluster/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List compute cluster members
+         * @description Returns the list of compute cluster members and their current
+         *     status. Granted to tenant.viewer + above so the cluster
+         *     status panel renders without elevating. Returns a single
+         *     member on a single-node deployment.
+         */
+        get: operations["listComputeClusterMembers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compute/cluster/members/{memberName}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The cluster member's hostname-style identifier. */
+                memberName: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Get a single cluster member
+         * @description Returns the metadata + status for one cluster member. Used by
+         *     the admin detail view; mirrors the list response shape.
+         */
+        get: operations["getComputeClusterMember"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compute/cluster/members/{memberName}/{action}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                memberName: string;
+                /**
+                 * @description The member-state action. `evacuate` live-migrates every
+                 *     instance hosted on the member to other members; `restore`
+                 *     marks it available for new placements again.
+                 */
+                action: "evacuate" | "restore";
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Evacuate or restore a cluster member
+         * @description Triggers the Incus evacuate/restore workflow on the named
+         *     member. The action runs as a long-lived async operation; the
+         *     response carries the operation id so the UI can poll status
+         *     via the cluster member detail endpoint. Admin-only
+         *     (compute.cluster.member.evacuate).
+         */
+        post: operations["setComputeClusterMemberState"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compute/instances/{instanceId}/migrate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instanceId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Live-migrate an instance to a different cluster member
+         * @description Moves an existing instance to a different compute cluster
+         *     member. The destination must already exist in the cluster;
+         *     callers typically pick one from the GET
+         *     /api/v1/compute/cluster/members response. Granted to
+         *     tenant.member + above (the instance owner can rebalance their
+         *     own instances). The audit row records the source + target
+         *     member so the operator can trace placement churn.
+         */
+        post: operations["migrateComputeInstance"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dns/zones": {
         parameters: {
             query?: never;
@@ -2924,6 +3031,12 @@ export interface components {
                 };
             };
             description?: string;
+            /**
+             * @description The compute cluster member hosting the instance (WS-26).
+             *     NULL on a single-node daemon. Reconciled from the daemon
+             *     on read; the daemon is the source of truth.
+             */
+            clusterMember?: string | null;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -3277,6 +3390,56 @@ export interface components {
             total: number;
             limit: number;
             offset: number;
+        };
+        ComputeClusterMember: {
+            /** @description The member's hostname-style identifier ("node-1"). */
+            serverName: string;
+            /** @description The daemon-side URL of the member. */
+            url?: string;
+            /** @description True when the member runs a dqlite database copy. */
+            database?: boolean;
+            /**
+             * @description Current member status.
+             * @enum {string}
+             */
+            status: "Online" | "Offline" | "Evacuated";
+            /** @description Free-form status detail (failure reason, ...). */
+            message?: string;
+            /** @description Cluster roles the member holds. */
+            roles?: string[];
+            /** @description CPU architecture ("x86_64", "aarch64"). */
+            architecture?: string;
+            /** @description Operator-assigned failure domain label. */
+            failureDomain?: string;
+            /** @description Operator-set member description. */
+            description?: string;
+        };
+        ComputeClusterMemberList: {
+            items: components["schemas"]["ComputeClusterMember"][];
+        };
+        ComputeClusterMemberAction: {
+            /** @description The async operation id tracking the evacuate/restore. */
+            operationId: string;
+            memberName?: string;
+            /** @enum {string} */
+            action?: "evacuate" | "restore";
+        };
+        ComputeInstanceMigrateRequest: {
+            /** @description The destination cluster member's serverName. */
+            targetMember: string;
+            /**
+             * @description True for live migration (CRIU for containers, storage
+             *     replication for VMs). When false the instance is stopped
+             *     at the source, copied, and started at the destination
+             *     (lower-risk but higher-downtime).
+             * @default false
+             */
+            live: boolean;
+            /**
+             * @description Optional destination storage pool. Empty = the daemon
+             *     picks a pool from the target member's available pools.
+             */
+            storagePool?: string;
         };
         DNSZone: {
             /** Format: uuid */
@@ -6669,6 +6832,136 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listComputeClusterMembers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A list of cluster members. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeClusterMemberList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    getComputeClusterMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The cluster member's hostname-style identifier. */
+                memberName: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The member. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeClusterMember"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    setComputeClusterMemberState: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                memberName: string;
+                /**
+                 * @description The member-state action. `evacuate` live-migrates every
+                 *     instance hosted on the member to other members; `restore`
+                 *     marks it available for new placements again.
+                 */
+                action: "evacuate" | "restore";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Action accepted; the operation id is returned. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeClusterMemberAction"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The member is not in a state that allows the action. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    migrateComputeInstance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instanceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComputeInstanceMigrateRequest"];
+            };
+        };
+        responses: {
+            /** @description Migration completed; the updated instance row. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeInstance"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Migration not supported (e.g. single-node daemon). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            501: components["responses"]["NotImplemented"];
         };
     };
     listDNSZones: {
