@@ -1310,6 +1310,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/compute/instances/{instanceId}/vnc": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instanceId: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Open a graphical (noVNC) console session to a VM instance (WebSocket)
+         * @description Upgrades the HTTP request to a WebSocket and bridges the browser's
+         *     noVNC client to the Incus VM VGA console for the given instance.
+         *     The instance MUST be a virtual machine and MUST be running. The
+         *     privileged action (session-open) is gated by
+         *     compute.instance.console.vnc and emits an audit row with action
+         *     compute.instance.console.vnc.connect before the bytes flow. The
+         *     WebSocket carries raw RFB (VNC) bytes both directions until either
+         *     side closes. Same-origin session-cookie auth; the browser sends
+         *     cookies on the WS upgrade automatically.
+         *
+         *     Note: although this endpoint has an operationId (so the generated
+         *     ServerInterface method name is reviewable), oapi-codegen cannot
+         *     model the WebSocket upgrade itself — the handler is hand-written
+         *     in internal/app/lahijan/api/compute_vnc_handlers.go.
+         */
+        get: operations["openVncComputeInstance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/compute/images": {
         parameters: {
             query?: never;
@@ -5332,6 +5367,48 @@ export interface operations {
             404: components["responses"]["NotFound"];
             /** @description The instance is not running. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    openVncComputeInstance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instanceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Switching Protocols — WebSocket upgrade succeeded. */
+            101: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The instance is not a virtual machine, or is not running. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The graphical console could not be opened (e.g. daemon down, VM agent not ready). */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -72,14 +72,20 @@ WS-24 implements the noVNC web console as follows:
    documents the exact upstream release, sha256, and re-vendor command.
 
 2. **Backend bridge: in-process WebSocket proxy.** A new WebSocket route
-   `GET /api/v1/compute/instances/{instanceId}/vnc` (registered manually,
-   not via `apigen`, because oapi-codegen cannot model WebSocket upgrades)
+   `GET /api/v1/compute/instances/{instanceId}/vnc` (operationId
+   `openVncComputeInstance` so the generated ServerInterface method name
+   is reviewable; oapi-codegen still cannot model the WS upgrade itself)
    upgrades the request, validates the instance is a VM + running, opens
    the Incus console operation via `Provider.OpenVNCConsole`, dials the
    Incus operation's per-secret WebSocket via
    `Provider.DialVNCConsole`, and pumps bytes both directions until either
-   side closes. The route is registered AFTER `apigen.RegisterHandlers` so
-   it does not conflict with the generated routing table.
+   side closes. The browser-side upgrade uses the official Fiber
+   websocket companion (`github.com/gofiber/websocket/v2`, MIT) so the
+   existing Fiber middleware stack (auth, tenant, audit gate) still runs
+   before the WS handler; bytes are then bridged to the Incus-side
+   gorilla/websocket conn. The two WS libraries share the standard RFC
+   6455 opcode values (1=Text, 2=Binary) so message types pass through
+   unchanged.
 
 3. **Privileged action: new permission + audit event.** WS-24 introduces a
    new permission `compute.instance.console.vnc` (distinct from
@@ -140,6 +146,11 @@ the `execOpen` + `execDial` plumbing already present in `exec.go`.
 - `internal/app/lahijan/api/compute_vnc_handlers.go` is the WebSocket
   upgrade handler; the audit gate in `api/router.go` dispatches the path
   to `RequirePerm(rbac.PermComputeInstanceConsoleVNC)`.
+- The WebSocket bridge adds two new runtime dependencies:
+  `github.com/gofiber/websocket/v2` (MIT — official Fiber WS companion)
+  and its transitive `github.com/fasthttp/websocket` (BSD-2). Both are
+  permissive, narrowly-scoped, and match the existing pattern of using
+  the canonical Go library for each external protocol.
 - `internal/app/lahijan/auth/rbac/permissions.go` declares
   `PermComputeInstanceConsoleVNC`; `auth/rbac/roles.go` grants it to
   `tenant.admin` and `tenant.member`.
@@ -147,8 +158,9 @@ the `execOpen` + `execDial` plumbing already present in `exec.go`.
   dynamically loads `/novnc/core/rfb.js` and gates rendering on
   `usePerm("compute.instance.console.vnc")`.
 - The OpenAPI spec (`api/openapi.yaml`) documents the WS path
-  `/api/v1/compute/instances/{instanceId}/vnc` without an `operationId`
-  so oapi-codegen does not emit a handler stub.
+  `/api/v1/compute/instances/{instanceId}/vnc` with operationId
+  `openVncComputeInstance` (the generated ServerInterface method name
+  is `OpenVncComputeInstance`).
 
 ## References
 

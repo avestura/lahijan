@@ -123,7 +123,7 @@ func (s *Service) OpenVNCConsole(
 			// caller reconciles.
 			return VNCConsoleSession{}, ErrInstanceNotFound
 		}
-		return VNCConsoleSession{}, fmt.Errorf("%w: %v", ErrVNCUnavailable, err)
+		return VNCConsoleSession{}, fmt.Errorf("%w: %w", ErrVNCUnavailable, err)
 	}
 	return VNCConsoleSession{
 		Project:     row.ProjectName,
@@ -146,7 +146,7 @@ func (s *Service) DialVNCConsole(
 	}
 	conn, err := s.provider.DialVNCConsole(ctx, session.OperationID, session.Secret)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrVNCUnavailable, err)
+		return nil, fmt.Errorf("%w: %w", ErrVNCUnavailable, err)
 	}
 	return conn, nil
 }

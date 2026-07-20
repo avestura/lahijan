@@ -2208,6 +2208,9 @@ type ClientInterface interface {
 
 	ExecComputeInstance(ctx context.Context, instanceId openapi_types.UUID, body ExecComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// OpenVncComputeInstance request
+	OpenVncComputeInstance(ctx context.Context, instanceId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// SetComputeInstanceState request
 	SetComputeInstanceState(ctx context.Context, instanceId openapi_types.UUID, action string, params *SetComputeInstanceStateParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -3313,6 +3316,18 @@ func (c *Client) ExecComputeInstanceWithBody(ctx context.Context, instanceId ope
 
 func (c *Client) ExecComputeInstance(ctx context.Context, instanceId openapi_types.UUID, body ExecComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewExecComputeInstanceRequest(c.Server, instanceId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) OpenVncComputeInstance(ctx context.Context, instanceId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewOpenVncComputeInstanceRequest(c.Server, instanceId)
 	if err != nil {
 		return nil, err
 	}
@@ -6886,6 +6901,40 @@ func NewExecComputeInstanceRequestWithBody(server string, instanceId openapi_typ
 	return req, nil
 }
 
+// NewOpenVncComputeInstanceRequest generates requests for OpenVncComputeInstance
+func NewOpenVncComputeInstanceRequest(server string, instanceId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "instanceId", runtime.ParamLocationPath, instanceId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/instances/%s/vnc", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewSetComputeInstanceStateRequest generates requests for SetComputeInstanceState
 func NewSetComputeInstanceStateRequest(server string, instanceId openapi_types.UUID, action string, params *SetComputeInstanceStateParams) (*http.Request, error) {
 	var err error
@@ -9679,6 +9728,9 @@ type ClientWithResponsesInterface interface {
 
 	ExecComputeInstanceWithResponse(ctx context.Context, instanceId openapi_types.UUID, body ExecComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*ExecComputeInstanceResponse, error)
 
+	// OpenVncComputeInstanceWithResponse request
+	OpenVncComputeInstanceWithResponse(ctx context.Context, instanceId openapi_types.UUID, reqEditors ...RequestEditorFn) (*OpenVncComputeInstanceResponse, error)
+
 	// SetComputeInstanceStateWithResponse request
 	SetComputeInstanceStateWithResponse(ctx context.Context, instanceId openapi_types.UUID, action string, params *SetComputeInstanceStateParams, reqEditors ...RequestEditorFn) (*SetComputeInstanceStateResponse, error)
 
@@ -11271,6 +11323,33 @@ func (r ExecComputeInstanceResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r ExecComputeInstanceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type OpenVncComputeInstanceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON409      *Error
+	JSON503      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r OpenVncComputeInstanceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r OpenVncComputeInstanceResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -13388,6 +13467,15 @@ func (c *ClientWithResponses) ExecComputeInstanceWithResponse(ctx context.Contex
 		return nil, err
 	}
 	return ParseExecComputeInstanceResponse(rsp)
+}
+
+// OpenVncComputeInstanceWithResponse request returning *OpenVncComputeInstanceResponse
+func (c *ClientWithResponses) OpenVncComputeInstanceWithResponse(ctx context.Context, instanceId openapi_types.UUID, reqEditors ...RequestEditorFn) (*OpenVncComputeInstanceResponse, error) {
+	rsp, err := c.OpenVncComputeInstance(ctx, instanceId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseOpenVncComputeInstanceResponse(rsp)
 }
 
 // SetComputeInstanceStateWithResponse request returning *SetComputeInstanceStateResponse
@@ -16582,6 +16670,67 @@ func ParseExecComputeInstanceResponse(rsp *http.Response) (*ExecComputeInstanceR
 			return nil, err
 		}
 		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseOpenVncComputeInstanceResponse parses an HTTP response from a OpenVncComputeInstanceWithResponse call
+func ParseOpenVncComputeInstanceResponse(rsp *http.Response) (*OpenVncComputeInstanceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &OpenVncComputeInstanceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
 
 	}
 
