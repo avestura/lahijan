@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -229,6 +230,29 @@ func (f *fakeIncus) Exec(_ context.Context, params incus.ExecParams) (*incus.Exe
 	}
 	stdout, stderr, exit := f.execHandler(params.Command)
 	return &incus.ExecResult{Stdout: stdout, Stderr: stderr, ExitCode: exit}, nil
+}
+
+// OpenVNCConsole stubs the WS-24 console-open path for the service-level
+// integration test. Returns a synthetic session id + secret so the service
+// path can be exercised; the WS-24 handler-level test in api/ exercises
+// the real bytes-pump against the Incus fake.
+func (f *fakeIncus) OpenVNCConsole(_ context.Context, project, instance string) (incus.ConsoleSession, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if _, ok := f.instances[project+":"+instance]; !ok {
+		return incus.ConsoleSession{}, incus.ErrNotFound
+	}
+	return incus.ConsoleSession{
+		OperationID: uuid.NewString(),
+		Secret:      uuid.NewString(),
+	}, nil
+}
+
+// DialVNCConsole is never invoked by the service-level integration test
+// (it does not exercise the WS bytes-pump). Returns a typed nil so the
+// interface satisfies; if a test ever calls it, the test must override.
+func (f *fakeIncus) DialVNCConsole(_ context.Context, _, _ string) (*websocket.Conn, error) {
+	return nil, nil
 }
 
 // recorderBus is a minimal eventbus.Bus-shaped recorder.
@@ -597,3 +621,94 @@ func TestSeedFeaturedImages_Idempotent(t *testing.T) {
 // test binary imports time only for the timeout helper. The test itself
 // uses no time.Sleep (per the testing conventions skill).
 var _ = time.Second
+
+// -------------------------------------------------------------------------
+// WS-24: VNC console service tests.
+//
+// Happy path: create VM -> start -> open console -> audit row emitted.
+// Error paths: container -> ErrInstanceNotVM; stopped -> ErrInstanceNotRunning;
+// unknown id -> ErrInstanceNotFound.
+// -------------------------------------------------------------------------
+
+// TestOpenVNCConsole_HappyPath covers the WS-24 service path: a running VM
+// gets a console session + an audit row is emitted with the VNC connect
+// action.
+func TestOpenVNCConsole_HappyPath(t *testing.T) {
+	t.Parallel()
+	f := newFixture(t)
+	ctx := f.tenantCtx()
+
+	row, err := f.svc.CreateInstance(ctx, f.tenantID, f.userID, compute.InstanceCreateParams{
+		Name:       "vm-console",
+		Type:       "virtual-machine",
+		ImageAlias: "ubuntu/24.04",
+	})
+	require.NoError(t, err)
+
+	_, err = f.svc.SetInstanceState(ctx, f.tenantID, f.userID, row.ID, compute.ActionStart, false, 30)
+	require.NoError(t, err)
+
+	session, err := f.svc.OpenVNCConsole(ctx, f.tenantID, f.userID, row.ID)
+	require.NoError(t, err)
+	assert.NotEmpty(t, session.OperationID, "session must carry the operation id")
+	assert.NotEmpty(t, session.Secret, "session must carry the per-fd secret")
+	assert.Equal(t, f.incus.ProjectName(f.tenantID), session.Project)
+	assert.Equal(t, "vm-console", session.Instance)
+
+	rows := f.auditEm.eventsFor(compute.AuditInstanceConsoleVNCConnect)
+	require.Len(t, rows, 1, "open must emit exactly one VNC connect audit row")
+	assert.Equal(t, audit.StatusSuccess, rows[0].Status, "audit row must be success")
+	assert.Equal(t, row.ID, *rows[0].ResourceID, "audit row must reference the instance")
+}
+
+// TestOpenVNCConsole_ContainerRejected asserts a container cannot open a
+// graphical console — only VMs have a VGA backend.
+func TestOpenVNCConsole_ContainerRejected(t *testing.T) {
+	t.Parallel()
+	f := newFixture(t)
+	ctx := f.tenantCtx()
+
+	row, err := f.svc.CreateInstance(ctx, f.tenantID, f.userID, compute.InstanceCreateParams{
+		Name:       "container-no-vnc",
+		ImageAlias: "ubuntu/24.04", // default Type == container
+	})
+	require.NoError(t, err)
+
+	_, err = f.svc.OpenVNCConsole(ctx, f.tenantID, f.userID, row.ID)
+	require.ErrorIs(t, err, compute.ErrInstanceNotVM, "container must be rejected")
+
+	// No audit row should have fired: the rejection happens BEFORE the
+	// privileged action's audit emit, matching the create-quota pattern.
+	rows := f.auditEm.eventsFor(compute.AuditInstanceConsoleVNCConnect)
+	assert.Empty(t, rows, "no audit row when the instance is the wrong type")
+}
+
+// TestOpenVNCConsole_NotRunning asserts the service refuses to open a VNC
+// session against a stopped VM.
+func TestOpenVNCConsole_NotRunning(t *testing.T) {
+	t.Parallel()
+	f := newFixture(t)
+	ctx := f.tenantCtx()
+
+	row, err := f.svc.CreateInstance(ctx, f.tenantID, f.userID, compute.InstanceCreateParams{
+		Name:       "vm-stopped",
+		Type:       "virtual-machine",
+		ImageAlias: "ubuntu/24.04",
+	})
+	require.NoError(t, err)
+	// Deliberately do NOT start.
+
+	_, err = f.svc.OpenVNCConsole(ctx, f.tenantID, f.userID, row.ID)
+	require.ErrorIs(t, err, compute.ErrInstanceNotRunning)
+}
+
+// TestOpenVNCConsole_UnknownInstance asserts the repo's tenant-scoping
+// produces ErrInstanceNotFound for a random id.
+func TestOpenVNCConsole_UnknownInstance(t *testing.T) {
+	t.Parallel()
+	f := newFixture(t)
+	ctx := f.tenantCtx()
+
+	_, err := f.svc.OpenVNCConsole(ctx, f.tenantID, f.userID, uuid.New())
+	require.ErrorIs(t, err, compute.ErrInstanceNotFound)
+}

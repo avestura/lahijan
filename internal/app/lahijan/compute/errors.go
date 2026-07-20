@@ -45,6 +45,18 @@ var ErrInsufficientBalance = errors.New("compute: insufficient balance")
 // exec is available only on running instances).
 var ErrInstanceNotRunning = errors.New("compute: instance must be running to exec")
 
+// ErrInstanceNotVM is returned when the caller invokes the graphical (VNC)
+// console flow (WS-24) against an instance that is not a virtual machine.
+// Containers do not get a VGA console. The handler maps it to 409 conflict.
+var ErrInstanceNotVM = errors.New("compute: graphical console is only available for virtual-machine instances")
+
+// ErrVNCUnavailable is returned when the Incus daemon refuses or fails the
+// console-open call for a reason the service does not surface more
+// specifically (e.g. the VM's agent is not yet up, the operation timed
+// out, the VGA backend is not installed). The handler maps it to 503
+// service_unavailable.
+var ErrVNCUnavailable = errors.New("compute: graphical console unavailable")
+
 // ErrInvalidName is returned when the caller sends an empty or invalid name.
 var ErrInvalidName = errors.New("compute: name is required")
 

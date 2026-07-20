@@ -247,6 +247,7 @@
       "tabs": {
         "overview": "نمای کلی",
         "console": "کنسول",
+        "console-graphical": "کنسول (گرافیکی)",
         "snapshots": "تصاویر آنی",
         "network": "شبکه",
         "storage": "ذخیره‌سازی",
@@ -270,6 +271,24 @@
       "exitCode": "کد خروج: {{code}}",
       "disconnected": "قطع شده است. ممکن است نمونه متوقف باشد.",
       "hint": "خروجی دستورات یک‌باره؛ یک نشست تعاملی در نقشهٔ راه است."
+    },
+    "graphicalConsole": {
+      "title": "کنسول گرافیکی",
+      "connecting": "در حال اتصال…",
+      "connected": "متصل",
+      "disconnected": "قطع شده است.",
+      "connect": "اتصال",
+      "disconnect": "قطع اتصال",
+      "fullscreen": "تمام‌صفحه",
+      "scaleToFit": "جا دادن",
+      "clipboardSync": "هماهنگ‌سازی تخته‌گیر",
+      "clipboardPlaceholder": "محتوای هماهنگ‌شدهٔ تخته‌گیر اینجا نمایش داده می‌شود.",
+      "notVendoredTitle": "دارایی‌های noVNC نصب نشده‌اند",
+      "notVendoredBody": "گرداننده، کلاینت noVNC را تحت /novnc/ نصب نکرده است. برای مرحلهٔ نصب به web/public/novnc/README.md مراجعه کنید.",
+      "notVM": "کنسول گرافیکی تنها برای نمونه‌های ماشین مجازی در دسترس است.",
+      "notRunning": "برای باز کردن کنسول گرافیکی، نمونه را آغاز کنید.",
+      "noPermission": "شما اجازهٔ باز کردن کنسول گرافیکی را ندارید.",
+      "loadFailed": "بارگذاری کلاینت noVNC شکست خورد."
     },
     "snapshots": {
       "title": "تصاویر آنی",

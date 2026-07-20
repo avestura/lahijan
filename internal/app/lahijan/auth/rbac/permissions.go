@@ -69,12 +69,17 @@ const (
 	PermComputeInstanceStop    = "compute.instance.stop"
 	PermComputeInstanceRestart = "compute.instance.restart"
 	PermComputeInstanceDelete  = "compute.instance.delete"
-	PermComputeProfileRead     = "compute.profile.read"
-	PermComputeProfileApply    = "compute.profile.apply"
-	PermComputeImageRead       = "compute.image.read"
-	PermComputeNetworkRead     = "compute.network.read"
-	PermComputeNetworkCreate   = "compute.network.create"
-	PermComputeStoragePoolRead = "compute.storage_pool.read"
+	// PermComputeInstanceConsoleVNC opens a graphical (noVNC) console
+	// session to a running virtual-machine instance. Distinct from exec
+	// (WS-14) per WS-24: VM-only, RFB protocol, audit action
+	// compute.instance.console.vnc.connect.
+	PermComputeInstanceConsoleVNC = "compute.instance.console.vnc"
+	PermComputeProfileRead        = "compute.profile.read"
+	PermComputeProfileApply       = "compute.profile.apply"
+	PermComputeImageRead          = "compute.image.read"
+	PermComputeNetworkRead        = "compute.network.read"
+	PermComputeNetworkCreate      = "compute.network.create"
+	PermComputeStoragePoolRead    = "compute.storage_pool.read"
 
 	// --- dns (WS-15) ---
 	PermDNSZoneCreate   = "dns.zone.create"
@@ -158,6 +163,7 @@ var allPermissions = []Permission{
 
 	// compute
 	{Slug: PermComputeImageRead, Description: "List and inspect instance images."},
+	{Slug: PermComputeInstanceConsoleVNC, Description: "Open a graphical (noVNC) console session to a running virtual-machine instance."},
 	{Slug: PermComputeInstanceCreate, Description: "Create an instance."},
 	{Slug: PermComputeInstanceDelete, Description: "Delete an instance."},
 	{Slug: PermComputeInstanceRead, Description: "View instances."},

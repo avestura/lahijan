@@ -75,6 +75,8 @@ func RegisterRoutes(app *fiber.App, server *Server, policy middleware.PolicyReso
 //	/api/v1/compute/instances/{id}/{start|stop|...}   -> compute.instance.<action>
 //	/api/v1/compute/instances/{id}/exec POST          -> compute.instance.start
 //	                                                          (exec needs a running instance)
+//	/api/v1/compute/instances/{id}/vnc GET            -> compute.instance.console.vnc
+//	                                                          (WS-24 noVNC graphical console)
 //	/api/v1/compute/images GET                        -> compute.image.read
 //	/api/v1/compute/images POST                       -> compute.instance.create
 //	                                                          (custom upload is create-adjacent)
@@ -197,6 +199,10 @@ func AuditGate(policy middleware.PolicyResolver) apigen.MiddlewareFunc {
 		// is gated; the slug maps 1:1 with the rbac.PermCompute*
 		// registry so the policy evaluator can answer with the caller's
 		// role grant (tenant.viewer / member / admin / owner).
+		case isComputeInstanceVNCPath(path) && method == "GET":
+			// WS-24: noVNC graphical console. Distinct permission from
+			// exec — only granted to tenant.admin + tenant.member.
+			return middleware.RequirePerm(policy, rbac.PermComputeInstanceConsoleVNC)(c)
 		case isComputeInstanceExecPath(path) && method == "POST":
 			// exec needs a running instance; reuse the start permission
 			// since both involve "interact with a running instance".
@@ -337,7 +343,8 @@ func isComputeInstancePath(path string) bool {
 	}
 	return strings.HasPrefix(path, "/api/v1/compute/instances/") &&
 		!isComputeInstanceLifecyclePath(path) &&
-		!isComputeInstanceExecPath(path)
+		!isComputeInstanceExecPath(path) &&
+		!isComputeInstanceVNCPath(path)
 }
 
 // isComputeInstanceLifecyclePath reports whether path is one of the
@@ -354,6 +361,14 @@ func isComputeInstanceLifecyclePath(path string) bool {
 // isComputeInstanceExecPath reports whether path is the exec endpoint.
 func isComputeInstanceExecPath(path string) bool {
 	return strings.HasPrefix(path, "/api/v1/compute/instances/") && strings.HasSuffix(path, "/exec")
+}
+
+// isComputeInstanceVNCPath reports whether path is the WS-24 noVNC
+// WebSocket endpoint. The audit gate dispatches it to
+// RequirePerm(compute.instance.console.vnc) so only tenant.admin +
+// tenant.member reach the handler.
+func isComputeInstanceVNCPath(path string) bool {
+	return strings.HasPrefix(path, "/api/v1/compute/instances/") && strings.HasSuffix(path, "/vnc")
 }
 
 // computeInstanceActionPerm maps the trailing path segment to the matching

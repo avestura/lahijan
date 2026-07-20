@@ -1926,6 +1926,53 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
 
+  # WS-24: noVNC graphical console. WebSocket-only — oapi-codegen can't
+  # model the WS upgrade so the handler is hand-written; the operationId
+  # keeps the generated method name reviewable. The audit gate dispatches
+  # this path to RequirePerm(compute.instance.console.vnc).
+  /api/v1/compute/instances/{instanceId}/vnc:
+    parameters:
+      - name: instanceId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [compute]
+      operationId: openVncComputeInstance
+      summary: Open a graphical (noVNC) console session to a VM instance (WebSocket)
+      description: |
+        Upgrades the HTTP request to a WebSocket and bridges the browser's
+        noVNC client to the Incus VM VGA console for the given instance.
+        The instance MUST be a virtual machine and MUST be running. The
+        privileged action (session-open) is gated by
+        compute.instance.console.vnc and emits an audit row with action
+        compute.instance.console.vnc.connect before the bytes flow. The
+        WebSocket carries raw RFB (VNC) bytes both directions until either
+        side closes. Same-origin session-cookie auth; the browser sends
+        cookies on the WS upgrade automatically.
+
+        Note: although this endpoint has an operationId (so the generated
+        ServerInterface method name is reviewable), oapi-codegen cannot
+        model the WebSocket upgrade itself — the handler is hand-written
+        in internal/app/lahijan/api/compute_vnc_handlers.go.
+      responses:
+        "101":
+          description: Switching Protocols — WebSocket upgrade succeeded.
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: The instance is not a virtual machine, or is not running.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "503":
+          description: The graphical console could not be opened (e.g. daemon down, VM agent not ready).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
   /api/v1/compute/images:
     get:
       tags: [compute]

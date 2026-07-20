@@ -247,6 +247,7 @@
       "tabs": {
         "overview": "Overview",
         "console": "Console",
+        "console-graphical": "Console (Graphical)",
         "snapshots": "Snapshots",
         "network": "Network",
         "storage": "Storage",
@@ -270,6 +271,24 @@
       "exitCode": "Exit code: {{code}}",
       "disconnected": "Disconnected. The instance may be stopped.",
       "hint": "Output of one-shot commands; an interactive shell session is on the roadmap."
+    },
+    "graphicalConsole": {
+      "title": "Graphical console",
+      "connecting": "Connecting…",
+      "connected": "Connected",
+      "disconnected": "Disconnected.",
+      "connect": "Connect",
+      "disconnect": "Disconnect",
+      "fullscreen": "Fullscreen",
+      "scaleToFit": "Scale to fit",
+      "clipboardSync": "Clipboard sync",
+      "clipboardPlaceholder": "Synced clipboard contents appear here.",
+      "notVendoredTitle": "noVNC assets not installed",
+      "notVendoredBody": "The operator has not vendored the noVNC client under /novnc/. See web/public/novnc/README.md for the vendor step.",
+      "notVM": "Graphical console is only available for virtual-machine instances.",
+      "notRunning": "Start the instance to open a graphical console.",
+      "noPermission": "You do not have permission to open a graphical console.",
+      "loadFailed": "Failed to load the noVNC client."
     },
     "snapshots": {
       "title": "Snapshots",

@@ -45,6 +45,7 @@ import {
 import { InstanceStatusBadge } from "@/features/compute/components/InstanceStatusBadge";
 import { InstanceOverview } from "@/features/compute/components/InstanceOverview";
 import { InstanceConsole } from "@/features/compute/components/InstanceConsole";
+import { InstanceGraphicalConsole } from "@/features/compute/components/InstanceGraphicalConsole";
 import { InstanceSnapshots } from "@/features/compute/components/InstanceSnapshots";
 import { InstanceNetwork } from "@/features/compute/components/InstanceNetwork";
 import { InstanceStorage } from "@/features/compute/components/InstanceStorage";
@@ -71,10 +72,12 @@ function useInstanceId(): string {
 }
 
 // Tab identifiers used internally; localized labels come from
-// `compute.detail.tabs.<id>`.
-const DETAIL_TABS = [
+// `compute.detail.tabs.<id>`. The "console-graphical" tab is VM-only
+// (the route conditionally includes it when inst.type === "virtual-machine").
+const ALL_DETAIL_TABS = [
   "overview",
   "console",
+  "console-graphical",
   "snapshots",
   "network",
   "storage",
@@ -82,7 +85,17 @@ const DETAIL_TABS = [
   "audit",
 ] as const;
 
-type DetailTab = (typeof DETAIL_TABS)[number];
+type DetailTab = (typeof ALL_DETAIL_TABS)[number];
+
+// detailTabsFor returns the visible tab set for the given instance type.
+// Containers do NOT get the graphical (VGA) console tab — they only have
+// the xterm.js exec console from WS-14. VMs get both.
+function detailTabsFor(instanceType: string | undefined): readonly DetailTab[] {
+  if (instanceType === "virtual-machine") {
+    return ALL_DETAIL_TABS;
+  }
+  return ALL_DETAIL_TABS.filter((t) => t !== "console-graphical");
+}
 
 function InstanceDetailPage() {
   const { t } = useTranslation();
@@ -125,6 +138,7 @@ function InstanceDetailPage() {
   const canStopNow = bucket === "running";
   const canFreezeNow = bucket === "running";
   const canUnfreezeNow = bucket === "frozen";
+  const detailTabs = detailTabsFor(inst.type);
 
   const onDelete = () => {
     destroy.mutate(
@@ -143,6 +157,8 @@ function InstanceDetailPage() {
         return <InstanceOverview instance={inst} />;
       case "console":
         return <InstanceConsole instanceId={inst.id} status={inst.status} />;
+      case "console-graphical":
+        return <InstanceGraphicalConsole instanceId={inst.id} status={inst.status} />;
       case "snapshots":
         return <InstanceSnapshots />;
       case "network":
@@ -238,15 +254,15 @@ function InstanceDetailPage() {
         </div>
       </header>
 
-      <Tabs defaultValue={DETAIL_TABS[0]} className="w-full">
+      <Tabs defaultValue={detailTabs[0]} className="w-full">
         <TabsList className="flex-wrap">
-          {DETAIL_TABS.map((tab) => (
+          {detailTabs.map((tab) => (
             <TabsTrigger key={tab} value={tab}>
               {t(`compute.detail.tabs.${tab}`)}
             </TabsTrigger>
           ))}
         </TabsList>
-        {DETAIL_TABS.map((tab) => (
+        {detailTabs.map((tab) => (
           <TabsContent key={tab} value={tab}>
             {renderTab(tab)}
           </TabsContent>

@@ -100,6 +100,13 @@ func mapComputeError(c *fiber.Ctx, err error) error {
 	case errors.Is(err, compute.ErrInstanceNotRunning):
 		return SendError(c, fiber.StatusConflict, CodeConflict,
 			i18n.T(c.UserContext(), "compute.err_not_running", nil), nil)
+	case errors.Is(err, compute.ErrInstanceNotVM):
+		// WS-24: only VMs get a graphical console; containers stay on exec.
+		return SendError(c, fiber.StatusConflict, CodeConflict,
+			i18n.T(c.UserContext(), "compute.err_not_vm", nil), nil)
+	case errors.Is(err, compute.ErrVNCUnavailable):
+		// WS-24: daemon refused or failed the console-open call.
+		return SendServiceUnavailable(c, i18n.T(c.UserContext(), "compute.err_vnc_unavailable", nil))
 	case errors.Is(err, compute.ErrInvalidName), errors.Is(err, compute.ErrInvalidImage):
 		return SendBadRequest(c, i18n.T(c.UserContext(), "compute.err_bad_request", nil), nil)
 	case compute.IsQuotaExceeded(err):
