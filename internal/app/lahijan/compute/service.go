@@ -81,6 +81,12 @@ const (
 	AuditScheduledSnapshotTaken   = "compute.snapshot.taken"
 	AuditScheduledSnapshotPruned  = "compute.snapshot.pruned"
 	AuditScheduledBackupCompleted = "compute.backup.completed"
+
+	// WS-26: cluster placement audit actions. Mirror the rbac slugs
+	// but use past-tense verbs so the audit row reads "what
+	// happened" not "what was requested".
+	AuditInstanceMigrated  = "compute.instance.migrate"
+	AuditClusterMemberList = "compute.cluster.member.list"
 )
 
 // ResourceSnapshot / ResourceSnapshotPolicy / ResourceBackupTarget /
@@ -106,6 +112,11 @@ type Service struct {
 	bus      eventBus
 	policy   rbac.PolicyEvaluator
 	quotas   QuotaConfig
+	// placement is the per-instance scheduling driver (WS-26, ADR-0033).
+	// Defaults to LocalPlacementDriver when nil so the service always has
+	// a non-nil driver. ClusterPlacementDriver is wired by program.Start
+	// when providers.incus.placement.mode == "cluster".
+	placement PlacementDriver
 	// crypto is the AES-GCM envelope the WS-25 backup-target path uses to
 	// encrypt + decrypt the per-target credential blob at the repo seam.
 	// nil-appropriate in tests / when WS-25 is disabled; the snapshot +
@@ -224,6 +235,12 @@ type Config struct {
 	// CreateBackupTarget / UpdateBackupTargetSecret paths surface
 	// ErrCryptoRequired when nil.
 	Crypto cryptoEnvelope
+
+	// Placement is the per-instance scheduling driver (WS-26, ADR-0033).
+	// Nil-appropriate — New falls back to LocalPlacementDriver. Pass a
+	// ClusterPlacementDriver when providers.incus.placement.mode ==
+	// "cluster".
+	Placement PlacementDriver
 }
 
 // New builds a Service. Every dependency is required except `bus`,
@@ -244,14 +261,19 @@ func New(
 	if quotas.IsZero() {
 		quotas = DefaultQuotas()
 	}
+	placement := cfg.Placement
+	if placement == nil {
+		placement = NewLocalPlacementDriver()
+	}
 	return &Service{
-		provider: provider,
-		repos:    r,
-		audit:    emitter,
-		bus:      bus,
-		policy:   policy,
-		quotas:   quotas,
-		crypto:   cfg.Crypto,
+		provider:  provider,
+		repos:     r,
+		audit:     emitter,
+		bus:       bus,
+		policy:    policy,
+		quotas:    quotas,
+		placement: placement,
+		crypto:    cfg.Crypto,
 	}
 }
 
