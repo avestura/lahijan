@@ -231,13 +231,26 @@ func Start() error {
 	// same one the audit gate uses; seeding has already run.
 	var computeSvc *compute.Service
 	if incusDeps.provider != nil {
+		// WS-25: build the AES-GCM envelope the backup-target path uses
+		// to encrypt + decrypt the per-target credential blob. Reuses
+		// the same process-wide key the auth subsystem owns (buildCrypto
+		// is the single source of truth). nil-appropriate in dev when
+		// the deployer did not set auth.secrets.encryptionKey; the
+		// backup-target CRUD surfaces ErrCryptoRequired in that case.
+		var computeCrypto *secrets.Crypto
+		if c, cryptoErr := buildCrypto(); cryptoErr == nil {
+			computeCrypto = c
+		}
 		computeSvc = compute.New(
 			incusDeps.provider,
 			authDeps.repos,
 			authDeps.audit,
 			wasmDeps.bus,
 			rbac.NewEvaluator(authDeps.repos.Memberships),
-			compute.Config{Quotas: compute.DefaultQuotas()},
+			compute.Config{
+				Quotas: compute.DefaultQuotas(),
+				Crypto: computeCrypto,
+			},
 		)
 		// Seed the featured-image catalog for every existing tenant. A
 		// future WS will hook this into the tenant-create path so a new
@@ -334,6 +347,16 @@ func Start() error {
 	// slog.Default() logger; a future WS can pass a scoped logger.
 	if jobDeps.registry != nil {
 		billing.RegisterJobs(jobDeps.registry, billingSvc, slog.Default())
+	}
+
+	// WS-25: register the snapshot/backup River workers when both compute
+	// + jobs are enabled. The workers share the computeSvc instance so the
+	// in-process audit + event bus emit lines up with the HTTP-driven
+	// paths. The take worker's backup-enqueue seam is wired to the River
+	// client so a successful take can queue a compute.backup.create job
+	// for the policy's target_id.
+	if jobDeps.registry != nil && computeSvc != nil {
+		registerComputeSnapshotWorkers(jobDeps, computeSvc)
 	}
 
 	// Seed the RBAC catalog (permissions + default roles + grants). Idempotent
@@ -1080,6 +1103,51 @@ func mountJobsAdminUI(app *fiber.App, client *jobs.Client, policy middleware.Pol
 	app.Use(prefix, gate, httpHandler)
 	fiberlog.Info("jobs admin ui mounted", "path", prefix)
 	return nil
+}
+
+// registerComputeSnapshotWorkers registers the three WS-25 compute
+// workers (compute.snapshot.take / prune / backup.create) on the River
+// registry + wires the take worker's backup-enqueue seam to the River
+// client. Called from Start AFTER both jobDeps and computeSvc are built.
+//
+// The workers share the computeSvc instance so the in-process audit +
+// event-bus emit lines up with the HTTP-driven paths. The periodic
+// scheduling (every minute for take + every five minutes for prune) is
+// wired here via River's PeriodicJobs feature; the periods are
+// conservative defaults a future WS will make configurable.
+func registerComputeSnapshotWorkers(deps jobDeps, svc *compute.Service) {
+	if deps.registry == nil || deps.client == nil || svc == nil {
+		return
+	}
+	takeWorker := compute.NewSnapshotTakeWorker(svc, slog.Default()).
+		WithBackupEnqueuer(func(ctx context.Context, tenantID, snapshotID, targetID uuid.UUID) error {
+			_, err := deps.client.Insert(ctx, compute.BackupCreateArgs{
+				TenantID:   tenantID.String(),
+				SnapshotID: snapshotID.String(),
+				TargetID:   targetID.String(),
+			}, nil)
+			return err
+		})
+	jobs.Register(deps.registry, compute.SnapshotTakeArgs{}, takeWorker, jobs.KindSpec{
+		Kind:        compute.SnapshotTakeArgs{}.Kind(),
+		Queue:       "compute",
+		Description: "Periodic snapshot scheduler (scans due policies + fires TakeSnapshot).",
+		Tags:        []string{"compute", "snapshot"},
+	})
+	jobs.Register(deps.registry, compute.SnapshotPruneArgs{},
+		compute.NewSnapshotPruneWorker(svc, slog.Default()), jobs.KindSpec{
+			Kind:        compute.SnapshotPruneArgs{}.Kind(),
+			Queue:       "compute",
+			Description: "Periodic snapshot prune (enforces expires_at).",
+			Tags:        []string{"compute", "snapshot"},
+		})
+	jobs.Register(deps.registry, compute.BackupCreateArgs{},
+		compute.NewBackupCreateWorker(svc, slog.Default()), jobs.KindSpec{
+			Kind:        compute.BackupCreateArgs{}.Kind(),
+			Queue:       "compute",
+			Description: "Export a snapshot from Incus + push to a BackupTarget.",
+			Tags:        []string{"compute", "backup"},
+		})
 }
 
 // registerPluginInvokeWorker registers the WS-10b wasm.plugin.invoke

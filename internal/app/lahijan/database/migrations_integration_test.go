@@ -80,5 +80,5 @@ func TestMigrations_UpThenDownThenUp_AppliesCleanly(t *testing.T) {
 	// count here (it grows each WS); the equality above already proves
 	// reversibility, and this just guards against a migration file that
 	// forgets to bump the sequence.
-	assert.GreaterOrEqual(t, v, uint(36), "expected at least migration 0036 by WS-17 (WS-16 left off at 0034)")
+	assert.GreaterOrEqual(t, v, uint(39), "expected at least migration 0039 by WS-25 (WS-17 left off at 0036)")
 }

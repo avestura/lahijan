@@ -29,11 +29,18 @@ type (
 	// ComputeInstance / ComputeImage / ComputeProfile / ComputeNetwork /
 	// ComputeStorageVolume are the row aliases (WS-14). Services reference
 	// these (e.g. database.ComputeInstance) instead of gen.ComputeInstance.
-	ComputeInstance      = gen.ComputeInstance
-	ComputeImage         = gen.ComputeImage
-	ComputeProfile       = gen.ComputeProfile
-	ComputeNetwork       = gen.ComputeNetwork
-	ComputeStorageVolume = gen.ComputeStorageVolume
+	// WS-25 adds ComputeSnapshot / ComputeSnapshotPolicy /
+	// ComputeBackupTarget / ComputeBackup aliases for the snapshot +
+	// off-host-backup surface.
+	ComputeInstance       = gen.ComputeInstance
+	ComputeImage          = gen.ComputeImage
+	ComputeProfile        = gen.ComputeProfile
+	ComputeNetwork        = gen.ComputeNetwork
+	ComputeStorageVolume  = gen.ComputeStorageVolume
+	ComputeSnapshot       = gen.ComputeSnapshot
+	ComputeSnapshotPolicy = gen.ComputeSnapshotPolicy
+	ComputeBackupTarget   = gen.ComputeBackupTarget
+	ComputeBackup         = gen.ComputeBackup
 
 	// DNSZone / DNSRecord are the row aliases (WS-12, WS-15). Services
 	// reference these (e.g. database.DNSZone) instead of gen.DnsZone.

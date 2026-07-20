@@ -59,26 +59,6 @@ func TestNotifyEmailSendWorker_Work(t *testing.T) {
 	}, 1)))
 }
 
-func TestComputeInstanceSnapshotWorker_Work(t *testing.T) {
-	t.Parallel()
-	t.Run("happy", func(t *testing.T) {
-		t.Parallel()
-		w := NewComputeInstanceSnapshotWorker(nil)
-		require.NoError(t, w.Work(context.Background(), jobFrom(ComputeInstanceSnapshotArgs{
-			TenantID: "t-1", InstanceID: "i-1", SnapshotID: "s-1",
-		}, 1)))
-	})
-	t.Run("missing_instance_id_fails", func(t *testing.T) {
-		t.Parallel()
-		w := NewComputeInstanceSnapshotWorker(nil)
-		err := w.Work(context.Background(), jobFrom(ComputeInstanceSnapshotArgs{
-			TenantID: "t-1", // InstanceID intentionally empty
-		}, 1))
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "instance_id is required")
-	})
-}
-
 func TestAlwaysFailWorker_Work(t *testing.T) {
 	t.Parallel()
 	w := AlwaysFailWorker{}
@@ -90,19 +70,20 @@ func TestAlwaysFailWorker_Work(t *testing.T) {
 	assert.True(t, errors.Is(err, err)) // sanity: err is itself
 }
 
-// TestRegisterExamples_AddsFourKinds proves the helper covers the catalog
-// the WS-09 doc names. The integration test builds a real client from the
+// TestRegisterExamples_AddsThreeKinds proves the helper covers the catalog
+// the WS-09 doc names (minus the snapshot placeholder, which WS-25
+// replaces with compute.snapshot.take / prune / backup.create in the
+// compute package). The integration test builds a real client from the
 // resulting registry; here we only assert the kind strings.
-func TestRegisterExamples_AddsFourKinds(t *testing.T) {
+func TestRegisterExamples_AddsThreeKinds(t *testing.T) {
 	t.Parallel()
 	r := NewRegistry()
 	RegisterExamples(r, nil)
 	kinds := r.Kinds()
-	require.Len(t, kinds, 4)
+	require.Len(t, kinds, 3)
 	assert.Equal(t, "auditlog.prune", kinds[0].Kind)
 	assert.Equal(t, "billing.usage.rollup", kinds[1].Kind)
-	assert.Equal(t, "compute.instance.snapshot", kinds[2].Kind)
-	assert.Equal(t, "notify.email.send", kinds[3].Kind)
+	assert.Equal(t, "notify.email.send", kinds[2].Kind)
 }
 
 // TestRegisterExamples_NilRegistryPanics documents the contract.

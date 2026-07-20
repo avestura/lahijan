@@ -85,6 +85,28 @@ const (
 	BillingReceiptStatusReady   BillingReceiptStatus = "ready"
 )
 
+// Defines values for ComputeBackupStatus.
+const (
+	ComputeBackupStatusCompleted ComputeBackupStatus = "completed"
+	ComputeBackupStatusFailed    ComputeBackupStatus = "failed"
+	ComputeBackupStatusPending   ComputeBackupStatus = "pending"
+	ComputeBackupStatusUploading ComputeBackupStatus = "uploading"
+)
+
+// Defines values for ComputeBackupTargetKind.
+const (
+	ComputeBackupTargetKindNfs ComputeBackupTargetKind = "nfs"
+	ComputeBackupTargetKindS3  ComputeBackupTargetKind = "s3"
+	ComputeBackupTargetKindSsh ComputeBackupTargetKind = "ssh"
+)
+
+// Defines values for ComputeBackupTargetCreateRequestKind.
+const (
+	ComputeBackupTargetCreateRequestKindNfs ComputeBackupTargetCreateRequestKind = "nfs"
+	ComputeBackupTargetCreateRequestKindS3  ComputeBackupTargetCreateRequestKind = "s3"
+	ComputeBackupTargetCreateRequestKindSsh ComputeBackupTargetCreateRequestKind = "ssh"
+)
+
 // Defines values for ComputeImageSource.
 const (
 	ComputeImageSourceCustom   ComputeImageSource = "custom"
@@ -678,6 +700,71 @@ type BillingUsagePage struct {
 	Total  int                 `json:"total"`
 }
 
+// ComputeBackup defines model for ComputeBackup.
+type ComputeBackup struct {
+	ChecksumSha256 *string             `json:"checksumSha256,omitempty"`
+	CreatedAt      time.Time           `json:"createdAt"`
+	ErrorMessage   *string             `json:"errorMessage,omitempty"`
+	Id             openapi_types.UUID  `json:"id"`
+	InstanceId     openapi_types.UUID  `json:"instanceId"`
+	RemoteLocation *string             `json:"remoteLocation,omitempty"`
+	SizeBytes      *int64              `json:"sizeBytes,omitempty"`
+	SnapshotId     openapi_types.UUID  `json:"snapshotId"`
+	Status         ComputeBackupStatus `json:"status"`
+	TargetId       openapi_types.UUID  `json:"targetId"`
+	UpdatedAt      *time.Time          `json:"updatedAt,omitempty"`
+}
+
+// ComputeBackupStatus defines model for ComputeBackup.Status.
+type ComputeBackupStatus string
+
+// ComputeBackupPage defines model for ComputeBackupPage.
+type ComputeBackupPage struct {
+	Items  []ComputeBackup `json:"items"`
+	Limit  int             `json:"limit"`
+	Offset int             `json:"offset"`
+	Total  int             `json:"total"`
+}
+
+// ComputeBackupTarget defines model for ComputeBackupTarget.
+type ComputeBackupTarget struct {
+	// Config Per-kind non-sensitive config (endpoint, bucket, path, host, ...).
+	Config      *map[string]interface{} `json:"config,omitempty"`
+	CreatedAt   time.Time               `json:"createdAt"`
+	Description *string                 `json:"description,omitempty"`
+	Enabled     bool                    `json:"enabled"`
+	Id          openapi_types.UUID      `json:"id"`
+	Kind        ComputeBackupTargetKind `json:"kind"`
+	Name        string                  `json:"name"`
+	UpdatedAt   *time.Time              `json:"updatedAt,omitempty"`
+}
+
+// ComputeBackupTargetKind defines model for ComputeBackupTarget.Kind.
+type ComputeBackupTargetKind string
+
+// ComputeBackupTargetCreateRequest defines model for ComputeBackupTargetCreateRequest.
+type ComputeBackupTargetCreateRequest struct {
+	Config      map[string]interface{}               `json:"config"`
+	Description *string                              `json:"description,omitempty"`
+	Enabled     *bool                                `json:"enabled,omitempty"`
+	Kind        ComputeBackupTargetCreateRequestKind `json:"kind"`
+	Name        string                               `json:"name"`
+
+	// Secret Per-kind credentials envelope (S3 access keys, SSH private key, ...). Encrypted at rest.
+	Secret map[string]interface{} `json:"secret"`
+}
+
+// ComputeBackupTargetCreateRequestKind defines model for ComputeBackupTargetCreateRequest.Kind.
+type ComputeBackupTargetCreateRequestKind string
+
+// ComputeBackupTargetPage defines model for ComputeBackupTargetPage.
+type ComputeBackupTargetPage struct {
+	Items  []ComputeBackupTarget `json:"items"`
+	Limit  int                   `json:"limit"`
+	Offset int                   `json:"offset"`
+	Total  int                   `json:"total"`
+}
+
 // ComputeExecRequest defines model for ComputeExecRequest.
 type ComputeExecRequest struct {
 	// Command The argv to execute. Must be non-empty.
@@ -862,6 +949,84 @@ type ComputeProfilePage struct {
 	Limit  int              `json:"limit"`
 	Offset int              `json:"offset"`
 	Total  int              `json:"total"`
+}
+
+// ComputeSnapshot defines model for ComputeSnapshot.
+type ComputeSnapshot struct {
+	CreatedAt   time.Time           `json:"createdAt"`
+	Description *string             `json:"description,omitempty"`
+	ExpiresAt   *time.Time          `json:"expiresAt"`
+	Id          openapi_types.UUID  `json:"id"`
+	InstanceId  openapi_types.UUID  `json:"instanceId"`
+	Name        string              `json:"name"`
+	PolicyId    *openapi_types.UUID `json:"policyId"`
+	SizeBytes   *int64              `json:"sizeBytes,omitempty"`
+	Stateful    bool                `json:"stateful"`
+	UpdatedAt   *time.Time          `json:"updatedAt,omitempty"`
+}
+
+// ComputeSnapshotCreateRequest defines model for ComputeSnapshotCreateRequest.
+type ComputeSnapshotCreateRequest struct {
+	Description *string `json:"description,omitempty"`
+	Name        string  `json:"name"`
+	Stateful    *bool   `json:"stateful,omitempty"`
+}
+
+// ComputeSnapshotPage defines model for ComputeSnapshotPage.
+type ComputeSnapshotPage struct {
+	Items  []ComputeSnapshot `json:"items"`
+	Limit  int               `json:"limit"`
+	Offset int               `json:"offset"`
+	Total  int               `json:"total"`
+}
+
+// ComputeSnapshotPolicy defines model for ComputeSnapshotPolicy.
+type ComputeSnapshotPolicy struct {
+	Cadence     string              `json:"cadence"`
+	CreatedAt   time.Time           `json:"createdAt"`
+	Enabled     bool                `json:"enabled"`
+	Id          openapi_types.UUID  `json:"id"`
+	InstanceId  *openapi_types.UUID `json:"instanceId"`
+	LastRunAt   *time.Time          `json:"lastRunAt"`
+	Name        string              `json:"name"`
+	NextRunAt   *time.Time          `json:"nextRunAt"`
+	RetainCount int                 `json:"retainCount"`
+	TargetId    *openapi_types.UUID `json:"targetId"`
+	UpdatedAt   *time.Time          `json:"updatedAt,omitempty"`
+}
+
+// ComputeSnapshotPolicyCreateRequest defines model for ComputeSnapshotPolicyCreateRequest.
+type ComputeSnapshotPolicyCreateRequest struct {
+	// Cadence ISO 8601 duration: PT1H, P1D, P1W, P1DT2H...
+	Cadence     string              `json:"cadence"`
+	Enabled     *bool               `json:"enabled,omitempty"`
+	InstanceId  *openapi_types.UUID `json:"instanceId"`
+	Name        string              `json:"name"`
+	RetainCount *int                `json:"retainCount,omitempty"`
+	TargetId    *openapi_types.UUID `json:"targetId"`
+}
+
+// ComputeSnapshotPolicyPage defines model for ComputeSnapshotPolicyPage.
+type ComputeSnapshotPolicyPage struct {
+	Items  []ComputeSnapshotPolicy `json:"items"`
+	Limit  int                     `json:"limit"`
+	Offset int                     `json:"offset"`
+	Total  int                     `json:"total"`
+}
+
+// ComputeSnapshotPolicyUpdateRequest defines model for ComputeSnapshotPolicyUpdateRequest.
+type ComputeSnapshotPolicyUpdateRequest struct {
+	Cadence     string              `json:"cadence"`
+	Enabled     *bool               `json:"enabled,omitempty"`
+	InstanceId  *openapi_types.UUID `json:"instanceId"`
+	Name        string              `json:"name"`
+	RetainCount *int                `json:"retainCount,omitempty"`
+	TargetId    *openapi_types.UUID `json:"targetId"`
+}
+
+// ComputeSnapshotRestoreRequest defines model for ComputeSnapshotRestoreRequest.
+type ComputeSnapshotRestoreRequest struct {
+	Stateful *bool `json:"stateful,omitempty"`
 }
 
 // ComputeStorageVolume defines model for ComputeStorageVolume.
@@ -1677,6 +1842,24 @@ type AssertionConsumerServiceSAMLFormdataBody struct {
 	SAMLResponse string `form:"SAMLResponse" json:"SAMLResponse"`
 }
 
+// ListComputeBackupTargetsParams defines parameters for ListComputeBackupTargets.
+type ListComputeBackupTargetsParams struct {
+	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// CreateComputeBackupTargetParams defines parameters for CreateComputeBackupTarget.
+type CreateComputeBackupTargetParams struct {
+	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// ListComputeBackupsParams defines parameters for ListComputeBackups.
+type ListComputeBackupsParams struct {
+	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
 // ListComputeImagesParams defines parameters for ListComputeImages.
 type ListComputeImagesParams struct {
 	// Limit Maximum number of items to return (1..200).
@@ -1699,6 +1882,24 @@ type ListComputeInstancesParams struct {
 type DeleteComputeInstanceParams struct {
 	// Force Skip the graceful shutdown and force-delete.
 	Force *bool `form:"force,omitempty" json:"force,omitempty"`
+}
+
+// ListComputeBackupsByInstanceParams defines parameters for ListComputeBackupsByInstance.
+type ListComputeBackupsByInstanceParams struct {
+	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// ListComputeSnapshotsParams defines parameters for ListComputeSnapshots.
+type ListComputeSnapshotsParams struct {
+	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// CreateComputeSnapshotParams defines parameters for CreateComputeSnapshot.
+type CreateComputeSnapshotParams struct {
+	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
 }
 
 // SetComputeInstanceStateParams defines parameters for SetComputeInstanceState.
@@ -1726,6 +1927,18 @@ type ListComputeProfilesParams struct {
 
 	// Offset Number of items to skip for pagination.
 	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// ListComputeSnapshotPoliciesParams defines parameters for ListComputeSnapshotPolicies.
+type ListComputeSnapshotPoliciesParams struct {
+	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// CreateComputeSnapshotPolicyParams defines parameters for CreateComputeSnapshotPolicy.
+type CreateComputeSnapshotPolicyParams struct {
+	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
 }
 
 // ListComputeStorageVolumesParams defines parameters for ListComputeStorageVolumes.
@@ -1857,6 +2070,9 @@ type AssertionConsumerServiceSAMLFormdataRequestBody AssertionConsumerServiceSAM
 // VerifyEmailJSONRequestBody defines body for VerifyEmail for application/json ContentType.
 type VerifyEmailJSONRequestBody = TokenRequest
 
+// CreateComputeBackupTargetJSONRequestBody defines body for CreateComputeBackupTarget for application/json ContentType.
+type CreateComputeBackupTargetJSONRequestBody = ComputeBackupTargetCreateRequest
+
 // UploadComputeImageJSONRequestBody defines body for UploadComputeImage for application/json ContentType.
 type UploadComputeImageJSONRequestBody = ComputeImageUploadRequest
 
@@ -1869,11 +2085,23 @@ type UpdateComputeInstanceJSONRequestBody = ComputeInstanceUpdateRequest
 // ExecComputeInstanceJSONRequestBody defines body for ExecComputeInstance for application/json ContentType.
 type ExecComputeInstanceJSONRequestBody = ComputeExecRequest
 
+// CreateComputeSnapshotJSONRequestBody defines body for CreateComputeSnapshot for application/json ContentType.
+type CreateComputeSnapshotJSONRequestBody = ComputeSnapshotCreateRequest
+
+// RestoreComputeSnapshotJSONRequestBody defines body for RestoreComputeSnapshot for application/json ContentType.
+type RestoreComputeSnapshotJSONRequestBody = ComputeSnapshotRestoreRequest
+
 // CreateComputeNetworkJSONRequestBody defines body for CreateComputeNetwork for application/json ContentType.
 type CreateComputeNetworkJSONRequestBody = ComputeNetworkCreateRequest
 
 // CreateComputeProfileJSONRequestBody defines body for CreateComputeProfile for application/json ContentType.
 type CreateComputeProfileJSONRequestBody = ComputeProfileCreateRequest
+
+// CreateComputeSnapshotPolicyJSONRequestBody defines body for CreateComputeSnapshotPolicy for application/json ContentType.
+type CreateComputeSnapshotPolicyJSONRequestBody = ComputeSnapshotPolicyCreateRequest
+
+// UpdateComputeSnapshotPolicyJSONRequestBody defines body for UpdateComputeSnapshotPolicy for application/json ContentType.
+type UpdateComputeSnapshotPolicyJSONRequestBody = ComputeSnapshotPolicyUpdateRequest
 
 // CreateComputeStorageVolumeJSONRequestBody defines body for CreateComputeStorageVolume for application/json ContentType.
 type CreateComputeStorageVolumeJSONRequestBody = ComputeStorageVolumeCreateRequest
@@ -2170,6 +2398,29 @@ type ClientInterface interface {
 
 	VerifyEmail(ctx context.Context, body VerifyEmailJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListComputeBackupTargets request
+	ListComputeBackupTargets(ctx context.Context, params *ListComputeBackupTargetsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateComputeBackupTargetWithBody request with any body
+	CreateComputeBackupTargetWithBody(ctx context.Context, params *CreateComputeBackupTargetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateComputeBackupTarget(ctx context.Context, params *CreateComputeBackupTargetParams, body CreateComputeBackupTargetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteComputeBackupTarget request
+	DeleteComputeBackupTarget(ctx context.Context, targetId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetComputeBackupTarget request
+	GetComputeBackupTarget(ctx context.Context, targetId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListComputeBackups request
+	ListComputeBackups(ctx context.Context, params *ListComputeBackupsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteComputeBackup request
+	DeleteComputeBackup(ctx context.Context, backupId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetComputeBackup request
+	GetComputeBackup(ctx context.Context, backupId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListComputeImages request
 	ListComputeImages(ctx context.Context, params *ListComputeImagesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -2203,10 +2454,32 @@ type ClientInterface interface {
 
 	UpdateComputeInstance(ctx context.Context, instanceId openapi_types.UUID, body UpdateComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListComputeBackupsByInstance request
+	ListComputeBackupsByInstance(ctx context.Context, instanceId openapi_types.UUID, params *ListComputeBackupsByInstanceParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ExecComputeInstanceWithBody request with any body
 	ExecComputeInstanceWithBody(ctx context.Context, instanceId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	ExecComputeInstance(ctx context.Context, instanceId openapi_types.UUID, body ExecComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListComputeSnapshots request
+	ListComputeSnapshots(ctx context.Context, instanceId openapi_types.UUID, params *ListComputeSnapshotsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateComputeSnapshotWithBody request with any body
+	CreateComputeSnapshotWithBody(ctx context.Context, instanceId openapi_types.UUID, params *CreateComputeSnapshotParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateComputeSnapshot(ctx context.Context, instanceId openapi_types.UUID, params *CreateComputeSnapshotParams, body CreateComputeSnapshotJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteComputeSnapshot request
+	DeleteComputeSnapshot(ctx context.Context, instanceId openapi_types.UUID, snapshotId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetComputeSnapshot request
+	GetComputeSnapshot(ctx context.Context, instanceId openapi_types.UUID, snapshotId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RestoreComputeSnapshotWithBody request with any body
+	RestoreComputeSnapshotWithBody(ctx context.Context, instanceId openapi_types.UUID, snapshotId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	RestoreComputeSnapshot(ctx context.Context, instanceId openapi_types.UUID, snapshotId openapi_types.UUID, body RestoreComputeSnapshotJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// OpenVncComputeInstance request
 	OpenVncComputeInstance(ctx context.Context, instanceId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2241,6 +2514,25 @@ type ClientInterface interface {
 
 	// GetComputeProfile request
 	GetComputeProfile(ctx context.Context, profileId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListComputeSnapshotPolicies request
+	ListComputeSnapshotPolicies(ctx context.Context, params *ListComputeSnapshotPoliciesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateComputeSnapshotPolicyWithBody request with any body
+	CreateComputeSnapshotPolicyWithBody(ctx context.Context, params *CreateComputeSnapshotPolicyParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateComputeSnapshotPolicy(ctx context.Context, params *CreateComputeSnapshotPolicyParams, body CreateComputeSnapshotPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteComputeSnapshotPolicy request
+	DeleteComputeSnapshotPolicy(ctx context.Context, policyId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetComputeSnapshotPolicy request
+	GetComputeSnapshotPolicy(ctx context.Context, policyId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateComputeSnapshotPolicyWithBody request with any body
+	UpdateComputeSnapshotPolicyWithBody(ctx context.Context, policyId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateComputeSnapshotPolicy(ctx context.Context, policyId openapi_types.UUID, body UpdateComputeSnapshotPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListComputeStorageVolumes request
 	ListComputeStorageVolumes(ctx context.Context, params *ListComputeStorageVolumesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -3158,6 +3450,102 @@ func (c *Client) VerifyEmail(ctx context.Context, body VerifyEmailJSONRequestBod
 	return c.Client.Do(req)
 }
 
+func (c *Client) ListComputeBackupTargets(ctx context.Context, params *ListComputeBackupTargetsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListComputeBackupTargetsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateComputeBackupTargetWithBody(ctx context.Context, params *CreateComputeBackupTargetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateComputeBackupTargetRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateComputeBackupTarget(ctx context.Context, params *CreateComputeBackupTargetParams, body CreateComputeBackupTargetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateComputeBackupTargetRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteComputeBackupTarget(ctx context.Context, targetId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteComputeBackupTargetRequest(c.Server, targetId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetComputeBackupTarget(ctx context.Context, targetId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetComputeBackupTargetRequest(c.Server, targetId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListComputeBackups(ctx context.Context, params *ListComputeBackupsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListComputeBackupsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteComputeBackup(ctx context.Context, backupId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteComputeBackupRequest(c.Server, backupId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetComputeBackup(ctx context.Context, backupId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetComputeBackupRequest(c.Server, backupId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) ListComputeImages(ctx context.Context, params *ListComputeImagesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListComputeImagesRequest(c.Server, params)
 	if err != nil {
@@ -3302,6 +3690,18 @@ func (c *Client) UpdateComputeInstance(ctx context.Context, instanceId openapi_t
 	return c.Client.Do(req)
 }
 
+func (c *Client) ListComputeBackupsByInstance(ctx context.Context, instanceId openapi_types.UUID, params *ListComputeBackupsByInstanceParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListComputeBackupsByInstanceRequest(c.Server, instanceId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) ExecComputeInstanceWithBody(ctx context.Context, instanceId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewExecComputeInstanceRequestWithBody(c.Server, instanceId, contentType, body)
 	if err != nil {
@@ -3316,6 +3716,90 @@ func (c *Client) ExecComputeInstanceWithBody(ctx context.Context, instanceId ope
 
 func (c *Client) ExecComputeInstance(ctx context.Context, instanceId openapi_types.UUID, body ExecComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewExecComputeInstanceRequest(c.Server, instanceId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListComputeSnapshots(ctx context.Context, instanceId openapi_types.UUID, params *ListComputeSnapshotsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListComputeSnapshotsRequest(c.Server, instanceId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateComputeSnapshotWithBody(ctx context.Context, instanceId openapi_types.UUID, params *CreateComputeSnapshotParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateComputeSnapshotRequestWithBody(c.Server, instanceId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateComputeSnapshot(ctx context.Context, instanceId openapi_types.UUID, params *CreateComputeSnapshotParams, body CreateComputeSnapshotJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateComputeSnapshotRequest(c.Server, instanceId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteComputeSnapshot(ctx context.Context, instanceId openapi_types.UUID, snapshotId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteComputeSnapshotRequest(c.Server, instanceId, snapshotId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetComputeSnapshot(ctx context.Context, instanceId openapi_types.UUID, snapshotId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetComputeSnapshotRequest(c.Server, instanceId, snapshotId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) RestoreComputeSnapshotWithBody(ctx context.Context, instanceId openapi_types.UUID, snapshotId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRestoreComputeSnapshotRequestWithBody(c.Server, instanceId, snapshotId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) RestoreComputeSnapshot(ctx context.Context, instanceId openapi_types.UUID, snapshotId openapi_types.UUID, body RestoreComputeSnapshotJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRestoreComputeSnapshotRequest(c.Server, instanceId, snapshotId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -3460,6 +3944,90 @@ func (c *Client) DeleteComputeProfile(ctx context.Context, profileId openapi_typ
 
 func (c *Client) GetComputeProfile(ctx context.Context, profileId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetComputeProfileRequest(c.Server, profileId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListComputeSnapshotPolicies(ctx context.Context, params *ListComputeSnapshotPoliciesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListComputeSnapshotPoliciesRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateComputeSnapshotPolicyWithBody(ctx context.Context, params *CreateComputeSnapshotPolicyParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateComputeSnapshotPolicyRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateComputeSnapshotPolicy(ctx context.Context, params *CreateComputeSnapshotPolicyParams, body CreateComputeSnapshotPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateComputeSnapshotPolicyRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteComputeSnapshotPolicy(ctx context.Context, policyId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteComputeSnapshotPolicyRequest(c.Server, policyId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetComputeSnapshotPolicy(ctx context.Context, policyId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetComputeSnapshotPolicyRequest(c.Server, policyId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateComputeSnapshotPolicyWithBody(ctx context.Context, policyId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateComputeSnapshotPolicyRequestWithBody(c.Server, policyId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateComputeSnapshotPolicy(ctx context.Context, policyId openapi_types.UUID, body UpdateComputeSnapshotPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateComputeSnapshotPolicyRequest(c.Server, policyId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -6439,6 +7007,350 @@ func NewVerifyEmailRequestWithBody(server string, contentType string, body io.Re
 	return req, nil
 }
 
+// NewListComputeBackupTargetsRequest generates requests for ListComputeBackupTargets
+func NewListComputeBackupTargetsRequest(server string, params *ListComputeBackupTargetsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/backup-targets")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateComputeBackupTargetRequest calls the generic CreateComputeBackupTarget builder with application/json body
+func NewCreateComputeBackupTargetRequest(server string, params *CreateComputeBackupTargetParams, body CreateComputeBackupTargetJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateComputeBackupTargetRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewCreateComputeBackupTargetRequestWithBody generates requests for CreateComputeBackupTarget with any type of body
+func NewCreateComputeBackupTargetRequestWithBody(server string, params *CreateComputeBackupTargetParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/backup-targets")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteComputeBackupTargetRequest generates requests for DeleteComputeBackupTarget
+func NewDeleteComputeBackupTargetRequest(server string, targetId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "targetId", runtime.ParamLocationPath, targetId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/backup-targets/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetComputeBackupTargetRequest generates requests for GetComputeBackupTarget
+func NewGetComputeBackupTargetRequest(server string, targetId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "targetId", runtime.ParamLocationPath, targetId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/backup-targets/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListComputeBackupsRequest generates requests for ListComputeBackups
+func NewListComputeBackupsRequest(server string, params *ListComputeBackupsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/backups")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDeleteComputeBackupRequest generates requests for DeleteComputeBackup
+func NewDeleteComputeBackupRequest(server string, backupId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "backupId", runtime.ParamLocationPath, backupId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/backups/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetComputeBackupRequest generates requests for GetComputeBackup
+func NewGetComputeBackupRequest(server string, backupId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "backupId", runtime.ParamLocationPath, backupId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/backups/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListComputeImagesRequest generates requests for ListComputeImages
 func NewListComputeImagesRequest(server string, params *ListComputeImagesParams) (*http.Request, error) {
 	var err error
@@ -6854,6 +7766,78 @@ func NewUpdateComputeInstanceRequestWithBody(server string, instanceId openapi_t
 	return req, nil
 }
 
+// NewListComputeBackupsByInstanceRequest generates requests for ListComputeBackupsByInstance
+func NewListComputeBackupsByInstanceRequest(server string, instanceId openapi_types.UUID, params *ListComputeBackupsByInstanceParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "instanceId", runtime.ParamLocationPath, instanceId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/instances/%s/backups", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewExecComputeInstanceRequest calls the generic ExecComputeInstance builder with application/json body
 func NewExecComputeInstanceRequest(server string, instanceId openapi_types.UUID, body ExecComputeInstanceJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -6882,6 +7866,299 @@ func NewExecComputeInstanceRequestWithBody(server string, instanceId openapi_typ
 	}
 
 	operationPath := fmt.Sprintf("/api/v1/compute/instances/%s/exec", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListComputeSnapshotsRequest generates requests for ListComputeSnapshots
+func NewListComputeSnapshotsRequest(server string, instanceId openapi_types.UUID, params *ListComputeSnapshotsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "instanceId", runtime.ParamLocationPath, instanceId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/instances/%s/snapshots", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateComputeSnapshotRequest calls the generic CreateComputeSnapshot builder with application/json body
+func NewCreateComputeSnapshotRequest(server string, instanceId openapi_types.UUID, params *CreateComputeSnapshotParams, body CreateComputeSnapshotJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateComputeSnapshotRequestWithBody(server, instanceId, params, "application/json", bodyReader)
+}
+
+// NewCreateComputeSnapshotRequestWithBody generates requests for CreateComputeSnapshot with any type of body
+func NewCreateComputeSnapshotRequestWithBody(server string, instanceId openapi_types.UUID, params *CreateComputeSnapshotParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "instanceId", runtime.ParamLocationPath, instanceId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/instances/%s/snapshots", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteComputeSnapshotRequest generates requests for DeleteComputeSnapshot
+func NewDeleteComputeSnapshotRequest(server string, instanceId openapi_types.UUID, snapshotId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "instanceId", runtime.ParamLocationPath, instanceId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "snapshotId", runtime.ParamLocationPath, snapshotId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/instances/%s/snapshots/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetComputeSnapshotRequest generates requests for GetComputeSnapshot
+func NewGetComputeSnapshotRequest(server string, instanceId openapi_types.UUID, snapshotId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "instanceId", runtime.ParamLocationPath, instanceId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "snapshotId", runtime.ParamLocationPath, snapshotId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/instances/%s/snapshots/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRestoreComputeSnapshotRequest calls the generic RestoreComputeSnapshot builder with application/json body
+func NewRestoreComputeSnapshotRequest(server string, instanceId openapi_types.UUID, snapshotId openapi_types.UUID, body RestoreComputeSnapshotJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRestoreComputeSnapshotRequestWithBody(server, instanceId, snapshotId, "application/json", bodyReader)
+}
+
+// NewRestoreComputeSnapshotRequestWithBody generates requests for RestoreComputeSnapshot with any type of body
+func NewRestoreComputeSnapshotRequestWithBody(server string, instanceId openapi_types.UUID, snapshotId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "instanceId", runtime.ParamLocationPath, instanceId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "snapshotId", runtime.ParamLocationPath, snapshotId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/instances/%s/snapshots/%s/restore", pathParam0, pathParam1)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -7356,6 +8633,264 @@ func NewGetComputeProfileRequest(server string, profileId openapi_types.UUID) (*
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewListComputeSnapshotPoliciesRequest generates requests for ListComputeSnapshotPolicies
+func NewListComputeSnapshotPoliciesRequest(server string, params *ListComputeSnapshotPoliciesParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/snapshot-policies")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateComputeSnapshotPolicyRequest calls the generic CreateComputeSnapshotPolicy builder with application/json body
+func NewCreateComputeSnapshotPolicyRequest(server string, params *CreateComputeSnapshotPolicyParams, body CreateComputeSnapshotPolicyJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateComputeSnapshotPolicyRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewCreateComputeSnapshotPolicyRequestWithBody generates requests for CreateComputeSnapshotPolicy with any type of body
+func NewCreateComputeSnapshotPolicyRequestWithBody(server string, params *CreateComputeSnapshotPolicyParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/snapshot-policies")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteComputeSnapshotPolicyRequest generates requests for DeleteComputeSnapshotPolicy
+func NewDeleteComputeSnapshotPolicyRequest(server string, policyId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "policyId", runtime.ParamLocationPath, policyId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/snapshot-policies/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetComputeSnapshotPolicyRequest generates requests for GetComputeSnapshotPolicy
+func NewGetComputeSnapshotPolicyRequest(server string, policyId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "policyId", runtime.ParamLocationPath, policyId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/snapshot-policies/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateComputeSnapshotPolicyRequest calls the generic UpdateComputeSnapshotPolicy builder with application/json body
+func NewUpdateComputeSnapshotPolicyRequest(server string, policyId openapi_types.UUID, body UpdateComputeSnapshotPolicyJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateComputeSnapshotPolicyRequestWithBody(server, policyId, "application/json", bodyReader)
+}
+
+// NewUpdateComputeSnapshotPolicyRequestWithBody generates requests for UpdateComputeSnapshotPolicy with any type of body
+func NewUpdateComputeSnapshotPolicyRequestWithBody(server string, policyId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "policyId", runtime.ParamLocationPath, policyId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/snapshot-policies/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -9690,6 +11225,29 @@ type ClientWithResponsesInterface interface {
 
 	VerifyEmailWithResponse(ctx context.Context, body VerifyEmailJSONRequestBody, reqEditors ...RequestEditorFn) (*VerifyEmailResponse, error)
 
+	// ListComputeBackupTargetsWithResponse request
+	ListComputeBackupTargetsWithResponse(ctx context.Context, params *ListComputeBackupTargetsParams, reqEditors ...RequestEditorFn) (*ListComputeBackupTargetsResponse, error)
+
+	// CreateComputeBackupTargetWithBodyWithResponse request with any body
+	CreateComputeBackupTargetWithBodyWithResponse(ctx context.Context, params *CreateComputeBackupTargetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateComputeBackupTargetResponse, error)
+
+	CreateComputeBackupTargetWithResponse(ctx context.Context, params *CreateComputeBackupTargetParams, body CreateComputeBackupTargetJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateComputeBackupTargetResponse, error)
+
+	// DeleteComputeBackupTargetWithResponse request
+	DeleteComputeBackupTargetWithResponse(ctx context.Context, targetId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteComputeBackupTargetResponse, error)
+
+	// GetComputeBackupTargetWithResponse request
+	GetComputeBackupTargetWithResponse(ctx context.Context, targetId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeBackupTargetResponse, error)
+
+	// ListComputeBackupsWithResponse request
+	ListComputeBackupsWithResponse(ctx context.Context, params *ListComputeBackupsParams, reqEditors ...RequestEditorFn) (*ListComputeBackupsResponse, error)
+
+	// DeleteComputeBackupWithResponse request
+	DeleteComputeBackupWithResponse(ctx context.Context, backupId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteComputeBackupResponse, error)
+
+	// GetComputeBackupWithResponse request
+	GetComputeBackupWithResponse(ctx context.Context, backupId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeBackupResponse, error)
+
 	// ListComputeImagesWithResponse request
 	ListComputeImagesWithResponse(ctx context.Context, params *ListComputeImagesParams, reqEditors ...RequestEditorFn) (*ListComputeImagesResponse, error)
 
@@ -9723,10 +11281,32 @@ type ClientWithResponsesInterface interface {
 
 	UpdateComputeInstanceWithResponse(ctx context.Context, instanceId openapi_types.UUID, body UpdateComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateComputeInstanceResponse, error)
 
+	// ListComputeBackupsByInstanceWithResponse request
+	ListComputeBackupsByInstanceWithResponse(ctx context.Context, instanceId openapi_types.UUID, params *ListComputeBackupsByInstanceParams, reqEditors ...RequestEditorFn) (*ListComputeBackupsByInstanceResponse, error)
+
 	// ExecComputeInstanceWithBodyWithResponse request with any body
 	ExecComputeInstanceWithBodyWithResponse(ctx context.Context, instanceId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ExecComputeInstanceResponse, error)
 
 	ExecComputeInstanceWithResponse(ctx context.Context, instanceId openapi_types.UUID, body ExecComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*ExecComputeInstanceResponse, error)
+
+	// ListComputeSnapshotsWithResponse request
+	ListComputeSnapshotsWithResponse(ctx context.Context, instanceId openapi_types.UUID, params *ListComputeSnapshotsParams, reqEditors ...RequestEditorFn) (*ListComputeSnapshotsResponse, error)
+
+	// CreateComputeSnapshotWithBodyWithResponse request with any body
+	CreateComputeSnapshotWithBodyWithResponse(ctx context.Context, instanceId openapi_types.UUID, params *CreateComputeSnapshotParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateComputeSnapshotResponse, error)
+
+	CreateComputeSnapshotWithResponse(ctx context.Context, instanceId openapi_types.UUID, params *CreateComputeSnapshotParams, body CreateComputeSnapshotJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateComputeSnapshotResponse, error)
+
+	// DeleteComputeSnapshotWithResponse request
+	DeleteComputeSnapshotWithResponse(ctx context.Context, instanceId openapi_types.UUID, snapshotId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteComputeSnapshotResponse, error)
+
+	// GetComputeSnapshotWithResponse request
+	GetComputeSnapshotWithResponse(ctx context.Context, instanceId openapi_types.UUID, snapshotId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeSnapshotResponse, error)
+
+	// RestoreComputeSnapshotWithBodyWithResponse request with any body
+	RestoreComputeSnapshotWithBodyWithResponse(ctx context.Context, instanceId openapi_types.UUID, snapshotId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RestoreComputeSnapshotResponse, error)
+
+	RestoreComputeSnapshotWithResponse(ctx context.Context, instanceId openapi_types.UUID, snapshotId openapi_types.UUID, body RestoreComputeSnapshotJSONRequestBody, reqEditors ...RequestEditorFn) (*RestoreComputeSnapshotResponse, error)
 
 	// OpenVncComputeInstanceWithResponse request
 	OpenVncComputeInstanceWithResponse(ctx context.Context, instanceId openapi_types.UUID, reqEditors ...RequestEditorFn) (*OpenVncComputeInstanceResponse, error)
@@ -9761,6 +11341,25 @@ type ClientWithResponsesInterface interface {
 
 	// GetComputeProfileWithResponse request
 	GetComputeProfileWithResponse(ctx context.Context, profileId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeProfileResponse, error)
+
+	// ListComputeSnapshotPoliciesWithResponse request
+	ListComputeSnapshotPoliciesWithResponse(ctx context.Context, params *ListComputeSnapshotPoliciesParams, reqEditors ...RequestEditorFn) (*ListComputeSnapshotPoliciesResponse, error)
+
+	// CreateComputeSnapshotPolicyWithBodyWithResponse request with any body
+	CreateComputeSnapshotPolicyWithBodyWithResponse(ctx context.Context, params *CreateComputeSnapshotPolicyParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateComputeSnapshotPolicyResponse, error)
+
+	CreateComputeSnapshotPolicyWithResponse(ctx context.Context, params *CreateComputeSnapshotPolicyParams, body CreateComputeSnapshotPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateComputeSnapshotPolicyResponse, error)
+
+	// DeleteComputeSnapshotPolicyWithResponse request
+	DeleteComputeSnapshotPolicyWithResponse(ctx context.Context, policyId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteComputeSnapshotPolicyResponse, error)
+
+	// GetComputeSnapshotPolicyWithResponse request
+	GetComputeSnapshotPolicyWithResponse(ctx context.Context, policyId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeSnapshotPolicyResponse, error)
+
+	// UpdateComputeSnapshotPolicyWithBodyWithResponse request with any body
+	UpdateComputeSnapshotPolicyWithBodyWithResponse(ctx context.Context, policyId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateComputeSnapshotPolicyResponse, error)
+
+	UpdateComputeSnapshotPolicyWithResponse(ctx context.Context, policyId openapi_types.UUID, body UpdateComputeSnapshotPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateComputeSnapshotPolicyResponse, error)
 
 	// ListComputeStorageVolumesWithResponse request
 	ListComputeStorageVolumesWithResponse(ctx context.Context, params *ListComputeStorageVolumesParams, reqEditors ...RequestEditorFn) (*ListComputeStorageVolumesResponse, error)
@@ -11075,6 +12674,178 @@ func (r VerifyEmailResponse) StatusCode() int {
 	return 0
 }
 
+type ListComputeBackupTargetsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeBackupTargetPage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+}
+
+// Status returns HTTPResponse.Status
+func (r ListComputeBackupTargetsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListComputeBackupTargetsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateComputeBackupTargetResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *ComputeBackupTarget
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON409      *Conflict
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateComputeBackupTargetResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateComputeBackupTargetResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteComputeBackupTargetResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteComputeBackupTargetResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteComputeBackupTargetResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetComputeBackupTargetResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeBackupTarget
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r GetComputeBackupTargetResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetComputeBackupTargetResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListComputeBackupsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeBackupPage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+}
+
+// Status returns HTTPResponse.Status
+func (r ListComputeBackupsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListComputeBackupsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteComputeBackupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteComputeBackupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteComputeBackupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetComputeBackupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeBackup
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r GetComputeBackupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetComputeBackupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type ListComputeImagesResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -11302,6 +13073,31 @@ func (r UpdateComputeInstanceResponse) StatusCode() int {
 	return 0
 }
 
+type ListComputeBackupsByInstanceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeBackupPage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r ListComputeBackupsByInstanceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListComputeBackupsByInstanceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type ExecComputeInstanceResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -11323,6 +13119,134 @@ func (r ExecComputeInstanceResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r ExecComputeInstanceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListComputeSnapshotsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeSnapshotPage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r ListComputeSnapshotsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListComputeSnapshotsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateComputeSnapshotResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *ComputeSnapshot
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON409      *Conflict
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateComputeSnapshotResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateComputeSnapshotResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteComputeSnapshotResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteComputeSnapshotResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteComputeSnapshotResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetComputeSnapshotResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeSnapshot
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r GetComputeSnapshotResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetComputeSnapshotResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type RestoreComputeSnapshotResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeSnapshot
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r RestoreComputeSnapshotResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RestoreComputeSnapshotResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -11575,6 +13499,131 @@ func (r GetComputeProfileResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r GetComputeProfileResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListComputeSnapshotPoliciesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeSnapshotPolicyPage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+}
+
+// Status returns HTTPResponse.Status
+func (r ListComputeSnapshotPoliciesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListComputeSnapshotPoliciesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateComputeSnapshotPolicyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *ComputeSnapshotPolicy
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON409      *Conflict
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateComputeSnapshotPolicyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateComputeSnapshotPolicyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteComputeSnapshotPolicyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteComputeSnapshotPolicyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteComputeSnapshotPolicyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetComputeSnapshotPolicyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeSnapshotPolicy
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r GetComputeSnapshotPolicyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetComputeSnapshotPolicyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpdateComputeSnapshotPolicyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeSnapshotPolicy
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateComputeSnapshotPolicyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateComputeSnapshotPolicyResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -13347,6 +15396,77 @@ func (c *ClientWithResponses) VerifyEmailWithResponse(ctx context.Context, body 
 	return ParseVerifyEmailResponse(rsp)
 }
 
+// ListComputeBackupTargetsWithResponse request returning *ListComputeBackupTargetsResponse
+func (c *ClientWithResponses) ListComputeBackupTargetsWithResponse(ctx context.Context, params *ListComputeBackupTargetsParams, reqEditors ...RequestEditorFn) (*ListComputeBackupTargetsResponse, error) {
+	rsp, err := c.ListComputeBackupTargets(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListComputeBackupTargetsResponse(rsp)
+}
+
+// CreateComputeBackupTargetWithBodyWithResponse request with arbitrary body returning *CreateComputeBackupTargetResponse
+func (c *ClientWithResponses) CreateComputeBackupTargetWithBodyWithResponse(ctx context.Context, params *CreateComputeBackupTargetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateComputeBackupTargetResponse, error) {
+	rsp, err := c.CreateComputeBackupTargetWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateComputeBackupTargetResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateComputeBackupTargetWithResponse(ctx context.Context, params *CreateComputeBackupTargetParams, body CreateComputeBackupTargetJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateComputeBackupTargetResponse, error) {
+	rsp, err := c.CreateComputeBackupTarget(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateComputeBackupTargetResponse(rsp)
+}
+
+// DeleteComputeBackupTargetWithResponse request returning *DeleteComputeBackupTargetResponse
+func (c *ClientWithResponses) DeleteComputeBackupTargetWithResponse(ctx context.Context, targetId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteComputeBackupTargetResponse, error) {
+	rsp, err := c.DeleteComputeBackupTarget(ctx, targetId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteComputeBackupTargetResponse(rsp)
+}
+
+// GetComputeBackupTargetWithResponse request returning *GetComputeBackupTargetResponse
+func (c *ClientWithResponses) GetComputeBackupTargetWithResponse(ctx context.Context, targetId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeBackupTargetResponse, error) {
+	rsp, err := c.GetComputeBackupTarget(ctx, targetId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetComputeBackupTargetResponse(rsp)
+}
+
+// ListComputeBackupsWithResponse request returning *ListComputeBackupsResponse
+func (c *ClientWithResponses) ListComputeBackupsWithResponse(ctx context.Context, params *ListComputeBackupsParams, reqEditors ...RequestEditorFn) (*ListComputeBackupsResponse, error) {
+	rsp, err := c.ListComputeBackups(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListComputeBackupsResponse(rsp)
+}
+
+// DeleteComputeBackupWithResponse request returning *DeleteComputeBackupResponse
+func (c *ClientWithResponses) DeleteComputeBackupWithResponse(ctx context.Context, backupId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteComputeBackupResponse, error) {
+	rsp, err := c.DeleteComputeBackup(ctx, backupId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteComputeBackupResponse(rsp)
+}
+
+// GetComputeBackupWithResponse request returning *GetComputeBackupResponse
+func (c *ClientWithResponses) GetComputeBackupWithResponse(ctx context.Context, backupId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeBackupResponse, error) {
+	rsp, err := c.GetComputeBackup(ctx, backupId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetComputeBackupResponse(rsp)
+}
+
 // ListComputeImagesWithResponse request returning *ListComputeImagesResponse
 func (c *ClientWithResponses) ListComputeImagesWithResponse(ctx context.Context, params *ListComputeImagesParams, reqEditors ...RequestEditorFn) (*ListComputeImagesResponse, error) {
 	rsp, err := c.ListComputeImages(ctx, params, reqEditors...)
@@ -13452,6 +15572,15 @@ func (c *ClientWithResponses) UpdateComputeInstanceWithResponse(ctx context.Cont
 	return ParseUpdateComputeInstanceResponse(rsp)
 }
 
+// ListComputeBackupsByInstanceWithResponse request returning *ListComputeBackupsByInstanceResponse
+func (c *ClientWithResponses) ListComputeBackupsByInstanceWithResponse(ctx context.Context, instanceId openapi_types.UUID, params *ListComputeBackupsByInstanceParams, reqEditors ...RequestEditorFn) (*ListComputeBackupsByInstanceResponse, error) {
+	rsp, err := c.ListComputeBackupsByInstance(ctx, instanceId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListComputeBackupsByInstanceResponse(rsp)
+}
+
 // ExecComputeInstanceWithBodyWithResponse request with arbitrary body returning *ExecComputeInstanceResponse
 func (c *ClientWithResponses) ExecComputeInstanceWithBodyWithResponse(ctx context.Context, instanceId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ExecComputeInstanceResponse, error) {
 	rsp, err := c.ExecComputeInstanceWithBody(ctx, instanceId, contentType, body, reqEditors...)
@@ -13467,6 +15596,67 @@ func (c *ClientWithResponses) ExecComputeInstanceWithResponse(ctx context.Contex
 		return nil, err
 	}
 	return ParseExecComputeInstanceResponse(rsp)
+}
+
+// ListComputeSnapshotsWithResponse request returning *ListComputeSnapshotsResponse
+func (c *ClientWithResponses) ListComputeSnapshotsWithResponse(ctx context.Context, instanceId openapi_types.UUID, params *ListComputeSnapshotsParams, reqEditors ...RequestEditorFn) (*ListComputeSnapshotsResponse, error) {
+	rsp, err := c.ListComputeSnapshots(ctx, instanceId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListComputeSnapshotsResponse(rsp)
+}
+
+// CreateComputeSnapshotWithBodyWithResponse request with arbitrary body returning *CreateComputeSnapshotResponse
+func (c *ClientWithResponses) CreateComputeSnapshotWithBodyWithResponse(ctx context.Context, instanceId openapi_types.UUID, params *CreateComputeSnapshotParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateComputeSnapshotResponse, error) {
+	rsp, err := c.CreateComputeSnapshotWithBody(ctx, instanceId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateComputeSnapshotResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateComputeSnapshotWithResponse(ctx context.Context, instanceId openapi_types.UUID, params *CreateComputeSnapshotParams, body CreateComputeSnapshotJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateComputeSnapshotResponse, error) {
+	rsp, err := c.CreateComputeSnapshot(ctx, instanceId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateComputeSnapshotResponse(rsp)
+}
+
+// DeleteComputeSnapshotWithResponse request returning *DeleteComputeSnapshotResponse
+func (c *ClientWithResponses) DeleteComputeSnapshotWithResponse(ctx context.Context, instanceId openapi_types.UUID, snapshotId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteComputeSnapshotResponse, error) {
+	rsp, err := c.DeleteComputeSnapshot(ctx, instanceId, snapshotId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteComputeSnapshotResponse(rsp)
+}
+
+// GetComputeSnapshotWithResponse request returning *GetComputeSnapshotResponse
+func (c *ClientWithResponses) GetComputeSnapshotWithResponse(ctx context.Context, instanceId openapi_types.UUID, snapshotId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeSnapshotResponse, error) {
+	rsp, err := c.GetComputeSnapshot(ctx, instanceId, snapshotId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetComputeSnapshotResponse(rsp)
+}
+
+// RestoreComputeSnapshotWithBodyWithResponse request with arbitrary body returning *RestoreComputeSnapshotResponse
+func (c *ClientWithResponses) RestoreComputeSnapshotWithBodyWithResponse(ctx context.Context, instanceId openapi_types.UUID, snapshotId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RestoreComputeSnapshotResponse, error) {
+	rsp, err := c.RestoreComputeSnapshotWithBody(ctx, instanceId, snapshotId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRestoreComputeSnapshotResponse(rsp)
+}
+
+func (c *ClientWithResponses) RestoreComputeSnapshotWithResponse(ctx context.Context, instanceId openapi_types.UUID, snapshotId openapi_types.UUID, body RestoreComputeSnapshotJSONRequestBody, reqEditors ...RequestEditorFn) (*RestoreComputeSnapshotResponse, error) {
+	rsp, err := c.RestoreComputeSnapshot(ctx, instanceId, snapshotId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRestoreComputeSnapshotResponse(rsp)
 }
 
 // OpenVncComputeInstanceWithResponse request returning *OpenVncComputeInstanceResponse
@@ -13573,6 +15763,67 @@ func (c *ClientWithResponses) GetComputeProfileWithResponse(ctx context.Context,
 		return nil, err
 	}
 	return ParseGetComputeProfileResponse(rsp)
+}
+
+// ListComputeSnapshotPoliciesWithResponse request returning *ListComputeSnapshotPoliciesResponse
+func (c *ClientWithResponses) ListComputeSnapshotPoliciesWithResponse(ctx context.Context, params *ListComputeSnapshotPoliciesParams, reqEditors ...RequestEditorFn) (*ListComputeSnapshotPoliciesResponse, error) {
+	rsp, err := c.ListComputeSnapshotPolicies(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListComputeSnapshotPoliciesResponse(rsp)
+}
+
+// CreateComputeSnapshotPolicyWithBodyWithResponse request with arbitrary body returning *CreateComputeSnapshotPolicyResponse
+func (c *ClientWithResponses) CreateComputeSnapshotPolicyWithBodyWithResponse(ctx context.Context, params *CreateComputeSnapshotPolicyParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateComputeSnapshotPolicyResponse, error) {
+	rsp, err := c.CreateComputeSnapshotPolicyWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateComputeSnapshotPolicyResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateComputeSnapshotPolicyWithResponse(ctx context.Context, params *CreateComputeSnapshotPolicyParams, body CreateComputeSnapshotPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateComputeSnapshotPolicyResponse, error) {
+	rsp, err := c.CreateComputeSnapshotPolicy(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateComputeSnapshotPolicyResponse(rsp)
+}
+
+// DeleteComputeSnapshotPolicyWithResponse request returning *DeleteComputeSnapshotPolicyResponse
+func (c *ClientWithResponses) DeleteComputeSnapshotPolicyWithResponse(ctx context.Context, policyId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteComputeSnapshotPolicyResponse, error) {
+	rsp, err := c.DeleteComputeSnapshotPolicy(ctx, policyId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteComputeSnapshotPolicyResponse(rsp)
+}
+
+// GetComputeSnapshotPolicyWithResponse request returning *GetComputeSnapshotPolicyResponse
+func (c *ClientWithResponses) GetComputeSnapshotPolicyWithResponse(ctx context.Context, policyId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeSnapshotPolicyResponse, error) {
+	rsp, err := c.GetComputeSnapshotPolicy(ctx, policyId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetComputeSnapshotPolicyResponse(rsp)
+}
+
+// UpdateComputeSnapshotPolicyWithBodyWithResponse request with arbitrary body returning *UpdateComputeSnapshotPolicyResponse
+func (c *ClientWithResponses) UpdateComputeSnapshotPolicyWithBodyWithResponse(ctx context.Context, policyId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateComputeSnapshotPolicyResponse, error) {
+	rsp, err := c.UpdateComputeSnapshotPolicyWithBody(ctx, policyId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateComputeSnapshotPolicyResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpdateComputeSnapshotPolicyWithResponse(ctx context.Context, policyId openapi_types.UUID, body UpdateComputeSnapshotPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateComputeSnapshotPolicyResponse, error) {
+	rsp, err := c.UpdateComputeSnapshotPolicy(ctx, policyId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateComputeSnapshotPolicyResponse(rsp)
 }
 
 // ListComputeStorageVolumesWithResponse request returning *ListComputeStorageVolumesResponse
@@ -16178,6 +18429,314 @@ func ParseVerifyEmailResponse(rsp *http.Response) (*VerifyEmailResponse, error) 
 	return response, nil
 }
 
+// ParseListComputeBackupTargetsResponse parses an HTTP response from a ListComputeBackupTargetsWithResponse call
+func ParseListComputeBackupTargetsResponse(rsp *http.Response) (*ListComputeBackupTargetsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListComputeBackupTargetsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeBackupTargetPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateComputeBackupTargetResponse parses an HTTP response from a CreateComputeBackupTargetWithResponse call
+func ParseCreateComputeBackupTargetResponse(rsp *http.Response) (*CreateComputeBackupTargetResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateComputeBackupTargetResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ComputeBackupTarget
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Conflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteComputeBackupTargetResponse parses an HTTP response from a DeleteComputeBackupTargetWithResponse call
+func ParseDeleteComputeBackupTargetResponse(rsp *http.Response) (*DeleteComputeBackupTargetResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteComputeBackupTargetResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetComputeBackupTargetResponse parses an HTTP response from a GetComputeBackupTargetWithResponse call
+func ParseGetComputeBackupTargetResponse(rsp *http.Response) (*GetComputeBackupTargetResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetComputeBackupTargetResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeBackupTarget
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListComputeBackupsResponse parses an HTTP response from a ListComputeBackupsWithResponse call
+func ParseListComputeBackupsResponse(rsp *http.Response) (*ListComputeBackupsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListComputeBackupsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeBackupPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteComputeBackupResponse parses an HTTP response from a DeleteComputeBackupWithResponse call
+func ParseDeleteComputeBackupResponse(rsp *http.Response) (*DeleteComputeBackupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteComputeBackupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetComputeBackupResponse parses an HTTP response from a GetComputeBackupWithResponse call
+func ParseGetComputeBackupResponse(rsp *http.Response) (*GetComputeBackupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetComputeBackupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeBackup
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListComputeImagesResponse parses an HTTP response from a ListComputeImagesWithResponse call
 func ParseListComputeImagesResponse(rsp *http.Response) (*ListComputeImagesResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -16615,6 +19174,53 @@ func ParseUpdateComputeInstanceResponse(rsp *http.Response) (*UpdateComputeInsta
 	return response, nil
 }
 
+// ParseListComputeBackupsByInstanceResponse parses an HTTP response from a ListComputeBackupsByInstanceWithResponse call
+func ParseListComputeBackupsByInstanceResponse(rsp *http.Response) (*ListComputeBackupsByInstanceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListComputeBackupsByInstanceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeBackupPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseExecComputeInstanceResponse parses an HTTP response from a ExecComputeInstanceWithResponse call
 func ParseExecComputeInstanceResponse(rsp *http.Response) (*ExecComputeInstanceResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -16670,6 +19276,262 @@ func ParseExecComputeInstanceResponse(rsp *http.Response) (*ExecComputeInstanceR
 			return nil, err
 		}
 		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListComputeSnapshotsResponse parses an HTTP response from a ListComputeSnapshotsWithResponse call
+func ParseListComputeSnapshotsResponse(rsp *http.Response) (*ListComputeSnapshotsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListComputeSnapshotsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeSnapshotPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateComputeSnapshotResponse parses an HTTP response from a CreateComputeSnapshotWithResponse call
+func ParseCreateComputeSnapshotResponse(rsp *http.Response) (*CreateComputeSnapshotResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateComputeSnapshotResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ComputeSnapshot
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Conflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteComputeSnapshotResponse parses an HTTP response from a DeleteComputeSnapshotWithResponse call
+func ParseDeleteComputeSnapshotResponse(rsp *http.Response) (*DeleteComputeSnapshotResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteComputeSnapshotResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetComputeSnapshotResponse parses an HTTP response from a GetComputeSnapshotWithResponse call
+func ParseGetComputeSnapshotResponse(rsp *http.Response) (*GetComputeSnapshotResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetComputeSnapshotResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeSnapshot
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRestoreComputeSnapshotResponse parses an HTTP response from a RestoreComputeSnapshotWithResponse call
+func ParseRestoreComputeSnapshotResponse(rsp *http.Response) (*RestoreComputeSnapshotResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RestoreComputeSnapshotResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeSnapshot
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
 
 	}
 
@@ -17133,6 +19995,241 @@ func ParseGetComputeProfileResponse(rsp *http.Response) (*GetComputeProfileRespo
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListComputeSnapshotPoliciesResponse parses an HTTP response from a ListComputeSnapshotPoliciesWithResponse call
+func ParseListComputeSnapshotPoliciesResponse(rsp *http.Response) (*ListComputeSnapshotPoliciesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListComputeSnapshotPoliciesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeSnapshotPolicyPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateComputeSnapshotPolicyResponse parses an HTTP response from a CreateComputeSnapshotPolicyWithResponse call
+func ParseCreateComputeSnapshotPolicyResponse(rsp *http.Response) (*CreateComputeSnapshotPolicyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateComputeSnapshotPolicyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ComputeSnapshotPolicy
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Conflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteComputeSnapshotPolicyResponse parses an HTTP response from a DeleteComputeSnapshotPolicyWithResponse call
+func ParseDeleteComputeSnapshotPolicyResponse(rsp *http.Response) (*DeleteComputeSnapshotPolicyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteComputeSnapshotPolicyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetComputeSnapshotPolicyResponse parses an HTTP response from a GetComputeSnapshotPolicyWithResponse call
+func ParseGetComputeSnapshotPolicyResponse(rsp *http.Response) (*GetComputeSnapshotPolicyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetComputeSnapshotPolicyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeSnapshotPolicy
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateComputeSnapshotPolicyResponse parses an HTTP response from a UpdateComputeSnapshotPolicyWithResponse call
+func ParseUpdateComputeSnapshotPolicyResponse(rsp *http.Response) (*UpdateComputeSnapshotPolicyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateComputeSnapshotPolicyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeSnapshotPolicy
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest Unauthorized

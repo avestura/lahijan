@@ -95,6 +95,43 @@ type AuditLogOutcome struct {
 	CreatedAt time.Time       `json:"created_at"`
 }
 
+// Per-snapshot exported backups. Append-only for audit; soft-deleted on remote delete.
+type ComputeBackup struct {
+	ID         uuid.UUID `json:"id"`
+	TenantID   uuid.UUID `json:"tenant_id"`
+	SnapshotID uuid.UUID `json:"snapshot_id"`
+	InstanceID uuid.UUID `json:"instance_id"`
+	TargetID   uuid.UUID `json:"target_id"`
+	// Target-relative URI the backup landed at.
+	RemoteLocation string `json:"remote_location"`
+	SizeBytes      int64  `json:"size_bytes"`
+	ChecksumSha256 string `json:"checksum_sha256"`
+	// Worker progress: "pending" | "uploading" | "completed" | "failed".
+	Status       string     `json:"status"`
+	ErrorMessage string     `json:"error_message"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	DeletedAt    *time.Time `json:"deleted_at"`
+}
+
+// Off-host backup destinations (S3 / NFS / SSH). Per-tenant.
+type ComputeBackupTarget struct {
+	ID       uuid.UUID `json:"id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+	Name     string    `json:"name"`
+	// Driver kind: "s3", "nfs", or "ssh".
+	Kind        string `json:"kind"`
+	Description string `json:"description"`
+	// Per-kind non-sensitive config (endpoint, bucket, path, host, ...).
+	ConfigJson json.RawMessage `json:"config_json"`
+	// AES-GCM envelope for sensitive credentials. Opaque to the DB.
+	EncryptedSecretJson []byte     `json:"encrypted_secret_json"`
+	Enabled             bool       `json:"enabled"`
+	CreatedAt           time.Time  `json:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at"`
+	DeletedAt           *time.Time `json:"deleted_at"`
+}
+
 // Per-tenant image catalog. Mirrors the Incus image store; featured rows are seeded from conf.
 type ComputeImage struct {
 	ID       uuid.UUID `json:"id"`
@@ -162,6 +199,49 @@ type ComputeProfile struct {
 	CreatedAt   time.Time       `json:"created_at"`
 	UpdatedAt   time.Time       `json:"updated_at"`
 	DeletedAt   *time.Time      `json:"deleted_at"`
+}
+
+// Per-tenant compute instance snapshots. Mirrors Incus state; soft-deleted on snapshot delete.
+type ComputeSnapshot struct {
+	ID       uuid.UUID `json:"id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+	// The compute_instances.id this snapshot belongs to (loose FK).
+	InstanceID uuid.UUID `json:"instance_id"`
+	Name       string    `json:"name"`
+	// Whether runtime state was captured (Incus stateful=true).
+	Stateful bool `json:"stateful"`
+	// Snapshot size in bytes (filled in after daemon reports it).
+	SizeBytes int64 `json:"size_bytes"`
+	// When the prune worker may delete this snapshot. NULL = keep until manually deleted.
+	ExpiresAt   *time.Time `json:"expires_at"`
+	Description string     `json:"description"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+	DeletedAt   *time.Time `json:"deleted_at"`
+	// The policy that created this snapshot. NULL = manual (exempt from prune).
+	PolicyID *uuid.UUID `json:"policy_id"`
+}
+
+// Per-instance + per-tenant snapshot schedules.
+type ComputeSnapshotPolicy struct {
+	ID       uuid.UUID `json:"id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+	// NULL = tenant-default policy; non-NULL = per-instance policy.
+	InstanceID *uuid.UUID `json:"instance_id"`
+	Name       string     `json:"name"`
+	// ISO 8601 duration (PT1H, P1D, P1W, P1M).
+	Cadence string `json:"cadence"`
+	// Max snapshots to keep for this policy. Prune worker deletes the oldest excess.
+	RetainCount int32 `json:"retain_count"`
+	// Optional backup target. NULL = snapshot only.
+	TargetID  *uuid.UUID `json:"target_id"`
+	Enabled   bool       `json:"enabled"`
+	LastRunAt *time.Time `json:"last_run_at"`
+	// When the take worker may next fire this policy. NULL = never run yet.
+	NextRunAt *time.Time `json:"next_run_at"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+	DeletedAt *time.Time `json:"deleted_at"`
 }
 
 // Per-tenant custom storage volumes. Mirrors Incus volumes within the tenant project.

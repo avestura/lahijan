@@ -33,6 +33,10 @@ type Querier interface {
 	//: admin-only; pagination counterpart to ListAuditLogGlobalFiltered.
 	CountAuditLogGlobalFiltered(ctx context.Context, arg CountAuditLogGlobalFilteredParams) (int64, error)
 	//: tenant-scoped
+	CountComputeBackupTargets(ctx context.Context, tenantID uuid.UUID) (int64, error)
+	//: tenant-scoped
+	CountComputeBackups(ctx context.Context, tenantID uuid.UUID) (int64, error)
+	//: tenant-scoped
 	CountComputeImages(ctx context.Context, tenantID uuid.UUID) (int64, error)
 	//: tenant-scoped
 	CountComputeInstances(ctx context.Context, tenantID uuid.UUID) (int64, error)
@@ -42,6 +46,12 @@ type Querier interface {
 	CountComputeNetworks(ctx context.Context, tenantID uuid.UUID) (int64, error)
 	//: tenant-scoped
 	CountComputeProfiles(ctx context.Context, tenantID uuid.UUID) (int64, error)
+	//: tenant-scoped
+	CountComputeSnapshotPolicies(ctx context.Context, tenantID uuid.UUID) (int64, error)
+	//: tenant-scoped
+	CountComputeSnapshots(ctx context.Context, tenantID uuid.UUID) (int64, error)
+	//: tenant-scoped; used by the prune worker to enforce retain_count.
+	CountComputeSnapshotsByInstance(ctx context.Context, arg CountComputeSnapshotsByInstanceParams) (int64, error)
 	//: tenant-scoped
 	CountComputeStorageVolumes(ctx context.Context, tenantID uuid.UUID) (int64, error)
 	//: tenant-scoped; the quota checker uses this to enforce the per-tenant
@@ -88,6 +98,15 @@ type Querier interface {
 	// UPDATE and DELETE.
 	// ===========================================================================
 	CreateAuditLogOutcome(ctx context.Context, arg CreateAuditLogOutcomeParams) (AuditLogOutcome, error)
+	// compute_backups (WS-25): tenant-scoped per-snapshot exported backups.
+	// Append-only for audit (no UPDATEs to size_bytes or status beyond the
+	// worker's progress); soft-deleted when the remote bytes are removed.
+	//: tenant-scoped
+	CreateComputeBackup(ctx context.Context, arg CreateComputeBackupParams) (ComputeBackup, error)
+	// compute_backup_targets (WS-25): tenant-scoped off-host backup destinations.
+	// Every query here filters by tenant_id (set by WithTenant at the repo seam).
+	//: tenant-scoped
+	CreateComputeBackupTarget(ctx context.Context, arg CreateComputeBackupTargetParams) (ComputeBackupTarget, error)
 	// compute_images (WS-14): tenant-scoped image catalog.
 	// Featured rows are seeded at bootstrap from conf.providers.incus.featuredImages;
 	// custom rows are inserted on user upload. Every query is tenant-scoped.
@@ -107,6 +126,17 @@ type Querier interface {
 	// compute_profiles (WS-14): tenant-scoped Incus profile catalog.
 	//: tenant-scoped
 	CreateComputeProfile(ctx context.Context, arg CreateComputeProfileParams) (ComputeProfile, error)
+	// compute_snapshots (WS-25): tenant-scoped records of Incus snapshots.
+	// Every query here filters by tenant_id (set by WithTenant at the repo seam).
+	// Soft-deleted rows (deleted_at IS NOT NULL) are excluded from the unique
+	// name index, list/count, and the prune scan, but the rows are kept for
+	// historical audit + billing joins.
+	//: tenant-scoped
+	CreateComputeSnapshot(ctx context.Context, arg CreateComputeSnapshotParams) (ComputeSnapshot, error)
+	// compute_snapshot_policies (WS-25): tenant-scoped snapshot schedules.
+	// Every query here filters by tenant_id (set by WithTenant at the repo seam).
+	//: tenant-scoped
+	CreateComputeSnapshotPolicy(ctx context.Context, arg CreateComputeSnapshotPolicyParams) (ComputeSnapshotPolicy, error)
 	// compute_storage_volumes (WS-14): tenant-scoped custom storage volumes.
 	//: tenant-scoped
 	CreateComputeStorageVolume(ctx context.Context, arg CreateComputeStorageVolumeParams) (ComputeStorageVolume, error)
@@ -320,6 +350,12 @@ type Querier interface {
 	//: tenant). System events are visible from any tenant so operators can trace
 	//: auth flows even when scoped.
 	GetAuditLogForTenant(ctx context.Context, arg GetAuditLogForTenantParams) (AuditLog, error)
+	//: tenant-scoped
+	GetComputeBackupByID(ctx context.Context, arg GetComputeBackupByIDParams) (ComputeBackup, error)
+	//: tenant-scoped
+	GetComputeBackupTargetByID(ctx context.Context, arg GetComputeBackupTargetByIDParams) (ComputeBackupTarget, error)
+	//: tenant-scoped
+	GetComputeBackupTargetByName(ctx context.Context, arg GetComputeBackupTargetByNameParams) (ComputeBackupTarget, error)
 	//: tenant-scoped; resolves an alias to a fingerprint at instance-create time.
 	GetComputeImageByAlias(ctx context.Context, arg GetComputeImageByAliasParams) (ComputeImage, error)
 	//: tenant-scoped; used by the upload path to detect duplicates.
@@ -338,6 +374,14 @@ type Querier interface {
 	GetComputeProfileByID(ctx context.Context, arg GetComputeProfileByIDParams) (ComputeProfile, error)
 	//: tenant-scoped
 	GetComputeProfileByName(ctx context.Context, arg GetComputeProfileByNameParams) (ComputeProfile, error)
+	//: tenant-scoped
+	GetComputeSnapshotByID(ctx context.Context, arg GetComputeSnapshotByIDParams) (ComputeSnapshot, error)
+	//: tenant-scoped
+	GetComputeSnapshotByName(ctx context.Context, arg GetComputeSnapshotByNameParams) (ComputeSnapshot, error)
+	//: tenant-scoped
+	GetComputeSnapshotPolicyByID(ctx context.Context, arg GetComputeSnapshotPolicyByIDParams) (ComputeSnapshotPolicy, error)
+	//: tenant-scoped
+	GetComputeSnapshotPolicyByName(ctx context.Context, arg GetComputeSnapshotPolicyByNameParams) (ComputeSnapshotPolicy, error)
 	//: tenant-scoped
 	GetComputeStorageVolumeByID(ctx context.Context, arg GetComputeStorageVolumeByIDParams) (ComputeStorageVolume, error)
 	//: tenant-scoped; lookup by (pool, name) — the Incus composite key.
@@ -500,6 +544,17 @@ type Querier interface {
 	//: newest-first so the caller can pick the latest as the current status.
 	ListAuditLogOutcomes(ctx context.Context, auditID uuid.UUID) ([]AuditLogOutcome, error)
 	//: tenant-scoped
+	ListComputeBackupTargets(ctx context.Context, arg ListComputeBackupTargetsParams) ([]ComputeBackupTarget, error)
+	//: tenant-scoped
+	ListComputeBackups(ctx context.Context, arg ListComputeBackupsParams) ([]ComputeBackup, error)
+	//: tenant-scoped; used by the instance-detail UI to show every backup
+	//: taken for any snapshot of the instance.
+	ListComputeBackupsByInstance(ctx context.Context, arg ListComputeBackupsByInstanceParams) ([]ComputeBackup, error)
+	//: tenant-scoped
+	ListComputeBackupsBySnapshot(ctx context.Context, arg ListComputeBackupsBySnapshotParams) ([]ComputeBackup, error)
+	//: tenant-scoped
+	ListComputeBackupsByTarget(ctx context.Context, arg ListComputeBackupsByTargetParams) ([]ComputeBackup, error)
+	//: tenant-scoped
 	ListComputeImages(ctx context.Context, arg ListComputeImagesParams) ([]ComputeImage, error)
 	//: tenant-scoped; returns the (id, config_json) pairs the quota checker
 	//: walks to aggregate CPU/RAM/disk usage. We do the math in Go (not SQL)
@@ -514,12 +569,29 @@ type Querier interface {
 	//: tenant-scoped
 	ListComputeProfiles(ctx context.Context, arg ListComputeProfilesParams) ([]ComputeProfile, error)
 	//: tenant-scoped
+	ListComputeSnapshotPolicies(ctx context.Context, arg ListComputeSnapshotPoliciesParams) ([]ComputeSnapshotPolicy, error)
+	//: tenant-scoped; returns the per-instance policy (if any) + the tenant-default.
+	ListComputeSnapshotPoliciesByInstance(ctx context.Context, arg ListComputeSnapshotPoliciesByInstanceParams) ([]ComputeSnapshotPolicy, error)
+	//: tenant-scoped
+	ListComputeSnapshots(ctx context.Context, arg ListComputeSnapshotsParams) ([]ComputeSnapshot, error)
+	//: tenant-scoped
+	ListComputeSnapshotsByInstance(ctx context.Context, arg ListComputeSnapshotsByInstanceParams) ([]ComputeSnapshot, error)
+	//: tenant-scoped
 	ListComputeStorageVolumes(ctx context.Context, arg ListComputeStorageVolumesParams) ([]ComputeStorageVolume, error)
 	//: tenant-scoped; returns every RR in the zone, ordered by (name, type)
 	//: so the UI renders a stable list.
 	ListDNSRecordsInZone(ctx context.Context, arg ListDNSRecordsInZoneParams) ([]DnsRecord, error)
 	//: tenant-scoped
 	ListDNSZones(ctx context.Context, arg ListDNSZonesParams) ([]DnsZone, error)
+	//: cross-tenant; the take worker scans the whole table for due rows.
+	//: Tenant scoping is enforced at the worker level (WithTenant is set per
+	//: row before any DB write). Returns at most $1 rows so the worker
+	//: processes in bounded batches.
+	ListDueComputeSnapshotPolicies(ctx context.Context, arg ListDueComputeSnapshotPoliciesParams) ([]ComputeSnapshotPolicy, error)
+	//: tenant-scoped; returns snapshots whose expires_at has passed, ordered
+	//: oldest-first so the prune worker trims in creation order. The prune
+	//: worker caps the batch via the LIMIT it passes.
+	ListExpiredComputeSnapshots(ctx context.Context, arg ListExpiredComputeSnapshotsParams) ([]ComputeSnapshot, error)
 	//: tenant-scoped; paginated list of a single user's entries, newest first.
 	ListLedgerEntriesForUser(ctx context.Context, arg ListLedgerEntriesForUserParams) ([]LedgerEntry, error)
 	//: tenant-scoped
@@ -527,6 +599,10 @@ type Querier interface {
 	//: user-scoped (cross-tenant; used to list the tenants a user belongs to)
 	ListMembershipsForUser(ctx context.Context, userID uuid.UUID) ([]Membership, error)
 	ListOAuthIdentitiesForUser(ctx context.Context, userID uuid.UUID) ([]UserOauthIdentity, error)
+	//: tenant-scoped; returns the oldest N snapshots created by the given
+	//: policy, oldest-first. The prune worker deletes everything past the
+	//: retain_count by passing LIMIT = (current_count - retain_count).
+	ListOldestComputeSnapshotsForPolicy(ctx context.Context, arg ListOldestComputeSnapshotsForPolicyParams) ([]ComputeSnapshot, error)
 	ListPermissions(ctx context.Context) ([]Permission, error)
 	ListPermissionsForRole(ctx context.Context, roleID uuid.UUID) ([]Permission, error)
 	//: user-scoped (cross-tenant; the policy evaluator calls this for RequirePerm).
@@ -576,6 +652,10 @@ type Querier interface {
 	//: in the tenant whose balance is <= 0 and whose last_entry_at is older
 	//: than the supplied cutoff (so the grace period is enforced).
 	ListZeroBalances(ctx context.Context, arg ListZeroBalancesParams) ([]UserBalance, error)
+	//: tenant-scoped; records that the policy just ran at $3 and schedules the
+	//: next run at $3 + cadence (the caller computes the next_run_at). Used by
+	//: the take worker after every run, success or failure.
+	MarkComputeSnapshotPolicyRun(ctx context.Context, arg MarkComputeSnapshotPolicyRunParams) error
 	RevokeAllRefreshTokensForUser(ctx context.Context, userID uuid.UUID) error
 	RevokeAllSessionsForUser(ctx context.Context, userID uuid.UUID) error
 	//: tenant-scoped
@@ -602,12 +682,28 @@ type Querier interface {
 	// separately by the storage service via the provider's RevokeCredentials
 	// so the access key stops signing requests immediately.
 	RevokeStorageCredential(ctx context.Context, arg RevokeStorageCredentialParams) error
+	//: tenant-scoped; records the final size + checksum + remote_location
+	//: after a successful upload. Only the worker calls this.
+	SetComputeBackupResult(ctx context.Context, arg SetComputeBackupResultParams) error
+	//: tenant-scoped; updates the worker's progress. The status transitions
+	//: are: pending -> uploading -> completed | failed. The error_message
+	//: column is set when status="failed".
+	SetComputeBackupStatus(ctx context.Context, arg SetComputeBackupStatusParams) error
+	//: tenant-scoped; replaces the AES-GCM-encrypted credentials envelope.
+	SetComputeBackupTargetSecret(ctx context.Context, arg SetComputeBackupTargetSecretParams) error
 	//: tenant-scoped; records the resolved fingerprint after a successful
 	//: CreateInstance against Incus.
 	SetComputeInstanceImageFingerprint(ctx context.Context, arg SetComputeInstanceImageFingerprintParams) error
 	//: tenant-scoped; caches the last-known Incus status. Called after every
 	//: lifecycle transition (start/stop/restart/freeze) and on read-reconcile.
 	SetComputeInstanceStatus(ctx context.Context, arg SetComputeInstanceStatusParams) error
+	//: tenant-scoped; sets/clears the expires_at column. The take worker
+	//: stamps it from the policy's cadence + retain window when the snapshot
+	//: is created by a schedule.
+	SetComputeSnapshotExpiry(ctx context.Context, arg SetComputeSnapshotExpiryParams) error
+	//: tenant-scoped; records the daemon-reported size after a successful
+	//: CreateSnapshot call.
+	SetComputeSnapshotSize(ctx context.Context, arg SetComputeSnapshotSizeParams) error
 	//: tenant-scoped
 	SetDNSZoneAXFRCached(ctx context.Context, arg SetDNSZoneAXFRCachedParams) error
 	//: tenant-scoped
@@ -629,6 +725,12 @@ type Querier interface {
 	// WS-17 metering job after it polls SeaweedFS for the live bucket size.
 	SetStorageBucketUsage(ctx context.Context, arg SetStorageBucketUsageParams) error
 	SetTenantActive(ctx context.Context, arg SetTenantActiveParams) error
+	//: tenant-scoped; marks the row deleted_at=now() after the worker has
+	//: removed the remote bytes. The row is retained for historical audit.
+	SoftDeleteComputeBackup(ctx context.Context, arg SoftDeleteComputeBackupParams) error
+	//: tenant-scoped; marks the row deleted_at=now() so historical backup
+	//: rows remain joinable.
+	SoftDeleteComputeBackupTarget(ctx context.Context, arg SoftDeleteComputeBackupTargetParams) error
 	//: tenant-scoped
 	SoftDeleteComputeImage(ctx context.Context, arg SoftDeleteComputeImageParams) error
 	//: tenant-scoped; marks the row deleted_at=now() so historical audit +
@@ -639,6 +741,14 @@ type Querier interface {
 	SoftDeleteComputeNetwork(ctx context.Context, arg SoftDeleteComputeNetworkParams) error
 	//: tenant-scoped
 	SoftDeleteComputeProfile(ctx context.Context, arg SoftDeleteComputeProfileParams) error
+	//: tenant-scoped; marks the row deleted_at=now() so historical audit +
+	//: billing joins remain valid. The Incus snapshot itself is deleted via
+	//: the provider driver before this runs.
+	SoftDeleteComputeSnapshot(ctx context.Context, arg SoftDeleteComputeSnapshotParams) error
+	//: tenant-scoped; marks the row deleted_at=now() + disabled so the worker
+	//: stops picking it up. Existing snapshots created by this policy stay
+	//: (their policy_id still points at the row) but are no longer pruned by it.
+	SoftDeleteComputeSnapshotPolicy(ctx context.Context, arg SoftDeleteComputeSnapshotPolicyParams) error
 	//: tenant-scoped
 	SoftDeleteComputeStorageVolume(ctx context.Context, arg SoftDeleteComputeStorageVolumeParams) error
 	//: tenant-scoped
@@ -671,12 +781,20 @@ type Querier interface {
 	// Updates the cached last_used_at column. Called by the access-log shipping
 	// pipeline (Phase 7) when SeaweedFS emits a per-identity access event.
 	TouchStorageCredentialLastUsed(ctx context.Context, arg TouchStorageCredentialLastUsedParams) error
+	//: tenant-scoped; replaces the user-editable fields. The encrypted_secret_json
+	//: column is updated separately via SetComputeBackupTargetSecret so a config
+	//: edit does not require re-uploading the credentials.
+	UpdateComputeBackupTarget(ctx context.Context, arg UpdateComputeBackupTargetParams) error
 	//: tenant-scoped; replaces the cached config snapshot after a PATCH.
 	UpdateComputeInstanceConfig(ctx context.Context, arg UpdateComputeInstanceConfigParams) error
 	//: tenant-scoped
 	UpdateComputeNetwork(ctx context.Context, arg UpdateComputeNetworkParams) error
 	//: tenant-scoped
 	UpdateComputeProfile(ctx context.Context, arg UpdateComputeProfileParams) error
+	//: tenant-scoped; replaces the user-editable fields. The cadence change
+	//: recomputes next_run_at via MarkComputeSnapshotPolicyDue when the
+	//: caller wants the new cadence to take effect immediately.
+	UpdateComputeSnapshotPolicy(ctx context.Context, arg UpdateComputeSnapshotPolicyParams) error
 	//: tenant-scoped
 	UpdateComputeStorageVolume(ctx context.Context, arg UpdateComputeStorageVolumeParams) error
 	//: tenant-scoped; replaces content / ttl / prio / disabled. The name and

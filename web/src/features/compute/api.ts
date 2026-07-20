@@ -261,7 +261,7 @@ export function useExecInstance(instanceId: string | undefined) {
 }
 
 /**
- * classifyStatus — map an Incus status string to the four buckets the
+ * classifyStatus - map an Incus status string to the four buckets the
  * UI filter dropdown exposes. Returns "other" for anything unusual so
  * the user still sees it.
  */
@@ -277,4 +277,169 @@ export function classifyStatus(status: string | undefined): StatusBucket {
   if (s === "stopped" || s.includes("stop")) return "stopped";
   if (s === "frozen" || s.includes("froz") || s.includes("freez")) return "frozen";
   return "other";
+}
+
+// ===========================================================================
+// WS-25: snapshot + backup + policy hooks.
+//
+// The snapshot surface reuses the existing useToast + useTranslation
+// patterns so toasts + invalidations line up with the rest of the
+// compute module. The hooks are tenant-scoped via the queryKey; the
+// Header's tenant switcher transparently refetches them.
+// ===========================================================================
+
+type Snapshot = components["schemas"]["ComputeSnapshot"];
+
+/**
+ * useComputeSnapshots — list of snapshots for an instance.
+ *
+ * Polls every 10s so a snapshot taken via a schedule shows up without a
+ * manual refresh; the cadence is conservative so the listing does not
+ * compete with the (more critical) instance-status poll.
+ */
+export function useComputeSnapshots(
+  tenantId: string | null,
+  instanceId: string | undefined,
+) {
+  return useQuery({
+    queryKey:
+      tenantId && instanceId
+        ? queryKeys.compute.snapshots(tenantId, instanceId)
+        : ["compute", "snapshots", "disabled"],
+    enabled: !!tenantId && !!instanceId,
+    refetchInterval: 10_000,
+    queryFn: async (): Promise<Snapshot[]> => {
+      const { data, error, response } = await apiClient.GET(
+        "/api/v1/compute/instances/{instanceId}/snapshots",
+        { params: { path: { instanceId: instanceId! } } },
+      );
+      if (error || !data) {
+        throw new Error(`compute.snapshots.list: ${response?.status ?? "network"}`);
+      }
+      return data.items;
+    },
+  });
+}
+
+/**
+ * useCreateComputeSnapshot — take a manual snapshot.
+ *
+ * The mutation invalidates the per-instance snapshot list so the new
+ * row appears immediately on success. The toast mirrors the compute
+ * module's convention.
+ */
+export function useCreateComputeSnapshot(tenantId: string | null, instanceId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const { t } = useTranslation();
+  return useMutation({
+    mutationFn: async (input: {
+      name: string;
+      description?: string;
+      stateful?: boolean;
+    }): Promise<Snapshot> => {
+      const { data, error, response } = await apiClient.POST(
+        "/api/v1/compute/instances/{instanceId}/snapshots",
+        {
+          params: { path: { instanceId } },
+          body: {
+            name: input.name,
+            description: input.description,
+            stateful: input.stateful ?? false,
+          },
+        },
+      );
+      if (error || !data) {
+        throw new Error(`compute.snapshots.create: ${response?.status ?? "network"}`);
+      }
+      return data;
+    },
+    onSuccess: () => {
+      if (tenantId) {
+        void qc.invalidateQueries({
+          queryKey: queryKeys.compute.snapshots(tenantId, instanceId),
+        });
+      }
+      toast({ title: t("compute.snapshots.mutations.createSuccess") });
+    },
+    onError: () => {
+      toast({ title: t("compute.snapshots.mutations.createError"), variant: "destructive" });
+    },
+  });
+}
+
+/**
+ * useDeleteComputeSnapshot — delete a snapshot (soft-delete + Incus
+ * delete). Invalidates the snapshot list.
+ */
+export function useDeleteComputeSnapshot(
+  tenantId: string | null,
+  instanceId: string,
+) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const { t } = useTranslation();
+  return useMutation({
+    mutationFn: async (snapshotId: string): Promise<void> => {
+      const { error, response } = await apiClient.DELETE(
+        "/api/v1/compute/instances/{instanceId}/snapshots/{snapshotId}",
+        { params: { path: { instanceId, snapshotId } } },
+      );
+      if (error) {
+        throw new Error(`compute.snapshots.delete: ${response?.status ?? "network"}`);
+      }
+    },
+    onSuccess: () => {
+      if (tenantId) {
+        void qc.invalidateQueries({
+          queryKey: queryKeys.compute.snapshots(tenantId, instanceId),
+        });
+      }
+      toast({ title: t("compute.snapshots.mutations.deleteSuccess") });
+    },
+    onError: () => {
+      toast({ title: t("compute.snapshots.mutations.deleteError"), variant: "destructive" });
+    },
+  });
+}
+
+/**
+ * useRestoreComputeSnapshot — restore the instance to a snapshot. The
+ * instance MUST already exist; Incus does not auto-create it.
+ */
+export function useRestoreComputeSnapshot(
+  tenantId: string | null,
+  instanceId: string,
+) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const { t } = useTranslation();
+  return useMutation({
+    mutationFn: async (snapshotId: string): Promise<void> => {
+      const { error, response } = await apiClient.POST(
+        "/api/v1/compute/instances/{instanceId}/snapshots/{snapshotId}/restore",
+        { params: { path: { instanceId, snapshotId } } },
+      );
+      if (error) {
+        throw new Error(`compute.snapshots.restore: ${response?.status ?? "network"}`);
+      }
+    },
+    onSuccess: () => {
+      if (tenantId) {
+        // The restore replaces the instance state; invalidate both the
+        // snapshot list (in case the UI caches a "current" marker) and
+        // the instance detail (so the cached status reconciles).
+        void qc.invalidateQueries({
+          queryKey: queryKeys.compute.snapshots(tenantId, instanceId),
+        });
+        void qc.invalidateQueries({
+          queryKey: queryKeys.compute.instance(tenantId, instanceId),
+        });
+      }
+      toast({ title: t("compute.snapshots.mutations.restoreSuccess") });
+    },
+    onError: () => {
+      toast({ title: t("compute.snapshots.mutations.restoreError"), variant: "destructive" });
+    },
+  });
 }

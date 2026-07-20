@@ -156,56 +156,13 @@ func (w *NotifyEmailSendWorker) Work(ctx context.Context, job *river.Job[NotifyE
 }
 
 // ---------------------------------------------------------------------------
-// Compute instance snapshot — placeholder for WS-25.
+// Compute instance snapshot — the WS-09 doc listed this as a placeholder
+// for WS-25. The real implementation lives in
+// internal/app/lahijan/compute/jobs_snapshots.go (WS-25) and ships three
+// kinds: compute.snapshot.take, compute.snapshot.prune, compute.backup.create.
+// The placeholder Args/Worker types + the registration call were removed
+// from RegisterExamples so the WS-25 workers own the kind namespace.
 // ---------------------------------------------------------------------------
-
-// ComputeInstanceSnapshotArgs is the queued payload for taking a snapshot of
-// a compute instance. InstanceID is the Lahijan instance UUID; the worker
-// resolves it to the backend ID at run time. SnapshotID lets the caller
-// correlate the queued snapshot with a row in the (future) snapshots table.
-type ComputeInstanceSnapshotArgs struct {
-	TenantID   string `json:"tenant_id"`
-	InstanceID string `json:"instance_id"`
-	SnapshotID string `json:"snapshot_id"`
-}
-
-// Kind implements river.JobArgs.
-func (ComputeInstanceSnapshotArgs) Kind() string { return "compute.instance.snapshot" }
-
-// ComputeInstanceSnapshotWorker is the no-op example worker. WS-25 ships the
-// real implementation that talks to the compute provider.
-type ComputeInstanceSnapshotWorker struct {
-	river.WorkerDefaults[ComputeInstanceSnapshotArgs]
-	log *slog.Logger
-}
-
-// NewComputeInstanceSnapshotWorker builds the worker.
-func NewComputeInstanceSnapshotWorker(log *slog.Logger) *ComputeInstanceSnapshotWorker {
-	return &ComputeInstanceSnapshotWorker{log: log}
-}
-
-// Work implements river.Worker.
-func (w *ComputeInstanceSnapshotWorker) Work(ctx context.Context, job *river.Job[ComputeInstanceSnapshotArgs]) error {
-	log := w.log
-	if log == nil {
-		log = slog.Default()
-	}
-	if job.Args.InstanceID == "" {
-		// Demonstrates the error path so the integration test can assert
-		// retry -> DLQ without inventing a synthetic failing kind. The
-		// caller-side validation in WS-25 will make this unreachable in
-		// practice.
-		return errors.New("jobs: compute.instance.snapshot: instance_id is required (placeholder failure)")
-	}
-	log.InfoContext(
-		ctx, "jobs: compute instance snapshot placeholder",
-		"tenant_id", job.Args.TenantID,
-		"instance_id", job.Args.InstanceID,
-		"snapshot_id", job.Args.SnapshotID,
-		"attempt", job.Attempt,
-	)
-	return nil
-}
 
 // ---------------------------------------------------------------------------
 // AlwaysFailArgs is a tiny kind used by integration tests to prove the
@@ -236,8 +193,11 @@ func (AlwaysFailWorker) Work(_ context.Context, job *river.Job[AlwaysFailArgs]) 
 // logger unless the caller passes a non-nil one.
 // ---------------------------------------------------------------------------
 
-// RegisterExamples adds the four WS-09 example workers to the registry. log
-// may be nil; each worker falls back to slog.Default().
+// RegisterExamples adds the three WS-09 example workers to the registry. log
+// may be nil; each worker falls back to slog.Default(). The WS-09 doc
+// originally listed four examples including a placeholder snapshot kind;
+// WS-25 replaces that placeholder with the real workers in the compute
+// package (compute.snapshot.take / prune / backup.create).
 func RegisterExamples(r *Registry, log *slog.Logger) {
 	if r == nil {
 		panic("jobs: RegisterExamples: registry is nil")
@@ -259,11 +219,5 @@ func RegisterExamples(r *Registry, log *slog.Logger) {
 		Queue:       "notifications",
 		Description: "Asynchronous outbound email send (used by WS-06 async path).",
 		Tags:        []string{"notify", "email"},
-	})
-	Register(r, ComputeInstanceSnapshotArgs{}, NewComputeInstanceSnapshotWorker(log), KindSpec{
-		Kind:        ComputeInstanceSnapshotArgs{}.Kind(),
-		Queue:       "compute",
-		Description: "Take a snapshot of a compute instance (placeholder for WS-25).",
-		Tags:        []string{"compute", "snapshot"},
 	})
 }

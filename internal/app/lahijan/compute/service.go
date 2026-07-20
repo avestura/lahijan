@@ -62,6 +62,35 @@ const (
 	// graphical (noVNC) console session to a running VM (WS-24). Distinct
 	// from exec: VM-only, RFB protocol, longer-lived session.
 	AuditInstanceConsoleVNCConnect = "compute.instance.console.vnc.connect"
+
+	// WS-25: snapshot + backup + policy audit actions. Mirror the rbac
+	// slugs but use past-tense verbs so the audit row reads "what
+	// happened" not "what was requested".
+	AuditSnapshotCreate           = "compute.snapshot.create"
+	AuditSnapshotDelete           = "compute.snapshot.delete"
+	AuditSnapshotRestore          = "compute.snapshot.restore"
+	AuditSnapshotPolicyCreate     = "compute.snapshot_policy.create"
+	AuditSnapshotPolicyUpdate     = "compute.snapshot_policy.update"
+	AuditSnapshotPolicyDelete     = "compute.snapshot_policy.delete"
+	AuditBackupTargetCreate       = "compute.backup.target.create"
+	AuditBackupTargetUpdate       = "compute.backup.target.update"
+	AuditBackupTargetDelete       = "compute.backup.target.delete"
+	AuditBackupCreate             = "compute.backup.create"
+	AuditBackupDelete             = "compute.backup.delete"
+	AuditBackupRestore            = "compute.backup.restore"
+	AuditScheduledSnapshotTaken   = "compute.snapshot.taken"
+	AuditScheduledSnapshotPruned  = "compute.snapshot.pruned"
+	AuditScheduledBackupCompleted = "compute.backup.completed"
+)
+
+// ResourceSnapshot / ResourceSnapshotPolicy / ResourceBackupTarget /
+// ResourceBackup mirror the audit_log.resource_type vocabulary for the
+// WS-25 snapshot + backup surface.
+const (
+	ResourceSnapshot       = "compute_snapshot"
+	ResourceSnapshotPolicy = "compute_snapshot_policy"
+	ResourceBackupTarget   = "compute_backup_target"
+	ResourceBackup         = "compute_backup"
 )
 
 // Service is the entrypoint every compute API handler talks to. It owns the
@@ -77,6 +106,20 @@ type Service struct {
 	bus      eventBus
 	policy   rbac.PolicyEvaluator
 	quotas   QuotaConfig
+	// crypto is the AES-GCM envelope the WS-25 backup-target path uses to
+	// encrypt + decrypt the per-target credential blob at the repo seam.
+	// nil-appropriate in tests / when WS-25 is disabled; the snapshot +
+	// backup CRUD paths surface ErrCryptoRequired when the envelope is
+	// missing on a path that needs it.
+	crypto cryptoEnvelope
+}
+
+// cryptoEnvelope is the narrow seam the service needs from
+// *secrets.Crypto. Defined here so tests can stub the encrypt/decrypt
+// pair without dragging the secrets package into every test file.
+type cryptoEnvelope interface {
+	Seal(plaintext string) (string, error)
+	Open(ciphertext string) (string, error)
 }
 
 // incusProvider is the narrow seam the service needs from
@@ -84,9 +127,12 @@ type Service struct {
 // dragging the full incus surface into the test file. Split into per-area
 // sub-interfaces so the surface stays reviewable; the concrete
 // *incus.Provider satisfies the union.
+//
+//nolint:interfacebloat // intentional: 8 sub-interfaces composed by category; each is small
 type incusProvider interface {
 	incusProjectOps
 	incusInstanceOps
+	incusSnapshotOps
 	incusProfileOps
 	incusNetworkOps
 	incusVolumeOps
@@ -145,6 +191,21 @@ type incusConsoleOps interface {
 	DialVNCConsole(ctx context.Context, opID, secret string) (*websocket.Conn, error)
 }
 
+// incusSnapshotOps covers the WS-25 snapshot surface: create / list /
+// get / rename / delete / restore / export. ExportSnapshot returns the
+// raw tarball bytes the backup worker streams to a BackupTarget.
+//
+//nolint:interfacebloat // intentional: 8 small methods mirroring the Incus REST surface
+type incusSnapshotOps interface {
+	CreateSnapshot(ctx context.Context, params incus.CreateSnapshotParams) (*incus.Operation, error)
+	ListInstanceSnapshots(ctx context.Context, project, instance string) ([]incus.InstanceSnapshot, error)
+	GetSnapshot(ctx context.Context, project, instance, snapshot string) (*incus.InstanceSnapshot, error)
+	RenameSnapshot(ctx context.Context, project, instance, snapshot, newName string) (*incus.Operation, error)
+	DeleteSnapshot(ctx context.Context, project, instance, snapshot string) (*incus.Operation, error)
+	RestoreSnapshot(ctx context.Context, project, instance, snapshot string, stateful bool) (*incus.Operation, error)
+	ExportSnapshot(ctx context.Context, project, instance, snapshot string) ([]byte, error)
+}
+
 // eventBus is the narrow seam the service needs from *eventbus.Bus.
 type eventBus interface {
 	Emit(ctx context.Context, e eventbus.Event) error
@@ -156,10 +217,18 @@ type Config struct {
 	// WS-14's "Open questions"; deployers override via config (TODO: WS-14
 	// follow-up wires this to conf).
 	Quotas QuotaConfig
+
+	// Crypto is the AES-GCM envelope the WS-25 backup-target path uses to
+	// encrypt + decrypt the per-target credential blob. Nil-appropriate in
+	// tests that do not exercise the backup target surface; the
+	// CreateBackupTarget / UpdateBackupTargetSecret paths surface
+	// ErrCryptoRequired when nil.
+	Crypto cryptoEnvelope
 }
 
-// New builds a Service. Every dependency is required except `bus` and
-// `policy` (nil disables event emission / non-HTTP RequirePerm).
+// New builds a Service. Every dependency is required except `bus`,
+// `policy`, and `crypto` (nil disables event emission / non-HTTP
+// RequirePerm / backup-target credential encryption).
 func New(
 	provider incusProvider,
 	r *database.Repos,
@@ -182,5 +251,20 @@ func New(
 		bus:      bus,
 		policy:   policy,
 		quotas:   quotas,
+		crypto:   cfg.Crypto,
 	}
+}
+
+// WithCrypto returns a copy of the service with the AES-GCM envelope
+// replaced. Used by program.Start when the WS-25 backup-target path is
+// wired after the rest of the service is built (the envelope is sourced
+// from the same key the auth subsystem uses, but the compute service is
+// constructed before that key is parsed in some bootstrap orders).
+func (s *Service) WithCrypto(c cryptoEnvelope) *Service {
+	if s == nil {
+		return s
+	}
+	out := *s
+	out.crypto = c
+	return &out
 }

@@ -40,8 +40,17 @@ type Repos struct {
 	ComputeProfiles       *ComputeProfilesRepository
 	ComputeNetworks       *ComputeNetworksRepository
 	ComputeStorageVolumes *ComputeStorageVolumesRepository
-	StorageBuckets        *StorageBucketsRepository
-	StorageCredentials    *StorageCredentialsRepository
+	// WS-25: scheduled snapshots + off-host backups. Four sub-repositories:
+	// the per-snapshot rows (ComputeSnapshots), the per-tenant off-host
+	// destinations (ComputeBackupTargets), the per-snapshot exported
+	// backups (ComputeBackups), and the per-instance + per-tenant schedule
+	// policies (ComputeSnapshotPolicies).
+	ComputeSnapshots        *ComputeSnapshotsRepository
+	ComputeBackupTargets    *ComputeBackupTargetsRepository
+	ComputeBackups          *ComputeBackupsRepository
+	ComputeSnapshotPolicies *ComputeSnapshotPoliciesRepository
+	StorageBuckets          *StorageBucketsRepository
+	StorageCredentials      *StorageCredentialsRepository
 
 	// WS-17: billing & metering. Five sub-repositories: the admin-managed
 	// price catalog (BillingPrices), the append-only per-user ledger
@@ -60,38 +69,42 @@ type Repos struct {
 func NewRepos(db DBTX) *Repos {
 	q := gen.New(db)
 	return &Repos{
-		Tenants:               NewTenantsRepository(q),
-		Users:                 NewUsersRepository(q),
-		RBAC:                  NewRBACRepository(q),
-		Memberships:           NewMembershipsRepository(q),
-		AuditLog:              NewAuditLogRepository(q),
-		Tokens:                NewTokensRepository(q),
-		Sessions:              NewSessionsRepository(q),
-		EmailTokens:           NewEmailTokensRepository(q),
-		OAuthIdentities:       NewOAuthIdentitiesRepository(q),
-		SamlIdentities:        NewSamlIdentitiesRepository(q),
-		TOTPSecrets:           NewTOTPSecretsRepository(q),
-		WebauthnCreds:         NewWebauthnCredentialsRepository(q),
-		RecoveryCodes:         NewRecoveryCodesRepository(q),
-		MFAPending:            NewMFAPendingSessionsRepository(q),
-		Plugins:               NewPluginsRepository(q),
-		PluginKV:              NewPluginKVRepository(q),
-		PluginConfig:          NewPluginConfigRepository(q),
-		PluginSubscriptions:   NewPluginEventSubscriptionsRepository(q),
-		PluginHTTPHandlers:    NewPluginHTTPHandlersRepository(q),
-		DNSZones:              NewDNSZonesRepository(q),
-		DNSRecords:            NewDNSRecordsRepository(q),
-		ComputeInstances:      NewComputeInstancesRepository(q),
-		ComputeImages:         NewComputeImagesRepository(q),
-		ComputeProfiles:       NewComputeProfilesRepository(q),
-		ComputeNetworks:       NewComputeNetworksRepository(q),
-		ComputeStorageVolumes: NewComputeStorageVolumesRepository(q),
-		StorageBuckets:        NewStorageBucketsRepository(q),
-		StorageCredentials:    NewStorageCredentialsRepository(q),
-		BillingPrices:         NewBillingPricesRepository(q),
-		BillingLedger:         NewBillingLedgerRepository(q),
-		BillingBalances:       NewBillingBalancesRepository(q),
-		BillingUsage:          NewBillingUsageRepository(q),
-		BillingReceipts:       NewBillingReceiptsRepository(q),
+		Tenants:                 NewTenantsRepository(q),
+		Users:                   NewUsersRepository(q),
+		RBAC:                    NewRBACRepository(q),
+		Memberships:             NewMembershipsRepository(q),
+		AuditLog:                NewAuditLogRepository(q),
+		Tokens:                  NewTokensRepository(q),
+		Sessions:                NewSessionsRepository(q),
+		EmailTokens:             NewEmailTokensRepository(q),
+		OAuthIdentities:         NewOAuthIdentitiesRepository(q),
+		SamlIdentities:          NewSamlIdentitiesRepository(q),
+		TOTPSecrets:             NewTOTPSecretsRepository(q),
+		WebauthnCreds:           NewWebauthnCredentialsRepository(q),
+		RecoveryCodes:           NewRecoveryCodesRepository(q),
+		MFAPending:              NewMFAPendingSessionsRepository(q),
+		Plugins:                 NewPluginsRepository(q),
+		PluginKV:                NewPluginKVRepository(q),
+		PluginConfig:            NewPluginConfigRepository(q),
+		PluginSubscriptions:     NewPluginEventSubscriptionsRepository(q),
+		PluginHTTPHandlers:      NewPluginHTTPHandlersRepository(q),
+		DNSZones:                NewDNSZonesRepository(q),
+		DNSRecords:              NewDNSRecordsRepository(q),
+		ComputeInstances:        NewComputeInstancesRepository(q),
+		ComputeImages:           NewComputeImagesRepository(q),
+		ComputeProfiles:         NewComputeProfilesRepository(q),
+		ComputeNetworks:         NewComputeNetworksRepository(q),
+		ComputeStorageVolumes:   NewComputeStorageVolumesRepository(q),
+		ComputeSnapshots:        NewComputeSnapshotsRepository(q),
+		ComputeBackupTargets:    NewComputeBackupTargetsRepository(q),
+		ComputeBackups:          NewComputeBackupsRepository(q),
+		ComputeSnapshotPolicies: NewComputeSnapshotPoliciesRepository(q),
+		StorageBuckets:          NewStorageBucketsRepository(q),
+		StorageCredentials:      NewStorageCredentialsRepository(q),
+		BillingPrices:           NewBillingPricesRepository(q),
+		BillingLedger:           NewBillingLedgerRepository(q),
+		BillingBalances:         NewBillingBalancesRepository(q),
+		BillingUsage:            NewBillingUsageRepository(q),
+		BillingReceipts:         NewBillingReceiptsRepository(q),
 	}
 }

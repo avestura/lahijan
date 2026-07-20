@@ -1506,6 +1506,215 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/compute/instances/{instanceId}/snapshots": {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                instanceId: string;
+            };
+            cookie?: never;
+        };
+        /** List snapshots of an instance */
+        get: operations["listComputeSnapshots"];
+        put?: never;
+        /** Take a snapshot of an instance */
+        post: operations["createComputeSnapshot"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compute/instances/{instanceId}/snapshots/{snapshotId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instanceId: string;
+                snapshotId: string;
+            };
+            cookie?: never;
+        };
+        /** Get a snapshot */
+        get: operations["getComputeSnapshot"];
+        put?: never;
+        post?: never;
+        /** Delete a snapshot */
+        delete: operations["deleteComputeSnapshot"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compute/instances/{instanceId}/snapshots/{snapshotId}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instanceId: string;
+                snapshotId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore the instance to a snapshot */
+        post: operations["restoreComputeSnapshot"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compute/instances/{instanceId}/backups": {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                instanceId: string;
+            };
+            cookie?: never;
+        };
+        /** List off-host backups for an instance */
+        get: operations["listComputeBackupsByInstance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compute/snapshot-policies": {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List snapshot schedule policies */
+        get: operations["listComputeSnapshotPolicies"];
+        put?: never;
+        /** Create a snapshot schedule policy */
+        post: operations["createComputeSnapshotPolicy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compute/snapshot-policies/{policyId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                policyId: string;
+            };
+            cookie?: never;
+        };
+        /** Get a snapshot schedule policy */
+        get: operations["getComputeSnapshotPolicy"];
+        put?: never;
+        post?: never;
+        /** Delete a snapshot schedule policy */
+        delete: operations["deleteComputeSnapshotPolicy"];
+        options?: never;
+        head?: never;
+        /** Update a snapshot schedule policy */
+        patch: operations["updateComputeSnapshotPolicy"];
+        trace?: never;
+    };
+    "/api/v1/compute/backup-targets": {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List off-host backup targets */
+        get: operations["listComputeBackupTargets"];
+        put?: never;
+        /** Create an off-host backup target */
+        post: operations["createComputeBackupTarget"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compute/backup-targets/{targetId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                targetId: string;
+            };
+            cookie?: never;
+        };
+        /** Get a backup target */
+        get: operations["getComputeBackupTarget"];
+        put?: never;
+        post?: never;
+        /** Delete a backup target */
+        delete: operations["deleteComputeBackupTarget"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compute/backups": {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List off-host backups */
+        get: operations["listComputeBackups"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compute/backups/{backupId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                backupId: string;
+            };
+            cookie?: never;
+        };
+        /** Get a backup */
+        get: operations["getComputeBackup"];
+        put?: never;
+        post?: never;
+        /** Delete a backup (removes remote bytes + soft-deletes the row) */
+        delete: operations["deleteComputeBackup"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dns/zones": {
         parameters: {
             query?: never;
@@ -2919,6 +3128,155 @@ export interface components {
             config?: {
                 [key: string]: string;
             };
+        };
+        ComputeSnapshot: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            instanceId: string;
+            name: string;
+            description?: string;
+            stateful: boolean;
+            /** Format: int64 */
+            sizeBytes?: number;
+            /** Format: date-time */
+            expiresAt?: string | null;
+            /** Format: uuid */
+            policyId?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        ComputeSnapshotPage: {
+            items: components["schemas"]["ComputeSnapshot"][];
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        ComputeSnapshotCreateRequest: {
+            name: string;
+            description?: string;
+            /** @default false */
+            stateful: boolean;
+        };
+        ComputeSnapshotRestoreRequest: {
+            /** @default false */
+            stateful: boolean;
+        };
+        ComputeSnapshotPolicy: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            instanceId?: string | null;
+            name: string;
+            cadence: string;
+            retainCount: number;
+            /** Format: uuid */
+            targetId?: string | null;
+            enabled: boolean;
+            /** Format: date-time */
+            lastRunAt?: string | null;
+            /** Format: date-time */
+            nextRunAt?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        ComputeSnapshotPolicyPage: {
+            items: components["schemas"]["ComputeSnapshotPolicy"][];
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        ComputeSnapshotPolicyCreateRequest: {
+            name: string;
+            /** Format: uuid */
+            instanceId?: string | null;
+            /** @description ISO 8601 duration: PT1H, P1D, P1W, P1DT2H... */
+            cadence: string;
+            /** @default 7 */
+            retainCount: number;
+            /** Format: uuid */
+            targetId?: string | null;
+            /** @default true */
+            enabled: boolean;
+        };
+        ComputeSnapshotPolicyUpdateRequest: {
+            name: string;
+            /** Format: uuid */
+            instanceId?: string | null;
+            cadence: string;
+            retainCount?: number;
+            /** Format: uuid */
+            targetId?: string | null;
+            enabled?: boolean;
+        };
+        ComputeBackupTarget: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @enum {string} */
+            kind: "s3" | "nfs" | "ssh";
+            description?: string;
+            /** @description Per-kind non-sensitive config (endpoint, bucket, path, host, ...). */
+            config?: {
+                [key: string]: unknown;
+            };
+            enabled: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        ComputeBackupTargetPage: {
+            items: components["schemas"]["ComputeBackupTarget"][];
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        ComputeBackupTargetCreateRequest: {
+            name: string;
+            /** @enum {string} */
+            kind: "s3" | "nfs" | "ssh";
+            description?: string;
+            config: {
+                [key: string]: unknown;
+            };
+            /** @description Per-kind credentials envelope (S3 access keys, SSH private key, ...). Encrypted at rest. */
+            secret: {
+                [key: string]: unknown;
+            };
+            /** @default true */
+            enabled: boolean;
+        };
+        ComputeBackup: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            snapshotId: string;
+            /** Format: uuid */
+            instanceId: string;
+            /** Format: uuid */
+            targetId: string;
+            remoteLocation?: string;
+            /** Format: int64 */
+            sizeBytes?: number;
+            checksumSha256?: string;
+            /** @enum {string} */
+            status: "pending" | "uploading" | "completed" | "failed";
+            errorMessage?: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        ComputeBackupPage: {
+            items: components["schemas"]["ComputeBackup"][];
+            total: number;
+            limit: number;
+            offset: number;
         };
         DNSZone: {
             /** Format: uuid */
@@ -5819,6 +6177,489 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Volume deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listComputeSnapshots: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                instanceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of snapshots. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeSnapshotPage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createComputeSnapshot: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                instanceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComputeSnapshotCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description The snapshot row. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeSnapshot"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    getComputeSnapshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instanceId: string;
+                snapshotId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The snapshot. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeSnapshot"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteComputeSnapshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instanceId: string;
+                snapshotId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Snapshot deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    restoreComputeSnapshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instanceId: string;
+                snapshotId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ComputeSnapshotRestoreRequest"];
+            };
+        };
+        responses: {
+            /** @description The restored snapshot row. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeSnapshot"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    listComputeBackupsByInstance: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                instanceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of backups. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeBackupPage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listComputeSnapshotPolicies: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of policies. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeSnapshotPolicyPage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createComputeSnapshotPolicy: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComputeSnapshotPolicyCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description The policy row. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeSnapshotPolicy"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getComputeSnapshotPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                policyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The policy. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeSnapshotPolicy"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteComputeSnapshotPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                policyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Policy deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateComputeSnapshotPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                policyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComputeSnapshotPolicyUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description The updated policy. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeSnapshotPolicy"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listComputeBackupTargets: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of targets. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeBackupTargetPage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createComputeBackupTarget: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComputeBackupTargetCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description The target row. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeBackupTarget"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getComputeBackupTarget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                targetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The target. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeBackupTarget"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteComputeBackupTarget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                targetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Target deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listComputeBackups: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of backups. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeBackupPage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getComputeBackup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                backupId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The backup. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeBackup"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteComputeBackup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                backupId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Backup deleted. */
             204: {
                 headers: {
                     [name: string]: unknown;

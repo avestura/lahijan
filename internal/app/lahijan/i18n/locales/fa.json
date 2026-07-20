@@ -520,6 +520,51 @@
   "audit.action_compute_network_delete": {
     "other": "شبکهٔ محاسباتی حذف شد"
   },
+  "audit.action_compute_snapshot_create": {
+    "other": "تصویر لحظه‌ای محاسبات تهیه شد"
+  },
+  "audit.action_compute_snapshot_delete": {
+    "other": "تصویر لحظه‌ای محاسبات حذف شد"
+  },
+  "audit.action_compute_snapshot_restore": {
+    "other": "نمونهٔ محاسباتی از روی تصویر لحظه‌ای بازیابی شد"
+  },
+  "audit.action_compute_snapshot_policy_create": {
+    "other": "سیاست زمان‌بندی تصویر لحظه‌ای ساخته شد"
+  },
+  "audit.action_compute_snapshot_policy_update": {
+    "other": "سیاست زمان‌بندی تصویر لحظه‌ای به‌روزرسانی شد"
+  },
+  "audit.action_compute_snapshot_policy_delete": {
+    "other": "سیاست زمان‌بندی تصویر لحظه‌ای حذف شد"
+  },
+  "audit.action_compute_backup_target_create": {
+    "other": "مقصد پشتیبان‌گیری ساخته شد"
+  },
+  "audit.action_compute_backup_target_update": {
+    "other": "مقصد پشتیبان‌گیری به‌روزرسانی شد"
+  },
+  "audit.action_compute_backup_target_delete": {
+    "other": "مقصد پشتیبان‌گیری حذف شد"
+  },
+  "audit.action_compute_backup_create": {
+    "other": "پشتیبان خارج میزبان ساخته شد"
+  },
+  "audit.action_compute_backup_delete": {
+    "other": "پشتیبان خارج میزبان حذف شد"
+  },
+  "audit.action_compute_backup_restore": {
+    "other": "نمونه از روی پشتیبان خارج میزبان بازیابی شد"
+  },
+  "audit.action_compute_snapshot_taken": {
+    "other": "تصویر لحظه‌ای زمان‌بندی‌شده تهیه شد"
+  },
+  "audit.action_compute_snapshot_pruned": {
+    "other": "تصویر لحظه‌ای زمان‌بندی‌شده هرس شد"
+  },
+  "audit.action_compute_backup_completed": {
+    "other": "پشتیبان زمان‌بندی‌شده تکمیل شد"
+  },
   "audit.action_compute_storage_volume_create": {
     "other": "حجم ذخیره‌سازی محاسباتی ساخته شد"
   },
