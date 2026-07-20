@@ -70,7 +70,8 @@ func main() {
 	defer incusFake.HTTP.Close()
 	defer powerdnsFake.HTTP.Close()
 
-	logger.Info("fakes started",
+	logger.Info(
+		"fakes started",
 		"incus_internal", incusFake.HTTP.URL,
 		"powerdns_internal", powerdnsFake.HTTP.URL,
 	)

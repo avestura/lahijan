@@ -20,6 +20,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -108,7 +109,7 @@ func parseCoverTotal(profile string) (float64, error) {
 		}
 	}
 	if total == 0 {
-		return 0, fmt.Errorf("no statements in profile")
+		return 0, errors.New("no statements in profile")
 	}
 	return 100 * covered / total, nil
 }

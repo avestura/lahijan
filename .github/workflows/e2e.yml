@@ -1,0 +1,172 @@
+# Lahijan CI - integration + e2e (WS-22)
+#
+# Three jobs, each gated differently so a PR doesn't pay for the slow
+# tiers unless the contributor opts in:
+#
+#   1. integration-label  : runs `make test-integration` on PRs labeled
+#                            `run:integration` AND on every push to main.
+#                            Testcontainers Postgres + provider fakes.
+#   2. cover              : runs `make cover-check` on every PR; the
+#                            unit-test coverage floor (20% per WS-22) is
+#                            enforced. Reviewers must approve any drop.
+#   3. e2e                : runs `make test-e2e` nightly on main + on
+#                            PRs labeled `run:e2e`. Brings up the full
+#                            test sandbox + Playwright + the in-process
+#                            provider fakes. Slow (~10 min budget).
+#
+# Why three separate jobs instead of one big "test-everything" job?
+# The Makefile targets are independently runnable locally; mirroring
+# that shape in CI keeps the failure surface narrow (a cover-check
+# failure shouldn't block debugging an integration failure).
+
+name: E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    # Cheap jobs run on every PR; expensive jobs are label-gated
+    # (see the `if:` lines below).
+  schedule:
+    # Nightly e2e on main at 04:30 UTC (off-peak for both GH Actions
+    # capacity and most contributor timezones). The cron is daily so
+    # a flake surfaces within 24h even if no PR touches the area.
+    - cron: "30 4 * * *"
+  workflow_dispatch:
+    # Manual trigger for debugging a flake without waiting for cron.
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: false # don't kill a running e2e job mid-suite
+
+jobs:
+  # ---------------------------------------------------------------------
+  # Integration tests — testcontainers Postgres + provider fakes.
+  # ---------------------------------------------------------------------
+  integration:
+    name: Integration (testcontainers + fakes)
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      github.ref == 'refs/heads/main' ||
+      contains(github.event.pull_request.labels.*.name, 'run:integration')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Run integration tests
+        run: make test-integration
+        env:
+          # testcontainers-go needs Docker; the ubuntu-latest runner
+          # ships Docker out of the box.
+          TESTCONTAINERS_RYUK_DISABLED: "true"
+
+  # ---------------------------------------------------------------------
+  # Unit-test coverage gate (WS-22 DoD item).
+  # ---------------------------------------------------------------------
+  cover:
+    name: Coverage gate
+    runs-on: ubuntu-latest
+    # Every PR — the gate is cheap (one `go test -coverprofile`).
+    if: |
+      github.event_name == 'pull_request' ||
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Coverage check
+        run: make cover-check
+      - name: Upload coverage profile
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-coverage-profile
+          path: coverage.out
+          if-no-files-found: warn
+          retention-days: 7
+
+  # ---------------------------------------------------------------------
+  # Frontend coverage gate (WS-22 DoD item).
+  # ---------------------------------------------------------------------
+  web-cover:
+    name: Web coverage gate
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'pull_request' ||
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: web/package-lock.json
+      - name: Install
+        working-directory: web
+        run: npm ci
+      - name: Coverage check
+        working-directory: web
+        run: npm run test:coverage
+
+  # ---------------------------------------------------------------------
+  # E2E — full test sandbox + Playwright. Slow; label-gated.
+  # ---------------------------------------------------------------------
+  e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.pull_request.labels.*.name, 'run:e2e')
+    timeout-minutes: 20 # the WS-22 DoD budget is <15 min; allow 5 min of setup
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install web deps (needed by the runner's `npm run build`)
+        working-directory: web
+        run: npm ci
+
+      - name: Run e2e suite
+        run: make test-e2e
+        env:
+          CI: "true"
+          # The runner script picks stable defaults; the only env we
+          # need to set explicitly is the run-id (used by the unique-
+          # email helper so parallel branches can't collide).
+          LAHIJAN_E2E_RUN_ID: ${{ github.run_id }}
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: test/e2e/playwright-report/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload logs (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-logs
+          path: |
+            /tmp/lahijan-e2e-*.log
+          if-no-files-found: warn
+          retention-days: 7
