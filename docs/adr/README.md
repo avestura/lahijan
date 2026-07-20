@@ -37,6 +37,7 @@ Accepted; corrections land as new ADRs that supersede prior ones.
 | [0027](./0027-seaweedfs-client-library-choice.md) | SeaweedFS client library — AWS SDK v2 (S3) + thin HTTP (Filer/IAM), interface-injected for tests | Accepted | 2026-07-18 |
 | [0028](./0028-website-prerendering-stack.md) | Marketing website prerendering stack — react-router-dom + vite-react-ssg (deviation from TanStack Router, scoped to `website/`) | Accepted | 2026-07-19 |
 | [0029](./0029-test-sandbox-topology.md) | Test sandbox topology — fakes per provider, coverage gate at the unit-test baseline | Accepted | 2026-07-20 |
+| [0030](./0030-production-deployment-topology.md) | Production deployment topology — Caddy, single-host, four-script ops | Accepted | 2026-07-20 |
 
 ## How to write a new ADR
 
