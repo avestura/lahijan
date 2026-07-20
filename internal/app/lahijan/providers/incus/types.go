@@ -173,6 +173,50 @@ type InstancePut struct {
 	Profiles     []string                     `json:"profiles,omitempty"`
 }
 
+// InstanceSnapshotsPost is the body of POST /1.0/instances/<name>/snapshots.
+// Name is the snapshot name (required); Stateful=true captures runtime state
+// alongside the filesystem (only valid when the daemon + instance support it).
+type InstanceSnapshotsPost struct {
+	Name     string `json:"name"`
+	Stateful bool   `json:"stateful,omitempty"`
+	// ExpiresAt forwards Incus' per-snapshot retention hint. Zero value is
+	// omitted so the daemon treats it as "no expiry".
+	ExpiresAt time.Time `json:"expires_at,omitempty"`
+}
+
+// InstanceSnapshot is the response from
+// GET /1.0/instances/<name>/snapshots/<snap>. Mirrors Incus' shape;
+// Architecture + Config + Devices are inherited from the instance at the
+// moment the snapshot was taken.
+type InstanceSnapshot struct {
+	Name         string                       `json:"name"`
+	InstanceName string                       `json:"instance_name,omitempty"` // "<instance>/<snapshot>" on read
+	Description  string                       `json:"description,omitempty"`
+	Config       map[string]string            `json:"config,omitempty"`
+	Devices      map[string]map[string]string `json:"devices,omitempty"`
+	Architecture string                       `json:"architecture,omitempty"`
+	CreatedAt    time.Time                    `json:"created_at,omitempty"`
+	// Size is the filesystem size in bytes (Incus reports MiB as int).
+	Size int64 `json:"size,omitempty"`
+	// Stateful mirrors the stateful flag captured at create time.
+	Stateful bool `json:"stateful,omitempty"`
+}
+
+// InstanceSnapshotPut is the body of PUT /1.0/instances/<name>/snapshots/<snap>.
+// Used to rename a snapshot (Name) or update its description / expiry.
+type InstanceSnapshotPut struct {
+	Name        string    `json:"name,omitempty"`
+	Description string    `json:"description,omitempty"`
+	ExpiresAt   time.Time `json:"expires_at,omitempty"`
+}
+
+// InstanceSnapshotRestorePost is the body of
+// POST /1.0/instances/<name>/snapshots/<snap>/restore. Stateful=true
+// restores runtime state alongside the filesystem.
+type InstanceSnapshotRestorePost struct {
+	Stateful bool `json:"stateful,omitempty"`
+}
+
 // InstanceStatePut is the body of PUT /1.0/instances/<name>/state. Action is
 // one of "start", "stop", "restart", "freeze", "unfreeze", "exec".
 type InstanceStatePut struct {

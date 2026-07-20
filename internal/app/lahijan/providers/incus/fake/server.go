@@ -77,6 +77,7 @@ type Server struct {
 type fakeProject struct {
 	Project     incus.Project
 	Instances   map[string]*incus.Instance
+	Snapshots   map[string]*incus.InstanceSnapshot // key: "<instance>/<snapshot>"
 	Profiles    map[string]*incus.Profile
 	Networks    map[string]*incus.Network
 	NetworkACLs map[string]*incus.NetworkACL
@@ -150,6 +151,7 @@ func newFakeProject(p incus.Project) *fakeProject {
 	return &fakeProject{
 		Project:     p,
 		Instances:   make(map[string]*incus.Instance),
+		Snapshots:   make(map[string]*incus.InstanceSnapshot),
 		Profiles:    make(map[string]*incus.Profile),
 		Networks:    make(map[string]*incus.Network),
 		NetworkACLs: make(map[string]*incus.NetworkACL),
@@ -272,6 +274,26 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 		return
 	case strings.HasPrefix(path, "instances/") && strings.HasSuffix(path, "/state"):
 		s.handleInstanceState(w, r, strings.TrimSuffix(strings.TrimPrefix(path, "instances/"), "/state"))
+		return
+	case isInstanceSnapshotsCollectionPath(path):
+		// POST /instances/<name>/snapshots or GET (list with recursion).
+		instance := strings.TrimSuffix(strings.TrimPrefix(path, "instances/"), "/snapshots")
+		s.handleSnapshotsCollection(w, r, instance)
+		return
+	case isInstanceSnapshotExportPath(path):
+		// GET /instances/<name>/snapshots/<snap>/export
+		instance, snap := splitSnapshotSubPath(strings.TrimSuffix(strings.TrimPrefix(path, "instances/"), "/export"))
+		s.handleSnapshotExport(w, r, instance, snap)
+		return
+	case isInstanceSnapshotRestorePath(path):
+		// POST /instances/<name>/snapshots/<snap>/restore
+		instance, snap := splitSnapshotSubPath(strings.TrimSuffix(strings.TrimPrefix(path, "instances/"), "/restore"))
+		s.handleSnapshot(w, r, instance, snap)
+		return
+	case isInstanceSnapshotPath(path):
+		// GET / PUT / DELETE / POST (rename) /instances/<name>/snapshots/<snap>
+		instance, snap := splitSnapshotSubPath(strings.TrimPrefix(path, "instances/"))
+		s.handleSnapshot(w, r, instance, snap)
 		return
 	case strings.HasPrefix(path, "instances/"):
 		s.handleInstance(w, r, strings.TrimPrefix(path, "instances/"))
