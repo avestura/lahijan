@@ -192,7 +192,7 @@ func TestSnapshot_TakeDuplicateNameRejected(t *testing.T) {
 	f := newFixture(t)
 	createCtx := f.tenantCtx()
 	inst, err := f.svc.CreateInstance(createCtx, f.tenantID, f.userID, compute.InstanceCreateParams{
-		Name:       "snap-dup", ImageAlias: "ubuntu/24.04",
+		Name: "snap-dup", ImageAlias: "ubuntu/24.04",
 	})
 	require.NoError(t, err)
 
@@ -226,7 +226,7 @@ func TestSnapshotPolicy_CRUD(t *testing.T) {
 	assert.Equal(t, "PT1H", got.Cadence)
 
 	updated, err := f.svc.UpdateSnapshotPolicy(createCtx, f.tenantID, f.userID, pol.ID, compute.UpdateSnapshotPolicyParams{
-		Name:        "hourly", Cadence: "PT2H", RetainCount: 12, Enabled: true,
+		Name: "hourly", Cadence: "PT2H", RetainCount: 12, Enabled: true,
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "PT2H", updated.Cadence)

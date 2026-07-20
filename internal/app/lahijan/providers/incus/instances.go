@@ -42,13 +42,21 @@ type CreateInstanceParams struct {
 
 	// Source is the image source (alias or fingerprint).
 	Source InstanceSource
+
+	// Target is the optional cluster member name (WS-26). When non-empty
+	// the daemon places the instance on the named member; when empty
+	// (the LocalPlacementDriver default) the daemon picks any member
+	// (single-node daemons ignore the parameter).
+	Target string
 }
 
 // CreateInstance creates an instance and waits for the operation to complete
 // (the daemon's async response is resolved via the operations API). Returns
 // the final Operation state.
 func (p *Provider) CreateInstance(ctx context.Context, params CreateInstanceParams) (*Operation, error) {
-	ctx, span := startSpan(ctx, "instance.create", projectAttr(params.Project))
+	ctx, span := startSpan(ctx, "instance.create", projectAttr(params.Project),
+		attribute.String("incus.instance", params.Name),
+		attribute.String("incus.cluster_target", params.Target))
 	defer span.End()
 	body := InstancesPost{
 		Name:         params.Name,
@@ -61,7 +69,11 @@ func (p *Provider) CreateInstance(ctx context.Context, params CreateInstancePara
 		Architecture: "x86_64",
 		Source:       params.Source,
 	}
-	op, err := p.doAsync(ctx, "POST", "instances", body)
+	// WS-26: forward the optional cluster target. The query string is
+	// appended only when set so the URL stays clean for non-cluster
+	// deployments.
+	path := "instances" + clusterTargetQuery(params.Target)
+	op, err := p.doAsync(ctx, "POST", path, body)
 	setStatus(span, err)
 	return op, err
 }

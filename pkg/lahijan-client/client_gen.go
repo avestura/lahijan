@@ -107,6 +107,19 @@ const (
 	ComputeBackupTargetCreateRequestKindSsh ComputeBackupTargetCreateRequestKind = "ssh"
 )
 
+// Defines values for ComputeClusterMemberStatus.
+const (
+	ComputeClusterMemberStatusEvacuated ComputeClusterMemberStatus = "Evacuated"
+	ComputeClusterMemberStatusOffline   ComputeClusterMemberStatus = "Offline"
+	ComputeClusterMemberStatusOnline    ComputeClusterMemberStatus = "Online"
+)
+
+// Defines values for ComputeClusterMemberActionAction.
+const (
+	ComputeClusterMemberActionActionEvacuate ComputeClusterMemberActionAction = "evacuate"
+	ComputeClusterMemberActionActionRestore  ComputeClusterMemberActionAction = "restore"
+)
+
 // Defines values for ComputeImageSource.
 const (
 	ComputeImageSourceCustom   ComputeImageSource = "custom"
@@ -765,6 +778,56 @@ type ComputeBackupTargetPage struct {
 	Total  int                   `json:"total"`
 }
 
+// ComputeClusterMember defines model for ComputeClusterMember.
+type ComputeClusterMember struct {
+	// Architecture CPU architecture ("x86_64", "aarch64").
+	Architecture *string `json:"architecture,omitempty"`
+
+	// Database True when the member runs a dqlite database copy.
+	Database *bool `json:"database,omitempty"`
+
+	// Description Operator-set member description.
+	Description *string `json:"description,omitempty"`
+
+	// FailureDomain Operator-assigned failure domain label.
+	FailureDomain *string `json:"failureDomain,omitempty"`
+
+	// Message Free-form status detail (failure reason, ...).
+	Message *string `json:"message,omitempty"`
+
+	// Roles Cluster roles the member holds.
+	Roles *[]string `json:"roles,omitempty"`
+
+	// ServerName The member's hostname-style identifier ("node-1").
+	ServerName string `json:"serverName"`
+
+	// Status Current member status.
+	Status ComputeClusterMemberStatus `json:"status"`
+
+	// Url The daemon-side URL of the member.
+	Url *string `json:"url,omitempty"`
+}
+
+// ComputeClusterMemberStatus Current member status.
+type ComputeClusterMemberStatus string
+
+// ComputeClusterMemberAction defines model for ComputeClusterMemberAction.
+type ComputeClusterMemberAction struct {
+	Action     *ComputeClusterMemberActionAction `json:"action,omitempty"`
+	MemberName *string                           `json:"memberName,omitempty"`
+
+	// OperationId The async operation id tracking the evacuate/restore.
+	OperationId string `json:"operationId"`
+}
+
+// ComputeClusterMemberActionAction defines model for ComputeClusterMemberAction.Action.
+type ComputeClusterMemberActionAction string
+
+// ComputeClusterMemberList defines model for ComputeClusterMemberList.
+type ComputeClusterMemberList struct {
+	Items []ComputeClusterMember `json:"items"`
+}
+
 // ComputeExecRequest defines model for ComputeExecRequest.
 type ComputeExecRequest struct {
 	// Command The argv to execute. Must be non-empty.
@@ -833,6 +896,11 @@ type ComputeImageUploadRequestType string
 
 // ComputeInstance defines model for ComputeInstance.
 type ComputeInstance struct {
+	// ClusterMember The compute cluster member hosting the instance (WS-26).
+	// NULL on a single-node daemon. Reconciled from the daemon
+	// on read; the daemon is the source of truth.
+	ClusterMember *string `json:"clusterMember"`
+
 	// Config Free-form config map (limits.cpu, limits.memory, ...).
 	Config      *map[string]string `json:"config,omitempty"`
 	CreatedAt   time.Time          `json:"createdAt"`
@@ -878,6 +946,22 @@ type ComputeInstanceCreateRequest struct {
 
 // ComputeInstanceCreateRequestType defines model for ComputeInstanceCreateRequest.Type.
 type ComputeInstanceCreateRequestType string
+
+// ComputeInstanceMigrateRequest defines model for ComputeInstanceMigrateRequest.
+type ComputeInstanceMigrateRequest struct {
+	// Live True for live migration (CRIU for containers, storage
+	// replication for VMs). When false the instance is stopped
+	// at the source, copied, and started at the destination
+	// (lower-risk but higher-downtime).
+	Live *bool `json:"live,omitempty"`
+
+	// StoragePool Optional destination storage pool. Empty = the daemon
+	// picks a pool from the target member's available pools.
+	StoragePool *string `json:"storagePool,omitempty"`
+
+	// TargetMember The destination cluster member's serverName.
+	TargetMember string `json:"targetMember"`
+}
 
 // ComputeInstancePage defines model for ComputeInstancePage.
 type ComputeInstancePage struct {
@@ -2085,6 +2169,9 @@ type UpdateComputeInstanceJSONRequestBody = ComputeInstanceUpdateRequest
 // ExecComputeInstanceJSONRequestBody defines body for ExecComputeInstance for application/json ContentType.
 type ExecComputeInstanceJSONRequestBody = ComputeExecRequest
 
+// MigrateComputeInstanceJSONRequestBody defines body for MigrateComputeInstance for application/json ContentType.
+type MigrateComputeInstanceJSONRequestBody = ComputeInstanceMigrateRequest
+
 // CreateComputeSnapshotJSONRequestBody defines body for CreateComputeSnapshot for application/json ContentType.
 type CreateComputeSnapshotJSONRequestBody = ComputeSnapshotCreateRequest
 
@@ -2421,6 +2508,15 @@ type ClientInterface interface {
 	// GetComputeBackup request
 	GetComputeBackup(ctx context.Context, backupId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListComputeClusterMembers request
+	ListComputeClusterMembers(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetComputeClusterMember request
+	GetComputeClusterMember(ctx context.Context, memberName string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetComputeClusterMemberState request
+	SetComputeClusterMemberState(ctx context.Context, memberName string, action string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListComputeImages request
 	ListComputeImages(ctx context.Context, params *ListComputeImagesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -2461,6 +2557,11 @@ type ClientInterface interface {
 	ExecComputeInstanceWithBody(ctx context.Context, instanceId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	ExecComputeInstance(ctx context.Context, instanceId openapi_types.UUID, body ExecComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// MigrateComputeInstanceWithBody request with any body
+	MigrateComputeInstanceWithBody(ctx context.Context, instanceId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	MigrateComputeInstance(ctx context.Context, instanceId openapi_types.UUID, body MigrateComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListComputeSnapshots request
 	ListComputeSnapshots(ctx context.Context, instanceId openapi_types.UUID, params *ListComputeSnapshotsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -3546,6 +3647,42 @@ func (c *Client) GetComputeBackup(ctx context.Context, backupId openapi_types.UU
 	return c.Client.Do(req)
 }
 
+func (c *Client) ListComputeClusterMembers(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListComputeClusterMembersRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetComputeClusterMember(ctx context.Context, memberName string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetComputeClusterMemberRequest(c.Server, memberName)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) SetComputeClusterMemberState(ctx context.Context, memberName string, action string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetComputeClusterMemberStateRequest(c.Server, memberName, action)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) ListComputeImages(ctx context.Context, params *ListComputeImagesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListComputeImagesRequest(c.Server, params)
 	if err != nil {
@@ -3716,6 +3853,30 @@ func (c *Client) ExecComputeInstanceWithBody(ctx context.Context, instanceId ope
 
 func (c *Client) ExecComputeInstance(ctx context.Context, instanceId openapi_types.UUID, body ExecComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewExecComputeInstanceRequest(c.Server, instanceId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) MigrateComputeInstanceWithBody(ctx context.Context, instanceId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMigrateComputeInstanceRequestWithBody(c.Server, instanceId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) MigrateComputeInstance(ctx context.Context, instanceId openapi_types.UUID, body MigrateComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMigrateComputeInstanceRequest(c.Server, instanceId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -7351,6 +7512,108 @@ func NewGetComputeBackupRequest(server string, backupId openapi_types.UUID) (*ht
 	return req, nil
 }
 
+// NewListComputeClusterMembersRequest generates requests for ListComputeClusterMembers
+func NewListComputeClusterMembersRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/cluster/members")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetComputeClusterMemberRequest generates requests for GetComputeClusterMember
+func NewGetComputeClusterMemberRequest(server string, memberName string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "memberName", runtime.ParamLocationPath, memberName)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/cluster/members/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetComputeClusterMemberStateRequest generates requests for SetComputeClusterMemberState
+func NewSetComputeClusterMemberStateRequest(server string, memberName string, action string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "memberName", runtime.ParamLocationPath, memberName)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "action", runtime.ParamLocationPath, action)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/cluster/members/%s/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListComputeImagesRequest generates requests for ListComputeImages
 func NewListComputeImagesRequest(server string, params *ListComputeImagesParams) (*http.Request, error) {
 	var err error
@@ -7866,6 +8129,53 @@ func NewExecComputeInstanceRequestWithBody(server string, instanceId openapi_typ
 	}
 
 	operationPath := fmt.Sprintf("/api/v1/compute/instances/%s/exec", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewMigrateComputeInstanceRequest calls the generic MigrateComputeInstance builder with application/json body
+func NewMigrateComputeInstanceRequest(server string, instanceId openapi_types.UUID, body MigrateComputeInstanceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewMigrateComputeInstanceRequestWithBody(server, instanceId, "application/json", bodyReader)
+}
+
+// NewMigrateComputeInstanceRequestWithBody generates requests for MigrateComputeInstance with any type of body
+func NewMigrateComputeInstanceRequestWithBody(server string, instanceId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "instanceId", runtime.ParamLocationPath, instanceId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/instances/%s/migrate", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -11248,6 +11558,15 @@ type ClientWithResponsesInterface interface {
 	// GetComputeBackupWithResponse request
 	GetComputeBackupWithResponse(ctx context.Context, backupId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeBackupResponse, error)
 
+	// ListComputeClusterMembersWithResponse request
+	ListComputeClusterMembersWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListComputeClusterMembersResponse, error)
+
+	// GetComputeClusterMemberWithResponse request
+	GetComputeClusterMemberWithResponse(ctx context.Context, memberName string, reqEditors ...RequestEditorFn) (*GetComputeClusterMemberResponse, error)
+
+	// SetComputeClusterMemberStateWithResponse request
+	SetComputeClusterMemberStateWithResponse(ctx context.Context, memberName string, action string, reqEditors ...RequestEditorFn) (*SetComputeClusterMemberStateResponse, error)
+
 	// ListComputeImagesWithResponse request
 	ListComputeImagesWithResponse(ctx context.Context, params *ListComputeImagesParams, reqEditors ...RequestEditorFn) (*ListComputeImagesResponse, error)
 
@@ -11288,6 +11607,11 @@ type ClientWithResponsesInterface interface {
 	ExecComputeInstanceWithBodyWithResponse(ctx context.Context, instanceId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ExecComputeInstanceResponse, error)
 
 	ExecComputeInstanceWithResponse(ctx context.Context, instanceId openapi_types.UUID, body ExecComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*ExecComputeInstanceResponse, error)
+
+	// MigrateComputeInstanceWithBodyWithResponse request with any body
+	MigrateComputeInstanceWithBodyWithResponse(ctx context.Context, instanceId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MigrateComputeInstanceResponse, error)
+
+	MigrateComputeInstanceWithResponse(ctx context.Context, instanceId openapi_types.UUID, body MigrateComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*MigrateComputeInstanceResponse, error)
 
 	// ListComputeSnapshotsWithResponse request
 	ListComputeSnapshotsWithResponse(ctx context.Context, instanceId openapi_types.UUID, params *ListComputeSnapshotsParams, reqEditors ...RequestEditorFn) (*ListComputeSnapshotsResponse, error)
@@ -12846,6 +13170,84 @@ func (r GetComputeBackupResponse) StatusCode() int {
 	return 0
 }
 
+type ListComputeClusterMembersResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeClusterMemberList
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r ListComputeClusterMembersResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListComputeClusterMembersResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetComputeClusterMemberResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeClusterMember
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r GetComputeClusterMemberResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetComputeClusterMemberResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type SetComputeClusterMemberStateResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON202      *ComputeClusterMemberAction
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON409      *Error
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r SetComputeClusterMemberStateResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetComputeClusterMemberStateResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type ListComputeImagesResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -13119,6 +13521,33 @@ func (r ExecComputeInstanceResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r ExecComputeInstanceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type MigrateComputeInstanceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeInstance
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON409      *Error
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r MigrateComputeInstanceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r MigrateComputeInstanceResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -15467,6 +15896,33 @@ func (c *ClientWithResponses) GetComputeBackupWithResponse(ctx context.Context, 
 	return ParseGetComputeBackupResponse(rsp)
 }
 
+// ListComputeClusterMembersWithResponse request returning *ListComputeClusterMembersResponse
+func (c *ClientWithResponses) ListComputeClusterMembersWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListComputeClusterMembersResponse, error) {
+	rsp, err := c.ListComputeClusterMembers(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListComputeClusterMembersResponse(rsp)
+}
+
+// GetComputeClusterMemberWithResponse request returning *GetComputeClusterMemberResponse
+func (c *ClientWithResponses) GetComputeClusterMemberWithResponse(ctx context.Context, memberName string, reqEditors ...RequestEditorFn) (*GetComputeClusterMemberResponse, error) {
+	rsp, err := c.GetComputeClusterMember(ctx, memberName, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetComputeClusterMemberResponse(rsp)
+}
+
+// SetComputeClusterMemberStateWithResponse request returning *SetComputeClusterMemberStateResponse
+func (c *ClientWithResponses) SetComputeClusterMemberStateWithResponse(ctx context.Context, memberName string, action string, reqEditors ...RequestEditorFn) (*SetComputeClusterMemberStateResponse, error) {
+	rsp, err := c.SetComputeClusterMemberState(ctx, memberName, action, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetComputeClusterMemberStateResponse(rsp)
+}
+
 // ListComputeImagesWithResponse request returning *ListComputeImagesResponse
 func (c *ClientWithResponses) ListComputeImagesWithResponse(ctx context.Context, params *ListComputeImagesParams, reqEditors ...RequestEditorFn) (*ListComputeImagesResponse, error) {
 	rsp, err := c.ListComputeImages(ctx, params, reqEditors...)
@@ -15596,6 +16052,23 @@ func (c *ClientWithResponses) ExecComputeInstanceWithResponse(ctx context.Contex
 		return nil, err
 	}
 	return ParseExecComputeInstanceResponse(rsp)
+}
+
+// MigrateComputeInstanceWithBodyWithResponse request with arbitrary body returning *MigrateComputeInstanceResponse
+func (c *ClientWithResponses) MigrateComputeInstanceWithBodyWithResponse(ctx context.Context, instanceId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MigrateComputeInstanceResponse, error) {
+	rsp, err := c.MigrateComputeInstanceWithBody(ctx, instanceId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMigrateComputeInstanceResponse(rsp)
+}
+
+func (c *ClientWithResponses) MigrateComputeInstanceWithResponse(ctx context.Context, instanceId openapi_types.UUID, body MigrateComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*MigrateComputeInstanceResponse, error) {
+	rsp, err := c.MigrateComputeInstance(ctx, instanceId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMigrateComputeInstanceResponse(rsp)
 }
 
 // ListComputeSnapshotsWithResponse request returning *ListComputeSnapshotsResponse
@@ -18737,6 +19210,168 @@ func ParseGetComputeBackupResponse(rsp *http.Response) (*GetComputeBackupRespons
 	return response, nil
 }
 
+// ParseListComputeClusterMembersResponse parses an HTTP response from a ListComputeClusterMembersWithResponse call
+func ParseListComputeClusterMembersResponse(rsp *http.Response) (*ListComputeClusterMembersResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListComputeClusterMembersResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeClusterMemberList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetComputeClusterMemberResponse parses an HTTP response from a GetComputeClusterMemberWithResponse call
+func ParseGetComputeClusterMemberResponse(rsp *http.Response) (*GetComputeClusterMemberResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetComputeClusterMemberResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeClusterMember
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetComputeClusterMemberStateResponse parses an HTTP response from a SetComputeClusterMemberStateWithResponse call
+func ParseSetComputeClusterMemberStateResponse(rsp *http.Response) (*SetComputeClusterMemberStateResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetComputeClusterMemberStateResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest ComputeClusterMemberAction
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListComputeImagesResponse parses an HTTP response from a ListComputeImagesWithResponse call
 func ParseListComputeImagesResponse(rsp *http.Response) (*ListComputeImagesResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -19276,6 +19911,67 @@ func ParseExecComputeInstanceResponse(rsp *http.Response) (*ExecComputeInstanceR
 			return nil, err
 		}
 		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseMigrateComputeInstanceResponse parses an HTTP response from a MigrateComputeInstanceWithResponse call
+func ParseMigrateComputeInstanceResponse(rsp *http.Response) (*MigrateComputeInstanceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &MigrateComputeInstanceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeInstance
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
 
 	}
 

@@ -475,6 +475,12 @@
   "compute.err_insufficient_balance": {
     "other": "موجودی برای انجام این عمل کافی نیست."
   },
+  "compute.err_migration_unsupported": {
+    "other": "جابه‌جایی نمونه روی این استقرار پشتیبانی نمی‌شود."
+  },
+  "compute.err_no_eligible_member": {
+    "other": "هیچ عضو خوشه‌ای برای میزبانی این نمونه در دسترس نیست. بعداً دوباره تلاش کنید."
+  },
   "dns.err_disabled": {
     "other": "زیرسامانهٔ دی‌ان‌اس روی این کارساز فعال نیست."
   },

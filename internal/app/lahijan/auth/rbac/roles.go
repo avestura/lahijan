@@ -109,6 +109,11 @@ var defaultRoles = []RoleDefinition{
 			PermComputeSnapshotPolicyRead,
 			PermComputeSnapshotPolicyUpdate,
 			PermComputeSnapshotPolicyDelete,
+			// compute cluster (WS-26, admin = full: list members,
+			// migrate own instances, evacuate/restore members).
+			PermComputeClusterMemberList,
+			PermComputeClusterMemberEvacuate,
+			PermComputeInstanceMigrate,
 			// dns (full)
 			PermDNSZoneCreate,
 			PermDNSZoneRead,
@@ -175,6 +180,10 @@ var defaultRoles = []RoleDefinition{
 			PermComputeBackupRead,
 			PermComputeBackupRestore,
 			PermComputeSnapshotPolicyRead,
+			// compute cluster (WS-26, member = list + migrate own;
+			// evacuate/restore is admin-only).
+			PermComputeClusterMemberList,
+			PermComputeInstanceMigrate,
 			// dns (no zone delete)
 			PermDNSZoneCreate,
 			PermDNSZoneRead,
@@ -219,6 +228,8 @@ var defaultRoles = []RoleDefinition{
 			PermComputeBackupRead,
 			PermComputeBackupTargetRead,
 			PermComputeSnapshotPolicyRead,
+			// compute cluster (WS-26 read: viewer can see members)
+			PermComputeClusterMemberList,
 			// dns reads
 			PermDNSZoneRead,
 			PermDNSRecordRead,

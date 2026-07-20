@@ -154,6 +154,25 @@ func (s *Service) CreateInstance(
 		},
 	})
 
+	// 5.5) WS-26: pick a cluster member for the new instance. The
+	// placement driver is non-nil (New falls back to Local). The
+	// Local driver returns "" so single-node daemons work unchanged;
+	// the Cluster driver queries the Incus cluster API under a
+	// per-tenant advisory lock.
+	target, errPlace := s.placement.SelectTarget(ctx, PlacementParams{
+		TenantID: tenantID,
+		Project:  project,
+		Name:     params.Name,
+		Type:     params.Type,
+		Config:   params.Config,
+	})
+	if errPlace != nil {
+		_ = s.audit.MarkOutcome(ctx, auditID, audit.Outcome{Status: audit.StatusFailure, Details: map[string]any{
+			"error": errPlace.Error(),
+		}})
+		return database.ComputeInstance{}, fmt.Errorf("compute: select target: %w", errPlace)
+	}
+
 	// 6) Incus create.
 	source := incus.InstanceSource{Type: "image", Alias: params.ImageAlias}
 	op, err := s.provider.CreateInstance(ctx, incus.CreateInstanceParams{
@@ -165,6 +184,7 @@ func (s *Service) CreateInstance(
 		Devices:     params.Devices,
 		Profiles:    profiles,
 		Source:      source,
+		Target:      target,
 	})
 	if err != nil {
 		// Mark the audit row failed; leave the compute_instances row
@@ -179,6 +199,24 @@ func (s *Service) CreateInstance(
 	if fp := opFingerprint(op); fp != "" {
 		_ = s.repos.ComputeInstances.SetImageFingerprint(ctx, row.ID, fp)
 		row.ImageFingerprint = fp
+	}
+
+	// 7.5) WS-26: cache the Incus-reported cluster member. The
+	// daemon populates the instance's Location field from the
+	// target; we mirror it into compute_instances.cluster_member so
+	// the UI can render "where does this instance live" without a
+	// per-row daemon round-trip.
+	if live, errGetInstance := s.provider.GetInstance(ctx, project, params.Name); errGetInstance == nil && live.Location != "" {
+		loc := live.Location
+		_ = s.repos.ComputeInstances.SetClusterMember(ctx, row.ID, &loc)
+		row.ClusterMember = &loc
+	} else if target != "" {
+		// Fall back to the requested target when the daemon does not
+		// echo back the Location (e.g. single-node daemon that
+		// accepts the target and ignores it).
+		t := target
+		_ = s.repos.ComputeInstances.SetClusterMember(ctx, row.ID, &t)
+		row.ClusterMember = &t
 	}
 
 	// 8) Event bus emit (compute.instance.created). Best-effort: a
@@ -244,6 +282,14 @@ func (s *Service) ReconcileInstance(
 	_ = s.repos.ComputeInstances.SetStatus(ctx, instanceID, inst.Status, int32(inst.StatusCode))
 	row.Status = inst.Status
 	row.StatusCode = int32(inst.StatusCode)
+	// WS-26: refresh the cluster_member cache from the daemon's
+	// Location field. NULL on a single-node daemon; the cached column
+	// is informational only.
+	if inst.Location != "" {
+		loc := inst.Location
+		_ = s.repos.ComputeInstances.SetClusterMember(ctx, instanceID, &loc)
+		row.ClusterMember = &loc
+	}
 	return row, nil
 }
 

@@ -376,13 +376,125 @@ scripts/
 - ADR-0006 — Lahijan ships the whole stack
 - ADR-0007 — shared Postgres, separate logical DBs
 - ADR-0008 — River (PostgreSQL-native) for jobs
+- ADR-0009 — multi-node-ready from day 1
 - ADR-0010 — full Incus surface
 - ADR-0011 — direct S3 for data + Lahijan for control plane
 - ADR-0016 — full OTel from day 1
 - ADR-0029 — test sandbox topology
 - ADR-0030 — production deployment topology (this WS)
+- ADR-0033 — multi-node cluster design (WS-26)
 
-## 14. Getting help
+## 14. Multi-node / HA deployments (WS-26)
+
+Lahijan's architecture is multi-node-ready from day 1 (ADR-0009); WS-26
+makes it real. Two scale-out shapes are supported:
+
+### 14a. Multiple Lahijan replicas (HA control plane)
+
+Run N replicas of the Lahijan container against one shared Postgres.
+Sessions, audit, billing, jobs, and WASM state are all DB-backed; River
+serialises job dispatch; no in-process state survives a restart. Useful
+for blue/green deploys and zero-downtime upgrades.
+
+Topology:
+
+```
+                    ┌──────────────┐
+                    │   Caddy LB   │   (sticky not required)
+                    └──────┬───────┘
+           ┌───────────────┼───────────────┐
+           ▼               ▼               ▼
+     ┌──────────┐    ┌──────────┐    ┌──────────┐
+     │ Lahijan 1│    │ Lahijan 2│    │ Lahijan N│
+     └────┬─────┘    └────┬─────┘    └────┬─────┘
+          │                │                │
+          └────────┬───────┴────────────────┘
+                   ▼
+            ┌────────────┐
+            │  Postgres  │   (HA via Patroni or managed PG)
+            └────────────┘
+
+  (Incus + PowerDNS + SeaweedFS stay where they are; Lahijan points at
+  them via env, same as single-host.)
+```
+
+Steps:
+
+1. Provision one Postgres for every replica to share (use a managed
+   Postgres or a Patroni-managed cluster; the single-Postgres
+   container from this stack is **not** HA).
+2. Provision N Lahijan hosts; on each, install Docker + clone this
+   repo.
+3. On each host, copy `.env.prod.example` to `.env` and fill in the
+   **same** values (same `LAHIJAN_DB_*`, same `LAHIJAN_AUTH_*`).
+4. Run `scripts/install.sh` on each host. Each replica starts
+   independently; River's leadership election serialises the job
+   queue.
+5. Front the replicas with a layer-7 LB (Caddy with multiple
+   `reverse_proxy` targets, AWS ALB, Cloudflare, ...). Sessions are
+   DB-backed so any LB algorithm works; pick `round_robin` for
+   simplicity.
+
+The single-host `docker-compose.prod.yml` ships one Lahijan replica;
+to run N replicas use a compose override file (`docker-compose.override.yml`
+is auto-merged):
+
+```yaml
+# docker-compose.override.yml
+services:
+  lahijan:
+    deploy:
+      replicas: 3
+```
+
+### 14b. Incus cluster (compute scale-out)
+
+Multiple Incus hosts join one Incus cluster; Lahijan's
+`ClusterPlacementDriver` queries the cluster API and places new
+instances on the least-loaded member. Existing instances can be
+live-migrated between members via `POST /api/v1/compute/instances/{id}/migrate`.
+
+Steps:
+
+1. Bootstrap an Incus cluster per the upstream docs
+   (https://linuxcontainers.org/incus/docs/main/howto/cluster/).
+   Every member must run the same Incus version; the cluster's
+   dqlite database needs an odd number of voters (typically 3).
+2. Verify the cluster is reachable from every Lahijan replica via
+   the configured `INCUS_SOCKET_PATH` (Unix socket) or
+   `INCUS_REMOTE_URL` (HTTPS remote).
+3. Flip `providers.incus.placement.mode` from `local` to `cluster`
+   in `.env`:
+
+   ```
+   LAHIJAN_PROVIDERS_INCUS_PLACEMENT_MODE=cluster
+   ```
+
+4. Restart every Lahijan replica. The first `GET /health` after
+   restart reports the cluster mode; the admin UI's "Cluster" panel
+   lists every member.
+
+The `ClusterPlacementDriver` makes scheduling decisions under a per-
+tenant Postgres advisory lock (`pg_advisory_xact_lock`) so concurrent
+`CreateInstance` calls across replicas do not both pick the same
+"least loaded" member. Per-instance placement metadata is mirrored
+into the `compute_instances.cluster_member` column for the UI.
+
+### 14c. What still needs to be single-node
+
+- **PowerDNS Authoritative:** PDNS supports its own native replication
+  (via `also-notify` + AXFR) but the single-container deployment in
+  this stack is single-node. A future WS may ship a multi-master PDNS
+  topology.
+- **SeaweedFS:** runs `master + volume + filer + s3` as separate
+  services in this stack; the topology is HA-friendly but the
+  defaults are sized for a single host. Scale by adding volume
+  servers.
+- **Incus client sidecar:** the `incus-client` container in this
+  stack is a thin wrapper around the host's Incus socket; it has no
+  state and can be replicated freely.
+
+## 15. Getting help
 
 - **Issues:** https://github.com/avestura/lahijan/issues
 - **Docs site:** https://lahijan.dev (rendered from `/docs`)

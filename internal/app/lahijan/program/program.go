@@ -66,6 +66,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
 	"github.com/gofiber/fiber/v2/middleware/healthcheck"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	riverui "riverqueue.com/riverui"
 )
 
@@ -241,6 +242,26 @@ func Start() error {
 		if c, cryptoErr := buildCrypto(); cryptoErr == nil {
 			computeCrypto = c
 		}
+		// WS-26: build the PlacementDriver. LocalPlacementDriver is
+		// the default (single-node topology, ADR-0005). The deployer
+		// flips to ClusterPlacementDriver via
+		// providers.incus.placement.mode == "cluster"; the cluster
+		// driver queries the Incus cluster API for the list of
+		// members + serialises per-tenant placement decisions via a
+		// Postgres advisory lock.
+		var placement compute.PlacementDriver
+		switch conf.GetProvidersIncusPlacementMode() {
+		case conf.PlacementModeCluster:
+			clusterDriver := compute.NewClusterPlacementDriver(
+				incusDeps.provider,
+				compute.NewPGAdvisoryLocker(authDeps.pool),
+			)
+			placement = clusterDriver
+			fiberlog.Info("compute placement driver wired", "mode", "cluster")
+		default:
+			placement = compute.NewLocalPlacementDriver()
+			fiberlog.Info("compute placement driver wired", "mode", "local")
+		}
 		computeSvc = compute.New(
 			incusDeps.provider,
 			authDeps.repos,
@@ -248,8 +269,9 @@ func Start() error {
 			wasmDeps.bus,
 			rbac.NewEvaluator(authDeps.repos.Memberships),
 			compute.Config{
-				Quotas: compute.DefaultQuotas(),
-				Crypto: computeCrypto,
+				Quotas:    compute.DefaultQuotas(),
+				Crypto:    computeCrypto,
+				Placement: placement,
 			},
 		)
 		// Seed the featured-image catalog for every existing tenant. A
@@ -462,6 +484,7 @@ func Start() error {
 // is built once and shared by the API server and the auth middleware.
 type authDeps struct {
 	repos      *database.Repos
+	pool       *pgxpool.Pool
 	signer     *secrets.Signer
 	hasher     *password.Hasher
 	sessionSvc *session.Service
@@ -541,6 +564,7 @@ func buildAuthDeps(ctx context.Context) (*authDeps, func(), error) {
 	cleanup := func() { pool.Close() }
 	return &authDeps{
 		repos:      repos,
+		pool:       pool,
 		signer:     signer,
 		hasher:     hasher,
 		sessionSvc: sessionSvc,

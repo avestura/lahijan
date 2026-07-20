@@ -104,6 +104,14 @@ const (
 	PermComputeSnapshotPolicyUpdate = "compute.snapshot_policy.update"
 	PermComputeSnapshotPolicyDelete = "compute.snapshot_policy.delete"
 
+	// --- compute cluster (WS-26). Multi-node / HA control plane.
+	// Granted to tenant.admin (member-list + migrate) + tenant.viewer
+	// (member-list only) so the cluster status panel renders without
+	// elevating. ---
+	PermComputeClusterMemberList     = "compute.cluster.member.list"
+	PermComputeClusterMemberEvacuate = "compute.cluster.member.evacuate"
+	PermComputeInstanceMigrate       = "compute.instance.migrate"
+
 	// --- dns (WS-15) ---
 	PermDNSZoneCreate   = "dns.zone.create"
 	PermDNSZoneRead     = "dns.zone.read"
@@ -192,10 +200,13 @@ var allPermissions = []Permission{
 	{Slug: PermComputeBackupTargetDelete, Description: "Delete an off-host backup target."},
 	{Slug: PermComputeBackupTargetRead, Description: "View off-host backup targets."},
 	{Slug: PermComputeBackupTargetUpdate, Description: "Update an off-host backup target."},
+	{Slug: PermComputeClusterMemberEvacuate, Description: "Evacuate or restore a compute cluster member (admin)."},
+	{Slug: PermComputeClusterMemberList, Description: "List compute cluster members + their status."},
 	{Slug: PermComputeImageRead, Description: "List and inspect instance images."},
 	{Slug: PermComputeInstanceConsoleVNC, Description: "Open a graphical (noVNC) console session to a running virtual-machine instance."},
 	{Slug: PermComputeInstanceCreate, Description: "Create an instance."},
 	{Slug: PermComputeInstanceDelete, Description: "Delete an instance."},
+	{Slug: PermComputeInstanceMigrate, Description: "Live-migrate an instance to a different compute cluster member."},
 	{Slug: PermComputeInstanceRead, Description: "View instances."},
 	{Slug: PermComputeInstanceRestart, Description: "Restart an instance."},
 	{Slug: PermComputeInstanceStart, Description: "Start an instance."},

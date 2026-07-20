@@ -43,6 +43,10 @@ type Server struct {
 	aliases      map[string]string // alias -> fingerprint
 	storagePools map[string]*incus.StoragePool
 	operations   map[string]*fakeOperation
+	// cluster holds the in-memory cluster membership (WS-26). On a
+	// single-node fake the slice carries one entry; tests add more
+	// via AddClusterMember.
+	cluster clusterState
 
 	// events fan-out
 	eventsMu    sync.Mutex
@@ -141,6 +145,22 @@ func newServer() *Server {
 		Config: map[string]string{},
 	}
 	s.projects["default"] = newFakeProject(incus.Project{Name: "default"})
+
+	// Seed: a single cluster member matching the ServerName the /1.0
+	// server-info handler reports ("fake-host"). Tests that need a
+	// multi-member cluster call AddClusterMember after NewServer.
+	s.cluster.members = []incus.ClusterMember{
+		{
+			ServerName:    "fake-host",
+			URL:           "/1.0/cluster/members/fake-host",
+			Status:        "Online",
+			Architecture:  "x86_64",
+			Database:      true,
+			Roles:         []string{"database", "database-leader"},
+			Config:        map[string]string{},
+			FailureDomain: "default",
+		},
+	}
 
 	return s
 }
@@ -342,6 +362,9 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 		return
 	case path == "storage-pools":
 		s.handleStoragePoolsList(w, r)
+		return
+	case strings.HasPrefix(path, "cluster/"):
+		s.handleCluster(w, r, strings.TrimPrefix(path, "cluster/"))
 		return
 	default:
 		writeIncusError(w, http.StatusNotFound, "not implemented in fake: %s %s", r.Method, path)

@@ -275,6 +275,21 @@ func AuditGate(policy middleware.PolicyResolver) apigen.MiddlewareFunc {
 		case isComputeStoragePath(path) && method == "DELETE":
 			return middleware.RequirePerm(policy, rbac.PermComputeStoragePoolRead)(c)
 
+		// WS-26: compute cluster admin endpoints. The cluster member
+		// list is granted to viewer + member + admin (so the UI panel
+		// renders without elevating); evacuate/restore is admin-only;
+		// migrate is member + admin (the instance owner can rebalance
+		// their own instances). All audit-emitted actions are tracked
+		// via the compute.audit.* slugs.
+		case isComputeClusterMemberEvacuatePath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermComputeClusterMemberEvacuate)(c)
+		case isComputeClusterMemberPath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermComputeClusterMemberList)(c)
+		case isComputeClusterMembersPath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermComputeClusterMemberList)(c)
+		case isComputeInstanceMigratePath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermComputeInstanceMigrate)(c)
+
 		// WS-15: DNS module endpoints. Every /api/v1/dns/* path is gated;
 		// the slug maps 1:1 with the rbac.PermDNS* registry so the policy
 		// evaluator can answer with the caller's role grant
@@ -380,7 +395,8 @@ func isComputeInstancePath(path string) bool {
 		!isComputeInstanceVNCPath(path) &&
 		!isComputeSnapshotPath(path) &&
 		!isComputeSnapshotRestorePath(path) &&
-		!isComputeInstanceBackupsPath(path)
+		!isComputeInstanceBackupsPath(path) &&
+		!isComputeInstanceMigratePath(path)
 }
 
 // isComputeInstanceLifecyclePath reports whether path is one of the
@@ -467,6 +483,38 @@ func isComputeBackupPath(path string) bool {
 		return true
 	}
 	return strings.HasPrefix(path, "/api/v1/compute/backups/")
+}
+
+// isComputeClusterMembersPath reports whether path targets the cluster
+// members collection (WS-26).
+func isComputeClusterMembersPath(path string) bool {
+	return path == "/api/v1/compute/cluster/members"
+}
+
+// isComputeClusterMemberPath reports whether path targets a specific
+// cluster member (WS-26). Used by both GET (member detail) and POST
+// (evacuate/restore) — the audit gate distinguishes by method.
+func isComputeClusterMemberPath(path string) bool {
+	return strings.HasPrefix(path, "/api/v1/compute/cluster/members/")
+}
+
+// isComputeClusterMemberEvacuatePath reports whether path is the
+// evacuate/restore sub-resource of a specific member (WS-26). The
+// trailing segment is the action ("evacuate" or "restore").
+func isComputeClusterMemberEvacuatePath(path string) bool {
+	if !strings.HasPrefix(path, "/api/v1/compute/cluster/members/") {
+		return false
+	}
+	return strings.HasSuffix(path, "/evacuate") || strings.HasSuffix(path, "/restore")
+}
+
+// isComputeInstanceMigratePath reports whether path targets the
+// per-instance migrate endpoint (WS-26).
+func isComputeInstanceMigratePath(path string) bool {
+	if !strings.HasPrefix(path, "/api/v1/compute/instances/") {
+		return false
+	}
+	return strings.HasSuffix(path, "/migrate")
 }
 
 // computeInstanceActionPerm maps the trailing path segment to the matching

@@ -2587,6 +2587,137 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
 
   # ===========================================================================
+  # Compute cluster (WS-26): multi-node control plane admin surface. End
+  # users see "compute nodes", never "Incus members" (pillar 1).
+  # ===========================================================================
+
+  /api/v1/compute/cluster/members:
+    get:
+      tags: [compute]
+      operationId: listComputeClusterMembers
+      summary: List compute cluster members
+      description: |
+        Returns the list of compute cluster members and their current
+        status. Granted to tenant.viewer + above so the cluster
+        status panel renders without elevating. Returns a single
+        member on a single-node deployment.
+      responses:
+        "200":
+          description: A list of cluster members.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeClusterMemberList" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/compute/cluster/members/{memberName}:
+    parameters:
+      - name: memberName
+        in: path
+        required: true
+        description: The cluster member's hostname-style identifier.
+        schema: { type: string }
+    get:
+      tags: [compute]
+      operationId: getComputeClusterMember
+      summary: Get a single cluster member
+      description: |
+        Returns the metadata + status for one cluster member. Used by
+        the admin detail view; mirrors the list response shape.
+      responses:
+        "200":
+          description: The member.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeClusterMember" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/compute/cluster/members/{memberName}/{action}:
+    parameters:
+      - name: memberName
+        in: path
+        required: true
+        schema: { type: string }
+      - name: action
+        in: path
+        required: true
+        description: |
+          The member-state action. `evacuate` live-migrates every
+          instance hosted on the member to other members; `restore`
+          marks it available for new placements again.
+        schema:
+          type: string
+          enum: [evacuate, restore]
+    post:
+      tags: [compute]
+      operationId: setComputeClusterMemberState
+      summary: Evacuate or restore a cluster member
+      description: |
+        Triggers the Incus evacuate/restore workflow on the named
+        member. The action runs as a long-lived async operation; the
+        response carries the operation id so the UI can poll status
+        via the cluster member detail endpoint. Admin-only
+        (compute.cluster.member.evacuate).
+      responses:
+        "202":
+          description: Action accepted; the operation id is returned.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeClusterMemberAction" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: The member is not in a state that allows the action.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/compute/instances/{instanceId}/migrate:
+    parameters:
+      - name: instanceId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [compute]
+      operationId: migrateComputeInstance
+      summary: Live-migrate an instance to a different cluster member
+      description: |
+        Moves an existing instance to a different compute cluster
+        member. The destination must already exist in the cluster;
+        callers typically pick one from the GET
+        /api/v1/compute/cluster/members response. Granted to
+        tenant.member + above (the instance owner can rebalance their
+        own instances). The audit row records the source + target
+        member so the operator can trace placement churn.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComputeInstanceMigrateRequest" }
+      responses:
+        "200":
+          description: Migration completed; the updated instance row.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeInstance" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Migration not supported (e.g. single-node daemon).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  # ===========================================================================
   # DNS module (WS-15)
   # ===========================================================================
 
@@ -4629,6 +4760,13 @@ components:
             additionalProperties: { type: string }
           description: Per-device config map (root disk, nics, ...).
         description:  { type: string }
+        clusterMember:
+          type: string
+          nullable: true
+          description: |
+            The compute cluster member hosting the instance (WS-26).
+            NULL on a single-node daemon. Reconciled from the daemon
+            on read; the daemon is the source of truth.
         createdAt:    { type: string, format: date-time }
         updatedAt:    { type: string, format: date-time }
 
@@ -5082,6 +5220,91 @@ components:
         total:  { type: integer }
         limit:  { type: integer }
         offset: { type: integer }
+
+    # =========================================================================
+    # Compute cluster schemas (WS-26). End users see "compute nodes",
+    # never "Incus members" (pillar 1).
+    # =========================================================================
+
+    ComputeClusterMember:
+      type: object
+      required: [serverName, status]
+      additionalProperties: false
+      properties:
+        serverName:
+          type: string
+          description: The member's hostname-style identifier ("node-1").
+        url:
+          type: string
+          description: The daemon-side URL of the member.
+        database:
+          type: boolean
+          description: True when the member runs a dqlite database copy.
+        status:
+          type: string
+          enum: [Online, Offline, Evacuated]
+          description: Current member status.
+        message:
+          type: string
+          description: Free-form status detail (failure reason, ...).
+        roles:
+          type: array
+          items: { type: string }
+          description: Cluster roles the member holds.
+        architecture:
+          type: string
+          description: CPU architecture ("x86_64", "aarch64").
+        failureDomain:
+          type: string
+          description: Operator-assigned failure domain label.
+        description:
+          type: string
+          description: Operator-set member description.
+
+    ComputeClusterMemberList:
+      type: object
+      required: [items]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ComputeClusterMember" }
+
+    ComputeClusterMemberAction:
+      type: object
+      required: [operationId]
+      additionalProperties: false
+      properties:
+        operationId:
+          type: string
+          description: The async operation id tracking the evacuate/restore.
+        memberName:
+          type: string
+        action:
+          type: string
+          enum: [evacuate, restore]
+
+    ComputeInstanceMigrateRequest:
+      type: object
+      required: [targetMember]
+      additionalProperties: false
+      properties:
+        targetMember:
+          type: string
+          description: The destination cluster member's serverName.
+        live:
+          type: boolean
+          default: false
+          description: |
+            True for live migration (CRIU for containers, storage
+            replication for VMs). When false the instance is stopped
+            at the source, copied, and started at the destination
+            (lower-risk but higher-downtime).
+        storagePool:
+          type: string
+          description: |
+            Optional destination storage pool. Empty = the daemon
+            picks a pool from the target member's available pools.
 
     # =========================================================================
     # DNS module schemas (WS-15)

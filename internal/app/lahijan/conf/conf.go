@@ -733,6 +733,35 @@ func GetProvidersIncusTLS() IncusTLSConfig {
 	}
 }
 
+// PlacementMode is the per-instance scheduling mode the compute
+// service uses to pick where a new instance lands (WS-26, ADR-0033).
+type PlacementMode string
+
+const (
+	// PlacementModeLocal is the default: every CreateInstance call
+	// targets the local Incus daemon (single-node topology,
+	// ADR-0005). The Incus daemon treats empty target as "any
+	// member"; on a single-node daemon this is the only valid value.
+	PlacementModeLocal PlacementMode = "local"
+	// PlacementModeCluster queries the Incus cluster API for the
+	// list of members and picks the least-loaded one for each
+	// CreateInstance. The decision is wrapped in a per-tenant
+	// Postgres advisory lock so concurrent placements across
+	// replicas do not double-pick the same member.
+	PlacementModeCluster PlacementMode = "cluster"
+)
+
+// GetProvidersIncusPlacementMode returns the scheduling mode the
+// compute service uses. Defaults to PlacementModeLocal; the deployer
+// flips to PlacementModeCluster when the Incus daemon is clustered.
+func GetProvidersIncusPlacementMode() PlacementMode {
+	v := PlacementMode(viper.GetString("providers.incus.placement.mode"))
+	if v == PlacementModeCluster {
+		return PlacementModeCluster
+	}
+	return PlacementModeLocal
+}
+
 // ---------------------------------------------------------------------------
 // PowerDNS provider (WS-12). Every getter reads a key under providers.powerdns.*.
 // ---------------------------------------------------------------------------
