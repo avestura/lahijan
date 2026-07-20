@@ -1,0 +1,25 @@
+{
+  "name": "@lahijan/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Lahijan Playwright e2e suite (WS-22). Driven by scripts/run-e2e.sh against the test sandbox stack.",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:debug": "playwright test --debug",
+    "report": "playwright show-report",
+    "lint": "prettier --check .",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@playwright/test": "1.49.1",
+    "@types/node": "22.10.2",
+    "prettier": "3.4.2",
+    "typescript": "5.7.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

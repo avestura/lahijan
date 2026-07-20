@@ -35,9 +35,12 @@ help: ## Show this help
 	@echo "Development:"
 	@echo "  make build         Build the lahijan binary into dist/"
 	@echo "  make run           Build + run with --debug"
-	@echo "  make test          Run all Go unit tests (race)"
+	@echo "  make test          Run all Go unit tests"
 	@echo "  make test-short    Run only short tests"
+	@echo "  make test-integration Run integration tests (testcontainers + fakes)"
+	@echo "  make test-e2e      Bring up test sandbox + run Playwright e2e"
 	@echo "  make cover         Run tests with coverage"
+	@echo "  make cover-check   Run tests with coverage; fail below threshold"
 	@echo "  make lint          Run golangci-lint (set LINT_FLAGS=--fast)"
 	@echo "  make fmt           Format Go code with gofumpt"
 	@echo "  make vet           Run go vet"
@@ -78,6 +81,8 @@ help: ## Show this help
 	@echo "  make dev-up        Start dev deps (Postgres etc.) via compose"
 	@echo "  make dev-down      Stop dev deps"
 	@echo "  make dev-logs      Tail dev dep logs"
+	@echo "  make test-up       Start test sandbox (Postgres + SeaweedFS, throwaway)"
+	@echo "  make test-down     Stop test sandbox + delete volumes"
 	@echo "  make docker-build  Build production image"
 	@echo ""
 	@echo "Repo hygiene:"
@@ -113,6 +118,10 @@ test-race: ## Run all Go unit tests with -race (requires CGO_ENABLED=1)
 test-short: ## Run only short tests (skips integration)
 	$(GO) test $(GOFLAGS) -short -timeout 60s ./...
 
+.PHONY: test-integration
+test-integration: ## Run integration tests (testcontainers Postgres + provider fakes). Needs Docker.
+	$(GO) test $(GOFLAGS) -tags=integration -timeout 300s ./...
+
 .PHONY: bench
 bench: ## Run benchmarks
 	$(GO) test $(GOFLAGS) -bench=. -benchmem -run=^$$ ./...
@@ -121,6 +130,11 @@ bench: ## Run benchmarks
 cover: ## Run tests with coverage, output to coverage.out
 	$(GO) test $(GOFLAGS) -race -coverprofile=coverage.out -covermode=atomic ./...
 	$(GO) tool cover -func=coverage.out | tail -1
+
+.PHONY: cover-check
+cover-check: ## Run unit tests with coverage and fail if total statements < LAHIJAN_COVERAGE_MIN_PCT (default 20)
+	$(GO) test $(GOFLAGS) "-coverprofile=coverage.out" -covermode=atomic ./internal/...
+	$(GO) run ./scripts/cover-check coverage.out $(LAHIJAN_COVERAGE_MIN_PCT)
 
 .PHONY: vet
 vet: ## Run go vet
@@ -296,6 +310,46 @@ dev-down: ## Stop dev dependencies
 .PHONY: dev-logs
 dev-logs: ## Tail dev dependency logs
 	$(COMPOSE) logs -f
+
+# ---------------------------------------------------------------------------
+# Test sandbox (WS-22)
+#
+# The sandbox compose lives at deployments/docker-compose.test.yml. It runs
+# Postgres + SeaweedFS with throwaway volumes on an isolated network. The
+# Incus + PowerDNS providers are stubbed via the in-process httptest fakes
+# under providers/<name>/fake/ (see ADR-0029).
+#
+# `make test-e2e` brings the stack up, builds the dashboard, runs the Go
+# e2e harness (which wires the fakes + dashboard + Lahijan app into a single
+# port), runs Playwright against it, then tears it all down. The runner
+# script always tears down on exit even on failure.
+#
+# CI runs the same target via .github/workflows/e2e.yml on labeled PRs
+# (`run:e2e`) and nightly on main.
+# ---------------------------------------------------------------------------
+
+TEST_COMPOSE := docker compose -f deployments/docker-compose.test.yml
+E2E_DIR     := test/e2e
+
+.PHONY: test-up
+test-up: ## Bring up the test sandbox (Postgres + SeaweedFS, isolated network, throwaway volumes)
+	$(TEST_COMPOSE) up -d --wait
+
+.PHONY: test-down
+test-down: ## Tear down the test sandbox and delete its volumes
+	$(TEST_COMPOSE) down -v --remove-orphans
+
+.PHONY: test-logs
+test-logs: ## Tail test sandbox logs
+	$(TEST_COMPOSE) logs -f
+
+.PHONY: test-e2e
+test-e2e: ## Bring up the test sandbox, run Playwright e2e specs, tear down. Needs Docker + Node 20+.
+	@./scripts/run-e2e.sh
+
+.PHONY: test-e2e-ui
+test-e2e-ui: ## Like test-e2e but launches Playwright in headed mode with the inspector
+	@LAHIJAN_E2E_HEADED=1 ./scripts/run-e2e.sh
 
 # ---------------------------------------------------------------------------
 # Repo hygiene

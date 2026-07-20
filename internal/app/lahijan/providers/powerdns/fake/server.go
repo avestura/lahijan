@@ -59,13 +59,33 @@ type fakeZone struct {
 	nextKeyID  int64
 }
 
-// NewServer returns a started fake PowerDNS server. The server is alive; the
-// caller is responsible for calling HTTP.Close at the end of the test.
+// NewServer returns a started fake PowerDNS server. The server is alive;
+// the caller is responsible for calling HTTP.Close at the end of the test.
 //
 // Defaults: serverVersion="4.9.0-fake", daemonType="authoritative",
 // APIKey="test-key" (matches the test wiring in connectProvider).
 func NewServer(t testing.TB) *Server {
 	t.Helper()
+	s := newServer()
+	s.HTTP = httptest.NewServer(http.HandlerFunc(s.handler))
+	t.Cleanup(func() { s.HTTP.Close() })
+	return s
+}
+
+// NewServerStandalone returns a started fake PowerDNS server without
+// wiring testing.TB.Cleanup. The caller MUST call s.HTTP.Close() when
+// done (typically via defer). Used by non-test-binary callers (e.g. the
+// WS-22 e2e harness under test/e2e/harness/, which drives the app from a
+// long-running process instead of a *testing.T).
+func NewServerStandalone() *Server {
+	s := newServer()
+	s.HTTP = httptest.NewServer(http.HandlerFunc(s.handler))
+	return s
+}
+
+// newServer constructs the in-memory state shared by NewServer and
+// NewServerStandalone so the seed + handler wiring cannot drift.
+func newServer() *Server {
 	s := &Server{
 		zones:          make(map[string]*fakeZone),
 		serverVersion:  "4.9.0-fake",
@@ -73,8 +93,6 @@ func NewServer(t testing.TB) *Server {
 		APIKey:         "test-key",
 		apiKeyRequired: true,
 	}
-	s.HTTP = httptest.NewServer(http.HandlerFunc(s.handler))
-	t.Cleanup(func() { s.HTTP.Close() })
 	return s
 }
 

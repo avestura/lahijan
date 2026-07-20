@@ -1,0 +1,187 @@
+# Lahijan — test (sandbox / integration / e2e) Docker Compose stack.
+#
+# WS-22. Mirrors docker-compose.dev.yml but with three differences required
+# by docs/workstreams/WS-22-sandbox-integration-test-harness.md:
+#
+#   1. Isolated network — every service attaches to `lahijan-test-net` so a
+#      test run never collides with a developer's running dev stack.
+#   2. Throwaway volumes — anonymous volumes only. `docker compose down -v`
+#      wipes all state. No named volumes that survive a run.
+#   3. No Lahijan binary prebuilt — the `app` service builds the binary from
+#      source using the repo Dockerfile. The image tag is overridable so CI
+#      can pin a cache.
+#
+# Provider strategy (per ADR-0029):
+#   - Postgres: real container (the only stateful backend that matters).
+#   - SeaweedFS: real `weed mini` container, throwaway volume. The SeaweedFS
+#     fake in providers/seaweedfs/fake/ is operations-interface-level (not
+#     wire-level) so it cannot serve the data-plane S3 traffic the e2e
+#     storage journey needs (aws-cli PUT/GET). A real container is cheap
+#     and exercises the actual SigV4 path.
+#   - Incus + PowerDNS: in-process httptest fakes (see providers/<name>/fake/).
+#     These wire into the Lahijan app via the e2e harness; no containers
+#     here. Incus cannot run in CI without kernel features, and the PDNS
+#     fake is wire-compatible with the driver so it catches every bug a
+#     real PDNS would.
+#
+# Usage:
+#   make test-e2e        # scripts/run-e2e.sh wraps this file + Playwright
+#   docker compose -f deployments/docker-compose.test.yml up -d
+#   docker compose -f deployments/docker-compose.test.yml down -v --remove-orphans
+#
+# Never use this file for production. Use docker-compose.prod.yml (WS-23).
+
+name: lahijan-test
+
+# Isolated network — see file header. The `name:` on the project + the
+# explicit network name keep a `docker compose down` from touching any
+# other Lahijan stack the operator might have running.
+networks:
+  lahijan-test-net:
+    name: lahijan-test-net
+    driver: bridge
+    labels:
+      lahijan.role: "test"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: lahijan-postgres-test
+    restart: "no" # tests own the lifecycle; never auto-restart
+    networks: [lahijan-test-net]
+    environment:
+      POSTGRES_USER: ${POSTGRES_SUPERUSER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_SUPERUSER_DB:-postgres}
+      LAHIJAN_DB_NAME: ${LAHIJAN_DATABASE_NAME:-lahijan}
+      LAHIJAN_DB_USER: ${LAHIJAN_DATABASE_USER:-lahijan}
+      LAHIJAN_DB_PASSWORD: ${LAHIJAN_DATABASE_PASSWORD:-lahijan}
+      PDNS_DB_NAME: ${PDNS_DATABASE_NAME:-pdns}
+      PDNS_DB_USER: ${PDNS_DATABASE_USER:-pdns}
+      PDNS_DB_PASSWORD: ${PDNS_DATABASE_PASSWORD:-pdns}
+      SEAWEED_DB_NAME: ${SEAWEED_DATABASE_NAME:-seaweed}
+      SEAWEED_DB_USER: ${SEAWEED_DATABASE_USER:-seaweed}
+      SEAWEED_DB_PASSWORD: ${SEAWEED_DATABASE_PASSWORD:-seaweed}
+    # Anonymous volume: `down -v` cleans it. Never persist test state.
+    volumes:
+      - /var/lib/postgresql/data
+      - ./postgres/init.sh:/docker-entrypoint-initdb.d/01-init.sh:ro
+      - ./powerdns/init.sh:/docker-entrypoint-initdb.d/02-pdns-schema.sh:ro
+      - ./powerdns/schema.pgsql.sql:/powerdns/schema.pgsql.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 2s
+      retries: 30
+      start_period: 3s
+    shm_size: 256m
+    ports:
+      # Bind to localhost only so a CI runner doesn't expose the test DB.
+      # The Lahijan app talks to it over the compose network; the host
+      # mapping is for the e2e harness when it runs the Go app on the host
+      # (not inside compose).
+      - "127.0.0.1:${LAHIJAN_TEST_POSTGRES_HOST_PORT:-55432}:5432"
+
+  # SeaweedFS `weed mini` — same shape as the dev stack but with a
+  # throwaway anonymous volume and the test network. The storage e2e
+  # journey (bucket + aws-cli upload) hits this directly.
+  seaweedfs:
+    image: chrislusf/seaweedfs:3.61
+    container_name: lahijan-seaweedfs-test
+    restart: "no"
+    networks: [lahijan-test-net]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command:
+      - "mini"
+      - "-ip=seaweedfs"
+      - "-s3"
+      - "-s3.config=/etc/seaweedfs/s3.json"
+      - "-filer=true"
+      - "-filer.postgres"
+      - "-filer.postgres.hostname=postgres"
+      - "-filer.postgres.port=5432"
+      - "-filer.postgres.database=${SEAWEED_DATABASE_NAME:-seaweed}"
+      - "-filer.postgres.username=${SEAWEED_DATABASE_USER:-seaweed}"
+      - "-filer.postgres.password=${SEAWEED_DATABASE_PASSWORD:-seaweed}"
+      - "-master.port=9333"
+      - "-volume.port=8080"
+      - "-filer.port=8888"
+      - "-s3.port=8333"
+      - "-volume.publicUrl=http://seaweedfs:8080"
+    environment:
+      SEAWEEDFS_S3_ACCESS_KEY: ${SEAWEEDFS_S3_ACCESS_KEY:-lahijan_test_admin_key}
+      SEAWEEDFS_S3_SECRET_KEY: ${SEAWEEDFS_S3_SECRET_KEY:-lahijan_test_admin_secret}
+    ports:
+      # S3 endpoint published on the host for the e2e aws-cli upload test
+      # AND for the dashboard running on the host (data plane is direct
+      # per ADR-0011).
+      - "127.0.0.1:${LAHIJAN_TEST_S3_HOST_PORT:-8334}:8333"
+      # Filer HTTP API published for the Lahijan app's control plane.
+      - "127.0.0.1:${LAHIJAN_TEST_FILER_HOST_PORT:-8889}:8888"
+    volumes:
+      # Anonymous volume; `down -v` cleans it.
+      - /data
+      - ./seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://localhost:8888/ || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 15s
+
+  # Optional: the Lahijan app built from source. This is OFF by default —
+  # the e2e harness under test/e2e/harness/ runs the Go app on the host
+  # (or in CI) so it can wire the in-process Incus + PowerDNS fakes.
+  # Operators who want to validate the prod-shaped topology can enable
+  # this profile:
+  #   docker compose --profile app -f deployments/docker-compose.test.yml up -d
+  # The app then talks to the test-stack Postgres + SeaweedFS over the
+  # compose network; the Incus + PowerDNS drivers will be disabled
+  # (because their env vars are unset), so the compute + DNS UIs surface
+  # the standard "provider disabled" state.
+  app:
+    image: lahijan:test
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        LAHIJAN_IMAGE_TAG: test
+    container_name: lahijan-app-test
+    profiles: ["app"]
+    restart: "no"
+    networks: [lahijan-test-net]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      seaweedfs:
+        condition: service_healthy
+    environment:
+      LAHIJAN_DATABASE_HOST: postgres
+      LAHIJAN_DATABASE_PORT: 5432
+      LAHIJAN_DATABASE_NAME: ${LAHIJAN_DATABASE_NAME:-lahijan}
+      LAHIJAN_DATABASE_USER: ${LAHIJAN_DATABASE_USER:-lahijan}
+      LAHIJAN_DATABASE_PASSWORD: ${LAHIJAN_DATABASE_PASSWORD:-lahijan}
+      LAHIJAN_DATABASE_SSLMODE: disable
+      # Viper's AutomaticEnv binds providers.* via the standard
+      # LAHIJAN_PROVIDERS_<SECTION>_<KEY> shape (camelCase preserved).
+      LAHIJAN_PROVIDERS_INCUS_ENABLED: "false"
+      LAHIJAN_PROVIDERS_POWERDNS_ENABLED: "false"
+      LAHIJAN_PROVIDERS_SEAWEEDFS_ENABLED: "true"
+      LAHIJAN_PROVIDERS_SEAWEEDFS_S3ENDPOINT: http://seaweedfs:8333
+      LAHIJAN_PROVIDERS_SEAWEEDFS_FILERURL: http://seaweedfs:8888
+      LAHIJAN_PROVIDERS_SEAWEEDFS_ADMINACCESSKEY: ${SEAWEEDFS_S3_ACCESS_KEY:-lahijan_test_admin_key}
+      LAHIJAN_PROVIDERS_SEAWEEDFS_ADMINSECRETKEY: ${SEAWEEDFS_S3_SECRET_KEY:-lahijan_test_admin_secret}
+      LAHIJAN_AUTH_EMAILVERIFICATIONREQUIRED: "false"
+      LAHIJAN_SMTP_HOST: localhost
+      LAHIJAN_SMTP_PORT: "1025"
+    ports:
+      - "127.0.0.1:${LAHIJAN_TEST_APP_HOST_PORT:-8088}:8080"
+    healthcheck:
+      # The Lahijan binary exposes /healthz (WS-04).
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://localhost:8080/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
