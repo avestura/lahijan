@@ -62,3 +62,42 @@ var ErrInvalidName = errors.New("compute: name is required")
 
 // ErrInvalidImage is returned when the caller sends an empty image alias.
 var ErrInvalidImage = errors.New("compute: image alias is required")
+
+// WS-25: snapshot + backup errors.
+
+// ErrSnapshotNotFound is returned when the snapshot does not exist within
+// the caller's tenant. The handler maps it to 404 not_found.
+var ErrSnapshotNotFound = errors.New("compute: snapshot not found")
+
+// ErrSnapshotNameTaken is returned when a create-snapshot call uses a name
+// that's already in use for the instance. The handler maps it to 409 conflict.
+var ErrSnapshotNameTaken = errors.New("compute: snapshot name already in use")
+
+// ErrBackupTargetNotFound is returned when the backup target does not exist
+// within the caller's tenant. The handler maps it to 404 not_found.
+var ErrBackupTargetNotFound = errors.New("compute: backup target not found")
+
+// ErrBackupTargetNameTaken is returned when a create-target call uses a
+// name that's already in use within the tenant. 409 conflict.
+var ErrBackupTargetNameTaken = errors.New("compute: backup target name already in use")
+
+// ErrBackupNotFound is returned when the backup row does not exist within
+// the caller's tenant. 404 not_found.
+var ErrBackupNotFound = errors.New("compute: backup not found")
+
+// ErrSnapshotPolicyNotFound is returned when the policy row does not exist
+// within the caller's tenant. 404 not_found.
+var ErrSnapshotPolicyNotFound = errors.New("compute: snapshot policy not found")
+
+// ErrSnapshotPolicyNameTaken is returned when a create-policy call uses a
+// name that's already in use within the tenant. 409 conflict.
+var ErrSnapshotPolicyNameTaken = errors.New("compute: snapshot policy name already in use")
+
+// ErrInvalidCadence is returned when a snapshot policy cadence cannot be
+// parsed as an ISO 8601 duration. 400 bad_request.
+var ErrInvalidCadence = errors.New("compute: invalid cadence (expected ISO 8601 duration like PT1H, P1D, P1W)")
+
+// ErrCryptoRequired is returned when a backup-target write/read path is
+// exercised but the service was constructed without an AES-GCM envelope.
+// 500 internal (the deployer forgot to wire the encryption key).
+var ErrCryptoRequired = errors.New("compute: encryption envelope not wired (backup target secrets require auth.secrets.encryptionKey)")

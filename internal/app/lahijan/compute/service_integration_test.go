@@ -47,6 +47,9 @@ type fakeIncus struct {
 	stateErr    error
 	deleteErr   error
 	execErr     error
+	// snapState holds the in-memory snapshot map for the WS-25 surface.
+	// Lazy-initialised on first use via (*fakeIncus).snapshots().
+	snapState *snapshotState
 }
 
 type fakeInstance struct {
