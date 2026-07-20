@@ -292,17 +292,35 @@
     },
     "snapshots": {
       "title": "Snapshots",
-      "comingSoon": "Snapshot create/restore lands with WS-25 (scheduled snapshots + backups).",
       "list": "Snapshots",
       "create": "Create snapshot",
       "name": {
         "label": "Snapshot name",
         "placeholder": "pre-deploy"
       },
+      "description": {
+        "label": "Description (optional)",
+        "placeholder": "Before the deploy cut-over"
+      },
+      "stateful": "Capture runtime state (stateful)",
       "restore": "Restore",
+      "restoreConfirm": "Restore the instance to this snapshot? Current state will be lost.",
       "delete": "Delete",
+      "deleteConfirm": "Delete this snapshot? The action cannot be undone.",
       "empty": "No snapshots yet.",
-      "expiresAt": "Expires"
+      "expiresAt": "Expires",
+      "sizeBytes": "Size",
+      "tookAt": "Taken",
+      "bySchedule": "by schedule",
+      "manual": "manual",
+      "mutations": {
+        "createSuccess": "Snapshot created.",
+        "createError": "Failed to create snapshot.",
+        "deleteSuccess": "Snapshot deleted.",
+        "deleteError": "Failed to delete snapshot.",
+        "restoreSuccess": "Snapshot restore started.",
+        "restoreError": "Failed to restore snapshot."
+      }
     },
     "mutations": {
       "startSuccess": "Instance starting.",

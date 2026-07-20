@@ -160,7 +160,7 @@ function InstanceDetailPage() {
       case "console-graphical":
         return <InstanceGraphicalConsole instanceId={inst.id} status={inst.status} />;
       case "snapshots":
-        return <InstanceSnapshots />;
+        return <InstanceSnapshots instanceId={inst.id} tenantId={tenantId} />;
       case "network":
         return <InstanceNetwork instance={inst} />;
       case "storage":

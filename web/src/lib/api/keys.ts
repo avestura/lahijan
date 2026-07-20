@@ -26,6 +26,14 @@ export const queryKeys = {
     instances: (tenantId: string) => ["compute", tenantId, "instances"] as const,
     instance: (tenantId: string, id: string) =>
       ["compute", tenantId, "instances", "detail", id] as const,
+    // WS-25: per-instance snapshot list + per-tenant snapshot policies /
+    // backup targets / backups.
+    snapshots: (tenantId: string, instanceId: string) =>
+      ["compute", tenantId, "instances", "detail", instanceId, "snapshots"] as const,
+    snapshotPolicies: (tenantId: string) =>
+      ["compute", tenantId, "snapshot-policies"] as const,
+    backupTargets: (tenantId: string) => ["compute", tenantId, "backup-targets"] as const,
+    backups: (tenantId: string) => ["compute", tenantId, "backups"] as const,
   },
   dns: {
     zones: (tenantId: string) => ["dns", tenantId, "zones"] as const,

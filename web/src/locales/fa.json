@@ -292,17 +292,35 @@
     },
     "snapshots": {
       "title": "تصاویر آنی",
-      "comingSoon": "ساخت/بازیابی تصویر آنی به‌همراه WS-25 (تصاویر زمان‌بندی‌شده و پشتیبان‌ها) عرضه می‌شود.",
       "list": "تصاویر آنی",
       "create": "ساخت تصویر آنی",
       "name": {
         "label": "نام تصویر آنی",
         "placeholder": "pre-deploy"
       },
+      "description": {
+        "label": "توضیح (اختیاری)",
+        "placeholder": "پیش از تعویض نسخه"
+      },
+      "stateful": "ذخیرهٔ وضعیت زمان اجرا (stateful)",
       "restore": "بازیابی",
+      "restoreConfirm": "نمونه به این تصویر آنی بازیابی شود؟ وضعیت کنشی از بین می‌رود.",
       "delete": "حذف",
+      "deleteConfirm": "این تصویر آنی حذف شود؟ این عمل قابل بازگشت نیست.",
       "empty": "هنوز تصویر آنی وجود ندارد.",
-      "expiresAt": "انقضا"
+      "expiresAt": "انقضا",
+      "sizeBytes": "اندازه",
+      "tookAt": "زمان ثبت",
+      "bySchedule": "زمان‌بندی‌شده",
+      "manual": "دستی",
+      "mutations": {
+        "createSuccess": "تصویر آنی ساخته شد.",
+        "createError": "ساخت تصویر آنی شکست خورد.",
+        "deleteSuccess": "تصویر آنی حذف شد.",
+        "deleteError": "حذف تصویر آنی شکست خورد.",
+        "restoreSuccess": "بازیابی تصویر آنی آغاز شد.",
+        "restoreError": "بازیابی تصویر آنی شکست خورد."
+      }
     },
     "mutations": {
       "startSuccess": "نمونه در حال شروع است.",
