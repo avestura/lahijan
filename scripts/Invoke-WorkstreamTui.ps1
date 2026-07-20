@@ -342,6 +342,29 @@ $ocArgsQ   = ($ocArgs | ForEach-Object { '"' + ($_ -replace '"','\"') + '"' }) -
 # multi-line strings correctly when invoking native exes; on Windows
 # PowerShell 5.x there are edge cases, but we're targeting `pwsh` per
 # the project's shell convention.
+# Build the wrapper tail. In interactive mode (no -AutoMerge), the wrapper
+# waits for a keypress after opencode exits so the user can review the tail
+# of the output before the window closes. In autonomous mode (-AutoMerge),
+# the wrapper closes immediately so the parent script can continue to the
+# next WS without human intervention.
+if ($AutoMerge) {
+    $tailBlock = @"
+Write-Host '  Closing window automatically (-AutoMerge); parent will verify + merge...' -ForegroundColor DarkGray
+Write-Host '===================================================================' -ForegroundColor Cyan
+Start-Sleep -Seconds 2
+exit `$ocExit
+"@
+    $bannerCloseLine = '  Window will close automatically after opencode exits (-AutoMerge).'
+} else {
+    $tailBlock = @"
+Write-Host '  Press any key to close this window...' -ForegroundColor Yellow
+Write-Host '===================================================================' -ForegroundColor Cyan
+`$null = `$host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+exit `$ocExit
+"@
+    $bannerCloseLine = '  Then press any key to close. The parent script will run'
+}
+
 $wrapperBody = @"
 `$ProgressPreference = 'SilentlyContinue'
 `$ErrorActionPreference = 'Continue'
@@ -359,8 +382,7 @@ Write-Host "  ws doc:   $wsDocPath" -ForegroundColor DarkGray
 Write-Host '-------------------------------------------------------------------' -ForegroundColor DarkGray
 Write-Host '  When opencode finishes, look for this line in the output:' -ForegroundColor DarkGray
 Write-Host '    WS_IMPLEMENTATION_COMPLETE: $WsId' -ForegroundColor Green
-Write-Host '  Then press any key to close. The parent script will run' -ForegroundColor DarkGray
-Write-Host '  make lint test and ask you to confirm the merge.' -ForegroundColor DarkGray
+Write-Host "  $bannerCloseLine" -ForegroundColor DarkGray
 Write-Host '===================================================================' -ForegroundColor Cyan
 Write-Host ''
 
@@ -375,10 +397,7 @@ if (`$ocExit -eq 0) {
 } else {
     Write-Host "  opencode exited with code `$ocExit" -ForegroundColor Red
 }
-Write-Host '  Press any key to close this window...' -ForegroundColor Yellow
-Write-Host '===================================================================' -ForegroundColor Cyan
-`$null = `$host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
-exit `$ocExit
+$tailBlock
 "@
 
 $wrapperBody | Out-File -FilePath $wrapperFile -Encoding utf8
