@@ -1,7 +1,7 @@
 # WS-23 · Production Deployment & Ops
 
 ```
-Status: pending
+Status: in-progress
 Phase: 6
 Depends on: WS-22
 Unblocks: WS-26 (multi-node), public release
