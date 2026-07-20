@@ -443,6 +443,14 @@ providers:
       # set to true to skip server cert verification (dev only; never true
       # in prod). Used when pointing at a daemon with a self-signed cert.
       insecureSkipVerify: false
+    # Placement (WS-26). Per-instance scheduling mode.
+    #   local   = the daemon treats empty target as "any member"; single-node
+    #             default. No scheduling decisions on the Lahijan side.
+    #   cluster = the compute service queries the Incus cluster API for the
+    #             list of members and picks the least-loaded one for each
+    #             CreateInstance. Requires the daemon to be clustered.
+    placement:
+      mode: "local"
 
   # PowerDNS Authoritative backend (WS-12). The daemon runs in a container
   # pointed at the shared Postgres gpgsql backend (ADR-0007). Lahijan talks
