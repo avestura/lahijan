@@ -794,6 +794,14 @@ type StorageBucket struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 	// Soft-delete timestamp; the row stays for the audit trail after the SeaweedFS bucket is removed.
 	DeletedAt *time.Time `json:"deleted_at"`
+	// Bucket versioning state (unversioned | enabled | suspended). Mirrors S3 BucketVersioningStatus.
+	VersioningStatus string `json:"versioning_status"`
+	// TRUE when the bucket has been configured with an object-lock policy. Requires object_lock_default_mode + object_lock_default_retention_days.
+	ObjectLockEnabled bool `json:"object_lock_enabled"`
+	// S3 object-lock default retention mode (GOVERNANCE | COMPLIANCE). NULL when object_lock_enabled is FALSE.
+	ObjectLockDefaultMode *string `json:"object_lock_default_mode"`
+	// Object-lock default retention period in days. NULL when object_lock_enabled is FALSE.
+	ObjectLockDefaultRetentionDays *int32 `json:"object_lock_default_retention_days"`
 }
 
 // Per-tenant object storage credentials. Mirrors SeaweedFS identities; the storage service (WS-16) upserts on every change.
@@ -815,6 +823,29 @@ type StorageCredential struct {
 	CreatedAt time.Time  `json:"created_at"`
 	// Soft-delete timestamp. The SeaweedFS identity is removed at revoke time; the Lahijan row stays for the audit trail.
 	RevokedAt *time.Time `json:"revoked_at"`
+}
+
+// Per-bucket S3 lifecycle rules (WS-29, ADR-0036). The lifecycle evaluator River worker scans this table and acts on due rules.
+type StorageLifecycleRule struct {
+	ID       uuid.UUID `json:"id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+	BucketID uuid.UUID `json:"bucket_id"`
+	// User-provided rule identifier within the bucket; (bucket_id, rule_id) is unique.
+	RuleID string `json:"rule_id"`
+	// enabled = evaluator considers it; disabled = recorded but ignored.
+	Status string `json:"status"`
+	// Lifecycle action: expiration | noncurrent_version_expiration | abort_incomplete_multipart | transition.
+	Action string `json:"action"`
+	// Age in days after which the rule fires. Mutually exclusive with date_at.
+	Days *int32 `json:"days"`
+	// Absolute date at which the rule fires. Mutually exclusive with days.
+	DateAt *time.Time `json:"date_at"`
+	// Required for transition rules; the storage class to transition to. NULL otherwise.
+	StorageClass *string `json:"storage_class"`
+	// Prefix filter; NULL or empty = whole bucket.
+	Prefix    *string   `json:"prefix"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // Top-level tenancy boundary; one row per organization.

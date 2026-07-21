@@ -85,3 +85,27 @@ WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL;
 UPDATE storage_buckets
 SET deleted_at = now(), updated_at = now()
 WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL;
+
+-- name: SetStorageBucketVersioning :exec
+--: tenant-scoped
+-- Flips the cached versioning_status column (WS-29). The SeaweedFS
+-- daemon is updated separately by the storage service via the provider's
+-- SetBucketVersioning so the daemon enforces the version semantics on
+-- every subsequent PUT / DELETE.
+UPDATE storage_buckets
+SET versioning_status = $3, updated_at = now()
+WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL;
+
+-- name: SetStorageBucketObjectLock :exec
+--: tenant-scoped
+-- Replaces the bucket-level object-lock policy (WS-29). When
+-- object_lock_enabled is FALSE the mode + days columns are cleared so
+-- a re-enable after disable starts from a clean state. The SeaweedFS
+-- daemon is updated separately by the storage service via the provider's
+-- SetObjectLockConfiguration.
+UPDATE storage_buckets
+SET object_lock_enabled = $3,
+    object_lock_default_mode = $4,
+    object_lock_default_retention_days = $5,
+    updated_at = now()
+WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL;

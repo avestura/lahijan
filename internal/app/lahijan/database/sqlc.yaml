@@ -45,6 +45,7 @@ sql:
       - "queries/compute_storage_volumes.sql"
       - "queries/storage_buckets.sql"
       - "queries/storage_credentials.sql"
+      - "queries/storage_lifecycle.sql"
       - "queries/compute_snapshots.sql"
       - "queries/compute_backup_targets.sql"
       - "queries/compute_backups.sql"
