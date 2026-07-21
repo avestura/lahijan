@@ -366,6 +366,38 @@ func AuditGate(policy middleware.PolicyResolver) apigen.MiddlewareFunc {
 		case isStorageUsagePath(path) && method == "GET":
 			return middleware.RequirePerm(policy, rbac.PermS3BucketRead)(c)
 
+		// WS-29 (ADR-0036): storage lifecycle / versioning / object-lock
+		// endpoints. Each subtree has its own permission slug so the
+		// policy evaluator can grant them independently (e.g. a role
+		// that can manage versioning but not lifecycle). The
+		// version-listing endpoint reuses s3.bucket.read; the
+		// version-restore endpoint reuses s3.bucket.update (restore is
+		// an update-class action).
+		case isStorageVersioningPath(path) && method == "PUT":
+			return middleware.RequirePerm(policy, rbac.PermS3BucketVersioning)(c)
+		case isStorageVersioningPath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermS3BucketRead)(c)
+		case isStorageVersionsPath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermS3BucketRead)(c)
+		case isStorageVersionRestorePath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermS3BucketUpdate)(c)
+		case isStorageLifecyclePath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermS3BucketRead)(c)
+		case isStorageLifecyclePath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermS3BucketLifecycle)(c)
+		case isStorageLifecyclePath(path) && method == "PUT":
+			return middleware.RequirePerm(policy, rbac.PermS3BucketLifecycle)(c)
+		case isStorageLifecyclePath(path) && method == "PATCH":
+			return middleware.RequirePerm(policy, rbac.PermS3BucketLifecycle)(c)
+		case isStorageLifecyclePath(path) && method == "DELETE":
+			return middleware.RequirePerm(policy, rbac.PermS3BucketLifecycle)(c)
+		case isStorageLifecycleStatusPath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermS3BucketLifecycle)(c)
+		case isStorageObjectLockPath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermS3BucketRead)(c)
+		case isStorageObjectLockPath(path) && method == "PUT":
+			return middleware.RequirePerm(policy, rbac.PermS3BucketObjectLock)(c)
+
 		// WS-17: billing & metering endpoints. Every /api/v1/me/*
 		// path is the user reading their own data; every
 		// /api/v1/admin/billing/* and /api/v1/admin/users/{id}/*
@@ -709,8 +741,9 @@ func isDNSDomainRenewPath(path string) bool {
 }
 
 // isStorageBucketPath reports whether path targets the buckets collection
-// or a specific bucket (but not the credentials / presign / quota / usage
-// sub-paths). Used by the audit gate so the bucket-level permission
+// or a specific bucket (but not the credentials / presign / quota /
+// usage / versioning / lifecycle / object-lock / versions sub-paths).
+// Used by the audit gate so the bucket-level permission
 // (s3.bucket.read / create / update / delete) is enforced on every
 // bucket-rooted call.
 func isStorageBucketPath(path string) bool {
@@ -723,7 +756,11 @@ func isStorageBucketPath(path string) bool {
 	return !isStorageCredentialsPath(path) &&
 		!isStoragePresignPath(path) &&
 		!isStorageQuotaPath(path) &&
-		!isStorageUsagePath(path)
+		!isStorageUsagePath(path) &&
+		!isStorageVersioningPath(path) &&
+		!isStorageVersionsPath(path) &&
+		!isStorageLifecyclePath(path) &&
+		!isStorageObjectLockPath(path)
 }
 
 // isStorageCredentialsPath reports whether path targets the credentials
@@ -757,6 +794,76 @@ func isStorageUsagePath(path string) bool {
 		return false
 	}
 	return strings.HasSuffix(path, "/usage")
+}
+
+// -------------------------------------------------------------------------
+// WS-29 (ADR-0036) storage path helpers.
+//
+// The lifecycle / versioning / object-lock surface adds four sub-trees
+// under /api/v1/storage/buckets/{id}/: /versioning, /versions,
+// /versions/restore, /lifecycle (and /lifecycle/{ruleId}{,/status}),
+// and /object-lock. Each helper matches a specific subtree so the
+// audit gate dispatches to the right RequirePerm slug.
+// -------------------------------------------------------------------------
+
+// isStorageVersioningPath reports whether path is the versioning
+// endpoint (GET/PUT /api/v1/storage/buckets/{id}/versioning).
+func isStorageVersioningPath(path string) bool {
+	if !strings.HasPrefix(path, "/api/v1/storage/buckets/") {
+		return false
+	}
+	return strings.HasSuffix(path, "/versioning")
+}
+
+// isStorageVersionsPath reports whether path is the version-listing
+// endpoint (GET /api/v1/storage/buckets/{id}/versions).
+func isStorageVersionsPath(path string) bool {
+	if !strings.HasPrefix(path, "/api/v1/storage/buckets/") {
+		return false
+	}
+	return strings.HasSuffix(path, "/versions")
+}
+
+// isStorageVersionRestorePath reports whether path is the version
+// restore endpoint (POST /api/v1/storage/buckets/{id}/versions/restore).
+func isStorageVersionRestorePath(path string) bool {
+	if !strings.HasPrefix(path, "/api/v1/storage/buckets/") {
+		return false
+	}
+	return strings.HasSuffix(path, "/versions/restore")
+}
+
+// isStorageLifecyclePath reports whether path targets the lifecycle
+// sub-tree (/lifecycle, /lifecycle/{ruleId}, but NOT /lifecycle/{ruleId}/status
+// which has its own helper).
+func isStorageLifecyclePath(path string) bool {
+	if !strings.HasPrefix(path, "/api/v1/storage/buckets/") {
+		return false
+	}
+	if !strings.Contains(path, "/lifecycle") {
+		return false
+	}
+	// Exclude the /status sub-path so it dispatches to its own slug.
+	return !isStorageLifecycleStatusPath(path)
+}
+
+// isStorageLifecycleStatusPath reports whether path targets the
+// per-rule enable/disable toggle endpoint
+// (POST /api/v1/storage/buckets/{id}/lifecycle/{ruleId}/status).
+func isStorageLifecycleStatusPath(path string) bool {
+	if !strings.HasPrefix(path, "/api/v1/storage/buckets/") {
+		return false
+	}
+	return strings.HasSuffix(path, "/status") && strings.Contains(path, "/lifecycle/")
+}
+
+// isStorageObjectLockPath reports whether path is the object-lock
+// endpoint (GET/PUT /api/v1/storage/buckets/{id}/object-lock).
+func isStorageObjectLockPath(path string) bool {
+	if !strings.HasPrefix(path, "/api/v1/storage/buckets/") {
+		return false
+	}
+	return strings.HasSuffix(path, "/object-lock")
 }
 
 // -------------------------------------------------------------------------

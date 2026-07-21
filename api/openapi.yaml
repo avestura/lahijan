@@ -3570,6 +3570,340 @@ paths:
         "501": { $ref: "#/components/responses/NotImplemented" }
 
   # -------------------------------------------------------------------------
+  # WS-29 (ADR-0036): per-bucket versioning + lifecycle rules +
+  # object-lock policy. Every endpoint is a privileged action gated by
+  # the matching rbac.PermS3Bucket{Versioning,Lifecycle,ObjectLock}
+  # slug. The Postgres row is the source of truth (ADR-0036 sub-decision
+  # A); the SeaweedFS daemon is derived via the provider driver.
+  # -------------------------------------------------------------------------
+
+  /api/v1/storage/buckets/{bucketId}/versioning:
+    get:
+      tags: [storage]
+      operationId: getStorageBucketVersioning
+      summary: Get bucket versioning status
+      description: |
+        Returns the cached versioning status from Postgres. Per
+        ADR-0036 the Lahijan-side row is the source of truth; no
+        daemon round-trip.
+      parameters:
+        - name: bucketId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The versioning status.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StorageVersioningStatus" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+    put:
+      tags: [storage]
+      operationId: setStorageBucketVersioning
+      summary: Set bucket versioning status
+      description: |
+        Pushes the new versioning status to the backend and updates the
+        cached storage_buckets row. A no-op when the new status equals
+        the cached status.
+      parameters:
+        - name: bucketId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StorageVersioningStatus" }
+      responses:
+        "204": { description: Versioning status set. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/storage/buckets/{bucketId}/versions:
+    get:
+      tags: [storage]
+      operationId: listStorageBucketVersions
+      summary: List object versions in a bucket
+      description: |
+        Returns a live page of object versions from the backend. Used
+        by the dashboard's version-browser UI; version listings are
+        inherently live (the object set changes between PUTs) so the
+        endpoint proxies through to the backend on every call.
+      parameters:
+        - name: bucketId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: prefix
+          in: query
+          schema: { type: string }
+        - name: keyMarker
+          in: query
+          schema: { type: string }
+        - name: versionIdMarker
+          in: query
+          schema: { type: string }
+        - name: maxKeys
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 1000, default: 1000 }
+      responses:
+        "200":
+          description: A page of object versions.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StorageObjectVersionsPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/storage/buckets/{bucketId}/versions/restore:
+    post:
+      tags: [storage]
+      operationId: restoreStorageObjectVersion
+      summary: Restore a deleted object version
+      description: |
+        Performs a server-side copy from the versioned source to the
+        current key, making the named version the new current version.
+        Used by the dashboard's "undelete" action on a versioned bucket.
+      parameters:
+        - name: bucketId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StorageRestoreVersionRequest" }
+      responses:
+        "204": { description: Version restored. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/storage/buckets/{bucketId}/lifecycle:
+    get:
+      tags: [storage]
+      operationId: listStorageBucketLifecycleRules
+      summary: List lifecycle rules for a bucket
+      description: |
+        Returns the cached lifecycle rules from Postgres. Per ADR-0036
+        the Lahijan-side rows are the source of truth.
+      parameters:
+        - name: bucketId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+      responses:
+        "200":
+          description: A page of lifecycle rules.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StorageLifecycleRulePage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+    post:
+      tags: [storage]
+      operationId: createStorageLifecycleRule
+      summary: Create a lifecycle rule for a bucket
+      parameters:
+        - name: bucketId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StorageLifecycleRuleCreateRequest" }
+      responses:
+        "201":
+          description: Rule created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StorageLifecycleRule" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+    put:
+      tags: [storage]
+      operationId: replaceStorageBucketLifecycleRules
+      summary: Replace every lifecycle rule for a bucket
+      description: |
+        Bulk-replaces the rule set: every existing rule is deleted and
+        the new rules from the request body are written in its place.
+      parameters:
+        - name: bucketId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StorageLifecycleRuleReplaceRequest" }
+      responses:
+        "204": { description: Rules replaced. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/storage/buckets/{bucketId}/lifecycle/{ruleId}:
+    patch:
+      tags: [storage]
+      operationId: updateStorageLifecycleRule
+      summary: Update a lifecycle rule
+      description: |
+        Replaces the mutable fields of a rule. The rule_id (natural
+        key) and bucket_id are immutable.
+      parameters:
+        - name: bucketId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: ruleId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+          description: |
+            The rule's primary key (UUID). Despite the name `ruleId`
+            this is the row id, not the user-provided rule_id string;
+            the string is immutable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StorageLifecycleRuleUpdateRequest" }
+      responses:
+        "204": { description: Rule updated. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+    delete:
+      tags: [storage]
+      operationId: deleteStorageLifecycleRule
+      summary: Delete a lifecycle rule
+      parameters:
+        - name: bucketId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: ruleId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204": { description: Rule deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/storage/buckets/{bucketId}/lifecycle/{ruleId}/status:
+    post:
+      tags: [storage]
+      operationId: setStorageLifecycleRuleStatus
+      summary: Enable or disable a lifecycle rule
+      description: |
+        Convenience endpoint for the enable/disable toggle without
+        rewriting the rest of the rule.
+      parameters:
+        - name: bucketId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: ruleId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StorageLifecycleRuleStatusRequest" }
+      responses:
+        "204": { description: Rule status set. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/storage/buckets/{bucketId}/object-lock:
+    get:
+      tags: [storage]
+      operationId: getStorageBucketObjectLock
+      summary: Get bucket object-lock policy
+      description: |
+        Returns the cached bucket-level object-lock policy from
+        Postgres. Per ADR-0036 the Lahijan-side row is the source of
+        truth; no daemon round-trip.
+      parameters:
+        - name: bucketId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The object-lock policy.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StorageObjectLockConfig" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+    put:
+      tags: [storage]
+      operationId: setStorageBucketObjectLock
+      summary: Set bucket object-lock policy
+      description: |
+        Pushes the new bucket-level object-lock policy to the backend
+        (when Enabled is true) and updates the cached storage_buckets
+        row. Disabling object lock is not supported by AWS S3; the
+        backend push is skipped when Enabled is false, but the
+        Postgres row is updated so the UI reflects the operator's
+        intent.
+      parameters:
+        - name: bucketId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StorageObjectLockConfig" }
+      responses:
+        "204": { description: Object-lock policy set. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  # -------------------------------------------------------------------------
   # Billing & metering (WS-17). User-facing endpoints under /api/v1/me/*;
   # admin endpoints under /api/v1/admin/billing/* and
   # /api/v1/admin/users/{userId}/*. All amounts are integer centimals.
@@ -6458,6 +6792,256 @@ components:
           type: integer
           format: int64
           description: Cached total object count.
+
+    # -------------------------------------------------------------------------
+    # WS-29 (ADR-0036) schemas: versioning + lifecycle rules +
+    # object-lock + version listing. The schemas are designed to mirror the
+    # AWS S3 surface closely enough that the docs transfer for users who
+    # already know S3, but the field names use camelCase to match the rest
+    # of the Lahijan API.
+    # -------------------------------------------------------------------------
+
+    StorageVersioningStatus:
+      type: object
+      required: [status]
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum: [unversioned, enabled, suspended]
+          description: |
+            Bucket versioning state. Mirrors S3's
+            BucketVersioningStatus plus the explicit "unversioned"
+            value for buckets that have never been versioned.
+
+    StorageObjectVersion:
+      type: object
+      required: [key, versionId, isLatest]
+      additionalProperties: false
+      properties:
+        key:
+          type: string
+          description: Object key.
+        versionId:
+          type: string
+          description: S3-assigned version identifier. Empty on an unversioned bucket.
+        isLatest:
+          type: boolean
+          description: True when this version is the current version of the key.
+        isDeleteMarker:
+          type: boolean
+          description: True when this entry represents a delete (logical delete on a versioned bucket).
+        size:
+          type: integer
+          format: int64
+          description: Object size in bytes. Zero for delete markers.
+        lastModified:
+          type: string
+          format: date-time
+          description: UTC timestamp the version was created.
+
+    StorageObjectVersionsPage:
+      type: object
+      required: [versions, deleteMarkers, isTruncated]
+      additionalProperties: false
+      properties:
+        versions:
+          type: array
+          items: { $ref: "#/components/schemas/StorageObjectVersion" }
+          description: Object versions on this page (does not include delete markers).
+        deleteMarkers:
+          type: array
+          items: { $ref: "#/components/schemas/StorageObjectVersion" }
+          description: Delete markers on this page.
+        nextKeyMarker:
+          type: string
+          description: Pagination cursor for the next page; empty when this is the last page.
+        nextVersionIdMarker:
+          type: string
+          description: Pagination cursor for the next page; empty when this is the last page.
+        isTruncated:
+          type: boolean
+          description: True when the bucket has more versions to list.
+
+    StorageRestoreVersionRequest:
+      type: object
+      required: [key]
+      additionalProperties: false
+      properties:
+        key:
+          type: string
+          description: Object key whose version is being restored.
+        versionId:
+          type: string
+          description: |
+            Optional version identifier of the version to restore.
+            Empty restores the latest noncurrent version (best effort).
+
+    StorageLifecycleRule:
+      type: object
+      required: [id, bucketId, ruleId, status, action, enabled]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: The rule's primary key.
+        bucketId:
+          type: string
+          format: uuid
+        ruleId:
+          type: string
+          description: User-provided rule identifier within the bucket.
+        status:
+          type: string
+          enum: [enabled, disabled]
+          description: Rule status. Mirrors S3 LifecycleRule.Status.
+        enabled:
+          type: boolean
+          description: Convenience boolean; true when status == "enabled".
+        action:
+          type: string
+          enum:
+            - expiration
+            - noncurrent_version_expiration
+            - abort_incomplete_multipart
+            - transition
+          description: Lifecycle action this rule performs.
+        days:
+          type: integer
+          format: int32
+          nullable: true
+          description: Age in days after which the rule fires. Mutually exclusive with date.
+        date:
+          type: string
+          format: date
+          nullable: true
+          description: Absolute date at which the rule fires. Mutually exclusive with days.
+        storageClass:
+          type: string
+          nullable: true
+          description: Required for transition rules; the storage class to transition to.
+        prefix:
+          type: string
+          nullable: true
+          description: Prefix filter; NULL or empty = whole bucket.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    StorageLifecycleRulePage:
+      type: object
+      required: [items, total, limit, offset]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/StorageLifecycleRule" }
+        total:  { type: integer }
+        limit:  { type: integer }
+        offset: { type: integer }
+
+    StorageLifecycleRuleCreateRequest:
+      type: object
+      required: [ruleId, action]
+      additionalProperties: false
+      properties:
+        ruleId:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: User-provided rule identifier within the bucket.
+        enabled:
+          type: boolean
+          default: true
+        action:
+          type: string
+          enum:
+            - expiration
+            - noncurrent_version_expiration
+            - abort_incomplete_multipart
+            - transition
+        days:
+          type: integer
+          format: int32
+          minimum: 1
+          nullable: true
+        date:
+          type: string
+          format: date
+          nullable: true
+        storageClass:
+          type: string
+          nullable: true
+        prefix:
+          type: string
+          nullable: true
+
+    StorageLifecycleRuleUpdateRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        enabled:
+          type: boolean
+        days:
+          type: integer
+          format: int32
+          minimum: 1
+          nullable: true
+        date:
+          type: string
+          format: date
+          nullable: true
+        storageClass:
+          type: string
+          nullable: true
+        prefix:
+          type: string
+          nullable: true
+
+    StorageLifecycleRuleReplaceRequest:
+      type: object
+      required: [rules]
+      additionalProperties: false
+      properties:
+        rules:
+          type: array
+          items: { $ref: "#/components/schemas/StorageLifecycleRuleCreateRequest" }
+
+    StorageLifecycleRuleStatusRequest:
+      type: object
+      required: [enabled]
+      additionalProperties: false
+      properties:
+        enabled:
+          type: boolean
+
+    StorageObjectLockConfig:
+      type: object
+      required: [enabled]
+      additionalProperties: false
+      properties:
+        enabled:
+          type: boolean
+          description: True when object lock is enabled on the bucket.
+        mode:
+          type: string
+          enum: [GOVERNANCE, COMPLIANCE]
+          description: |
+            Default retention mode applied to every new object. Required
+            when enabled is true; ignored when enabled is false.
+            GOVERNANCE: privileged users can bypass.
+            COMPLIANCE: no one can shorten or remove the retention.
+        days:
+          type: integer
+          format: int32
+          minimum: 1
+          description: |
+            Default retention period in days. Required when enabled is
+            true; ignored when enabled is false.
 
     # -----------------------------------------------------------------
     # Billing & metering schemas (WS-17). All amounts in integer
