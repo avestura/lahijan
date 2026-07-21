@@ -13,6 +13,7 @@ package seaweedfs
 import (
 	"context"
 	"fmt"
+	"time"
 
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
 	awss3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
@@ -137,20 +138,65 @@ func (p *Provider) GetBucketVersioning(ctx context.Context, bucket string) (Vers
 	return status, nil
 }
 
+// ObjectVersion is the driver-level value type for a single object
+// version. The service layer consumes this instead of the raw AWS SDK
+// type so it does not need to import the SDK transitively.
+type ObjectVersion struct {
+	// Key is the object key.
+	Key string
+
+	// VersionID is the S3-assigned version identifier. Empty when the
+	// bucket is unversioned.
+	VersionID string
+
+	// IsLatest is true when this is the current version of the key.
+	IsLatest bool
+
+	// IsDeleteMarker is true when this entry represents a delete
+	// (logical delete on a versioned bucket) rather than a real object
+	// version. The body is nil in that case.
+	IsDeleteMarker bool
+
+	// Size is the object size in bytes. Zero for delete markers.
+	Size int64
+
+	// LastModified is the UTC timestamp the version was created.
+	LastModified time.Time
+}
+
+// ObjectVersionsPage is the page returned by ListObjectVersions. The
+// service layer uses the cursors when paginating; the worker uses the
+// versions to evaluate lifecycle rules.
+type ObjectVersionsPage struct {
+	// Versions is the list of object versions on this page (does not
+	// include delete markers).
+	Versions []ObjectVersion
+
+	// DeleteMarkers is the list of delete markers on this page.
+	DeleteMarkers []ObjectVersion
+
+	// NextKeyMarker is the pagination cursor for the next page; empty
+	// when this is the last page.
+	NextKeyMarker string
+
+	// NextVersionIDMarker is the pagination cursor for the next page;
+	// empty when this is the last page.
+	NextVersionIDMarker string
+
+	// IsTruncated is true when the bucket has more versions to list.
+	IsTruncated bool
+}
+
 // ListObjectVersions returns a page of object versions in the bucket.
 // Used by the storage service's "list versions" endpoint + by the
 // lifecycle evaluator worker when applying noncurrent-version rules.
 // keyMarker + versionIdMarker are the pagination cursors from the
 // previous page; pass empty strings for the first page.
-//
-// Returns the raw SDK types because the caller (storage service) needs
-// the full version metadata (version id, is_latest, delete_marker,
-// last_modified). Wrapping the SDK type would just add boilerplate.
 func (p *Provider) ListObjectVersions(
 	ctx context.Context,
 	bucket, prefix, keyMarker, versionIDMarker string,
 	maxKeys int32,
-) (*awss3.ListObjectVersionsOutput, error) {
+) (*ObjectVersionsPage, error) {
 	ctx, span := startSpan(ctx, "versioning.list", bucketAttr(bucket))
 	defer span.End()
 
@@ -163,7 +209,7 @@ func (p *Provider) ListObjectVersions(
 	}
 
 	input := &awss3.ListObjectVersionsInput{
-		Bucket: strPtr(bucket),
+		Bucket:  strPtr(bucket),
 		MaxKeys: &maxKeys,
 	}
 	if prefix != "" {
@@ -182,8 +228,68 @@ func (p *Provider) ListObjectVersions(
 		setStatus(span, translated)
 		return nil, fmt.Errorf("seaweedfs: versioning.list: %w", translated)
 	}
+	page := &ObjectVersionsPage{
+		Versions:     make([]ObjectVersion, 0, len(out.Versions)),
+		DeleteMarkers: make([]ObjectVersion, 0, len(out.DeleteMarkers)),
+	}
+	for _, v := range out.Versions {
+		page.Versions = append(page.Versions, objectVersionFromS3(v))
+	}
+	for _, d := range out.DeleteMarkers {
+		page.DeleteMarkers = append(page.DeleteMarkers, deleteMarkerFromS3(d))
+	}
+	if out.IsTruncated != nil {
+		page.IsTruncated = *out.IsTruncated
+	}
+	if out.NextKeyMarker != nil {
+		page.NextKeyMarker = *out.NextKeyMarker
+	}
+	if out.NextVersionIdMarker != nil {
+		page.NextVersionIDMarker = *out.NextVersionIdMarker
+	}
 	setStatus(span, nil)
-	return out, nil
+	return page, nil
+}
+
+// objectVersionFromS3 translates the SDK ObjectVersion to the driver
+// value type.
+func objectVersionFromS3(v awss3types.ObjectVersion) ObjectVersion {
+	out := ObjectVersion{}
+	if v.Key != nil {
+		out.Key = *v.Key
+	}
+	if v.VersionId != nil {
+		out.VersionID = *v.VersionId
+	}
+	if v.IsLatest != nil {
+		out.IsLatest = *v.IsLatest
+	}
+	if v.Size != nil {
+		out.Size = *v.Size
+	}
+	if v.LastModified != nil {
+		out.LastModified = *v.LastModified
+	}
+	return out
+}
+
+// deleteMarkerFromS3 translates the SDK DeleteMarkerEntry to the driver
+// value type with IsDeleteMarker=true.
+func deleteMarkerFromS3(d awss3types.DeleteMarkerEntry) ObjectVersion {
+	out := ObjectVersion{IsDeleteMarker: true}
+	if d.Key != nil {
+		out.Key = *d.Key
+	}
+	if d.VersionId != nil {
+		out.VersionID = *d.VersionId
+	}
+	if d.IsLatest != nil {
+		out.IsLatest = *d.IsLatest
+	}
+	if d.LastModified != nil {
+		out.LastModified = *d.LastModified
+	}
+	return out
 }
 
 // RestoreObjectVersion copies a noncurrent version of an object to be

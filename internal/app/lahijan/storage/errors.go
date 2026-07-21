@@ -58,3 +58,31 @@ var ErrInvalidLabel = errors.New("storage: credential label must be 100 characte
 // credential past its expires_at. SeaweedFS does not enforce S3
 // expiries today; Lahijan owns this check at the storage service.
 var ErrCredentialExpired = errors.New("storage: credential has expired")
+
+// ErrLifecycleRuleNotFound is returned when the lifecycle rule does not
+// exist within the caller's tenant. The handler maps it to 404 not_found.
+var ErrLifecycleRuleNotFound = errors.New("storage: lifecycle rule not found")
+
+// ErrInvalidLifecycleRuleID is returned when the caller-supplied rule
+// id is empty or longer than 255 characters.
+var ErrInvalidLifecycleRuleID = errors.New("storage: lifecycle rule id must be 1-255 characters")
+
+// ErrInvalidLifecycleAction is returned when the caller-supplied action
+// is not in the supported set.
+var ErrInvalidLifecycleAction = errors.New("storage: lifecycle action must be expiration, noncurrent_version_expiration, abort_incomplete_multipart, or transition")
+
+// ErrInvalidLifecycleTrigger is returned when exactly one of days or
+// date_at is not set, or when days is non-positive.
+var ErrInvalidLifecycleTrigger = errors.New("storage: lifecycle rule must set exactly one of days or date_at; days must be positive")
+
+// ErrInvalidLifecycleStorageClass is returned when a transition rule
+// does not set storage_class, or when a non-transition rule sets one.
+var ErrInvalidLifecycleStorageClass = errors.New("storage: storage_class is required for transition rules and forbidden for other actions")
+
+// ErrInvalidObjectLockMode is returned when the caller-supplied
+// object-lock mode is not GOVERNANCE or COMPLIANCE.
+var ErrInvalidObjectLockMode = errors.New("storage: object lock mode must be GOVERNANCE or COMPLIANCE")
+
+// ErrInvalidObjectLockDays is returned when the caller-supplied
+// object-lock default retention days is non-positive.
+var ErrInvalidObjectLockDays = errors.New("storage: object lock retention days must be positive")
