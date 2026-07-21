@@ -123,6 +123,13 @@ var defaultRoles = []RoleDefinition{
 			PermDNSRecordRead,
 			PermDNSRecordUpdate,
 			PermDNSRecordDelete,
+			// dns domains (WS-28 registrar resale) — admin = full
+			PermDNSDomainSearch,
+			PermDNSDomainRead,
+			PermDNSDomainRegister,
+			PermDNSDomainRenew,
+			PermDNSDomainTransfer,
+			PermDNSDomainDelete,
 			// s3 (full)
 			PermS3BucketCreate,
 			PermS3BucketRead,
@@ -201,6 +208,14 @@ var defaultRoles = []RoleDefinition{
 			PermDNSRecordRead,
 			PermDNSRecordUpdate,
 			PermDNSRecordDelete,
+			// dns domains (WS-28) — member can search + read + register
+			// own + renew own + transfer new; domain delete is admin-only
+			// because it irreversibly releases the registration.
+			PermDNSDomainSearch,
+			PermDNSDomainRead,
+			PermDNSDomainRegister,
+			PermDNSDomainRenew,
+			PermDNSDomainTransfer,
 			// s3 (no bucket delete)
 			PermS3BucketCreate,
 			PermS3BucketRead,
@@ -248,6 +263,9 @@ var defaultRoles = []RoleDefinition{
 			// dns reads
 			PermDNSZoneRead,
 			PermDNSRecordRead,
+			// dns domains reads (WS-28)
+			PermDNSDomainRead,
+			PermDNSDomainSearch,
 			// s3 reads
 			PermS3BucketRead,
 			PermS3ObjectRead,

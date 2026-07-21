@@ -122,6 +122,19 @@ const (
 	PermDNSRecordUpdate = "dns.record.update"
 	PermDNSRecordDelete = "dns.record.delete"
 
+	// --- dns domains / registrar resale (WS-28). The domain surface
+	// is distinct from zones + records because registering a domain
+	// costs money (a privileged action against the billing ledger)
+	// while managing zone records does not. Search + read are open to
+	// every member so the UI can render the search bar; register /
+	// renew / transfer / delete require the privileged slugs. ---
+	PermDNSDomainSearch   = "dns.domain.search"
+	PermDNSDomainRead     = "dns.domain.read"
+	PermDNSDomainRegister = "dns.domain.register"
+	PermDNSDomainRenew    = "dns.domain.renew"
+	PermDNSDomainTransfer = "dns.domain.transfer"
+	PermDNSDomainDelete   = "dns.domain.delete"
+
 	// --- object storage / S3 (WS-16) ---
 	PermS3BucketCreate      = "s3.bucket.create"
 	PermS3BucketRead        = "s3.bucket.read"
@@ -242,6 +255,12 @@ var allPermissions = []Permission{
 	{Slug: PermComputeStoragePoolRead, Description: "View storage pools."},
 
 	// dns
+	{Slug: PermDNSDomainDelete, Description: "Remove a domain from the tenant (does not cancel the registration)."},
+	{Slug: PermDNSDomainRead, Description: "View the tenant's registered domains."},
+	{Slug: PermDNSDomainRegister, Description: "Register a new domain (charges the user's balance)."},
+	{Slug: PermDNSDomainRenew, Description: "Renew a registered domain (charges the user's balance)."},
+	{Slug: PermDNSDomainSearch, Description: "Search available domains via the registrar."},
+	{Slug: PermDNSDomainTransfer, Description: "Transfer a domain from another registrar (charges the user's balance)."},
 	{Slug: PermDNSRecordCreate, Description: "Create a DNS record."},
 	{Slug: PermDNSRecordDelete, Description: "Delete a DNS record."},
 	{Slug: PermDNSRecordRead, Description: "View DNS records."},
