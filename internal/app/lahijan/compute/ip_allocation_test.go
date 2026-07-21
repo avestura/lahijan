@@ -152,7 +152,7 @@ func TestPickNextFreeAddress_WalksRangesInOrder(t *testing.T) {
 	addr, family, err := callPickNextFreeAddress(t, shim)
 	require.NoError(t, err)
 	assert.Equal(t, "192.0.2.1", addr.String())
-	assert.EqualValues(t, 32, family, "v4 family bitlen is 32")
+	assert.EqualValues(t, 4, family, "v4 family is 4")
 }
 
 func TestPickNextFreeAddress_PoolExhausted(t *testing.T) {
@@ -244,7 +244,13 @@ func callPickNextFreeAddress(t *testing.T, shim *fakeRepoShim) (netip.Addr, int3
 		require.NoError(t, errEx)
 		excludedSet := setOf(excluded...)
 		if addr, ok := firstFreeInPrefix(prefix, excludedSet, allocatedSet); ok {
-			return addr, int32(prefix.Addr().BitLen()), nil
+			// Mirror the production helper: familyOf returns 4 or 6
+			// (not prefix.Addr().BitLen() which is 32 or 128).
+			fam := int32(6)
+			if prefix.Addr().Is4() {
+				fam = 4
+			}
+			return addr, fam, nil
 		}
 	}
 	return netip.Addr{}, 0, ErrIPPoolExhausted

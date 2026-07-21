@@ -47,6 +47,11 @@ type fakeIncus struct {
 	stateErr    error
 	deleteErr   error
 	execErr     error
+	// forwards holds the WS-30 best-effort forward push state.
+	// listen-address -> network-name. Created on CreateNetworkForward;
+	// removed on DeleteNetworkForward. Nil-appropriate for tests that
+	// do not exercise the floating-IP surface.
+	forwards map[string]string
 	// snapState holds the in-memory snapshot map for the WS-25 surface.
 	// Lazy-initialised on first use via (*fakeIncus).snapshots().
 	snapState *snapshotState
@@ -221,6 +226,27 @@ func (f *fakeIncus) CreateNetwork(_ context.Context, _ string, _ incus.NetworksP
 }
 
 func (f *fakeIncus) DeleteNetwork(_ context.Context, _, _ string) error { return nil }
+
+// WS-30: best-effort forward push helpers. The fake tracks every
+// forward created + deleted so the floating-IP tests can assert on
+// them; defaults to success so the happy path exercises the
+// forward_push_status="pushed" code path.
+func (f *fakeIncus) CreateNetworkForward(_ context.Context, _, network, listen string, _ []map[string]any) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.forwards == nil {
+		f.forwards = make(map[string]string) // listen -> network
+	}
+	f.forwards[listen] = network
+	return nil
+}
+
+func (f *fakeIncus) DeleteNetworkForward(_ context.Context, _, _, listen string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	delete(f.forwards, listen)
+	return nil
+}
 
 func (f *fakeIncus) CreateStorageVolume(_ context.Context, _ string, _ incus.StorageVolumesPost) error {
 	return nil

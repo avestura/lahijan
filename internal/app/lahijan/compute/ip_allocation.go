@@ -26,6 +26,7 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
+	"strings"
 
 	"github.com/google/uuid"
 
@@ -57,7 +58,19 @@ func pickNextFreeAddress(
 	}
 	allocatedSet := make(map[string]struct{}, len(allocated))
 	for _, a := range allocated {
-		allocatedSet[a] = struct{}{}
+		// Normalise to canonical netip.Addr.String() form. The DB
+		// stores inet values with the prefix (e.g. "198.51.100.1/32")
+		// because PostgreSQL's inet type carries the netmask; the
+		// picker walks host addresses (no prefix) so the comparison
+		// must strip the prefix before keying the set.
+		if addr, pErr := netip.ParseAddr(strings.TrimSuffix(a, "/32")); pErr == nil {
+			allocatedSet[addr.String()] = struct{}{}
+			continue
+		}
+		// IPv6 hosts carry "/128"; strip that too.
+		if addr, pErr := netip.ParseAddr(strings.TrimSuffix(a, "/128")); pErr == nil {
+			allocatedSet[addr.String()] = struct{}{}
+		}
 	}
 
 	for _, r := range ranges {
@@ -75,7 +88,7 @@ func pickNextFreeAddress(
 		}
 
 		if addr, ok := firstFreeInPrefix(prefix, excludedSet, allocatedSet); ok {
-			return addr, int32(prefix.Addr().BitLen()), nil
+			return addr, familyOf(prefix), nil
 		}
 	}
 	return netip.Addr{}, 0, ErrIPPoolExhausted
