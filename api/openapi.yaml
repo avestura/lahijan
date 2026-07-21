@@ -2718,6 +2718,389 @@ paths:
         "501": { $ref: "#/components/responses/NotImplemented" }
 
   # ===========================================================================
+  # Compute IP pools + floating IPs (WS-30, ADR-0037). The IP-pool surface
+  # is operator-only (platform.admin); the floating-IP surface is the
+  # tenant-facing half. Per pillar 1, the terms are "IP pool" and
+  # "floating IP" — Incus / BGP / FRR are never named.
+  # ===========================================================================
+
+  /api/v1/admin/compute/ip-pools:
+    get:
+      tags: [compute]
+      operationId: listComputeIPPools
+      summary: List IP pools (admin)
+      description: |
+        Returns a paginated list of every operator-owned IP pool.
+        Platform-admin only (compute.ip_pool.manage). Each pool carries
+        its name, the optional PTR-zone id, and the active flag.
+      parameters:
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+      responses:
+        "200":
+          description: A page of pools.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeIPPoolPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [compute]
+      operationId: createComputeIPPool
+      summary: Create an IP pool (admin)
+      description: |
+        Registers a new operator-owned IP pool. The pool starts empty;
+        add ranges via POST /api/v1/admin/compute/ip-pools/{poolId}/ranges.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComputeIPPoolCreateRequest" }
+      responses:
+        "201":
+          description: Pool created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeIPPool" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409":
+          description: Pool name already in use.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/admin/compute/ip-pools/{poolId}:
+    parameters:
+      - name: poolId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [compute]
+      operationId: getComputeIPPool
+      summary: Get an IP pool (admin)
+      responses:
+        "200":
+          description: The pool.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeIPPool" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [compute]
+      operationId: updateComputeIPPool
+      summary: Update an IP pool (admin)
+      description: |
+        Replaces the mutable fields (description, ptr_zone_id,
+        is_active). The name is immutable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComputeIPPoolUpdateRequest" }
+      responses:
+        "204": { description: Pool updated. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [compute]
+      operationId: deleteComputeIPPool
+      summary: Delete an IP pool (admin)
+      description: |
+        Soft-deletes the pool. Refuses with 409 if any live floating-IP
+        allocations remain; the operator must release every allocation
+        first.
+      responses:
+        "204": { description: Pool deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Pool still has live allocations.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/admin/compute/ip-pools/{poolId}/ranges:
+    parameters:
+      - name: poolId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [compute]
+      operationId: listComputeIPPoolRanges
+      summary: List CIDR ranges in an IP pool (admin)
+      responses:
+        "200":
+          description: A page of ranges.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeIPPoolRangePage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [compute]
+      operationId: addComputeIPPoolRange
+      summary: Add a CIDR range to an IP pool (admin)
+      description: |
+        Registers a CIDR range with the pool. The CIDR must be in
+        canonical netip.Prefix form (e.g. "203.0.113.0/24"). The
+        family parameter (4 or 6) must match the prefix. The optional
+        excluded_addresses list (gateway, broadcast, reserved, ...) is
+        honoured by the allocation logic.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComputeIPPoolRangeAddRequest" }
+      responses:
+        "201":
+          description: Range added.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeIPPoolRange" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Range already in pool.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/admin/compute/ip-pools/{poolId}/ranges/{rangeId}:
+    parameters:
+      - name: poolId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: rangeId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [compute]
+      operationId: deleteComputeIPPoolRange
+      summary: Remove a CIDR range from its pool (admin)
+      description: |
+        Removes the range. Existing floating-IP allocations inside the
+        range remain valid (they reference the pool, not the range).
+      responses:
+        "204": { description: Range removed. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # --- tenant-facing floating-IP surface ---
+
+  /api/v1/compute/floating-ips:
+    get:
+      tags: [compute]
+      operationId: listComputeFloatingIPs
+      summary: List floating IPs in the tenant
+      description: |
+        Returns a paginated list of the caller's tenant's floating IPs,
+        newest first. Granted to tenant.viewer + above
+        (compute.floating_ip.read).
+      parameters:
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+      responses:
+        "200":
+          description: A page of floating IPs.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeFloatingIPPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [compute]
+      operationId: allocateComputeFloatingIP
+      summary: Allocate a floating IP
+      description: |
+        Picks the next free IP in the named pool and records a new
+        allocation scoped to the caller's tenant. Granted to
+        tenant.member + above (compute.floating_ip.manage). The
+        optional ptr_target is published into the pool's reverse zone
+        on attach (when configured).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComputeFloatingIPAllocateRequest" }
+      responses:
+        "201":
+          description: Floating IP allocated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeFloatingIP" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Pool inactive or exhausted, or address-race; retry.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/compute/floating-ips/{floatingIpId}:
+    parameters:
+      - name: floatingIpId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [compute]
+      operationId: getComputeFloatingIP
+      summary: Get a floating IP
+      responses:
+        "200":
+          description: The floating IP.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeFloatingIP" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [compute]
+      operationId: setComputeFloatingIPPTR
+      summary: Set or clear the PTR target
+      description: |
+        Replaces the floating IP's ptr_target. Empty target disables
+        PTR publishing for the allocation. The service re-publishes
+        the PTR record into the pool's reverse zone (and removes the
+        old one) when configured.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComputeFloatingIPSetPTRRequest" }
+      responses:
+        "200":
+          description: The updated floating IP.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeFloatingIP" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [compute]
+      operationId: releaseComputeFloatingIP
+      summary: Release a floating IP
+      description: |
+        Releases the floating IP back to the pool. Any current attach
+        is detached first; the PTR record (if any) is removed; per-IP-
+        hour metering is stopped.
+      responses:
+        "204": { description: Floating IP released. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/compute/floating-ips/{floatingIpId}/attach:
+    parameters:
+      - name: floatingIpId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [compute]
+      operationId: attachComputeFloatingIP
+      summary: Attach a floating IP to an instance
+      description: |
+        Attaches the floating IP to the named instance. The instance
+        must be in the caller's tenant and must not already have a
+        floating IP attached. The Incus forward push is best-effort;
+        the response carries the push outcome so the caller can see
+        whether Lahijan attempted the forward.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComputeFloatingIPAttachRequest" }
+      responses:
+        "200":
+          description: Attached; the updated floating IP.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeFloatingIP" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Floating IP or instance already attached.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/compute/floating-ips/{floatingIpId}/detach:
+    parameters:
+      - name: floatingIpId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [compute]
+      operationId: detachComputeFloatingIP
+      summary: Detach a floating IP from its instance
+      description: |
+        Detaches the floating IP from its current instance. The IP
+        stays allocated to the tenant (the "floating" state). The
+        Incus forward (if any) is removed before the row is updated.
+      responses:
+        "200":
+          description: Detached; the updated floating IP.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeFloatingIP" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Floating IP is not attached.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/compute/instances/{instanceId}/floating-ip:
+    parameters:
+      - name: instanceId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [compute]
+      operationId: getComputeFloatingIPByInstance
+      summary: Get the floating IP attached to an instance
+      description: |
+        Returns the floating IP currently attached to the named
+        instance within the caller's tenant. 404 when no floating IP
+        is attached.
+      responses:
+        "200":
+          description: The attached floating IP.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeFloatingIP" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ===========================================================================
   # DNS module (WS-15)
   # ===========================================================================
 
@@ -6341,6 +6724,178 @@ components:
           description: |
             Optional destination storage pool. Empty = the daemon
             picks a pool from the target member's available pools.
+
+    # =========================================================================
+    # Compute IP pool + floating IP schemas (WS-30, ADR-0037)
+    # =========================================================================
+
+    ComputeIPPool:
+      type: object
+      required: [id, name, isActive, createdAt]
+      additionalProperties: false
+      properties:
+        id:          { type: string, format: uuid }
+        name:        { type: string }
+        description: { type: string, nullable: true }
+        ptrZoneId:   { type: string, format: uuid, nullable: true }
+        isActive:    { type: boolean }
+        createdAt:   { type: string, format: date-time }
+        updatedAt:   { type: string, format: date-time }
+
+    ComputeIPPoolPage:
+      type: object
+      required: [items, total, limit, offset]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ComputeIPPool" }
+        total:  { type: integer }
+        limit:  { type: integer }
+        offset: { type: integer }
+
+    ComputeIPPoolCreateRequest:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: Operator-chosen pool identifier; unique among non-deleted pools.
+        description: { type: string }
+        ptrZoneId:   { type: string, format: uuid, nullable: true }
+        isActive:
+          type: boolean
+          default: true
+          description: When false, tenants cannot allocate from the pool.
+
+    ComputeIPPoolUpdateRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        description: { type: string, nullable: true }
+        ptrZoneId:   { type: string, format: uuid, nullable: true }
+        isActive:    { type: boolean }
+
+    ComputeIPPoolRange:
+      type: object
+      required: [id, poolId, cidr, family, excludedAddresses, createdAt]
+      additionalProperties: false
+      properties:
+        id:                { type: string, format: uuid }
+        poolId:            { type: string, format: uuid }
+        cidr:
+          type: string
+          description: Canonical netip.Prefix form (e.g. "203.0.113.0/24").
+        family:
+          type: integer
+          enum: [4, 6]
+        excludedAddresses:
+          type: array
+          items: { type: string }
+          description: Addresses inside the range that are NOT allocatable.
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    ComputeIPPoolRangePage:
+      type: object
+      required: [items, total, limit, offset]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ComputeIPPoolRange" }
+        total:  { type: integer }
+        limit:  { type: integer }
+        offset: { type: integer }
+
+    ComputeIPPoolRangeAddRequest:
+      type: object
+      required: [cidr, family]
+      additionalProperties: false
+      properties:
+        cidr:
+          type: string
+          description: Canonical netip.Prefix form (e.g. "203.0.113.0/24", "2001:db8::/32").
+        family:
+          type: integer
+          enum: [4, 6]
+        excludedAddresses:
+          type: array
+          items: { type: string }
+          description: Addresses inside the range that are NOT allocatable (gateway, broadcast, reserved, ...).
+
+    ComputeFloatingIP:
+      type: object
+      required: [id, tenantId, poolId, address, family, forwardPushStatus, createdAt]
+      additionalProperties: false
+      properties:
+        id:                { type: string, format: uuid }
+        tenantId:          { type: string, format: uuid }
+        poolId:            { type: string, format: uuid }
+        address:
+          type: string
+          description: The allocated public IP (canonical netip.Addr form).
+        family:
+          type: integer
+          enum: [4, 6]
+        ptrTarget:
+          type: string
+          nullable: true
+          description: Optional FQDN published as the PTR target on attach.
+        instanceId:
+          type: string
+          format: uuid
+          nullable: true
+          description: The attached instance; null when allocated but not attached.
+        networkName:
+          type: string
+          nullable: true
+          description: The compute network the forward was created on, if any.
+        forwardPushStatus:
+          type: string
+          enum: [pending, pushed, failed, unsupported]
+          description: Best-effort forward push outcome (ADR-0037 sub-decision B).
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    ComputeFloatingIPPage:
+      type: object
+      required: [items, total, limit, offset]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ComputeFloatingIP" }
+        total:  { type: integer }
+        limit:  { type: integer }
+        offset: { type: integer }
+
+    ComputeFloatingIPAllocateRequest:
+      type: object
+      required: [poolId]
+      additionalProperties: false
+      properties:
+        poolId:   { type: string, format: uuid }
+        ptrTarget:
+          type: string
+          description: Optional FQDN to publish as the PTR target. Must be canonical (lowercase, trailing dot).
+
+    ComputeFloatingIPSetPTRRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        ptrTarget:
+          type: string
+          description: New PTR target. Empty clears the PTR record.
+
+    ComputeFloatingIPAttachRequest:
+      type: object
+      required: [instanceId]
+      additionalProperties: false
+      properties:
+        instanceId: { type: string, format: uuid }
 
     # =========================================================================
     # DNS module schemas (WS-15)

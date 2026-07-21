@@ -49,9 +49,13 @@ type CreateIPPoolParams struct {
 
 // CreateIPPool creates a new operator-owned IP pool. The pool starts
 // empty (no ranges); the operator adds ranges via AddIPPoolRange.
+//
+// NOTE: this method does NOT take a tenantID — pools are operator-owned
+// global resources. The handler resolves the tenant anyway (for the
+// auth middleware's audit context) but only the userID is plumbed
+// through to the audit row.
 func (s *Service) CreateIPPool(
 	ctx context.Context,
-	_ uuid.UUID, // tenant not used; pool is global. Kept for API symmetry.
 	userID uuid.UUID,
 	params CreateIPPoolParams,
 ) (IPPoolRow, error) {
@@ -130,7 +134,6 @@ type UpdateIPPoolParams struct {
 // UpdateIPPool replaces the mutable fields of a pool.
 func (s *Service) UpdateIPPool(
 	ctx context.Context,
-	_ uuid.UUID,
 	userID uuid.UUID,
 	params UpdateIPPoolParams,
 ) error {
@@ -167,7 +170,6 @@ func (s *Service) UpdateIPPool(
 // the schema is the last-line defence).
 func (s *Service) DeleteIPPool(
 	ctx context.Context,
-	_ uuid.UUID,
 	userID uuid.UUID,
 	poolID uuid.UUID,
 ) error {
@@ -214,7 +216,6 @@ type AddIPPoolRangeParams struct {
 // (v4 prefix with family=4, v6 with family=6).
 func (s *Service) AddIPPoolRange(
 	ctx context.Context,
-	_ uuid.UUID,
 	userID uuid.UUID,
 	params AddIPPoolRangeParams,
 ) (IPPoolRangeRow, error) {
@@ -303,7 +304,6 @@ func (s *Service) CountIPPoolRanges(ctx context.Context, poolID uuid.UUID) (int6
 // reference pool_id, not range_id).
 func (s *Service) DeleteIPPoolRange(
 	ctx context.Context,
-	_ uuid.UUID,
 	userID uuid.UUID,
 	poolID, rangeID uuid.UUID,
 ) error {

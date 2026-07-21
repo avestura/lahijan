@@ -224,6 +224,7 @@
   "compute.err_insufficient_balance": { "other": "Insufficient balance to perform this action." },
   "compute.err_migration_unsupported": { "other": "Instance migration is not supported on this deployment." },
   "compute.err_no_eligible_member": { "other": "No compute cluster member is available to host this instance. Try again later." },
+  "compute.err_ip_conflict": { "other": "The IP pool is full or the floating IP is in the wrong state for this action." },
 
   "dns.err_disabled": { "other": "The DNS subsystem is not enabled on this server." },
   "dns.err_not_found": { "other": "DNS resource not found." },
