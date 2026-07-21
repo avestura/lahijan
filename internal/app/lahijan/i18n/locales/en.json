@@ -295,6 +295,10 @@
   "audit.action_s3_credentials_create": { "other": "Object storage credentials issued" },
   "audit.action_s3_credentials_revoke": { "other": "Object storage credentials revoked" },
   "audit.action_s3_presign": { "other": "Object storage pre-signed URL issued" },
+  "audit.action_s3_bucket_versioning_set": { "other": "Object storage bucket versioning changed" },
+  "audit.action_s3_bucket_lifecycle_set": { "other": "Object storage bucket lifecycle rule changed" },
+  "audit.action_s3_bucket_object_lock_set": { "other": "Object storage bucket object-lock policy changed" },
+  "audit.action_s3_object_lifecycle_deleted": { "other": "Object deleted by lifecycle rule" },
 
   "billing.err_disabled": { "other": "The billing subsystem is not enabled on this server." },
   "billing.err_not_found": { "other": "Billing resource not found." },

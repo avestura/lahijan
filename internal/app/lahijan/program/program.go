@@ -450,6 +450,18 @@ func Start() error {
 		registerComputeSnapshotWorkers(jobDeps, computeSvc)
 	}
 
+	// WS-29: register the storage.lifecycle.evaluate River worker when
+	// both storage + jobs are enabled. The worker shares the storageSvc
+	// instance so audit + event bus emission lines up with the HTTP
+	// paths. The worker is the safety-net for SeaweedFS' partial native
+	// lifecycle support (ADR-0036 sub-decision B); a duplicate tick is
+	// idempotent (DeleteObject on an already-deleted key is a no-op).
+	if jobDeps.registry != nil && storageSvc != nil && seaweedfsDeps.provider != nil {
+		storage.RegisterLifecycleWorker(jobDeps.registry, storage.NewLifecycleEvaluateWorker(
+			storageSvc, seaweedfsDeps.provider, slog.Default(),
+		))
+	}
+
 	// Seed the RBAC catalog (permissions + default roles + grants). Idempotent
 	// so it is safe to run on every bootstrap. Fail-fast on error: without the
 	// seed, every privileged route returns 403.
