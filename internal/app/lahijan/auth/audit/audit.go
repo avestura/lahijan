@@ -163,6 +163,25 @@ const (
 	ActionDNSDomainTransfer = "dns.domain.transfer"
 	ActionDNSDomainDelete   = "dns.domain.delete"
 	ActionDNSDomainDNSSEC   = "dns.domain.dnssec"
+
+	// Compute public-IP / floating-IP actions (WS-30, ADR-0037).
+	// Emitted by the compute service on every state-changing privileged
+	// action across the IP-pool admin surface + the per-tenant
+	// floating-IP surface. Each row carries the pool_id + floating_ip_id
+	// + the resolved address in metadata so the audit query API can
+	// render a stable history. The ip_pool.* actions are operator-only
+	// (RequirePerm(compute.ip_pool.manage)); the floating_ip.* actions
+	// are tenant-scoped.
+	ActionComputeIPPoolCreate       = "compute.ip_pool.create"
+	ActionComputeIPPoolUpdate       = "compute.ip_pool.update"
+	ActionComputeIPPoolDelete       = "compute.ip_pool.delete"
+	ActionComputeIPPoolRangeAdd     = "compute.ip_pool.range.add"
+	ActionComputeIPPoolRangeDelete  = "compute.ip_pool.range.delete"
+	ActionComputeFloatingIPAllocate = "compute.floating_ip.allocate"
+	ActionComputeFloatingIPAttach   = "compute.floating_ip.attach"
+	ActionComputeFloatingIPDetach   = "compute.floating_ip.detach"
+	ActionComputeFloatingIPRelease  = "compute.floating_ip.release"
+	ActionComputeFloatingIPSetPTR   = "compute.floating_ip.set_ptr"
 )
 
 // Standard statuses recorded on audit_log.status and audit_log_outcomes.status.
@@ -220,6 +239,13 @@ const (
 	// DNS domain resource type (WS-28 registrar resale). Emitted by
 	// the registrar service.
 	ResourceDNSDomain = "dns_domain"
+
+	// Compute IP-pool + floating-IP resource types (WS-30, ADR-0037).
+	// Emitted by the compute service on every state-changing privileged
+	// action across the public-IP surface.
+	ResourceIPPool      = "ip_pool"
+	ResourceIPPoolRange = "ip_pool_range"
+	ResourceFloatingIP  = "floating_ip"
 )
 
 // Event is the data an emitter records. TenantID is nil for system-level auth

@@ -494,6 +494,63 @@ into the `compute_instances.cluster_member` column for the UI.
   stack is a thin wrapper around the host's Incus socket; it has no
   state and can be replicated freely.
 
+### 14d. Public IP / floating IP data plane (WS-30, ADR-0037)
+
+WS-30 ships the control plane for public-IP assignment (IP pools +
+per-tenant floating IPs + best-effort Incus network-forwards). The
+**data plane** — actually routing public IPs to your host — is the
+operator's concern. Lahijan does NOT manage BGP, FRR, or NAT; it only
+records the allocation in Postgres and opportunistically pushes an
+Incus `network forward` when one is configured.
+
+Two deployment shapes:
+
+1. **Self-hoster with a single public IP.** You do not need this
+   section. Leave `providers.incus.floatingIPs.forwardNetwork` empty;
+   every floating-IP attach records `forward_push_status=
+   "unsupported"`. The operator UI shows the allocation; the
+   user's instance is reachable via the existing bridge / proxy
+   device you already configured.
+
+2. **SaaS-style deployment with a public IP range.** The operator
+   owns a CIDR (RIR-allocated or provider-assigned) and wants
+   Lahijan to hand out individual addresses.
+
+   **Required operator setup (out of band from Lahijan):**
+
+   - Route the CIDR to the Incus host(s). Typical options:
+     - **BGP via FRR** (recommended for multi-host clusters):
+       peer with your upstream and announce the CIDR from every
+       Incus host. The host then accepts traffic for any IP in
+       the CIDR.
+     - **Static route:** your upstream router forwards the entire
+       CIDR to the Incus host's primary IP. Fine for single-host.
+   - Create a managed Incus network with `ipv4.address=` set to
+     the operator's CIDR (Incus then owns the addresses inside
+     that network and the network-forward API works).
+   - Configure Lahijan to push forwards onto that network:
+
+     ```
+     LAHIJAN_PROVIDERS_INCUS_FLOATINGIPS_FORWARDNETWORK=lan-public
+     ```
+
+     (Replace `lan-public` with the name of the managed network you
+     created above.) Every floating-IP attach now pushes an Incus
+     `network forward` that maps the public IP to the instance.
+
+   **Limitations:**
+
+   - Per-IP rate limiting + abuse handling are NOT shipped with
+     Lahijan. Add host-level enforcement (nftables / xtables / an
+     external IDMS) if your deployment is exposed to the public
+     internet.
+   - Egress metering (per-GB charging) is NOT shipped. Per-IP-hour
+     charging is wired via the WS-17 meter seam and will be
+     emitted by a follow-up WS's periodic worker.
+
+   See `docs/adr/0037-public-ip-floating-ips-design.md` for the
+   full design rationale.
+
 ## 15. Getting help
 
 - **Issues:** https://github.com/avestura/lahijan/issues

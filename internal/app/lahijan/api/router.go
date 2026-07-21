@@ -290,6 +290,35 @@ func AuditGate(policy middleware.PolicyResolver) apigen.MiddlewareFunc {
 		case isComputeInstanceMigratePath(path) && method == "POST":
 			return middleware.RequirePerm(policy, rbac.PermComputeInstanceMigrate)(c)
 
+		// WS-30: IP pool + floating IP endpoints. The admin pool tree
+		// is platform-admin only (compute.ip_pool.manage); the tenant
+		// floating-IP tree splits read (viewer+) from manage
+		// (member+). The instance-scoped floating-ip endpoint reuses
+		// the read perm so the instance-detail "attached IP" card
+		// renders without elevating.
+		case isComputeIPPoolPath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermComputeIPPoolManage)(c)
+		case isComputeIPPoolPath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermComputeIPPoolManage)(c)
+		case isComputeIPPoolPath(path) && method == "PATCH":
+			return middleware.RequirePerm(policy, rbac.PermComputeIPPoolManage)(c)
+		case isComputeIPPoolPath(path) && method == "DELETE":
+			return middleware.RequirePerm(policy, rbac.PermComputeIPPoolManage)(c)
+		case isComputeFloatingIPAttachPath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermComputeFloatingIPManage)(c)
+		case isComputeFloatingIPDetachPath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermComputeFloatingIPManage)(c)
+		case isComputeFloatingIPPath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermComputeFloatingIPManage)(c)
+		case isComputeFloatingIPPath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermComputeFloatingIPRead)(c)
+		case isComputeFloatingIPPath(path) && method == "PATCH":
+			return middleware.RequirePerm(policy, rbac.PermComputeFloatingIPManage)(c)
+		case isComputeFloatingIPPath(path) && method == "DELETE":
+			return middleware.RequirePerm(policy, rbac.PermComputeFloatingIPManage)(c)
+		case isComputeInstanceFloatingIPPath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermComputeFloatingIPRead)(c)
+
 		// WS-15: DNS module endpoints. Every /api/v1/dns/* path is gated;
 		// the slug maps 1:1 with the rbac.PermDNS* registry so the policy
 		// evaluator can answer with the caller's role grant
@@ -609,6 +638,71 @@ func isComputeInstanceMigratePath(path string) bool {
 		return false
 	}
 	return strings.HasSuffix(path, "/migrate")
+}
+
+// -------------------------------------------------------------------------
+// WS-30 IP pool + floating IP path helpers.
+//
+// Two roots:
+//   * /api/v1/admin/compute/ip-pools*                       (admin tree)
+//   * /api/v1/compute/floating-ips*                         (tenant tree)
+//   * /api/v1/compute/instances/{id}/floating-ip            (tenant tree)
+//
+// The admin tree is platform-admin only; the tenant tree splits read
+// from manage. Each helper matches a specific subtree so the audit
+// gate dispatches to the right RequirePerm slug.
+// -------------------------------------------------------------------------
+
+// isComputeIPPoolPath reports whether path targets the admin IP-pool
+// tree (collection or specific pool + its ranges). Matches:
+//
+//	/api/v1/admin/compute/ip-pools
+//	/api/v1/admin/compute/ip-pools/{id}
+//	/api/v1/admin/compute/ip-pools/{id}/ranges
+//	/api/v1/admin/compute/ip-pools/{id}/ranges/{rangeId}
+func isComputeIPPoolPath(path string) bool {
+	if path == "/api/v1/admin/compute/ip-pools" {
+		return true
+	}
+	return strings.HasPrefix(path, "/api/v1/admin/compute/ip-pools/")
+}
+
+// isComputeFloatingIPPath reports whether path targets the tenant
+// floating-IP tree (collection or specific IP), excluding the attach
+// + detach sub-paths which have their own helper.
+func isComputeFloatingIPPath(path string) bool {
+	if path == "/api/v1/compute/floating-ips" {
+		return true
+	}
+	if !strings.HasPrefix(path, "/api/v1/compute/floating-ips/") {
+		return false
+	}
+	return !isComputeFloatingIPAttachPath(path) && !isComputeFloatingIPDetachPath(path)
+}
+
+// isComputeFloatingIPAttachPath reports whether path is the attach
+// endpoint (POST /api/v1/compute/floating-ips/{id}/attach).
+func isComputeFloatingIPAttachPath(path string) bool {
+	return strings.HasPrefix(path, "/api/v1/compute/floating-ips/") &&
+		strings.HasSuffix(path, "/attach")
+}
+
+// isComputeFloatingIPDetachPath reports whether path is the detach
+// endpoint (POST /api/v1/compute/floating-ips/{id}/detach).
+func isComputeFloatingIPDetachPath(path string) bool {
+	return strings.HasPrefix(path, "/api/v1/compute/floating-ips/") &&
+		strings.HasSuffix(path, "/detach")
+}
+
+// isComputeInstanceFloatingIPPath reports whether path is the
+// instance-scoped floating-IP lookup endpoint
+// (GET /api/v1/compute/instances/{id}/floating-ip). Used by the audit
+// gate to gate it under compute.floating_ip.read.
+func isComputeInstanceFloatingIPPath(path string) bool {
+	if !strings.HasPrefix(path, "/api/v1/compute/instances/") {
+		return false
+	}
+	return strings.HasSuffix(path, "/floating-ip")
 }
 
 // computeInstanceActionPerm maps the trailing path segment to the matching

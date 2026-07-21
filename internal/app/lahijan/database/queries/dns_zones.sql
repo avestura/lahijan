@@ -20,6 +20,12 @@ WHERE tenant_id = $1 AND id = $2;
 -- cross-tenant "is this canonical id owned by anyone?" check.
 SELECT * FROM dns_zones WHERE canonical_id = $1;
 
+-- name: GetDNSZoneByIDGlobal :one
+-- Admin-only path: no tenant scoping. Used by the WS-30 PTR publisher
+-- (program/compute_ip_ptrs.go) to look up the operator-owned reverse
+-- zone by id without knowing which tenant owns it.
+SELECT * FROM dns_zones WHERE id = $1;
+
 -- name: GetDNSZoneByCanonicalForTenant :one
 --: tenant-scoped
 -- Tenant-scoped variant: returns the row only if the canonical id is owned

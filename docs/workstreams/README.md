@@ -100,7 +100,7 @@ Docs ready. Work not in MVP. Will be scheduled when MVP is shipped.
 | [WS-27](./WS-27-payment-gateway-stripe.md) | Payment Gateway (Stripe) + Subscriptions | done | WS-17 |
 | [WS-28](./WS-28-dns-recursor-dnsdist-registrar.md) | DNS Recursor + dnsdist + Registrar Resale | done | WS-12 |
 | [WS-29](./WS-29-s3-lifecycle-versioning.md) | S3 Lifecycle / Versioning / Object Lock | done | WS-13 |
-| [WS-30](./WS-30-public-ip-floating-ips.md) | Public IP Assignment & Floating IPs | deferred | WS-11, WS-26 |
+| [WS-30](./WS-30-public-ip-floating-ips.md) | Public IP Assignment & Floating IPs | done | WS-11, WS-26 |
 
 ## Dependency graph (text)
 

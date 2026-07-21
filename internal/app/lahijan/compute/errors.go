@@ -101,3 +101,55 @@ var ErrInvalidCadence = errors.New("compute: invalid cadence (expected ISO 8601 
 // exercised but the service was constructed without an AES-GCM envelope.
 // 500 internal (the deployer forgot to wire the encryption key).
 var ErrCryptoRequired = errors.New("compute: encryption envelope not wired (backup target secrets require auth.secrets.encryptionKey)")
+
+// WS-30: IP pool + floating IP errors.
+
+// ErrIPPoolNotFound is returned when the pool does not exist. The handler
+// maps it to 404 not_found.
+var ErrIPPoolNotFound = errors.New("compute: ip pool not found")
+
+// ErrIPPoolNameTaken is returned when a create-pool call uses a name
+// already in use. The handler maps it to 409 conflict.
+var ErrIPPoolNameTaken = errors.New("compute: ip pool name already in use")
+
+// ErrIPPoolRangeNotFound is returned when the range does not exist within
+// the named pool. 404 not_found.
+var ErrIPPoolRangeNotFound = errors.New("compute: ip pool range not found")
+
+// ErrIPPoolRangeExists is returned when adding a CIDR already present in
+// the pool. 409 conflict.
+var ErrIPPoolRangeExists = errors.New("compute: ip pool range already exists")
+
+// ErrIPPoolInactive is returned when a tenant tries to allocate from a
+// pool the operator has deactivated. 409 conflict.
+var ErrIPPoolInactive = errors.New("compute: ip pool is not active")
+
+// ErrFloatingIPNotFound is returned when the floating IP does not exist
+// within the caller's tenant. 404 not_found.
+var ErrFloatingIPNotFound = errors.New("compute: floating ip not found")
+
+// ErrIPPoolExhausted is returned when the pool has no free addresses.
+// The handler maps it to 409 conflict (the operator must add a range or
+// the tenant must release an existing allocation).
+var ErrIPPoolExhausted = errors.New("compute: ip pool exhausted (no free addresses)")
+
+// ErrInvalidCIDR is returned when an IP-pool-range add call sends a CIDR
+// that cannot be parsed. 400 bad_request.
+var ErrInvalidCIDR = errors.New("compute: invalid CIDR (expected canonical form like 203.0.113.0/24)")
+
+// ErrInvalidIPFamily is returned when a CIDR's address family does not
+// match the explicitly-supplied family parameter. 400 bad_request.
+var ErrInvalidIPFamily = errors.New("compute: address family mismatch between CIDR and family parameter")
+
+// ErrFloatingIPAlreadyAttached is returned when an attach call targets an
+// instance that already has a floating IP attached. 409 conflict.
+var ErrFloatingIPAlreadyAttached = errors.New("compute: instance already has a floating ip attached")
+
+// ErrFloatingIPNotAttached is returned when a detach call targets a
+// floating IP that is not currently attached. 409 conflict.
+var ErrFloatingIPNotAttached = errors.New("compute: floating ip is not attached to any instance")
+
+// ErrIPPoolHasAllocations is returned when a delete-pool call would
+// strand live allocations. The service wraps the error with the count
+// when surfacing; the handler maps it to 409 conflict.
+var ErrIPPoolHasAllocations = errors.New("compute: ip pool still has allocations")

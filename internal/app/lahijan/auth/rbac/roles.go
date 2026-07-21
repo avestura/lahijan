@@ -114,6 +114,11 @@ var defaultRoles = []RoleDefinition{
 			PermComputeClusterMemberList,
 			PermComputeClusterMemberEvacuate,
 			PermComputeInstanceMigrate,
+			// compute IP pools + floating IPs (WS-30, ADR-0037).
+			// Admin = full floating-IP surface; pool management is
+			// platform-admin only (operator-owned resource).
+			PermComputeFloatingIPManage,
+			PermComputeFloatingIPRead,
 			// dns (full)
 			PermDNSZoneCreate,
 			PermDNSZoneRead,
@@ -206,6 +211,11 @@ var defaultRoles = []RoleDefinition{
 			// evacuate/restore is admin-only).
 			PermComputeClusterMemberList,
 			PermComputeInstanceMigrate,
+			// compute floating IPs (WS-30, ADR-0037). Member can
+			// allocate / attach / detach / release own; pool admin
+			// is platform-admin only.
+			PermComputeFloatingIPManage,
+			PermComputeFloatingIPRead,
 			// dns (no zone delete)
 			PermDNSZoneCreate,
 			PermDNSZoneRead,
@@ -266,6 +276,9 @@ var defaultRoles = []RoleDefinition{
 			PermComputeSnapshotPolicyRead,
 			// compute cluster (WS-26 read: viewer can see members)
 			PermComputeClusterMemberList,
+			// compute floating IPs (WS-30 read: viewer can see the
+			// tenant's allocations).
+			PermComputeFloatingIPRead,
 			// dns reads
 			PermDNSZoneRead,
 			PermDNSRecordRead,

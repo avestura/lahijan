@@ -452,6 +452,16 @@ providers:
     placement:
       mode: "local"
 
+    # WS-30 floating IP best-effort forward push (ADR-0037 sub-decision B).
+    # When a tenant attaches a floating IP, the compute service tries to
+    # push an Incus network forward onto the named network so traffic to
+    # the public IP reaches the instance. Empty means the operator
+    # topology does not allow a forward and the attach records
+    # forward_push_status="unsupported" (the operator's external
+    # automation handles plumbing via BGP/FRR/static route).
+    floatingIPs:
+      forwardNetwork: ""
+
   # PowerDNS Authoritative backend (WS-12). The daemon runs in a container
   # pointed at the shared Postgres gpgsql backend (ADR-0007). Lahijan talks
   # to the daemon's HTTP API over the local compose network. The API key

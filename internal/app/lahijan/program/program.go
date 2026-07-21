@@ -270,11 +270,16 @@ func Start() error {
 			wasmDeps.bus,
 			rbac.NewEvaluator(authDeps.repos.Memberships),
 			compute.Config{
-				Quotas:    compute.DefaultQuotas(),
-				Crypto:    computeCrypto,
-				Placement: placement,
+				Quotas:         compute.DefaultQuotas(),
+				Crypto:         computeCrypto,
+				Placement:      placement,
+				ForwardNetwork: conf.GetProvidersIncusFloatingIPForwardNetwork(),
 			},
 		)
+		// WS-30: the reverse-DNS auto-publish adapter is wired after
+		// the DNS module is built (see "WS-30 PTR publisher wire"
+		// below). The ForwardNetwork config is sourced from
+		// providers.incus.floatingIPs.forwardNetwork.
 		// Seed the featured-image catalog for every existing tenant. A
 		// future WS will hook this into the tenant-create path so a new
 		// tenant picks up the catalog automatically. Runs synchronously
@@ -316,6 +321,17 @@ func Start() error {
 				DefaultDNSSECEnabled: conf.GetProvidersPowerDNSDefaultDNSSECEnabled(),
 			},
 		)
+	}
+
+	// WS-30: wire the reverse-DNS auto-publish adapter once both
+	// compute + DNS services exist. The adapter is the only place the
+	// two modules meet; it sets up the operator-owned reverse zone's
+	// tenant context so the dns.Service call lands in the right tenant.
+	// Nil-appropriate when either service is disabled.
+	if computeSvc != nil && dnsSvc != nil {
+		if pub := newDNSPTRPublisher(dnsSvc, authDeps.repos); pub != nil {
+			computeSvc = computeSvc.WithPTRPublisher(pub)
+		}
 	}
 
 	// WS-13: build the SeaweedFS driver (providers/seaweedfs/*). Returns a

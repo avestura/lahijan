@@ -1822,6 +1822,250 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/compute/ip-pools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List IP pools (admin)
+         * @description Returns a paginated list of every operator-owned IP pool.
+         *     Platform-admin only (compute.ip_pool.manage). Each pool carries
+         *     its name, the optional PTR-zone id, and the active flag.
+         */
+        get: operations["listComputeIPPools"];
+        put?: never;
+        /**
+         * Create an IP pool (admin)
+         * @description Registers a new operator-owned IP pool. The pool starts empty;
+         *     add ranges via POST /api/v1/admin/compute/ip-pools/{poolId}/ranges.
+         */
+        post: operations["createComputeIPPool"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/compute/ip-pools/{poolId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                poolId: string;
+            };
+            cookie?: never;
+        };
+        /** Get an IP pool (admin) */
+        get: operations["getComputeIPPool"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete an IP pool (admin)
+         * @description Soft-deletes the pool. Refuses with 409 if any live floating-IP
+         *     allocations remain; the operator must release every allocation
+         *     first.
+         */
+        delete: operations["deleteComputeIPPool"];
+        options?: never;
+        head?: never;
+        /**
+         * Update an IP pool (admin)
+         * @description Replaces the mutable fields (description, ptr_zone_id,
+         *     is_active). The name is immutable.
+         */
+        patch: operations["updateComputeIPPool"];
+        trace?: never;
+    };
+    "/api/v1/admin/compute/ip-pools/{poolId}/ranges": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                poolId: string;
+            };
+            cookie?: never;
+        };
+        /** List CIDR ranges in an IP pool (admin) */
+        get: operations["listComputeIPPoolRanges"];
+        put?: never;
+        /**
+         * Add a CIDR range to an IP pool (admin)
+         * @description Registers a CIDR range with the pool. The CIDR must be in
+         *     canonical netip.Prefix form (e.g. "203.0.113.0/24"). The
+         *     family parameter (4 or 6) must match the prefix. The optional
+         *     excluded_addresses list (gateway, broadcast, reserved, ...) is
+         *     honoured by the allocation logic.
+         */
+        post: operations["addComputeIPPoolRange"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/compute/ip-pools/{poolId}/ranges/{rangeId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                poolId: string;
+                rangeId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a CIDR range from its pool (admin)
+         * @description Removes the range. Existing floating-IP allocations inside the
+         *     range remain valid (they reference the pool, not the range).
+         */
+        delete: operations["deleteComputeIPPoolRange"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compute/floating-ips": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List floating IPs in the tenant
+         * @description Returns a paginated list of the caller's tenant's floating IPs,
+         *     newest first. Granted to tenant.viewer + above
+         *     (compute.floating_ip.read).
+         */
+        get: operations["listComputeFloatingIPs"];
+        put?: never;
+        /**
+         * Allocate a floating IP
+         * @description Picks the next free IP in the named pool and records a new
+         *     allocation scoped to the caller's tenant. Granted to
+         *     tenant.member + above (compute.floating_ip.manage). The
+         *     optional ptr_target is published into the pool's reverse zone
+         *     on attach (when configured).
+         */
+        post: operations["allocateComputeFloatingIP"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compute/floating-ips/{floatingIpId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                floatingIpId: string;
+            };
+            cookie?: never;
+        };
+        /** Get a floating IP */
+        get: operations["getComputeFloatingIP"];
+        put?: never;
+        post?: never;
+        /**
+         * Release a floating IP
+         * @description Releases the floating IP back to the pool. Any current attach
+         *     is detached first; the PTR record (if any) is removed; per-IP-
+         *     hour metering is stopped.
+         */
+        delete: operations["releaseComputeFloatingIP"];
+        options?: never;
+        head?: never;
+        /**
+         * Set or clear the PTR target
+         * @description Replaces the floating IP's ptr_target. Empty target disables
+         *     PTR publishing for the allocation. The service re-publishes
+         *     the PTR record into the pool's reverse zone (and removes the
+         *     old one) when configured.
+         */
+        patch: operations["setComputeFloatingIPPTR"];
+        trace?: never;
+    };
+    "/api/v1/compute/floating-ips/{floatingIpId}/attach": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                floatingIpId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Attach a floating IP to an instance
+         * @description Attaches the floating IP to the named instance. The instance
+         *     must be in the caller's tenant and must not already have a
+         *     floating IP attached. The Incus forward push is best-effort;
+         *     the response carries the push outcome so the caller can see
+         *     whether Lahijan attempted the forward.
+         */
+        post: operations["attachComputeFloatingIP"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compute/floating-ips/{floatingIpId}/detach": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                floatingIpId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Detach a floating IP from its instance
+         * @description Detaches the floating IP from its current instance. The IP
+         *     stays allocated to the tenant (the "floating" state). The
+         *     Incus forward (if any) is removed before the row is updated.
+         */
+        post: operations["detachComputeFloatingIP"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compute/instances/{instanceId}/floating-ip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instanceId: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Get the floating IP attached to an instance
+         * @description Returns the floating IP currently attached to the named
+         *     instance within the caller's tenant. 404 when no floating IP
+         *     is attached.
+         */
+        get: operations["getComputeFloatingIPByInstance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dns/zones": {
         parameters: {
             query?: never;
@@ -4110,6 +4354,123 @@ export interface components {
              *     picks a pool from the target member's available pools.
              */
             storagePool?: string;
+        };
+        ComputeIPPool: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            description?: string | null;
+            /** Format: uuid */
+            ptrZoneId?: string | null;
+            isActive: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        ComputeIPPoolPage: {
+            items: components["schemas"]["ComputeIPPool"][];
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        ComputeIPPoolCreateRequest: {
+            /** @description Operator-chosen pool identifier; unique among non-deleted pools. */
+            name: string;
+            description?: string;
+            /** Format: uuid */
+            ptrZoneId?: string | null;
+            /**
+             * @description When false, tenants cannot allocate from the pool.
+             * @default true
+             */
+            isActive: boolean;
+        };
+        ComputeIPPoolUpdateRequest: {
+            description?: string | null;
+            /** Format: uuid */
+            ptrZoneId?: string | null;
+            isActive?: boolean;
+        };
+        ComputeIPPoolRange: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            poolId: string;
+            /** @description Canonical netip.Prefix form (e.g. "203.0.113.0/24"). */
+            cidr: string;
+            /** @enum {integer} */
+            family: 4 | 6;
+            /** @description Addresses inside the range that are NOT allocatable. */
+            excludedAddresses: string[];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        ComputeIPPoolRangePage: {
+            items: components["schemas"]["ComputeIPPoolRange"][];
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        ComputeIPPoolRangeAddRequest: {
+            /** @description Canonical netip.Prefix form (e.g. "203.0.113.0/24", "2001:db8::/32"). */
+            cidr: string;
+            /** @enum {integer} */
+            family: 4 | 6;
+            /** @description Addresses inside the range that are NOT allocatable (gateway, broadcast, reserved, ...). */
+            excludedAddresses?: string[];
+        };
+        ComputeFloatingIP: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            tenantId: string;
+            /** Format: uuid */
+            poolId: string;
+            /** @description The allocated public IP (canonical netip.Addr form). */
+            address: string;
+            /** @enum {integer} */
+            family: 4 | 6;
+            /** @description Optional FQDN published as the PTR target on attach. */
+            ptrTarget?: string | null;
+            /**
+             * Format: uuid
+             * @description The attached instance; null when allocated but not attached.
+             */
+            instanceId?: string | null;
+            /** @description The compute network the forward was created on, if any. */
+            networkName?: string | null;
+            /**
+             * @description Best-effort forward push outcome (ADR-0037 sub-decision B).
+             * @enum {string}
+             */
+            forwardPushStatus: "pending" | "pushed" | "failed" | "unsupported";
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        ComputeFloatingIPPage: {
+            items: components["schemas"]["ComputeFloatingIP"][];
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        ComputeFloatingIPAllocateRequest: {
+            /** Format: uuid */
+            poolId: string;
+            /** @description Optional FQDN to publish as the PTR target. Must be canonical (lowercase, trailing dot). */
+            ptrTarget?: string;
+        };
+        ComputeFloatingIPSetPTRRequest: {
+            /** @description New PTR target. Empty clears the PTR record. */
+            ptrTarget?: string;
+        };
+        ComputeFloatingIPAttachRequest: {
+            /** Format: uuid */
+            instanceId: string;
         };
         DNSZone: {
             /** Format: uuid */
@@ -8139,6 +8500,482 @@ export interface operations {
                 };
             };
             501: components["responses"]["NotImplemented"];
+        };
+    };
+    listComputeIPPools: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of items to return (1..200). */
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Number of items to skip for pagination. */
+                offset?: components["parameters"]["PageOffset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of pools. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeIPPoolPage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createComputeIPPool: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComputeIPPoolCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Pool created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeIPPool"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Pool name already in use. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getComputeIPPool: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                poolId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The pool. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeIPPool"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteComputeIPPool: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                poolId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pool deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Pool still has live allocations. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateComputeIPPool: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                poolId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComputeIPPoolUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Pool updated. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listComputeIPPoolRanges: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                poolId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of ranges. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeIPPoolRangePage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    addComputeIPPoolRange: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                poolId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComputeIPPoolRangeAddRequest"];
+            };
+        };
+        responses: {
+            /** @description Range added. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeIPPoolRange"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Range already in pool. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteComputeIPPoolRange: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                poolId: string;
+                rangeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Range removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listComputeFloatingIPs: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of items to return (1..200). */
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Number of items to skip for pagination. */
+                offset?: components["parameters"]["PageOffset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of floating IPs. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeFloatingIPPage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    allocateComputeFloatingIP: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComputeFloatingIPAllocateRequest"];
+            };
+        };
+        responses: {
+            /** @description Floating IP allocated. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeFloatingIP"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Pool inactive or exhausted, or address-race; retry. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getComputeFloatingIP: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                floatingIpId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The floating IP. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeFloatingIP"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    releaseComputeFloatingIP: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                floatingIpId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Floating IP released. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setComputeFloatingIPPTR: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                floatingIpId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComputeFloatingIPSetPTRRequest"];
+            };
+        };
+        responses: {
+            /** @description The updated floating IP. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeFloatingIP"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    attachComputeFloatingIP: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                floatingIpId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComputeFloatingIPAttachRequest"];
+            };
+        };
+        responses: {
+            /** @description Attached; the updated floating IP. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeFloatingIP"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Floating IP or instance already attached. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    detachComputeFloatingIP: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                floatingIpId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Detached; the updated floating IP. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeFloatingIP"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Floating IP is not attached. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getComputeFloatingIPByInstance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instanceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The attached floating IP. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeFloatingIP"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     listDNSZones: {

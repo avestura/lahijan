@@ -99,6 +99,24 @@ func (r *DNSRecordsRepository) GetByIdentity(
 	})
 }
 
+// GetByNameGlobal is the admin-only cross-tenant lookup by (zone_id,
+// name, type). Used by the WS-30 PTR publisher
+// (program/compute_ip_ptrs.go) to find the PTR record for an IP in
+// the operator-owned reverse zone without knowing which tenant owns
+// the zone. The (zone_id, name, type) tuple is unique by
+// construction so the lookup is deterministic.
+func (r *DNSRecordsRepository) GetByNameGlobal(
+	ctx context.Context,
+	zoneID uuid.UUID,
+	name, recordType string,
+) (gen.DnsRecord, error) {
+	return r.q.GetDNSRecordByNameGlobal(ctx, gen.GetDNSRecordByNameGlobalParams{
+		ZoneID: zoneID,
+		Name:   name,
+		Type:   recordType,
+	})
+}
+
 // List returns a page of dns_records rows within the zone and the tenant
 // in ctx. Ordered by (name, type) so the UI renders a stable list.
 func (r *DNSRecordsRepository) List(

@@ -52,6 +52,8 @@ sql:
       - "queries/compute_snapshot_policies.sql"
       - "queries/billing.sql"
       - "queries/billing_payments.sql"
+      - "queries/compute_ip_pools.sql"
+      - "queries/compute_floating_ips.sql"
     schema:
       - "migrations/*.up.sql"
     gen:
@@ -93,6 +95,10 @@ sql:
               import: "net/netip"
               type: "Addr"
               pointer: true
+          - db_type: "inet"
+            go_type:
+              import: "net/netip"
+              type: "Addr"
 
 # `sqlc verify` will be wired in once a second query set lands; for now there's
 # only one database target.

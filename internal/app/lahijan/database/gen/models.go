@@ -458,6 +458,58 @@ type EmailToken struct {
 	CreatedAt time.Time  `json:"created_at"`
 }
 
+// Per-tenant public-IP allocation (WS-30, ADR-0037). Source of truth for floating-IP state; the Incus forward is derived + best-effort.
+type FloatingIp struct {
+	ID       uuid.UUID `json:"id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+	// The pool the address was allocated from. ON DELETE RESTRICT: dropping a pool with live allocations requires explicit release first.
+	PoolID uuid.UUID `json:"pool_id"`
+	// The allocated public IP (INET). Globally unique among non-deleted rows.
+	Address netip.Addr `json:"address"`
+	// Address family (4 or 6); cached from address for indexing.
+	Family int32 `json:"family"`
+	// Optional FQDN to publish as the PTR target on attach. NULL disables PTR auto-publish for this allocation.
+	PtrTarget *string `json:"ptr_target"`
+	// The attached instance; NULL when the IP is allocated but not attached (floating).
+	InstanceID *uuid.UUID `json:"instance_id"`
+	// The Incus network the forward was created on, if any.
+	NetworkName *string `json:"network_name"`
+	// Best-effort Incus forward push status: pending | pushed | failed | unsupported.
+	ForwardPushStatus string     `json:"forward_push_status"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
+	DeletedAt         *time.Time `json:"deleted_at"`
+}
+
+// Operator-owned IP pool (WS-30, ADR-0037). Global table; the pool is the source of allocatable public addresses.
+type IpPool struct {
+	ID uuid.UUID `json:"id"`
+	// Operator-chosen pool identifier; unique among non-deleted pools.
+	Name        string  `json:"name"`
+	Description *string `json:"description"`
+	// Optional dns_zones.id to publish PTR records into on every attach. NULL disables auto-publish for the pool.
+	PtrZoneID *uuid.UUID `json:"ptr_zone_id"`
+	// When FALSE, tenants cannot allocate new floating IPs from this pool; existing allocations remain.
+	IsActive  bool       `json:"is_active"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+	DeletedAt *time.Time `json:"deleted_at"`
+}
+
+// Per-pool CIDR ranges (WS-30, ADR-0037). A pool can hold multiple ranges (v4 + v6).
+type IpPoolRange struct {
+	ID     uuid.UUID `json:"id"`
+	PoolID uuid.UUID `json:"pool_id"`
+	// Network prefix in netip.Prefix canonical form (e.g. "203.0.113.0/24").
+	Cidr string `json:"cidr"`
+	// Address family (4 or 6); cached from cidr for indexing.
+	Family int32 `json:"family"`
+	// JSONB array of IP strings inside the range that are NOT allocatable (network, broadcast, gateway, ...).
+	ExcludedAddresses json.RawMessage `json:"excluded_addresses"`
+	CreatedAt         time.Time       `json:"created_at"`
+	UpdatedAt         time.Time       `json:"updated_at"`
+}
+
 // Per-user append-only ledger (WS-17, ADR-0013). The sum of credits - debits is the balance.
 type LedgerEntry struct {
 	ID       uuid.UUID `json:"id"`

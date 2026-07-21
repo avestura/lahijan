@@ -153,6 +153,32 @@ const (
 	ComputeClusterMemberActionActionRestore  ComputeClusterMemberActionAction = "restore"
 )
 
+// Defines values for ComputeFloatingIPFamily.
+const (
+	ComputeFloatingIPFamilyN4 ComputeFloatingIPFamily = 4
+	ComputeFloatingIPFamilyN6 ComputeFloatingIPFamily = 6
+)
+
+// Defines values for ComputeFloatingIPForwardPushStatus.
+const (
+	ComputeFloatingIPForwardPushStatusFailed      ComputeFloatingIPForwardPushStatus = "failed"
+	ComputeFloatingIPForwardPushStatusPending     ComputeFloatingIPForwardPushStatus = "pending"
+	ComputeFloatingIPForwardPushStatusPushed      ComputeFloatingIPForwardPushStatus = "pushed"
+	ComputeFloatingIPForwardPushStatusUnsupported ComputeFloatingIPForwardPushStatus = "unsupported"
+)
+
+// Defines values for ComputeIPPoolRangeFamily.
+const (
+	ComputeIPPoolRangeFamilyN4 ComputeIPPoolRangeFamily = 4
+	ComputeIPPoolRangeFamilyN6 ComputeIPPoolRangeFamily = 6
+)
+
+// Defines values for ComputeIPPoolRangeAddRequestFamily.
+const (
+	ComputeIPPoolRangeAddRequestFamilyN4 ComputeIPPoolRangeAddRequestFamily = 4
+	ComputeIPPoolRangeAddRequestFamilyN6 ComputeIPPoolRangeAddRequestFamily = 6
+)
+
 // Defines values for ComputeImageSource.
 const (
 	ComputeImageSourceCustom   ComputeImageSource = "custom"
@@ -1180,6 +1206,139 @@ type ComputeExecResult struct {
 
 	// Stdout Captured stdout (base64 if non-UTF-8).
 	Stdout *string `json:"stdout,omitempty"`
+}
+
+// ComputeFloatingIP defines model for ComputeFloatingIP.
+type ComputeFloatingIP struct {
+	// Address The allocated public IP (canonical netip.Addr form).
+	Address   string                  `json:"address"`
+	CreatedAt time.Time               `json:"createdAt"`
+	Family    ComputeFloatingIPFamily `json:"family"`
+
+	// ForwardPushStatus Best-effort forward push outcome (ADR-0037 sub-decision B).
+	ForwardPushStatus ComputeFloatingIPForwardPushStatus `json:"forwardPushStatus"`
+	Id                openapi_types.UUID                 `json:"id"`
+
+	// InstanceId The attached instance; null when allocated but not attached.
+	InstanceId *openapi_types.UUID `json:"instanceId"`
+
+	// NetworkName The compute network the forward was created on, if any.
+	NetworkName *string            `json:"networkName"`
+	PoolId      openapi_types.UUID `json:"poolId"`
+
+	// PtrTarget Optional FQDN published as the PTR target on attach.
+	PtrTarget *string            `json:"ptrTarget"`
+	TenantId  openapi_types.UUID `json:"tenantId"`
+	UpdatedAt *time.Time         `json:"updatedAt,omitempty"`
+}
+
+// ComputeFloatingIPFamily defines model for ComputeFloatingIP.Family.
+type ComputeFloatingIPFamily int
+
+// ComputeFloatingIPForwardPushStatus Best-effort forward push outcome (ADR-0037 sub-decision B).
+type ComputeFloatingIPForwardPushStatus string
+
+// ComputeFloatingIPAllocateRequest defines model for ComputeFloatingIPAllocateRequest.
+type ComputeFloatingIPAllocateRequest struct {
+	PoolId openapi_types.UUID `json:"poolId"`
+
+	// PtrTarget Optional FQDN to publish as the PTR target. Must be canonical (lowercase, trailing dot).
+	PtrTarget *string `json:"ptrTarget,omitempty"`
+}
+
+// ComputeFloatingIPAttachRequest defines model for ComputeFloatingIPAttachRequest.
+type ComputeFloatingIPAttachRequest struct {
+	InstanceId openapi_types.UUID `json:"instanceId"`
+}
+
+// ComputeFloatingIPPage defines model for ComputeFloatingIPPage.
+type ComputeFloatingIPPage struct {
+	Items  []ComputeFloatingIP `json:"items"`
+	Limit  int                 `json:"limit"`
+	Offset int                 `json:"offset"`
+	Total  int                 `json:"total"`
+}
+
+// ComputeFloatingIPSetPTRRequest defines model for ComputeFloatingIPSetPTRRequest.
+type ComputeFloatingIPSetPTRRequest struct {
+	// PtrTarget New PTR target. Empty clears the PTR record.
+	PtrTarget *string `json:"ptrTarget,omitempty"`
+}
+
+// ComputeIPPool defines model for ComputeIPPool.
+type ComputeIPPool struct {
+	CreatedAt   time.Time           `json:"createdAt"`
+	Description *string             `json:"description"`
+	Id          openapi_types.UUID  `json:"id"`
+	IsActive    bool                `json:"isActive"`
+	Name        string              `json:"name"`
+	PtrZoneId   *openapi_types.UUID `json:"ptrZoneId"`
+	UpdatedAt   *time.Time          `json:"updatedAt,omitempty"`
+}
+
+// ComputeIPPoolCreateRequest defines model for ComputeIPPoolCreateRequest.
+type ComputeIPPoolCreateRequest struct {
+	Description *string `json:"description,omitempty"`
+
+	// IsActive When false, tenants cannot allocate from the pool.
+	IsActive *bool `json:"isActive,omitempty"`
+
+	// Name Operator-chosen pool identifier; unique among non-deleted pools.
+	Name      string              `json:"name"`
+	PtrZoneId *openapi_types.UUID `json:"ptrZoneId"`
+}
+
+// ComputeIPPoolPage defines model for ComputeIPPoolPage.
+type ComputeIPPoolPage struct {
+	Items  []ComputeIPPool `json:"items"`
+	Limit  int             `json:"limit"`
+	Offset int             `json:"offset"`
+	Total  int             `json:"total"`
+}
+
+// ComputeIPPoolRange defines model for ComputeIPPoolRange.
+type ComputeIPPoolRange struct {
+	// Cidr Canonical netip.Prefix form (e.g. "203.0.113.0/24").
+	Cidr      string    `json:"cidr"`
+	CreatedAt time.Time `json:"createdAt"`
+
+	// ExcludedAddresses Addresses inside the range that are NOT allocatable.
+	ExcludedAddresses []string                 `json:"excludedAddresses"`
+	Family            ComputeIPPoolRangeFamily `json:"family"`
+	Id                openapi_types.UUID       `json:"id"`
+	PoolId            openapi_types.UUID       `json:"poolId"`
+	UpdatedAt         *time.Time               `json:"updatedAt,omitempty"`
+}
+
+// ComputeIPPoolRangeFamily defines model for ComputeIPPoolRange.Family.
+type ComputeIPPoolRangeFamily int
+
+// ComputeIPPoolRangeAddRequest defines model for ComputeIPPoolRangeAddRequest.
+type ComputeIPPoolRangeAddRequest struct {
+	// Cidr Canonical netip.Prefix form (e.g. "203.0.113.0/24", "2001:db8::/32").
+	Cidr string `json:"cidr"`
+
+	// ExcludedAddresses Addresses inside the range that are NOT allocatable (gateway, broadcast, reserved, ...).
+	ExcludedAddresses *[]string                          `json:"excludedAddresses,omitempty"`
+	Family            ComputeIPPoolRangeAddRequestFamily `json:"family"`
+}
+
+// ComputeIPPoolRangeAddRequestFamily defines model for ComputeIPPoolRangeAddRequest.Family.
+type ComputeIPPoolRangeAddRequestFamily int
+
+// ComputeIPPoolRangePage defines model for ComputeIPPoolRangePage.
+type ComputeIPPoolRangePage struct {
+	Items  []ComputeIPPoolRange `json:"items"`
+	Limit  int                  `json:"limit"`
+	Offset int                  `json:"offset"`
+	Total  int                  `json:"total"`
+}
+
+// ComputeIPPoolUpdateRequest defines model for ComputeIPPoolUpdateRequest.
+type ComputeIPPoolUpdateRequest struct {
+	Description *string             `json:"description"`
+	IsActive    *bool               `json:"isActive,omitempty"`
+	PtrZoneId   *openapi_types.UUID `json:"ptrZoneId"`
 }
 
 // ComputeImage defines model for ComputeImage.
@@ -2449,6 +2608,15 @@ type ListAdminBillingWebhookEventsParams struct {
 	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
 }
 
+// ListComputeIPPoolsParams defines parameters for ListComputeIPPools.
+type ListComputeIPPoolsParams struct {
+	// Limit Maximum number of items to return (1..200).
+	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of items to skip for pagination.
+	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
 // ListAdminJobsParams defines parameters for ListAdminJobs.
 type ListAdminJobsParams struct {
 	// Limit Maximum number of items to return (1..200).
@@ -2593,6 +2761,15 @@ type CreateComputeBackupTargetParams struct {
 type ListComputeBackupsParams struct {
 	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
 	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// ListComputeFloatingIPsParams defines parameters for ListComputeFloatingIPs.
+type ListComputeFloatingIPsParams struct {
+	// Limit Maximum number of items to return (1..200).
+	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of items to skip for pagination.
+	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
 }
 
 // ListComputeImagesParams defines parameters for ListComputeImages.
@@ -2798,6 +2975,15 @@ type UpsertAdminBillingPriceJSONRequestBody = BillingPriceUpsertRequest
 // CreateAdminBillingPromoCodeJSONRequestBody defines body for CreateAdminBillingPromoCode for application/json ContentType.
 type CreateAdminBillingPromoCodeJSONRequestBody = BillingPromoCodeCreateRequest
 
+// CreateComputeIPPoolJSONRequestBody defines body for CreateComputeIPPool for application/json ContentType.
+type CreateComputeIPPoolJSONRequestBody = ComputeIPPoolCreateRequest
+
+// UpdateComputeIPPoolJSONRequestBody defines body for UpdateComputeIPPool for application/json ContentType.
+type UpdateComputeIPPoolJSONRequestBody = ComputeIPPoolUpdateRequest
+
+// AddComputeIPPoolRangeJSONRequestBody defines body for AddComputeIPPoolRange for application/json ContentType.
+type AddComputeIPPoolRangeJSONRequestBody = ComputeIPPoolRangeAddRequest
+
 // UploadAdminPluginMultipartRequestBody defines body for UploadAdminPlugin for multipart/form-data ContentType.
 type UploadAdminPluginMultipartRequestBody UploadAdminPluginMultipartBody
 
@@ -2857,6 +3043,15 @@ type CreateMyTopupIntentJSONRequestBody = BillingTopupIntentRequest
 
 // CreateComputeBackupTargetJSONRequestBody defines body for CreateComputeBackupTarget for application/json ContentType.
 type CreateComputeBackupTargetJSONRequestBody = ComputeBackupTargetCreateRequest
+
+// AllocateComputeFloatingIPJSONRequestBody defines body for AllocateComputeFloatingIP for application/json ContentType.
+type AllocateComputeFloatingIPJSONRequestBody = ComputeFloatingIPAllocateRequest
+
+// SetComputeFloatingIPPTRJSONRequestBody defines body for SetComputeFloatingIPPTR for application/json ContentType.
+type SetComputeFloatingIPPTRJSONRequestBody = ComputeFloatingIPSetPTRRequest
+
+// AttachComputeFloatingIPJSONRequestBody defines body for AttachComputeFloatingIP for application/json ContentType.
+type AttachComputeFloatingIPJSONRequestBody = ComputeFloatingIPAttachRequest
 
 // UploadComputeImageJSONRequestBody defines body for UploadComputeImage for application/json ContentType.
 type UploadComputeImageJSONRequestBody = ComputeImageUploadRequest
@@ -3098,6 +3293,36 @@ type ClientInterface interface {
 	// ListAdminBillingWebhookEvents request
 	ListAdminBillingWebhookEvents(ctx context.Context, params *ListAdminBillingWebhookEventsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListComputeIPPools request
+	ListComputeIPPools(ctx context.Context, params *ListComputeIPPoolsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateComputeIPPoolWithBody request with any body
+	CreateComputeIPPoolWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateComputeIPPool(ctx context.Context, body CreateComputeIPPoolJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteComputeIPPool request
+	DeleteComputeIPPool(ctx context.Context, poolId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetComputeIPPool request
+	GetComputeIPPool(ctx context.Context, poolId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateComputeIPPoolWithBody request with any body
+	UpdateComputeIPPoolWithBody(ctx context.Context, poolId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateComputeIPPool(ctx context.Context, poolId openapi_types.UUID, body UpdateComputeIPPoolJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListComputeIPPoolRanges request
+	ListComputeIPPoolRanges(ctx context.Context, poolId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddComputeIPPoolRangeWithBody request with any body
+	AddComputeIPPoolRangeWithBody(ctx context.Context, poolId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	AddComputeIPPoolRange(ctx context.Context, poolId openapi_types.UUID, body AddComputeIPPoolRangeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteComputeIPPoolRange request
+	DeleteComputeIPPoolRange(ctx context.Context, poolId openapi_types.UUID, rangeId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListAdminJobs request
 	ListAdminJobs(ctx context.Context, params *ListAdminJobsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -3328,6 +3553,33 @@ type ClientInterface interface {
 	// SetComputeClusterMemberState request
 	SetComputeClusterMemberState(ctx context.Context, memberName string, action string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListComputeFloatingIPs request
+	ListComputeFloatingIPs(ctx context.Context, params *ListComputeFloatingIPsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AllocateComputeFloatingIPWithBody request with any body
+	AllocateComputeFloatingIPWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	AllocateComputeFloatingIP(ctx context.Context, body AllocateComputeFloatingIPJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReleaseComputeFloatingIP request
+	ReleaseComputeFloatingIP(ctx context.Context, floatingIpId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetComputeFloatingIP request
+	GetComputeFloatingIP(ctx context.Context, floatingIpId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetComputeFloatingIPPTRWithBody request with any body
+	SetComputeFloatingIPPTRWithBody(ctx context.Context, floatingIpId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	SetComputeFloatingIPPTR(ctx context.Context, floatingIpId openapi_types.UUID, body SetComputeFloatingIPPTRJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AttachComputeFloatingIPWithBody request with any body
+	AttachComputeFloatingIPWithBody(ctx context.Context, floatingIpId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	AttachComputeFloatingIP(ctx context.Context, floatingIpId openapi_types.UUID, body AttachComputeFloatingIPJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DetachComputeFloatingIP request
+	DetachComputeFloatingIP(ctx context.Context, floatingIpId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListComputeImages request
 	ListComputeImages(ctx context.Context, params *ListComputeImagesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -3368,6 +3620,9 @@ type ClientInterface interface {
 	ExecComputeInstanceWithBody(ctx context.Context, instanceId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	ExecComputeInstance(ctx context.Context, instanceId openapi_types.UUID, body ExecComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetComputeFloatingIPByInstance request
+	GetComputeFloatingIPByInstance(ctx context.Context, instanceId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// MigrateComputeInstanceWithBody request with any body
 	MigrateComputeInstanceWithBody(ctx context.Context, instanceId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -3896,6 +4151,138 @@ func (c *Client) RevokeAdminBillingPromoCode(ctx context.Context, promoCodeId op
 
 func (c *Client) ListAdminBillingWebhookEvents(ctx context.Context, params *ListAdminBillingWebhookEventsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListAdminBillingWebhookEventsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListComputeIPPools(ctx context.Context, params *ListComputeIPPoolsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListComputeIPPoolsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateComputeIPPoolWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateComputeIPPoolRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateComputeIPPool(ctx context.Context, body CreateComputeIPPoolJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateComputeIPPoolRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteComputeIPPool(ctx context.Context, poolId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteComputeIPPoolRequest(c.Server, poolId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetComputeIPPool(ctx context.Context, poolId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetComputeIPPoolRequest(c.Server, poolId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateComputeIPPoolWithBody(ctx context.Context, poolId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateComputeIPPoolRequestWithBody(c.Server, poolId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateComputeIPPool(ctx context.Context, poolId openapi_types.UUID, body UpdateComputeIPPoolJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateComputeIPPoolRequest(c.Server, poolId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListComputeIPPoolRanges(ctx context.Context, poolId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListComputeIPPoolRangesRequest(c.Server, poolId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AddComputeIPPoolRangeWithBody(ctx context.Context, poolId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddComputeIPPoolRangeRequestWithBody(c.Server, poolId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AddComputeIPPoolRange(ctx context.Context, poolId openapi_types.UUID, body AddComputeIPPoolRangeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddComputeIPPoolRangeRequest(c.Server, poolId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteComputeIPPoolRange(ctx context.Context, poolId openapi_types.UUID, rangeId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteComputeIPPoolRangeRequest(c.Server, poolId, rangeId)
 	if err != nil {
 		return nil, err
 	}
@@ -4902,6 +5289,126 @@ func (c *Client) SetComputeClusterMemberState(ctx context.Context, memberName st
 	return c.Client.Do(req)
 }
 
+func (c *Client) ListComputeFloatingIPs(ctx context.Context, params *ListComputeFloatingIPsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListComputeFloatingIPsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AllocateComputeFloatingIPWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAllocateComputeFloatingIPRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AllocateComputeFloatingIP(ctx context.Context, body AllocateComputeFloatingIPJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAllocateComputeFloatingIPRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ReleaseComputeFloatingIP(ctx context.Context, floatingIpId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReleaseComputeFloatingIPRequest(c.Server, floatingIpId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetComputeFloatingIP(ctx context.Context, floatingIpId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetComputeFloatingIPRequest(c.Server, floatingIpId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) SetComputeFloatingIPPTRWithBody(ctx context.Context, floatingIpId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetComputeFloatingIPPTRRequestWithBody(c.Server, floatingIpId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) SetComputeFloatingIPPTR(ctx context.Context, floatingIpId openapi_types.UUID, body SetComputeFloatingIPPTRJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetComputeFloatingIPPTRRequest(c.Server, floatingIpId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AttachComputeFloatingIPWithBody(ctx context.Context, floatingIpId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAttachComputeFloatingIPRequestWithBody(c.Server, floatingIpId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AttachComputeFloatingIP(ctx context.Context, floatingIpId openapi_types.UUID, body AttachComputeFloatingIPJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAttachComputeFloatingIPRequest(c.Server, floatingIpId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DetachComputeFloatingIP(ctx context.Context, floatingIpId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDetachComputeFloatingIPRequest(c.Server, floatingIpId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) ListComputeImages(ctx context.Context, params *ListComputeImagesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListComputeImagesRequest(c.Server, params)
 	if err != nil {
@@ -5072,6 +5579,18 @@ func (c *Client) ExecComputeInstanceWithBody(ctx context.Context, instanceId ope
 
 func (c *Client) ExecComputeInstance(ctx context.Context, instanceId openapi_types.UUID, body ExecComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewExecComputeInstanceRequest(c.Server, instanceId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetComputeFloatingIPByInstance(ctx context.Context, instanceId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetComputeFloatingIPByInstanceRequest(c.Server, instanceId)
 	if err != nil {
 		return nil, err
 	}
@@ -7162,6 +7681,348 @@ func NewListAdminBillingWebhookEventsRequest(server string, params *ListAdminBil
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListComputeIPPoolsRequest generates requests for ListComputeIPPools
+func NewListComputeIPPoolsRequest(server string, params *ListComputeIPPoolsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/compute/ip-pools")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateComputeIPPoolRequest calls the generic CreateComputeIPPool builder with application/json body
+func NewCreateComputeIPPoolRequest(server string, body CreateComputeIPPoolJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateComputeIPPoolRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateComputeIPPoolRequestWithBody generates requests for CreateComputeIPPool with any type of body
+func NewCreateComputeIPPoolRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/compute/ip-pools")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteComputeIPPoolRequest generates requests for DeleteComputeIPPool
+func NewDeleteComputeIPPoolRequest(server string, poolId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "poolId", runtime.ParamLocationPath, poolId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/compute/ip-pools/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetComputeIPPoolRequest generates requests for GetComputeIPPool
+func NewGetComputeIPPoolRequest(server string, poolId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "poolId", runtime.ParamLocationPath, poolId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/compute/ip-pools/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateComputeIPPoolRequest calls the generic UpdateComputeIPPool builder with application/json body
+func NewUpdateComputeIPPoolRequest(server string, poolId openapi_types.UUID, body UpdateComputeIPPoolJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateComputeIPPoolRequestWithBody(server, poolId, "application/json", bodyReader)
+}
+
+// NewUpdateComputeIPPoolRequestWithBody generates requests for UpdateComputeIPPool with any type of body
+func NewUpdateComputeIPPoolRequestWithBody(server string, poolId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "poolId", runtime.ParamLocationPath, poolId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/compute/ip-pools/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListComputeIPPoolRangesRequest generates requests for ListComputeIPPoolRanges
+func NewListComputeIPPoolRangesRequest(server string, poolId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "poolId", runtime.ParamLocationPath, poolId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/compute/ip-pools/%s/ranges", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAddComputeIPPoolRangeRequest calls the generic AddComputeIPPoolRange builder with application/json body
+func NewAddComputeIPPoolRangeRequest(server string, poolId openapi_types.UUID, body AddComputeIPPoolRangeJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAddComputeIPPoolRangeRequestWithBody(server, poolId, "application/json", bodyReader)
+}
+
+// NewAddComputeIPPoolRangeRequestWithBody generates requests for AddComputeIPPoolRange with any type of body
+func NewAddComputeIPPoolRangeRequestWithBody(server string, poolId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "poolId", runtime.ParamLocationPath, poolId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/compute/ip-pools/%s/ranges", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteComputeIPPoolRangeRequest generates requests for DeleteComputeIPPoolRange
+func NewDeleteComputeIPPoolRangeRequest(server string, poolId openapi_types.UUID, rangeId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "poolId", runtime.ParamLocationPath, poolId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "rangeId", runtime.ParamLocationPath, rangeId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/compute/ip-pools/%s/ranges/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -10071,6 +10932,307 @@ func NewSetComputeClusterMemberStateRequest(server string, memberName string, ac
 	return req, nil
 }
 
+// NewListComputeFloatingIPsRequest generates requests for ListComputeFloatingIPs
+func NewListComputeFloatingIPsRequest(server string, params *ListComputeFloatingIPsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/floating-ips")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAllocateComputeFloatingIPRequest calls the generic AllocateComputeFloatingIP builder with application/json body
+func NewAllocateComputeFloatingIPRequest(server string, body AllocateComputeFloatingIPJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAllocateComputeFloatingIPRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewAllocateComputeFloatingIPRequestWithBody generates requests for AllocateComputeFloatingIP with any type of body
+func NewAllocateComputeFloatingIPRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/floating-ips")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewReleaseComputeFloatingIPRequest generates requests for ReleaseComputeFloatingIP
+func NewReleaseComputeFloatingIPRequest(server string, floatingIpId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "floatingIpId", runtime.ParamLocationPath, floatingIpId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/floating-ips/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetComputeFloatingIPRequest generates requests for GetComputeFloatingIP
+func NewGetComputeFloatingIPRequest(server string, floatingIpId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "floatingIpId", runtime.ParamLocationPath, floatingIpId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/floating-ips/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetComputeFloatingIPPTRRequest calls the generic SetComputeFloatingIPPTR builder with application/json body
+func NewSetComputeFloatingIPPTRRequest(server string, floatingIpId openapi_types.UUID, body SetComputeFloatingIPPTRJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetComputeFloatingIPPTRRequestWithBody(server, floatingIpId, "application/json", bodyReader)
+}
+
+// NewSetComputeFloatingIPPTRRequestWithBody generates requests for SetComputeFloatingIPPTR with any type of body
+func NewSetComputeFloatingIPPTRRequestWithBody(server string, floatingIpId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "floatingIpId", runtime.ParamLocationPath, floatingIpId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/floating-ips/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewAttachComputeFloatingIPRequest calls the generic AttachComputeFloatingIP builder with application/json body
+func NewAttachComputeFloatingIPRequest(server string, floatingIpId openapi_types.UUID, body AttachComputeFloatingIPJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAttachComputeFloatingIPRequestWithBody(server, floatingIpId, "application/json", bodyReader)
+}
+
+// NewAttachComputeFloatingIPRequestWithBody generates requests for AttachComputeFloatingIP with any type of body
+func NewAttachComputeFloatingIPRequestWithBody(server string, floatingIpId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "floatingIpId", runtime.ParamLocationPath, floatingIpId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/floating-ips/%s/attach", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDetachComputeFloatingIPRequest generates requests for DetachComputeFloatingIP
+func NewDetachComputeFloatingIPRequest(server string, floatingIpId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "floatingIpId", runtime.ParamLocationPath, floatingIpId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/floating-ips/%s/detach", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListComputeImagesRequest generates requests for ListComputeImages
 func NewListComputeImagesRequest(server string, params *ListComputeImagesParams) (*http.Request, error) {
 	var err error
@@ -10601,6 +11763,40 @@ func NewExecComputeInstanceRequestWithBody(server string, instanceId openapi_typ
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetComputeFloatingIPByInstanceRequest generates requests for GetComputeFloatingIPByInstance
+func NewGetComputeFloatingIPByInstanceRequest(server string, instanceId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "instanceId", runtime.ParamLocationPath, instanceId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/instances/%s/floating-ip", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -14836,6 +16032,36 @@ type ClientWithResponsesInterface interface {
 	// ListAdminBillingWebhookEventsWithResponse request
 	ListAdminBillingWebhookEventsWithResponse(ctx context.Context, params *ListAdminBillingWebhookEventsParams, reqEditors ...RequestEditorFn) (*ListAdminBillingWebhookEventsResponse, error)
 
+	// ListComputeIPPoolsWithResponse request
+	ListComputeIPPoolsWithResponse(ctx context.Context, params *ListComputeIPPoolsParams, reqEditors ...RequestEditorFn) (*ListComputeIPPoolsResponse, error)
+
+	// CreateComputeIPPoolWithBodyWithResponse request with any body
+	CreateComputeIPPoolWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateComputeIPPoolResponse, error)
+
+	CreateComputeIPPoolWithResponse(ctx context.Context, body CreateComputeIPPoolJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateComputeIPPoolResponse, error)
+
+	// DeleteComputeIPPoolWithResponse request
+	DeleteComputeIPPoolWithResponse(ctx context.Context, poolId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteComputeIPPoolResponse, error)
+
+	// GetComputeIPPoolWithResponse request
+	GetComputeIPPoolWithResponse(ctx context.Context, poolId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeIPPoolResponse, error)
+
+	// UpdateComputeIPPoolWithBodyWithResponse request with any body
+	UpdateComputeIPPoolWithBodyWithResponse(ctx context.Context, poolId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateComputeIPPoolResponse, error)
+
+	UpdateComputeIPPoolWithResponse(ctx context.Context, poolId openapi_types.UUID, body UpdateComputeIPPoolJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateComputeIPPoolResponse, error)
+
+	// ListComputeIPPoolRangesWithResponse request
+	ListComputeIPPoolRangesWithResponse(ctx context.Context, poolId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListComputeIPPoolRangesResponse, error)
+
+	// AddComputeIPPoolRangeWithBodyWithResponse request with any body
+	AddComputeIPPoolRangeWithBodyWithResponse(ctx context.Context, poolId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddComputeIPPoolRangeResponse, error)
+
+	AddComputeIPPoolRangeWithResponse(ctx context.Context, poolId openapi_types.UUID, body AddComputeIPPoolRangeJSONRequestBody, reqEditors ...RequestEditorFn) (*AddComputeIPPoolRangeResponse, error)
+
+	// DeleteComputeIPPoolRangeWithResponse request
+	DeleteComputeIPPoolRangeWithResponse(ctx context.Context, poolId openapi_types.UUID, rangeId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteComputeIPPoolRangeResponse, error)
+
 	// ListAdminJobsWithResponse request
 	ListAdminJobsWithResponse(ctx context.Context, params *ListAdminJobsParams, reqEditors ...RequestEditorFn) (*ListAdminJobsResponse, error)
 
@@ -15066,6 +16292,33 @@ type ClientWithResponsesInterface interface {
 	// SetComputeClusterMemberStateWithResponse request
 	SetComputeClusterMemberStateWithResponse(ctx context.Context, memberName string, action string, reqEditors ...RequestEditorFn) (*SetComputeClusterMemberStateResponse, error)
 
+	// ListComputeFloatingIPsWithResponse request
+	ListComputeFloatingIPsWithResponse(ctx context.Context, params *ListComputeFloatingIPsParams, reqEditors ...RequestEditorFn) (*ListComputeFloatingIPsResponse, error)
+
+	// AllocateComputeFloatingIPWithBodyWithResponse request with any body
+	AllocateComputeFloatingIPWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AllocateComputeFloatingIPResponse, error)
+
+	AllocateComputeFloatingIPWithResponse(ctx context.Context, body AllocateComputeFloatingIPJSONRequestBody, reqEditors ...RequestEditorFn) (*AllocateComputeFloatingIPResponse, error)
+
+	// ReleaseComputeFloatingIPWithResponse request
+	ReleaseComputeFloatingIPWithResponse(ctx context.Context, floatingIpId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ReleaseComputeFloatingIPResponse, error)
+
+	// GetComputeFloatingIPWithResponse request
+	GetComputeFloatingIPWithResponse(ctx context.Context, floatingIpId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeFloatingIPResponse, error)
+
+	// SetComputeFloatingIPPTRWithBodyWithResponse request with any body
+	SetComputeFloatingIPPTRWithBodyWithResponse(ctx context.Context, floatingIpId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetComputeFloatingIPPTRResponse, error)
+
+	SetComputeFloatingIPPTRWithResponse(ctx context.Context, floatingIpId openapi_types.UUID, body SetComputeFloatingIPPTRJSONRequestBody, reqEditors ...RequestEditorFn) (*SetComputeFloatingIPPTRResponse, error)
+
+	// AttachComputeFloatingIPWithBodyWithResponse request with any body
+	AttachComputeFloatingIPWithBodyWithResponse(ctx context.Context, floatingIpId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AttachComputeFloatingIPResponse, error)
+
+	AttachComputeFloatingIPWithResponse(ctx context.Context, floatingIpId openapi_types.UUID, body AttachComputeFloatingIPJSONRequestBody, reqEditors ...RequestEditorFn) (*AttachComputeFloatingIPResponse, error)
+
+	// DetachComputeFloatingIPWithResponse request
+	DetachComputeFloatingIPWithResponse(ctx context.Context, floatingIpId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DetachComputeFloatingIPResponse, error)
+
 	// ListComputeImagesWithResponse request
 	ListComputeImagesWithResponse(ctx context.Context, params *ListComputeImagesParams, reqEditors ...RequestEditorFn) (*ListComputeImagesResponse, error)
 
@@ -15106,6 +16359,9 @@ type ClientWithResponsesInterface interface {
 	ExecComputeInstanceWithBodyWithResponse(ctx context.Context, instanceId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ExecComputeInstanceResponse, error)
 
 	ExecComputeInstanceWithResponse(ctx context.Context, instanceId openapi_types.UUID, body ExecComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*ExecComputeInstanceResponse, error)
+
+	// GetComputeFloatingIPByInstanceWithResponse request
+	GetComputeFloatingIPByInstanceWithResponse(ctx context.Context, instanceId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeFloatingIPByInstanceResponse, error)
 
 	// MigrateComputeInstanceWithBodyWithResponse request with any body
 	MigrateComputeInstanceWithBodyWithResponse(ctx context.Context, instanceId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MigrateComputeInstanceResponse, error)
@@ -15754,6 +17010,207 @@ func (r ListAdminBillingWebhookEventsResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r ListAdminBillingWebhookEventsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListComputeIPPoolsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeIPPoolPage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+}
+
+// Status returns HTTPResponse.Status
+func (r ListComputeIPPoolsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListComputeIPPoolsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateComputeIPPoolResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *ComputeIPPool
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON409      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateComputeIPPoolResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateComputeIPPoolResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteComputeIPPoolResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON409      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteComputeIPPoolResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteComputeIPPoolResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetComputeIPPoolResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeIPPool
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r GetComputeIPPoolResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetComputeIPPoolResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpdateComputeIPPoolResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateComputeIPPoolResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateComputeIPPoolResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListComputeIPPoolRangesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeIPPoolRangePage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r ListComputeIPPoolRangesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListComputeIPPoolRangesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type AddComputeIPPoolRangeResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *ComputeIPPoolRange
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON409      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r AddComputeIPPoolRangeResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AddComputeIPPoolRangeResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteComputeIPPoolRangeResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteComputeIPPoolRangeResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteComputeIPPoolRangeResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -17342,6 +18799,185 @@ func (r SetComputeClusterMemberStateResponse) StatusCode() int {
 	return 0
 }
 
+type ListComputeFloatingIPsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeFloatingIPPage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+}
+
+// Status returns HTTPResponse.Status
+func (r ListComputeFloatingIPsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListComputeFloatingIPsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type AllocateComputeFloatingIPResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *ComputeFloatingIP
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON409      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r AllocateComputeFloatingIPResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AllocateComputeFloatingIPResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ReleaseComputeFloatingIPResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r ReleaseComputeFloatingIPResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReleaseComputeFloatingIPResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetComputeFloatingIPResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeFloatingIP
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r GetComputeFloatingIPResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetComputeFloatingIPResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type SetComputeFloatingIPPTRResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeFloatingIP
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r SetComputeFloatingIPPTRResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetComputeFloatingIPPTRResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type AttachComputeFloatingIPResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeFloatingIP
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON409      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r AttachComputeFloatingIPResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AttachComputeFloatingIPResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DetachComputeFloatingIPResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeFloatingIP
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON409      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r DetachComputeFloatingIPResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DetachComputeFloatingIPResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type ListComputeImagesResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -17615,6 +19251,31 @@ func (r ExecComputeInstanceResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r ExecComputeInstanceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetComputeFloatingIPByInstanceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeFloatingIP
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r GetComputeFloatingIPByInstanceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetComputeFloatingIPByInstanceResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -20045,6 +21706,102 @@ func (c *ClientWithResponses) ListAdminBillingWebhookEventsWithResponse(ctx cont
 	return ParseListAdminBillingWebhookEventsResponse(rsp)
 }
 
+// ListComputeIPPoolsWithResponse request returning *ListComputeIPPoolsResponse
+func (c *ClientWithResponses) ListComputeIPPoolsWithResponse(ctx context.Context, params *ListComputeIPPoolsParams, reqEditors ...RequestEditorFn) (*ListComputeIPPoolsResponse, error) {
+	rsp, err := c.ListComputeIPPools(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListComputeIPPoolsResponse(rsp)
+}
+
+// CreateComputeIPPoolWithBodyWithResponse request with arbitrary body returning *CreateComputeIPPoolResponse
+func (c *ClientWithResponses) CreateComputeIPPoolWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateComputeIPPoolResponse, error) {
+	rsp, err := c.CreateComputeIPPoolWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateComputeIPPoolResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateComputeIPPoolWithResponse(ctx context.Context, body CreateComputeIPPoolJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateComputeIPPoolResponse, error) {
+	rsp, err := c.CreateComputeIPPool(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateComputeIPPoolResponse(rsp)
+}
+
+// DeleteComputeIPPoolWithResponse request returning *DeleteComputeIPPoolResponse
+func (c *ClientWithResponses) DeleteComputeIPPoolWithResponse(ctx context.Context, poolId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteComputeIPPoolResponse, error) {
+	rsp, err := c.DeleteComputeIPPool(ctx, poolId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteComputeIPPoolResponse(rsp)
+}
+
+// GetComputeIPPoolWithResponse request returning *GetComputeIPPoolResponse
+func (c *ClientWithResponses) GetComputeIPPoolWithResponse(ctx context.Context, poolId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeIPPoolResponse, error) {
+	rsp, err := c.GetComputeIPPool(ctx, poolId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetComputeIPPoolResponse(rsp)
+}
+
+// UpdateComputeIPPoolWithBodyWithResponse request with arbitrary body returning *UpdateComputeIPPoolResponse
+func (c *ClientWithResponses) UpdateComputeIPPoolWithBodyWithResponse(ctx context.Context, poolId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateComputeIPPoolResponse, error) {
+	rsp, err := c.UpdateComputeIPPoolWithBody(ctx, poolId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateComputeIPPoolResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpdateComputeIPPoolWithResponse(ctx context.Context, poolId openapi_types.UUID, body UpdateComputeIPPoolJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateComputeIPPoolResponse, error) {
+	rsp, err := c.UpdateComputeIPPool(ctx, poolId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateComputeIPPoolResponse(rsp)
+}
+
+// ListComputeIPPoolRangesWithResponse request returning *ListComputeIPPoolRangesResponse
+func (c *ClientWithResponses) ListComputeIPPoolRangesWithResponse(ctx context.Context, poolId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListComputeIPPoolRangesResponse, error) {
+	rsp, err := c.ListComputeIPPoolRanges(ctx, poolId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListComputeIPPoolRangesResponse(rsp)
+}
+
+// AddComputeIPPoolRangeWithBodyWithResponse request with arbitrary body returning *AddComputeIPPoolRangeResponse
+func (c *ClientWithResponses) AddComputeIPPoolRangeWithBodyWithResponse(ctx context.Context, poolId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddComputeIPPoolRangeResponse, error) {
+	rsp, err := c.AddComputeIPPoolRangeWithBody(ctx, poolId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddComputeIPPoolRangeResponse(rsp)
+}
+
+func (c *ClientWithResponses) AddComputeIPPoolRangeWithResponse(ctx context.Context, poolId openapi_types.UUID, body AddComputeIPPoolRangeJSONRequestBody, reqEditors ...RequestEditorFn) (*AddComputeIPPoolRangeResponse, error) {
+	rsp, err := c.AddComputeIPPoolRange(ctx, poolId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddComputeIPPoolRangeResponse(rsp)
+}
+
+// DeleteComputeIPPoolRangeWithResponse request returning *DeleteComputeIPPoolRangeResponse
+func (c *ClientWithResponses) DeleteComputeIPPoolRangeWithResponse(ctx context.Context, poolId openapi_types.UUID, rangeId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteComputeIPPoolRangeResponse, error) {
+	rsp, err := c.DeleteComputeIPPoolRange(ctx, poolId, rangeId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteComputeIPPoolRangeResponse(rsp)
+}
+
 // ListAdminJobsWithResponse request returning *ListAdminJobsResponse
 func (c *ClientWithResponses) ListAdminJobsWithResponse(ctx context.Context, params *ListAdminJobsParams, reqEditors ...RequestEditorFn) (*ListAdminJobsResponse, error) {
 	rsp, err := c.ListAdminJobs(ctx, params, reqEditors...)
@@ -20773,6 +22530,93 @@ func (c *ClientWithResponses) SetComputeClusterMemberStateWithResponse(ctx conte
 	return ParseSetComputeClusterMemberStateResponse(rsp)
 }
 
+// ListComputeFloatingIPsWithResponse request returning *ListComputeFloatingIPsResponse
+func (c *ClientWithResponses) ListComputeFloatingIPsWithResponse(ctx context.Context, params *ListComputeFloatingIPsParams, reqEditors ...RequestEditorFn) (*ListComputeFloatingIPsResponse, error) {
+	rsp, err := c.ListComputeFloatingIPs(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListComputeFloatingIPsResponse(rsp)
+}
+
+// AllocateComputeFloatingIPWithBodyWithResponse request with arbitrary body returning *AllocateComputeFloatingIPResponse
+func (c *ClientWithResponses) AllocateComputeFloatingIPWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AllocateComputeFloatingIPResponse, error) {
+	rsp, err := c.AllocateComputeFloatingIPWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAllocateComputeFloatingIPResponse(rsp)
+}
+
+func (c *ClientWithResponses) AllocateComputeFloatingIPWithResponse(ctx context.Context, body AllocateComputeFloatingIPJSONRequestBody, reqEditors ...RequestEditorFn) (*AllocateComputeFloatingIPResponse, error) {
+	rsp, err := c.AllocateComputeFloatingIP(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAllocateComputeFloatingIPResponse(rsp)
+}
+
+// ReleaseComputeFloatingIPWithResponse request returning *ReleaseComputeFloatingIPResponse
+func (c *ClientWithResponses) ReleaseComputeFloatingIPWithResponse(ctx context.Context, floatingIpId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ReleaseComputeFloatingIPResponse, error) {
+	rsp, err := c.ReleaseComputeFloatingIP(ctx, floatingIpId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReleaseComputeFloatingIPResponse(rsp)
+}
+
+// GetComputeFloatingIPWithResponse request returning *GetComputeFloatingIPResponse
+func (c *ClientWithResponses) GetComputeFloatingIPWithResponse(ctx context.Context, floatingIpId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeFloatingIPResponse, error) {
+	rsp, err := c.GetComputeFloatingIP(ctx, floatingIpId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetComputeFloatingIPResponse(rsp)
+}
+
+// SetComputeFloatingIPPTRWithBodyWithResponse request with arbitrary body returning *SetComputeFloatingIPPTRResponse
+func (c *ClientWithResponses) SetComputeFloatingIPPTRWithBodyWithResponse(ctx context.Context, floatingIpId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetComputeFloatingIPPTRResponse, error) {
+	rsp, err := c.SetComputeFloatingIPPTRWithBody(ctx, floatingIpId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetComputeFloatingIPPTRResponse(rsp)
+}
+
+func (c *ClientWithResponses) SetComputeFloatingIPPTRWithResponse(ctx context.Context, floatingIpId openapi_types.UUID, body SetComputeFloatingIPPTRJSONRequestBody, reqEditors ...RequestEditorFn) (*SetComputeFloatingIPPTRResponse, error) {
+	rsp, err := c.SetComputeFloatingIPPTR(ctx, floatingIpId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetComputeFloatingIPPTRResponse(rsp)
+}
+
+// AttachComputeFloatingIPWithBodyWithResponse request with arbitrary body returning *AttachComputeFloatingIPResponse
+func (c *ClientWithResponses) AttachComputeFloatingIPWithBodyWithResponse(ctx context.Context, floatingIpId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AttachComputeFloatingIPResponse, error) {
+	rsp, err := c.AttachComputeFloatingIPWithBody(ctx, floatingIpId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAttachComputeFloatingIPResponse(rsp)
+}
+
+func (c *ClientWithResponses) AttachComputeFloatingIPWithResponse(ctx context.Context, floatingIpId openapi_types.UUID, body AttachComputeFloatingIPJSONRequestBody, reqEditors ...RequestEditorFn) (*AttachComputeFloatingIPResponse, error) {
+	rsp, err := c.AttachComputeFloatingIP(ctx, floatingIpId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAttachComputeFloatingIPResponse(rsp)
+}
+
+// DetachComputeFloatingIPWithResponse request returning *DetachComputeFloatingIPResponse
+func (c *ClientWithResponses) DetachComputeFloatingIPWithResponse(ctx context.Context, floatingIpId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DetachComputeFloatingIPResponse, error) {
+	rsp, err := c.DetachComputeFloatingIP(ctx, floatingIpId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDetachComputeFloatingIPResponse(rsp)
+}
+
 // ListComputeImagesWithResponse request returning *ListComputeImagesResponse
 func (c *ClientWithResponses) ListComputeImagesWithResponse(ctx context.Context, params *ListComputeImagesParams, reqEditors ...RequestEditorFn) (*ListComputeImagesResponse, error) {
 	rsp, err := c.ListComputeImages(ctx, params, reqEditors...)
@@ -20902,6 +22746,15 @@ func (c *ClientWithResponses) ExecComputeInstanceWithResponse(ctx context.Contex
 		return nil, err
 	}
 	return ParseExecComputeInstanceResponse(rsp)
+}
+
+// GetComputeFloatingIPByInstanceWithResponse request returning *GetComputeFloatingIPByInstanceResponse
+func (c *ClientWithResponses) GetComputeFloatingIPByInstanceWithResponse(ctx context.Context, instanceId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeFloatingIPByInstanceResponse, error) {
+	rsp, err := c.GetComputeFloatingIPByInstance(ctx, instanceId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetComputeFloatingIPByInstanceResponse(rsp)
 }
 
 // MigrateComputeInstanceWithBodyWithResponse request with arbitrary body returning *MigrateComputeInstanceResponse
@@ -22624,6 +24477,389 @@ func ParseListAdminBillingWebhookEventsResponse(rsp *http.Response) (*ListAdminB
 			return nil, err
 		}
 		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListComputeIPPoolsResponse parses an HTTP response from a ListComputeIPPoolsWithResponse call
+func ParseListComputeIPPoolsResponse(rsp *http.Response) (*ListComputeIPPoolsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListComputeIPPoolsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeIPPoolPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateComputeIPPoolResponse parses an HTTP response from a CreateComputeIPPoolWithResponse call
+func ParseCreateComputeIPPoolResponse(rsp *http.Response) (*CreateComputeIPPoolResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateComputeIPPoolResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ComputeIPPool
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteComputeIPPoolResponse parses an HTTP response from a DeleteComputeIPPoolWithResponse call
+func ParseDeleteComputeIPPoolResponse(rsp *http.Response) (*DeleteComputeIPPoolResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteComputeIPPoolResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetComputeIPPoolResponse parses an HTTP response from a GetComputeIPPoolWithResponse call
+func ParseGetComputeIPPoolResponse(rsp *http.Response) (*GetComputeIPPoolResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetComputeIPPoolResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeIPPool
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateComputeIPPoolResponse parses an HTTP response from a UpdateComputeIPPoolWithResponse call
+func ParseUpdateComputeIPPoolResponse(rsp *http.Response) (*UpdateComputeIPPoolResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateComputeIPPoolResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListComputeIPPoolRangesResponse parses an HTTP response from a ListComputeIPPoolRangesWithResponse call
+func ParseListComputeIPPoolRangesResponse(rsp *http.Response) (*ListComputeIPPoolRangesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListComputeIPPoolRangesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeIPPoolRangePage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAddComputeIPPoolRangeResponse parses an HTTP response from a AddComputeIPPoolRangeWithResponse call
+func ParseAddComputeIPPoolRangeResponse(rsp *http.Response) (*AddComputeIPPoolRangeResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AddComputeIPPoolRangeResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ComputeIPPoolRange
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteComputeIPPoolRangeResponse parses an HTTP response from a DeleteComputeIPPoolRangeWithResponse call
+func ParseDeleteComputeIPPoolRangeResponse(rsp *http.Response) (*DeleteComputeIPPoolRangeResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteComputeIPPoolRangeResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	}
 
@@ -25515,6 +27751,363 @@ func ParseSetComputeClusterMemberStateResponse(rsp *http.Response) (*SetComputeC
 	return response, nil
 }
 
+// ParseListComputeFloatingIPsResponse parses an HTTP response from a ListComputeFloatingIPsWithResponse call
+func ParseListComputeFloatingIPsResponse(rsp *http.Response) (*ListComputeFloatingIPsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListComputeFloatingIPsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeFloatingIPPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAllocateComputeFloatingIPResponse parses an HTTP response from a AllocateComputeFloatingIPWithResponse call
+func ParseAllocateComputeFloatingIPResponse(rsp *http.Response) (*AllocateComputeFloatingIPResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AllocateComputeFloatingIPResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ComputeFloatingIP
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReleaseComputeFloatingIPResponse parses an HTTP response from a ReleaseComputeFloatingIPWithResponse call
+func ParseReleaseComputeFloatingIPResponse(rsp *http.Response) (*ReleaseComputeFloatingIPResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReleaseComputeFloatingIPResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetComputeFloatingIPResponse parses an HTTP response from a GetComputeFloatingIPWithResponse call
+func ParseGetComputeFloatingIPResponse(rsp *http.Response) (*GetComputeFloatingIPResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetComputeFloatingIPResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeFloatingIP
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetComputeFloatingIPPTRResponse parses an HTTP response from a SetComputeFloatingIPPTRWithResponse call
+func ParseSetComputeFloatingIPPTRResponse(rsp *http.Response) (*SetComputeFloatingIPPTRResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetComputeFloatingIPPTRResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeFloatingIP
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAttachComputeFloatingIPResponse parses an HTTP response from a AttachComputeFloatingIPWithResponse call
+func ParseAttachComputeFloatingIPResponse(rsp *http.Response) (*AttachComputeFloatingIPResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AttachComputeFloatingIPResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeFloatingIP
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDetachComputeFloatingIPResponse parses an HTTP response from a DetachComputeFloatingIPWithResponse call
+func ParseDetachComputeFloatingIPResponse(rsp *http.Response) (*DetachComputeFloatingIPResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DetachComputeFloatingIPResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeFloatingIP
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListComputeImagesResponse parses an HTTP response from a ListComputeImagesWithResponse call
 func ParseListComputeImagesResponse(rsp *http.Response) (*ListComputeImagesResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -26054,6 +28647,53 @@ func ParseExecComputeInstanceResponse(rsp *http.Response) (*ExecComputeInstanceR
 			return nil, err
 		}
 		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetComputeFloatingIPByInstanceResponse parses an HTTP response from a GetComputeFloatingIPByInstanceWithResponse call
+func ParseGetComputeFloatingIPByInstanceResponse(rsp *http.Response) (*GetComputeFloatingIPByInstanceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetComputeFloatingIPByInstanceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeFloatingIP
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	}
 

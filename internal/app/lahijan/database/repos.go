@@ -57,6 +57,14 @@ type Repos struct {
 	// storage.lifecycle.evaluate River worker.
 	StorageLifecycleRules *StorageLifecycleRulesRepository
 
+	// WS-30: operator-owned IP pools + per-tenant floating IPs
+	// (ADR-0037). IPPools + IPPoolRanges are GLOBAL (operator-owned);
+	// FloatingIPs is tenant-scoped. Postgres is the source of truth; the
+	// Incus network forward is best-effort.
+	IPPools      *IPPoolsRepository
+	IPPoolRanges *IPPoolRangesRepository
+	FloatingIPs  *FloatingIPsRepository
+
 	// WS-17: billing & metering. Five sub-repositories: the admin-managed
 	// price catalog (BillingPrices), the append-only per-user ledger
 	// (BillingLedger), the per-user balance cache (BillingBalances), the
@@ -120,6 +128,9 @@ func NewRepos(db DBTX) *Repos {
 		StorageBuckets:          NewStorageBucketsRepository(q),
 		StorageCredentials:      NewStorageCredentialsRepository(q),
 		StorageLifecycleRules:   NewStorageLifecycleRulesRepository(q),
+		IPPools:                 NewIPPoolsRepository(q),
+		IPPoolRanges:            NewIPPoolRangesRepository(q),
+		FloatingIPs:             NewFloatingIPsRepository(q),
 		BillingPrices:           NewBillingPricesRepository(q),
 		BillingLedger:           NewBillingLedgerRepository(q),
 		BillingBalances:         NewBillingBalancesRepository(q),
