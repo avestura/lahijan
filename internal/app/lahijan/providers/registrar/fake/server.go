@@ -24,8 +24,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/avestura/lahijan/internal/app/lahijan/providers/registrar"
 )
+
+// uuidShort returns the first 8 characters of a fresh UUID.
+func uuidShort() string {
+	return strings.ReplaceAll(strings.ReplaceAll(uuid.New().String(), "-", ""), "_", "")[:8]
+}
 
 // Server is an in-memory httptest-backed fake of the OpenSRS reseller
 // API. State is keyed by domain name; every mutation runs under the
@@ -37,6 +44,10 @@ type Server struct {
 	domains   map[string]*fakeDomain // canonical name (no trailing dot) -> state
 	orders    map[string]string      // order_id -> domain
 	nextOrder int
+	// suffix is a per-server UUID fragment appended to every order id
+	// so two fakes sharing one DB (e.g. parallel tests) cannot collide
+	// on the cross-tenant unique index uq_dns_domains_order_id.
+	suffix string
 	// FailOn maps an HTTP method + path suffix to an error the server
 	// returns. Used by tests to drive the error path.
 	FailOn map[string]error
@@ -63,9 +74,17 @@ func NewServer() *Server {
 		orders:            make(map[string]string),
 		DefaultPriceCents: 1000,
 		DefaultCurrency:   "USD",
+		suffix:            shortUUID(),
 	}
 	s.Server = httptest.NewServer(http.HandlerFunc(s.handler))
 	return s
+}
+
+// shortUUID returns the first 8 characters of a fresh UUID — enough
+// entropy to keep parallel-test order ids unique without bloating the
+// audit log.
+func shortUUID() string {
+	return uuidShort()
 }
 
 // Provider builds an OpenSRSProvider pointing at this fake. The
@@ -214,7 +233,10 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.nextOrder++
-	orderID := fmt.Sprintf("ORD-%d", s.nextOrder)
+	// Include a per-server UUID suffix so two fakes sharing one DB
+	// (e.g. parallel tests in the same test package) cannot collide on
+	// the cross-tenant unique index uq_dns_domains_order_id.
+	orderID := fmt.Sprintf("ORD-%d-%s", s.nextOrder, s.suffix)
 	years := int(body.PeriodYears)
 	if years <= 0 {
 		years = 1
@@ -294,7 +316,7 @@ func (s *Server) handleTransfer(w http.ResponseWriter, r *http.Request, path str
 		}
 	}
 	s.nextOrder++
-	orderID := fmt.Sprintf("XFR-%d", s.nextOrder)
+	orderID := fmt.Sprintf("XFR-%d-%s", s.nextOrder, s.suffix)
 	years := int(body.PeriodYears)
 	if years <= 0 {
 		years = 1

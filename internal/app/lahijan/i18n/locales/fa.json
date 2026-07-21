@@ -496,6 +496,15 @@
   "dns.err_bad_request": {
     "other": "درخواست دی‌ان‌اس نادرست بود."
   },
+  "dns.err_domain_disabled": {
+    "other": "ثبت دامنه روی این کارساز فعال نیست."
+  },
+  "dns.err_domain_not_found": {
+    "other": "دامنه در این مستاجر یافت نشد."
+  },
+  "dns.err_domain_unavailable": {
+    "other": "این دامنه برای ثبت در دسترس نیست."
+  },
   "audit.action_compute_instance_freeze": {
     "other": "نمونهٔ محاسباتی یخ‌زده شد"
   },
@@ -603,6 +612,24 @@
   },
   "audit.action_dns_zone_template_apply": {
     "other": "قالب دی‌ان‌اس روی ناحیه اعمال شد"
+  },
+  "audit.action_dns_domain_search": {
+    "other": "در دسترس بودن دامنه بررسی شد"
+  },
+  "audit.action_dns_domain_register": {
+    "other": "دامنه ثبت شد"
+  },
+  "audit.action_dns_domain_renew": {
+    "other": "دامنه تمدید شد"
+  },
+  "audit.action_dns_domain_transfer": {
+    "other": "دامنه از ثبت‌کنندهٔ دیگر منتقل شد"
+  },
+  "audit.action_dns_domain_delete": {
+    "other": "دامنه از مستاجر حذف شد"
+  },
+  "audit.action_dns_domain_dnssec": {
+    "other": "دی‌ان‌اس‌سک دامنه تغییر کرد"
   },
 
   "s3.err_disabled": {
