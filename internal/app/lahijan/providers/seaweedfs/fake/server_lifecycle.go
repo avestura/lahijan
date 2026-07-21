@@ -57,19 +57,21 @@ type versioningState struct {
 
 // objectVersion is a single object version snapshot.
 type objectVersion struct {
-	versionID  string
-	key        string
-	body       []byte
-	createdAt  time.Time
-	isLatest   bool
+	versionID      string
+	key            string
+	body           []byte
+	createdAt      time.Time
+	isLatest       bool
 	isDeleteMarker bool
 }
 
-// multipartUpload is a single in-flight multipart upload.
+// multipartUpload is a single in-flight multipart upload. The fields
+// mirror the SDK's AbortMultipartUpload input shape so tests can assert
+// on them; only the upload identifier is consulted at runtime today.
+//
+//nolint:unused // fields kept for future abort-incomplete-multipart lifecycle coverage
 type multipartUpload struct {
-	bucket   string
-	key      string
-	uploadID string
+	uploadID    string
 	initiatedAt time.Time
 }
 
@@ -96,10 +98,12 @@ func (s *Server) vs(bucket string) *versioningState {
 	return b.vs
 }
 
-// vsLock is a package-level mutex used to serialise versioningState
-// mutations independently of Server.mu when the WS-29 surface needs to
-// read state across multiple buckets. Tests can replace it via the
-// helpers below.
+// vsLock is reserved for serialising versioningState mutations
+// independently of Server.mu when the WS-29 surface needs to read state
+// across multiple buckets. Unused today; kept here so tests can wire it
+// without restructuring the package.
+//
+//nolint:unused // reserved for future cross-bucket versioning operations
 var vsLock sync.Mutex
 
 // ---------------------------------------------------------------------------
@@ -122,12 +126,16 @@ func (s *Server) PutBucketVersioning(_ context.Context, params *awss3.PutBucketV
 	status := seaweedfs.VersioningStatusUnversioned
 	if params.VersioningConfiguration != nil && params.VersioningConfiguration.Status != "" {
 		// The SDK passes the raw enum value ("Enabled" / "Suspended").
-		// Map back to the Lahijan-normalised form.
+		// Map back to the Lahijan-normalised form. The empty / nil
+		// case is treated as unversioned (matches the SDK's own
+		// GetBucketVersioning response when versioning was never set).
 		switch string(params.VersioningConfiguration.Status) {
 		case "Enabled":
 			status = seaweedfs.VersioningStatusEnabled
 		case "Suspended":
 			status = seaweedfs.VersioningStatusSuspended
+		default:
+			status = seaweedfs.VersioningStatusUnversioned
 		}
 	}
 	vs.versioning = status
@@ -153,6 +161,9 @@ func (s *Server) GetBucketVersioning(_ context.Context, params *awss3.GetBucketV
 		out.Status = awss3types.BucketVersioningStatusEnabled
 	case seaweedfs.VersioningStatusSuspended:
 		out.Status = awss3types.BucketVersioningStatusSuspended
+	case seaweedfs.VersioningStatusUnversioned:
+		// Empty Status == unversioned (matches the SDK's own
+		// GetBucketVersioning response when versioning was never set).
 	}
 	return out, nil
 }
@@ -176,7 +187,7 @@ func (s *Server) ListObjectVersions(_ context.Context, params *awss3.ListObjectV
 		prefix = *params.Prefix
 	}
 	out := &awss3.ListObjectVersionsOutput{
-		Versions:     []awss3types.ObjectVersion{},
+		Versions:      []awss3types.ObjectVersion{},
 		DeleteMarkers: []awss3types.DeleteMarkerEntry{},
 	}
 	// Iterate the keys in deterministic order.
@@ -194,9 +205,9 @@ func (s *Server) ListObjectVersions(_ context.Context, params *awss3.ListObjectV
 			isLatest := v.isLatest
 			if v.isDeleteMarker {
 				out.DeleteMarkers = append(out.DeleteMarkers, awss3types.DeleteMarkerEntry{
-					VersionId:  &vid,
-					Key:        &key,
-					IsLatest:   &isLatest,
+					VersionId:    &vid,
+					Key:          &key,
+					IsLatest:     &isLatest,
 					LastModified: &created,
 				})
 				continue

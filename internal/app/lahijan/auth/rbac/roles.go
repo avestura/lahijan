@@ -130,21 +130,21 @@ var defaultRoles = []RoleDefinition{
 			PermDNSDomainRenew,
 			PermDNSDomainTransfer,
 			PermDNSDomainDelete,
-		// s3 (full)
-		PermS3BucketCreate,
-		PermS3BucketRead,
-		PermS3BucketUpdate,
-		PermS3BucketDelete,
-		PermS3ObjectRead,
-		PermS3ObjectDelete,
-		PermS3CredentialsCreate,
-		PermS3CredentialsRevoke,
-		// s3 lifecycle / versioning / object lock (WS-29, ADR-0036).
-		// Admin = full; member is excluded because changing the policy
-		// is a privileged compliance action.
-		PermS3BucketVersioning,
-		PermS3BucketLifecycle,
-		PermS3BucketObjectLock,
+			// s3 (full)
+			PermS3BucketCreate,
+			PermS3BucketRead,
+			PermS3BucketUpdate,
+			PermS3BucketDelete,
+			PermS3ObjectRead,
+			PermS3ObjectDelete,
+			PermS3CredentialsCreate,
+			PermS3CredentialsRevoke,
+			// s3 lifecycle / versioning / object lock (WS-29, ADR-0036).
+			// Admin = full; member is excluded because changing the policy
+			// is a privileged compliance action.
+			PermS3BucketVersioning,
+			PermS3BucketLifecycle,
+			PermS3BucketObjectLock,
 			// billing
 			PermBillingBalanceRead,
 			PermBillingBalanceAdjust,

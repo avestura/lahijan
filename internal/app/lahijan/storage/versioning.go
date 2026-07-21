@@ -50,19 +50,12 @@ func toDriverStatus(s VersioningStatus) seaweedfs.VersioningStatus {
 		return seaweedfs.VersioningStatusEnabled
 	case VersioningStatusSuspended:
 		return seaweedfs.VersioningStatusSuspended
+	case VersioningStatusUnversioned:
+		return seaweedfs.VersioningStatusUnversioned
 	}
+	// Unknown values normalise to unversioned (defensive; the enum
+	// constraint lives at the HTTP / OpenAPI boundary).
 	return seaweedfs.VersioningStatusUnversioned
-}
-
-// fromDriverStatus translates the driver enum to the service-layer enum.
-func fromDriverStatus(s seaweedfs.VersioningStatus) VersioningStatus {
-	switch s {
-	case seaweedfs.VersioningStatusEnabled:
-		return VersioningStatusEnabled
-	case seaweedfs.VersioningStatusSuspended:
-		return VersioningStatusSuspended
-	}
-	return VersioningStatusUnversioned
 }
 
 // fromRowStatus translates the storage_buckets.versioning_status column
@@ -112,9 +105,9 @@ func (s *Service) SetBucketVersioning(
 		ResourceID:   &row.ID,
 		Status:       audit.StatusPending,
 		Metadata: map[string]any{
-			"bucket_slug":   row.Slug,
-			"previous":      row.VersioningStatus,
-			"new":           string(status),
+			"bucket_slug": row.Slug,
+			"previous":    row.VersioningStatus,
+			"new":         string(status),
 		},
 	})
 

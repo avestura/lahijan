@@ -157,6 +157,8 @@ func (s *Server) RestoreStorageObjectVersion(c *fiber.Ctx, bucketID openapi_type
 // ---------------------------------------------------------------------------
 
 // ListStorageBucketLifecycleRules handles GET /api/v1/storage/buckets/{bucketId}/lifecycle.
+//
+//nolint:lll // signature mirrors the generated ServerInterface; cannot wrap.
 func (s *Server) ListStorageBucketLifecycleRules(c *fiber.Ctx, bucketID openapi_types.UUID, params apigen.ListStorageBucketLifecycleRulesParams) error {
 	if s.storageSvc == nil {
 		return SendError(c, fiber.StatusNotImplemented, CodeNotImplemented, storageDisabledMsg(c), nil)
@@ -336,7 +338,7 @@ func (s *Server) SetStorageBucketObjectLock(c *fiber.Ctx, bucketID openapi_types
 	}
 	days := int32(0)
 	if req.Days != nil {
-		days = int32(*req.Days)
+		days = *req.Days
 	}
 	if err := s.storageSvc.SetObjectLock(c.UserContext(), tid, uid, bucketID, storage.ObjectLockConfig{
 		Enabled: req.Enabled,
@@ -388,9 +390,9 @@ func toStorageLifecycleRuleDTO(row database.StorageLifecycleRule) apigen.Storage
 // the OpenAPI StorageObjectVersion schema.
 func toStorageObjectVersionDTO(v seaweedfs.ObjectVersion) apigen.StorageObjectVersion {
 	out := apigen.StorageObjectVersion{
-		Key:      v.Key,
+		Key:       v.Key,
 		VersionId: v.VersionID,
-		IsLatest: v.IsLatest,
+		IsLatest:  v.IsLatest,
 	}
 	if v.IsDeleteMarker {
 		out.IsDeleteMarker = &v.IsDeleteMarker

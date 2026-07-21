@@ -88,11 +88,11 @@ const (
 // or transitions an object. Plugins subscribe via "s3.bucket.*" +
 // "s3.object.*" for compliance workflows.
 const (
-	S3BucketVersioningSet    = "s3.bucket.versioning.set"
-	S3BucketLifecycleSet     = "s3.bucket.lifecycle.set"
-	S3BucketObjectLockSet    = "s3.bucket.object_lock.set"
-	S3ObjectDeleted          = "s3.object.deleted"
-	S3LifecycleTransitioned  = "s3.lifecycle.transitioned"
+	S3BucketVersioningSet   = "s3.bucket.versioning.set"
+	S3BucketLifecycleSet    = "s3.bucket.lifecycle.set"
+	S3BucketObjectLockSet   = "s3.bucket.object_lock.set"
+	S3ObjectDeleted         = "s3.object.deleted"
+	S3LifecycleTransitioned = "s3.lifecycle.transitioned"
 )
 
 // Billing module events (WS-17). Emitted by the metering + ledger

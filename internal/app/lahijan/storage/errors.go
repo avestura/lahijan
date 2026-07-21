@@ -69,7 +69,10 @@ var ErrInvalidLifecycleRuleID = errors.New("storage: lifecycle rule id must be 1
 
 // ErrInvalidLifecycleAction is returned when the caller-supplied action
 // is not in the supported set.
-var ErrInvalidLifecycleAction = errors.New("storage: lifecycle action must be expiration, noncurrent_version_expiration, abort_incomplete_multipart, or transition")
+var ErrInvalidLifecycleAction = errors.New(
+	"storage: lifecycle action must be expiration, noncurrent_version_expiration, " +
+		"abort_incomplete_multipart, or transition",
+)
 
 // ErrInvalidLifecycleTrigger is returned when exactly one of days or
 // date_at is not set, or when days is non-positive.

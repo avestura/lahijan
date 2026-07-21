@@ -51,10 +51,10 @@ type fakeSW struct {
 
 	// WS-29 recording fields. Each call appends to its slice; the
 	// "latest" lookup is from the tail.
-	versioningCalls  []versioningCall
-	lifecycleCalls   []lifecycleCall
-	objectLockCalls  []objectLockCall
-	restoreCalls     []restoreCall
+	versioningCalls   []versioningCall
+	lifecycleCalls    []lifecycleCall
+	objectLockCalls   []objectLockCall
+	restoreCalls      []restoreCall
 	deleteObjectCalls []deleteObjectCall
 
 	// listVersionsResult is returned by ListObjectVersions verbatim.

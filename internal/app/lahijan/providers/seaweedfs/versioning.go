@@ -52,8 +52,12 @@ func toS3VersioningStatus(s VersioningStatus) awss3types.BucketVersioningStatus 
 		return awss3types.BucketVersioningStatusEnabled
 	case VersioningStatusSuspended:
 		return awss3types.BucketVersioningStatusSuspended
+	case VersioningStatusUnversioned:
+		return "" // unversioned → empty so the SDK omits the field
 	}
-	return "" // unversioned → empty so the SDK omits the field
+	// Unknown values are normalised to empty (defensive; the enum
+	// constraint lives at the storage service boundary).
+	return ""
 }
 
 // fromS3VersioningStatus maps the AWS SDK enum (or empty string) to the
@@ -64,8 +68,9 @@ func fromS3VersioningStatus(s awss3types.BucketVersioningStatus) VersioningStatu
 		return VersioningStatusEnabled
 	case awss3types.BucketVersioningStatusSuspended:
 		return VersioningStatusSuspended
+	default:
+		return VersioningStatusUnversioned
 	}
-	return VersioningStatusUnversioned
 }
 
 // SetBucketVersioning pushes the versioning status to SeaweedFS. A nil
@@ -229,7 +234,7 @@ func (p *Provider) ListObjectVersions(
 		return nil, fmt.Errorf("seaweedfs: versioning.list: %w", translated)
 	}
 	page := &ObjectVersionsPage{
-		Versions:     make([]ObjectVersion, 0, len(out.Versions)),
+		Versions:      make([]ObjectVersion, 0, len(out.Versions)),
 		DeleteMarkers: make([]ObjectVersion, 0, len(out.DeleteMarkers)),
 	}
 	for _, v := range out.Versions {
@@ -341,9 +346,9 @@ func (p *Provider) RestoreObjectVersion(
 		ActorType:  "system",
 		ResourceID: strPtr(bucket),
 		Metadata: asRawJSON(struct {
-			Bucket     string `json:"bucket"`
-			Key        string `json:"key"`
-			VersionID  string `json:"version_id,omitempty"`
+			Bucket    string `json:"bucket"`
+			Key       string `json:"key"`
+			VersionID string `json:"version_id,omitempty"`
 		}{bucket, key, versionID}),
 	})
 	setStatus(span, nil)

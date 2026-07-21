@@ -38,6 +38,7 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/providers/seaweedfs"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/eventbus"
 )
+
 // Resource type + audit action constants for the storage module. Past-tense
 // verbs for actions so the audit row reads "what happened"; i18n keys are
 // auto-derived (dots -> underscores).

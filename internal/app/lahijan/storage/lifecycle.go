@@ -36,21 +36,6 @@ const (
 	LifecycleActionTransition                  LifecycleAction = "transition"
 )
 
-// toDriverLifecycleAction maps the service enum to the driver enum.
-func toDriverLifecycleAction(a LifecycleAction) seaweedfs.LifecycleAction {
-	switch a {
-	case LifecycleActionExpiration:
-		return seaweedfs.LifecycleActionExpiration
-	case LifecycleActionNoncurrentVersionExpiration:
-		return seaweedfs.LifecycleActionNoncurrentVersionExpiration
-	case LifecycleActionAbortIncompleteMultipart:
-		return seaweedfs.LifecycleActionAbortIncompleteMultipart
-	case LifecycleActionTransition:
-		return seaweedfs.LifecycleActionTransition
-	}
-	return seaweedfs.LifecycleActionExpiration
-}
-
 // fromRowLifecycleAction maps the TEXT column value to the service enum.
 func fromRowLifecycleAction(s string) LifecycleAction {
 	switch s {
@@ -205,8 +190,8 @@ func (s *Service) CreateLifecycleRule(
 	// absent.
 	if err := s.reconcileLifecycleToProvider(ctx, row.Name, bucketID); err != nil {
 		_ = s.audit.MarkOutcome(ctx, auditID, audit.Outcome{Status: audit.StatusSuccess, Details: map[string]any{
-			"warning":              "rule stored; backend push failed (lifecycle worker will enforce)",
-			"backend_push_error":   err.Error(),
+			"warning":            "rule stored; backend push failed (lifecycle worker will enforce)",
+			"backend_push_error": err.Error(),
 		}})
 	} else {
 		_ = s.audit.MarkOutcome(ctx, auditID, audit.Outcome{Status: audit.StatusSuccess, Details: nil})
@@ -297,8 +282,8 @@ func (s *Service) UpdateLifecycleRule(
 		StorageClass: in.StorageClass,
 		Prefix:       in.Prefix,
 	}
-	if err := validateLifecycleInput(toValidate); err != nil {
-		return err
+	if validationErr := validateLifecycleInput(toValidate); validationErr != nil {
+		return validationErr
 	}
 
 	row, err := s.repos.StorageBuckets.Get(ctx, bucketID)

@@ -188,7 +188,13 @@ func (w *LifecycleEvaluateWorker) evalTenant(ctx context.Context, log *slog.Logg
 // evalBucket runs the rules for one bucket. The bucket row is fetched
 // so the worker can resolve the canonical name + emit events with the
 // right metadata.
-func (w *LifecycleEvaluateWorker) evalBucket(ctx context.Context, log *slog.Logger, tenantID, bucketID uuid.UUID, rules []database.StorageLifecycleRule, now time.Time) error {
+func (w *LifecycleEvaluateWorker) evalBucket(
+	ctx context.Context,
+	log *slog.Logger,
+	tenantID, bucketID uuid.UUID,
+	rules []database.StorageLifecycleRule,
+	now time.Time,
+) error {
 	bucket, err := w.svc.repos.StorageBuckets.Get(ctx, bucketID)
 	if err != nil {
 		return fmt.Errorf("read bucket: %w", err)
@@ -205,7 +211,14 @@ func (w *LifecycleEvaluateWorker) evalBucket(ctx context.Context, log *slog.Logg
 // evalRule evaluates a single rule against the bucket's current object
 // set + performs the action on every due object. The per-action logic
 // is in the helpers below.
-func (w *LifecycleEvaluateWorker) evalRule(ctx context.Context, log *slog.Logger, tenantID uuid.UUID, bucket database.StorageBucket, rule database.StorageLifecycleRule, now time.Time) error {
+func (w *LifecycleEvaluateWorker) evalRule(
+	ctx context.Context,
+	log *slog.Logger,
+	tenantID uuid.UUID,
+	bucket database.StorageBucket,
+	rule database.StorageLifecycleRule,
+	now time.Time,
+) error {
 	prefix := ""
 	if rule.Prefix != nil {
 		prefix = *rule.Prefix
@@ -237,7 +250,15 @@ func (w *LifecycleEvaluateWorker) evalRule(ctx context.Context, log *slog.Logger
 // evalExpiration handles the LifecycleActionExpiration action: lists
 // every object matching the rule prefix, evaluates the age trigger,
 // and calls DeleteObject on every due object.
-func (w *LifecycleEvaluateWorker) evalExpiration(ctx context.Context, log *slog.Logger, tenantID uuid.UUID, bucket database.StorageBucket, rule database.StorageLifecycleRule, prefix string, now time.Time) error {
+func (w *LifecycleEvaluateWorker) evalExpiration(
+	ctx context.Context,
+	log *slog.Logger,
+	tenantID uuid.UUID,
+	bucket database.StorageBucket,
+	rule database.StorageLifecycleRule,
+	prefix string,
+	now time.Time,
+) error {
 	threshold, ok := ageThreshold(rule, now)
 	if !ok {
 		// Date-based trigger not yet due.
@@ -273,7 +294,15 @@ func (w *LifecycleEvaluateWorker) evalExpiration(ctx context.Context, log *slog.
 // evalNoncurrentExpiration handles the
 // LifecycleActionNoncurrentVersionExpiration action: lists every
 // noncurrent version older than the threshold and deletes it.
-func (w *LifecycleEvaluateWorker) evalNoncurrentExpiration(ctx context.Context, log *slog.Logger, tenantID uuid.UUID, bucket database.StorageBucket, rule database.StorageLifecycleRule, prefix string, now time.Time) error {
+func (w *LifecycleEvaluateWorker) evalNoncurrentExpiration(
+	ctx context.Context,
+	log *slog.Logger,
+	tenantID uuid.UUID,
+	bucket database.StorageBucket,
+	rule database.StorageLifecycleRule,
+	prefix string,
+	now time.Time,
+) error {
 	threshold, ok := ageThreshold(rule, now)
 	if !ok {
 		return nil
@@ -327,7 +356,13 @@ func ageThreshold(rule database.StorageLifecycleRule, now time.Time) (time.Durat
 // object deletion / transition. The shape matches the user-driven
 // delete event so plugins subscribed to "s3.object.deleted" react
 // identically.
-func (w *LifecycleEvaluateWorker) emitLifecycleObjectEvent(ctx context.Context, tenantID uuid.UUID, bucket database.StorageBucket, rule database.StorageLifecycleRule, key, action string) {
+func (w *LifecycleEvaluateWorker) emitLifecycleObjectEvent(
+	ctx context.Context,
+	tenantID uuid.UUID,
+	bucket database.StorageBucket,
+	rule database.StorageLifecycleRule,
+	key, action string,
+) {
 	if w.svc.bus == nil {
 		return
 	}
@@ -345,7 +380,13 @@ func (w *LifecycleEvaluateWorker) emitLifecycleObjectEvent(ctx context.Context, 
 // deletion. The actor is the system; the metadata.trigger = "lifecycle"
 // so the audit query API can distinguish lifecycle-driven deletes from
 // user-driven ones.
-func (w *LifecycleEvaluateWorker) emitLifecycleAudit(ctx context.Context, tenantID uuid.UUID, bucket database.StorageBucket, rule database.StorageLifecycleRule, key, action string) {
+func (w *LifecycleEvaluateWorker) emitLifecycleAudit(
+	ctx context.Context,
+	tenantID uuid.UUID,
+	bucket database.StorageBucket,
+	rule database.StorageLifecycleRule,
+	key, action string,
+) {
 	_, _ = w.svc.audit.Emit(ctx, audit.Event{
 		TenantID:     &tenantID,
 		ActorType:    audit.ActorSystem,

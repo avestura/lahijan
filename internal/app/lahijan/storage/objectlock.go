@@ -33,7 +33,11 @@ func toDriverMode(m ObjectLockMode) seaweedfs.ObjectLockMode {
 	switch m {
 	case ObjectLockModeCompliance:
 		return seaweedfs.ObjectLockModeCompliance
+	case ObjectLockModeGovernance:
+		return seaweedfs.ObjectLockModeGovernance
 	}
+	// Unknown values normalise to GOVERNANCE (defensive; the enum
+	// constraint lives at the HTTP / OpenAPI boundary).
 	return seaweedfs.ObjectLockModeGovernance
 }
 
