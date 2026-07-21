@@ -75,6 +75,12 @@ type Querier interface {
 	CountDNSRecordsInZone(ctx context.Context, arg CountDNSRecordsInZoneParams) (int64, error)
 	//: tenant-scoped
 	CountDNSZones(ctx context.Context, tenantID uuid.UUID) (int64, error)
+	//: tenant-scoped
+	CountFloatingIPs(ctx context.Context, tenantID uuid.UUID) (int64, error)
+	//: tenant-scoped
+	CountFloatingIPsByPool(ctx context.Context, arg CountFloatingIPsByPoolParams) (int64, error)
+	CountIPPoolRanges(ctx context.Context, poolID uuid.UUID) (int64, error)
+	CountIPPools(ctx context.Context) (int64, error)
 	//: tenant-scoped.
 	CountLedgerEntriesForUser(ctx context.Context, arg CountLedgerEntriesForUserParams) (int64, error)
 	//: tenant-scoped
@@ -221,6 +227,32 @@ type Querier interface {
 	// Email tokens: single-use, expiring tokens for email verification, password
 	// reset, and email change (WS-06). Global; only the SHA-256 hash is stored.
 	CreateEmailToken(ctx context.Context, arg CreateEmailTokenParams) (EmailToken, error)
+	// Floating IPs (WS-30, ADR-0037): per-tenant public-IP allocations.
+	// Every query is tenant-scoped via WithTenant (database/tenant.go) so a
+	// cross-tenant floating_ip_id surfaces as ErrNoRows, never as the row
+	// itself. The address column is INET; allocation logic computes the next
+	// free address in Go (using netip arithmetic over the pool's ranges) and
+	// inserts the resolved host address via CreateFloatingIP.
+	//: tenant-scoped
+	// Inserts a new allocation. The service layer computes the address
+	// (next-free IP from the pool's ranges minus the existing allocations)
+	// before this call; the unique index on (address) WHERE deleted_at IS
+	// NULL guards against a race between two concurrent allocations
+	// (sqlc/pgx surfaces a unique-violation the service maps to 409).
+	CreateFloatingIP(ctx context.Context, arg CreateFloatingIPParams) (FloatingIp, error)
+	// IP pools (WS-30, ADR-0037): operator-owned pool metadata + per-pool
+	// CIDR ranges. Global tables (no tenant_id) — the pool is the operator's
+	// resource; tenants allocate from it via the floating_ips table
+	// (compute_floating_ips.sql). Every query here is admin-only at the
+	// HTTP boundary (RequirePerm(compute.ip_pool.manage)).
+	// -------------------------------------------------------------------------
+	// ip_pools
+	// -------------------------------------------------------------------------
+	CreateIPPool(ctx context.Context, arg CreateIPPoolParams) (IpPool, error)
+	// -------------------------------------------------------------------------
+	// ip_pool_ranges
+	// -------------------------------------------------------------------------
+	CreateIPPoolRange(ctx context.Context, arg CreateIPPoolRangeParams) (IpPoolRange, error)
 	// ===========================================================================
 	// ledger_entries: append-only per-user ledger. INSERT + SELECT only.
 	// ===========================================================================
@@ -382,6 +414,11 @@ type Querier interface {
 	// Bulk-delete every expired row. The cleanup job (post-MVP) calls this
 	// periodically; the rowsize is small so a single bulk delete is fine.
 	DeleteExpiredPluginKV(ctx context.Context) (int64, error)
+	// Hard-delete; the range row carries no historical audit value once
+	// removed. The unique constraint is released so the same CIDR can be
+	// re-added later. Existing floating_ips allocations inside the range
+	// remain valid (they reference pool_id, not range_id).
+	DeleteIPPoolRange(ctx context.Context, arg DeleteIPPoolRangeParams) error
 	DeleteMFAPendingSessionsForUser(ctx context.Context, userID uuid.UUID) error
 	// Unlink: removes the (user, provider) link entirely. Enforced "at least one
 	// auth method remaining" check happens in the service layer (it counts
@@ -520,6 +557,23 @@ type Querier interface {
 	//: tenant-scoped
 	GetDNSZoneByID(ctx context.Context, arg GetDNSZoneByIDParams) (DnsZone, error)
 	GetEmailTokenByHash(ctx context.Context, tokenHash string) (EmailToken, error)
+	//: tenant-scoped
+	// Used by the service layer to detect "this address is already
+	// allocated to the tenant" without a separate scan. Cross-tenant
+	// collisions are caught by the global unique index on (address).
+	GetFloatingIPByAddress(ctx context.Context, arg GetFloatingIPByAddressParams) (FloatingIp, error)
+	//: tenant-scoped
+	GetFloatingIPByID(ctx context.Context, arg GetFloatingIPByIDParams) (FloatingIp, error)
+	//: tenant-scoped
+	// Returns the floating IP currently attached to the given instance, if
+	// any. Used by the instance-detail "attached IP" card.
+	GetFloatingIPByInstance(ctx context.Context, arg GetFloatingIPByInstanceParams) (FloatingIp, error)
+	GetIPPoolByID(ctx context.Context, id uuid.UUID) (IpPool, error)
+	GetIPPoolByName(ctx context.Context, name string) (IpPool, error)
+	GetIPPoolRangeByID(ctx context.Context, id uuid.UUID) (IpPoolRange, error)
+	// Natural-key lookup so the service can detect "this CIDR is already in
+	// the pool" without a separate scan.
+	GetIPPoolRangeByPoolCIDR(ctx context.Context, arg GetIPPoolRangeByPoolCIDRParams) (IpPoolRange, error)
 	//: tenant-scoped.
 	GetLedgerEntryByID(ctx context.Context, arg GetLedgerEntryByIDParams) (LedgerEntry, error)
 	//: tenant-scoped; used by the metering de-dup check before insert.
@@ -657,6 +711,19 @@ type Querier interface {
 	//: tenant-scoped; used by the metering rollup to find users with
 	//: an overage discount.
 	ListActiveBillingSubscriptions(ctx context.Context, tenantID uuid.UUID) ([]BillingSubscription, error)
+	//: tenant-scoped
+	// Returns the addresses (INET column projected to TEXT) of every
+	// non-deleted allocation in the tenant. Used by the allocation logic
+	// to compute the set of already-allocated addresses without dragging
+	// the whole row.
+	ListAllAddressesForTenant(ctx context.Context, tenantID uuid.UUID) ([]string, error)
+	// Global (not tenant-scoped): the operator's free/allocated counter
+	// needs the count across every tenant, not just the caller's tenant.
+	// Used only by the admin path (RequirePerm(compute.ip_pool.manage)).
+	ListAllAddressesInPool(ctx context.Context, poolID uuid.UUID) ([]string, error)
+	// Unpaginated variant used by the allocation logic so the service can
+	// walk every range in a single query when looking for the next free IP.
+	ListAllIPPoolRangesForPool(ctx context.Context, poolID uuid.UUID) ([]IpPoolRange, error)
 	// Every subscription across every plugin. The bus uses this at emit
 	// time to find every plugin that matches the topic; the per-plugin
 	// filter then enqueues the dispatch.
@@ -753,6 +820,14 @@ type Querier interface {
 	//: oldest-first so the prune worker trims in creation order. The prune
 	//: worker caps the batch via the LIMIT it passes.
 	ListExpiredComputeSnapshots(ctx context.Context, arg ListExpiredComputeSnapshotsParams) ([]ComputeSnapshot, error)
+	//: tenant-scoped
+	ListFloatingIPs(ctx context.Context, arg ListFloatingIPsParams) ([]FloatingIp, error)
+	//: tenant-scoped
+	// Used by the service layer's free/allocated counter for the operator
+	// UI. Paginated by (tenant, pool).
+	ListFloatingIPsByPool(ctx context.Context, arg ListFloatingIPsByPoolParams) ([]FloatingIp, error)
+	ListIPPoolRanges(ctx context.Context, arg ListIPPoolRangesParams) ([]IpPoolRange, error)
+	ListIPPools(ctx context.Context, arg ListIPPoolsParams) ([]IpPool, error)
 	//: tenant-scoped; paginated list of a single user's entries, newest first.
 	ListLedgerEntriesForUser(ctx context.Context, arg ListLedgerEntriesForUserParams) ([]LedgerEntry, error)
 	//: tenant-scoped
@@ -926,6 +1001,23 @@ type Querier interface {
 	//: both in a single transaction.
 	SetDefaultBillingPaymentMethod(ctx context.Context, arg SetDefaultBillingPaymentMethodParams) error
 	//: tenant-scoped
+	// Convenience update for the best-effort forward push path so the
+	// audit trail + the operator UI can render the push outcome without
+	// rewriting the rest of the row.
+	SetFloatingIPForwardPushStatus(ctx context.Context, arg SetFloatingIPForwardPushStatusParams) error
+	//: tenant-scoped
+	// Attaches (instance_id != NULL) or detaches (instance_id == NULL) the
+	// floating IP. The service layer pushes the Incus forward on attach
+	// (best-effort) and removes it on detach before flipping this column.
+	SetFloatingIPInstance(ctx context.Context, arg SetFloatingIPInstanceParams) error
+	//: tenant-scoped
+	// Replaces the ptr_target. The service layer re-publishes the PTR
+	// record into the pool's ptr_zone (or the in-addr.arpa zone the tenant
+	// owns) on every change.
+	SetFloatingIPPTRTarget(ctx context.Context, arg SetFloatingIPPTRTargetParams) error
+	// Convenience update for the activate/deactivate toggle.
+	SetIPPoolActive(ctx context.Context, arg SetIPPoolActiveParams) error
+	//: tenant-scoped
 	SetMembershipRole(ctx context.Context, arg SetMembershipRoleParams) error
 	// Promote a plugin from pending -> active, or active -> disabled. The
 	// CHECK constraint on the column rejects any other value at the DB layer.
@@ -985,6 +1077,18 @@ type Querier interface {
 	//: tenant-scoped
 	SoftDeleteComputeStorageVolume(ctx context.Context, arg SoftDeleteComputeStorageVolumeParams) error
 	//: tenant-scoped
+	// Marks the allocation deleted_at = now(). The unique index on (address)
+	// WHERE deleted_at IS NULL releases so the address can be re-allocated
+	// after release. The service layer removes the Incus forward +
+	// publishes the PTR-record delete into the pool's ptr_zone before this.
+	SoftDeleteFloatingIP(ctx context.Context, arg SoftDeleteFloatingIPParams) error
+	// Marks the pool deleted_at = now(). The unique name index is partial
+	// on deleted_at IS NULL so the name can be re-used after a soft-delete.
+	// ON DELETE RESTRICT on floating_ips.pool_id prevents hard deletion via
+	// SQL when allocations exist; the service layer must release every
+	// allocation before soft-deleting.
+	SoftDeleteIPPool(ctx context.Context, id uuid.UUID) error
+	//: tenant-scoped
 	SoftDeleteMembership(ctx context.Context, arg SoftDeleteMembershipParams) error
 	//: tenant-scoped
 	// Marks the row as deleted. The SeaweedFS bucket is removed separately by
@@ -1042,6 +1146,10 @@ type Querier interface {
 	UpdateDNSZoneDescription(ctx context.Context, arg UpdateDNSZoneDescriptionParams) error
 	//: tenant-scoped
 	UpdateDNSZoneKind(ctx context.Context, arg UpdateDNSZoneKindParams) error
+	// Replaces the mutable fields. The name is immutable (other tables may
+	// reference the pool by id, but operators identify pools by name and
+	// renaming would break operator automation that scrapes by name).
+	UpdateIPPool(ctx context.Context, arg UpdateIPPoolParams) error
 	// Rotates the stored tokens (and scopes + expiry) on every login or refresh.
 	// Called by the IdP service when the IdP hands back a fresh access_token.
 	UpdateOAuthIdentityTokens(ctx context.Context, arg UpdateOAuthIdentityTokensParams) error
