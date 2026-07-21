@@ -829,6 +829,61 @@ func GetProvidersPowerDNSEventsEnabled() bool {
 }
 
 // ---------------------------------------------------------------------------
+// Registrar provider (WS-28). Every getter reads a key under providers.registrar.*.
+// ---------------------------------------------------------------------------
+
+// GetProvidersRegistrarEnabled reports whether the registrar driver
+// (WS-28) is wired into this process. When false, program.Start skips
+// building the driver and /api/v1/dns/domains/* degrades to 501
+// "feature disabled".
+func GetProvidersRegistrarEnabled() bool {
+	return viper.GetBool("providers.registrar.enabled")
+}
+
+// GetProvidersRegistrarProvider returns the in-tree registrar driver
+// identifier. Currently only "opensrs" is in-tree; "noop" disables the
+// driver even when enabled=true.
+func GetProvidersRegistrarProvider() string {
+	return viper.GetString("providers.registrar.provider")
+}
+
+// GetProvidersRegistrarOpenSRSBaseURL returns the OpenSRS reseller API
+// origin. Default targets the production endpoint.
+func GetProvidersRegistrarOpenSRSBaseURL() string {
+	return viper.GetString("providers.registrar.openSRS.baseURL")
+}
+
+// GetProvidersRegistrarOpenSRSAPIKey returns the OpenSRS reseller API
+// key sent on every request. SENSITIVE — never logged.
+func GetProvidersRegistrarOpenSRSAPIKey() string {
+	return viper.GetString("providers.registrar.openSRS.apiKey")
+}
+
+// GetProvidersRegistrarOpenSRSUsername returns the OpenSRS reseller
+// account username required by the auth scheme.
+func GetProvidersRegistrarOpenSRSUsername() string {
+	return viper.GetString("providers.registrar.openSRS.username")
+}
+
+// GetProvidersRegistrarOpenSRSRequestTimeoutSeconds returns the per-call
+// timeout applied to every OpenSRS HTTP request.
+func GetProvidersRegistrarOpenSRSRequestTimeoutSeconds() int {
+	return viper.GetInt("providers.registrar.openSRS.requestTimeoutSeconds")
+}
+
+// GetProvidersRegistrarMarginPercent returns the markup Lahijan adds
+// on top of the registrar's retail price. Integer percent; 0 = at-cost.
+func GetProvidersRegistrarMarginPercent() int32 {
+	return int32(viper.GetInt("providers.registrar.marginPercent"))
+}
+
+// GetProvidersRegistrarDefaultCurrency returns the ISO 4217 3-letter
+// code Lahijan bills the user in. Default "USD".
+func GetProvidersRegistrarDefaultCurrency() string {
+	return viper.GetString("providers.registrar.defaultCurrency")
+}
+
+// ---------------------------------------------------------------------------
 // SeaweedFS provider (WS-13). Every getter reads a key under providers.seaweedfs.*.
 // ---------------------------------------------------------------------------
 

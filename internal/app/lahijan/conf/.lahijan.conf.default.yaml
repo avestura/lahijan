@@ -498,6 +498,41 @@ providers:
     events:
       enabled: true
 
+  # Registrar resale (WS-28). The driver is built ONLY when its top-level
+  # `enabled` flag is true; otherwise program.Start skips building the
+  # driver and the consuming module (registrar service) degrades to 501
+  # "feature disabled" envelopes. The registrar driver is opt-in because
+  # it requires the operator's own reseller account + the API key never
+  # appears in checked-in config. Per ADR-0035 the in-tree implementation
+  # is OpenSRS; the interface leaves room for additional registrars.
+  registrar:
+    # toggles the registrar driver. When false, program.Start skips
+    # building it and /api/v1/dns/domains/* degrades to 501.
+    enabled: false
+    # Which registrar implementation to build. Currently only "opensrs"
+    # is in-tree; "noop" disables the driver even when enabled=true
+    # (useful for tests that want the wired service with no backend).
+    provider: "opensrs"
+    # OpenSRS / Tucows Reseller API config. Required when provider="opensrs".
+    openSRS:
+      # Reseller API origin. Default targets the production reseller
+      # endpoint; tests override to point at an httptest server.
+      baseURL: "https://rr-n1-tor.opensrs.net"
+      # Reseller API key. SENSITIVE — never logged at debug level.
+      # Sourced from env LAHIJAN_PROVIDERS_REGISTRAR_OPENSRS_API_KEY.
+      apiKey: ""
+      # Reseller account username. Required by the OpenSRS auth scheme.
+      # Sourced from env LAHIJAN_PROVIDERS_REGISTRAR_OPENSRS_USERNAME.
+      username: ""
+      # Per-call timeout in seconds for OpenSRS HTTP calls.
+      requestTimeoutSeconds: 30
+    # Margin Lahijan adds on top of the registrar's retail price. Integer
+    # percent; 0 = at-cost. The markup is computed at the registrar
+    # service layer so the driver never knows Lahijan's pricing.
+    marginPercent: 0
+    # Default currency Lahijan bills the user in. ISO 4217 3-letter code.
+    defaultCurrency: "USD"
+
   # SeaweedFS object storage backend (WS-13). Dev runs `weed mini` (one
   # process) inside the compose stack; prod runs the master/volume/filer/s3
   # split. The Filer stores metadata in the shared Postgres `seaweed` DB

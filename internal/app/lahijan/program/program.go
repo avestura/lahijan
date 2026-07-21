@@ -52,6 +52,7 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/jobs"
 	notifyemail "github.com/avestura/lahijan/internal/app/lahijan/notify/email"
 	"github.com/avestura/lahijan/internal/app/lahijan/providers/incus"
+	registrarsvc "github.com/avestura/lahijan/internal/app/lahijan/registrar"
 	"github.com/avestura/lahijan/internal/app/lahijan/storage"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/eventbus"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/eventservice"
@@ -406,6 +407,39 @@ func Start() error {
 		billing.RegisterJobs(jobDeps.registry, billingSvc, slog.Default())
 	}
 
+	// WS-28: build the registrar driver (providers/registrar/*). Returns
+	// a zero-value registrarDeps when providers.registrar.enabled is
+	// false; the registrar service (/api/v1/dns/domains/*) degrades to
+	// 501 in that case. Built AFTER powerdnsDeps so the auto-provision
+	// + auto-DNSSEC paths can reach back into the dns.Service via the
+	// repos (the cross-module seam is the dns_zones repository).
+	registrarDeps, err := buildRegistrarDeps(context.Background())
+	if err != nil {
+		log.Fatalf("failed to build registrar deps: %s", err.Error())
+	}
+
+	// WS-28: build the registrar service module
+	// (internal/app/lahijan/registrar/*). Returns a nil service when
+	// the registrar provider is disabled; the api handlers degrade to
+	// 501 in that case. Built AFTER registrarDeps + billingSvc + dnsSvc
+	// so it can wire them into the service. The policy evaluator
+	// mirrors the compute / dns / storage modules' wiring.
+	var registrarSvc *registrarsvc.Service
+	if registrarDeps.provider != nil {
+		registrarSvc = registrarsvc.New(
+			registrarDeps.provider,
+			authDeps.repos,
+			authDeps.audit,
+			wasmDeps.bus,
+			rbac.NewEvaluator(authDeps.repos.Memberships),
+			billingSvc,
+			registrarsvc.Config{
+				MarginPercent:   conf.GetProvidersRegistrarMarginPercent(),
+				DefaultCurrency: conf.GetProvidersRegistrarDefaultCurrency(),
+			},
+		)
+	}
+
 	// WS-25: register the snapshot/backup River workers when both compute
 	// + jobs are enabled. The workers share the computeSvc instance so the
 	// in-process audit + event bus emit lines up with the HTTP-driven
@@ -498,6 +532,7 @@ func Start() error {
 		StorageSvc:     storageSvc,
 		BillingSvc:     billingSvc,
 		PaymentsSvc:    paymentsSvc,
+		RegistrarSvc:   registrarSvc,
 	}), policy)
 
 	// WS-09: mount River's built-in web UI (admin-only). The UI ships its
