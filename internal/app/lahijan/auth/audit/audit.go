@@ -108,6 +108,19 @@ const (
 	ActionS3CredentialRevoke = "s3.credentials.revoke"
 	ActionS3Presign          = "s3.presign"
 
+	// Object storage lifecycle actions (WS-29, ADR-0036). Emitted by
+	// the storage service on every state-changing privileged action
+	// across versioning + lifecycle rules + object-lock. Each row
+	// carries the bucket_id + the actor in metadata. The
+	// s3.object.lifecycle_deleted action is emitted by the lifecycle
+	// evaluator worker (storage.lifecycle.evaluate) with actor_type =
+	// "system" + metadata.trigger = "lifecycle" so the audit query API
+	// can distinguish lifecycle-driven deletes from user-driven ones.
+	ActionS3BucketVersioningSet   = "s3.bucket.versioning.set"
+	ActionS3BucketLifecycleSet    = "s3.bucket.lifecycle.set"
+	ActionS3BucketObjectLockSet   = "s3.bucket.object_lock.set"
+	ActionS3ObjectLifecycleDelete = "s3.object.lifecycle_deleted"
+
 	// Billing & metering module actions (WS-17). Emitted by the billing
 	// service on every state-changing privileged admin action across
 	// topups, refunds, and price catalog changes. Each row carries the
@@ -185,6 +198,11 @@ const (
 	// types (WS-16). Emitted by the storage service.
 	ResourceBucket     = "storage_bucket"
 	ResourceCredential = "storage_credential"
+
+	// ResourceLifecycleRule is the lifecycle-rule resource type (WS-29,
+	// ADR-0036). Emitted by the storage service on lifecycle-rule
+	// privileged actions.
+	ResourceLifecycleRule = "storage_lifecycle_rule"
 
 	// Billing resource types (WS-17). Emitted by the billing service.
 	ResourceLedgerEntry = "ledger_entry"

@@ -80,6 +80,21 @@ const (
 	S3PresignIssued     = "s3.presign.issued"
 )
 
+// Storage lifecycle / versioning / object-lock events (WS-29,
+// ADR-0036). Emitted by the storage service on every state-changing
+// privileged action across the new surface (SetBucketVersioning,
+// SetBucketLifecycle, SetObjectLockConfiguration) and by the lifecycle
+// evaluator River worker (storage.lifecycle.evaluate) when it expires
+// or transitions an object. Plugins subscribe via "s3.bucket.*" +
+// "s3.object.*" for compliance workflows.
+const (
+	S3BucketVersioningSet    = "s3.bucket.versioning.set"
+	S3BucketLifecycleSet     = "s3.bucket.lifecycle.set"
+	S3BucketObjectLockSet    = "s3.bucket.object_lock.set"
+	S3ObjectDeleted          = "s3.object.deleted"
+	S3LifecycleTransitioned  = "s3.lifecycle.transitioned"
+)
+
 // Billing module events (WS-17). Emitted by the metering + ledger
 // services. Plugins subscribe to drive low-balance alerts or wallet UIs.
 const (
@@ -139,6 +154,8 @@ func AllEvents() []string {
 		ComputeBackupCreated, ComputeBackupDeleted,
 		S3BucketCreated, S3BucketUpdated, S3BucketDeleted,
 		S3BucketQuotaSet, S3CredentialMinted, S3CredentialRevoked, S3PresignIssued,
+		S3BucketVersioningSet, S3BucketLifecycleSet, S3BucketObjectLockSet,
+		S3ObjectDeleted, S3LifecycleTransitioned,
 		BillingLowBalance, BillingToppedUp, BillingCharge, BillingRefund,
 		BillingPaymentSucceeded, BillingPaymentMethodAdded,
 		BillingSubscriptionActivated, BillingSubscriptionCanceled,
