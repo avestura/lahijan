@@ -446,17 +446,17 @@ func NewBillingSubscriptionsRepository(q *gen.Queries) *BillingSubscriptionsRepo
 // CreateBillingSubscriptionParams carries the user-controlled fields
 // of a new billing_subscriptions row.
 type CreateBillingSubscriptionParams struct {
-	UserID                  uuid.UUID
-	PlanID                  uuid.UUID
-	StripeSubscriptionID    string
-	Interval                string
-	PriceCents              int64
-	Currency                string
-	IncludedQuotaCents      int64
-	OverageDiscountPercent  int32
-	Status                  string
-	CurrentPeriodEnd        *time.Time
-	Metadata                map[string]any
+	UserID                 uuid.UUID
+	PlanID                 uuid.UUID
+	StripeSubscriptionID   string
+	Interval               string
+	PriceCents             int64
+	Currency               string
+	IncludedQuotaCents     int64
+	OverageDiscountPercent int32
+	Status                 string
+	CurrentPeriodEnd       *time.Time
+	Metadata               map[string]any
 }
 
 // Create inserts a new billing_subscriptions row scoped to the tenant
@@ -486,18 +486,18 @@ func (r *BillingSubscriptionsRepository) Create(
 		status = "active"
 	}
 	return r.q.CreateBillingSubscription(ctx, gen.CreateBillingSubscriptionParams{
-		TenantID:                 tenantID,
-		UserID:                   arg.UserID,
-		PlanID:                   arg.PlanID,
-		StripeSubscriptionID:     arg.StripeSubscriptionID,
-		Interval:                 arg.Interval,
-		PriceCents:               arg.PriceCents,
-		Currency:                 currency,
-		IncludedQuotaCents:       arg.IncludedQuotaCents,
-		OverageDiscountPercent:   arg.OverageDiscountPercent,
-		Status:                   status,
-		CurrentPeriodEnd:         arg.CurrentPeriodEnd,
-		Metadata:                 meta,
+		TenantID:               tenantID,
+		UserID:                 arg.UserID,
+		PlanID:                 arg.PlanID,
+		StripeSubscriptionID:   arg.StripeSubscriptionID,
+		Interval:               arg.Interval,
+		PriceCents:             arg.PriceCents,
+		Currency:               currency,
+		IncludedQuotaCents:     arg.IncludedQuotaCents,
+		OverageDiscountPercent: arg.OverageDiscountPercent,
+		Status:                 status,
+		CurrentPeriodEnd:       arg.CurrentPeriodEnd,
+		Metadata:               meta,
 	})
 }
 
@@ -733,10 +733,10 @@ func (r *BillingPromoCodesRepository) IncrementUse(
 	// sqlc exec queries don't return RowsAffected; we re-query to
 	// detect the no-op case. The redeem path wraps both calls in a tx
 	// with SELECT FOR UPDATE so a concurrent redeem cannot interleave.
-	if err := r.q.IncrementBillingPromoCodeUse(ctx, gen.IncrementBillingPromoCodeUseParams{
+	if errInc := r.q.IncrementBillingPromoCodeUse(ctx, gen.IncrementBillingPromoCodeUseParams{
 		TenantID: tenantID, ID: id,
-	}); err != nil {
-		return fmt.Errorf("billing.promo_codes.increment_use: %w", err)
+	}); errInc != nil {
+		return fmt.Errorf("billing.promo_codes.increment_use: %w", errInc)
 	}
 	after, err := r.q.GetBillingPromoCodeByID(ctx, gen.GetBillingPromoCodeByIDParams{
 		TenantID: tenantID, ID: id,
@@ -783,12 +783,12 @@ func NewBillingWebhookEventsRepository(q *gen.Queries) *BillingWebhookEventsRepo
 // CreateBillingWebhookEventParams carries the fields of a new
 // billing_webhook_events row.
 type CreateBillingWebhookEventParams struct {
-	TenantID          *uuid.UUID
-	StripeEventID     string
-	StripeEventType   string
-	StripeAPIVersion  *string
-	Payload           json.RawMessage
-	Status            string
+	TenantID         *uuid.UUID
+	StripeEventID    string
+	StripeEventType  string
+	StripeAPIVersion *string
+	Payload          json.RawMessage
+	Status           string
 }
 
 // Create inserts a new billing_webhook_events row. The UNIQUE on

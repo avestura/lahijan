@@ -26,10 +26,10 @@ type Amount = int64
 // platform creates one Customer per (tenant, user) pair on first
 // payment-method attach.
 type Customer struct {
-	ID          string          `json:"id"`
-	Email       string          `json:"email,omitempty"`
-	Name        string          `json:"name,omitempty"`
-	Description string          `json:"description,omitempty"`
+	ID          string         `json:"id"`
+	Email       string         `json:"email,omitempty"`
+	Name        string         `json:"name,omitempty"`
+	Description string         `json:"description,omitempty"`
 	Metadata    map[string]any `json:"metadata,omitempty"`
 	// DefaultPaymentMethod is the id of the customer's default
 	// invoice-payment PaymentMethod ("pm_..."). Empty when none is set.
@@ -76,10 +76,10 @@ type PaymentMethodCard struct {
 // object. Only the "card" type is modeled; other types (us_bank_account,
 // sepa_debit, ...) are deferred.
 type PaymentMethod struct {
-	ID     string          `json:"id"`
-	Type   string          `json:"type"` // "card"
-	Card   PaymentMethodCard `json:"card,omitempty"`
-	Customer string        `json:"customer,omitempty"`
+	ID       string            `json:"id"`
+	Type     string            `json:"type"` // "card"
+	Card     PaymentMethodCard `json:"card,omitempty"`
+	Customer string            `json:"customer,omitempty"`
 	// LiveMode is false in test mode (Stripe returns the value to
 	// disambiguate test vs live objects).
 	LiveMode bool `json:"livemode,omitempty"`
@@ -99,14 +99,14 @@ type AttachPaymentMethodRequest struct {
 // object. The SPA confirms the intent via Stripe.js using the
 // ClientSecret; Lahijan never sees the card data.
 type PaymentIntent struct {
-	ID               string  `json:"id"`
-	Amount           Amount  `json:"amount"`
-	Currency         string  `json:"currency"`
-	Status           string  `json:"status"`
-	ClientSecret     string  `json:"client_secret"`
-	Customer         string  `json:"customer,omitempty"`
-	PaymentMethod    string  `json:"payment_method,omitempty"`
-	Metadata         map[string]any `json:"metadata,omitempty"`
+	ID            string         `json:"id"`
+	Amount        Amount         `json:"amount"`
+	Currency      string         `json:"currency"`
+	Status        string         `json:"status"`
+	ClientSecret  string         `json:"client_secret"`
+	Customer      string         `json:"customer,omitempty"`
+	PaymentMethod string         `json:"payment_method,omitempty"`
+	Metadata      map[string]any `json:"metadata,omitempty"`
 	// LatestCharge is the id of the most recent Charge created for this
 	// PaymentIntent. Useful for ledger reference.
 	LatestCharge string `json:"latest_charge,omitempty"`
@@ -114,11 +114,11 @@ type PaymentIntent struct {
 
 // CreatePaymentIntentRequest is the body of POST /v1/payment_intents.
 type CreatePaymentIntentRequest struct {
-	Amount         Amount
-	Currency       string
-	Customer       string
-	PaymentMethod  string
-	Metadata       map[string]any
+	Amount        Amount
+	Currency      string
+	Customer      string
+	PaymentMethod string
+	Metadata      map[string]any
 	// Description is a human-readable note Stripe shows on the dashboard.
 	Description string
 	// ReceiptEmail is where Stripe sends the receipt. Defaults to the
@@ -137,11 +137,11 @@ type CreatePaymentIntentRequest struct {
 // Used to collect a card without an immediate charge (so the user can
 // pay on demand later).
 type SetupIntent struct {
-	ID            string  `json:"id"`
-	Status        string  `json:"status"`
-	ClientSecret  string  `json:"client_secret"`
-	Customer      string  `json:"customer,omitempty"`
-	PaymentMethod string  `json:"payment_method,omitempty"`
+	ID            string         `json:"id"`
+	Status        string         `json:"status"`
+	ClientSecret  string         `json:"client_secret"`
+	Customer      string         `json:"customer,omitempty"`
+	PaymentMethod string         `json:"payment_method,omitempty"`
 	Metadata      map[string]any `json:"metadata,omitempty"`
 }
 
@@ -160,31 +160,31 @@ type CreateSetupIntentRequest struct {
 // Product is the Lahijan-side view of a Stripe Product object. Each
 // billing_plan maps to one Stripe Product.
 type Product struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-	Active      bool   `json:"active"`
+	ID          string         `json:"id"`
+	Name        string         `json:"name"`
+	Description string         `json:"description,omitempty"`
+	Active      bool           `json:"active"`
 	Metadata    map[string]any `json:"metadata,omitempty"`
 }
 
 // Price is the Lahijan-side view of a Stripe Price object. Each
 // billing_plan maps to one Stripe Price (the recurring price).
 type Price struct {
-	ID            string         `json:"id"`
-	Product       string         `json:"product"` // Product id (or object expanded)
-	Active        bool           `json:"active"`
-	Currency      string         `json:"currency"`
-	UnitAmount    Amount         `json:"unit_amount"`
-	Type          string         `json:"type"` // "recurring"
-	Recurring     *RecurringInfo `json:"recurring,omitempty"`
-	Metadata      map[string]any `json:"metadata,omitempty"`
+	ID         string         `json:"id"`
+	Product    string         `json:"product"` // Product id (or object expanded)
+	Active     bool           `json:"active"`
+	Currency   string         `json:"currency"`
+	UnitAmount Amount         `json:"unit_amount"`
+	Type       string         `json:"type"` // "recurring"
+	Recurring  *RecurringInfo `json:"recurring,omitempty"`
+	Metadata   map[string]any `json:"metadata,omitempty"`
 }
 
 // RecurringInfo is the recurring sub-object on a Price.
 type RecurringInfo struct {
 	Interval string `json:"interval"` // "month" | "year"
 	// IntervalCount is 1 by default; >1 for "every N months/years".
-	IntervalCount int `json:"interval_count"`
+	IntervalCount int    `json:"interval_count"`
 	UsageType     string `json:"usage_type"` // "licensed"
 }
 
@@ -197,12 +197,12 @@ type CreateProductRequest struct {
 
 // CreatePriceRequest is the body of POST /v1/prices.
 type CreatePriceRequest struct {
-	Currency       string
-	UnitAmount     Amount
-	Product        string
-	Interval       string // "month" | "year"
-	IntervalCount  int
-	Metadata       map[string]any
+	Currency      string
+	UnitAmount    Amount
+	Product       string
+	Interval      string // "month" | "year"
+	IntervalCount int
+	Metadata      map[string]any
 }
 
 // ===========================================================================
@@ -211,25 +211,25 @@ type CreatePriceRequest struct {
 
 // Subscription is the Lahijan-side view of a Stripe Subscription object.
 type Subscription struct {
-	ID                  string         `json:"id"`
-	Status              string         `json:"status"`
-	Customer            string         `json:"customer"`
-	Metadata            map[string]any `json:"metadata,omitempty"`
-	CurrentPeriodStart  int64          `json:"current_period_start"`
-	CurrentPeriodEnd    int64          `json:"current_period_end"`
-	CancelAt            int64          `json:"cancel_at,omitempty"`
-	CanceledAt          int64          `json:"canceled_at,omitempty"`
-	Items               struct {
-		Object string         `json:"object"`
+	ID                 string         `json:"id"`
+	Status             string         `json:"status"`
+	Customer           string         `json:"customer"`
+	Metadata           map[string]any `json:"metadata,omitempty"`
+	CurrentPeriodStart int64          `json:"current_period_start"`
+	CurrentPeriodEnd   int64          `json:"current_period_end"`
+	CancelAt           int64          `json:"cancel_at,omitempty"`
+	CanceledAt         int64          `json:"canceled_at,omitempty"`
+	Items              struct {
+		Object string             `json:"object"`
 		Data   []SubscriptionItem `json:"data"`
 	} `json:"items"`
 }
 
 // SubscriptionItem is one line item in a Subscription.
 type SubscriptionItem struct {
-	ID          string `json:"id"`
-	Price       string `json:"price"`
-	Quantity    int64  `json:"quantity"`
+	ID           string `json:"id"`
+	Price        string `json:"price"`
+	Quantity     int64  `json:"quantity"`
 	Subscription string `json:"subscription"`
 }
 
@@ -251,15 +251,15 @@ type CreateSubscriptionRequest struct {
 // Invoice is the Lahijan-side view of a Stripe Invoice object. Used by
 // the webhook handler to compute the credit applied on `invoice.paid`.
 type Invoice struct {
-	ID                 string  `json:"id"`
-	Status             string  `json:"status"` // "paid" | "open" | ...
-	Customer           string  `json:"customer"`
-	Subscription       string  `json:"subscription,omitempty"`
-	Total              Amount  `json:"total"`
-	Currency           string  `json:"currency"`
-	Paid               bool    `json:"paid"`
-	Charge             string  `json:"charge,omitempty"`
-	Metadata           map[string]any `json:"metadata,omitempty"`
+	ID           string         `json:"id"`
+	Status       string         `json:"status"` // "paid" | "open" | ...
+	Customer     string         `json:"customer"`
+	Subscription string         `json:"subscription,omitempty"`
+	Total        Amount         `json:"total"`
+	Currency     string         `json:"currency"`
+	Paid         bool           `json:"paid"`
+	Charge       string         `json:"charge,omitempty"`
+	Metadata     map[string]any `json:"metadata,omitempty"`
 }
 
 // ===========================================================================
@@ -269,25 +269,25 @@ type Invoice struct {
 // Charge is the Lahijan-side view of a Stripe Charge object. Used by
 // the dispute webhook handler.
 type Charge struct {
-	ID         string  `json:"id"`
-	Amount     Amount  `json:"amount"`
-	Currency   string  `json:"currency"`
-	Customer   string  `json:"customer,omitempty"`
-	PaymentMethod string `json:"payment_method,omitempty"`
-	Status     string  `json:"status"` // "succeeded" | "failed" | ...
-	Metadata   map[string]any `json:"metadata,omitempty"`
+	ID            string         `json:"id"`
+	Amount        Amount         `json:"amount"`
+	Currency      string         `json:"currency"`
+	Customer      string         `json:"customer,omitempty"`
+	PaymentMethod string         `json:"payment_method,omitempty"`
+	Status        string         `json:"status"` // "succeeded" | "failed" | ...
+	Metadata      map[string]any `json:"metadata,omitempty"`
 	// Disputed is non-empty when a dispute has been opened.
 	Dispute *Dispute `json:"dispute,omitempty"`
 }
 
 // Dispute is the Lahijan-side view of a Stripe Dispute object.
 type Dispute struct {
-	ID         string `json:"id"`
-	Amount     Amount `json:"amount"`
-	Currency   string `json:"currency"`
-	Status     string `json:"status"` // "won" | "lost" | "challenge_needed" | ...
-	Reason     string `json:"reason"`
-	Charge     string `json:"charge"`
+	ID       string `json:"id"`
+	Amount   Amount `json:"amount"`
+	Currency string `json:"currency"`
+	Status   string `json:"status"` // "won" | "lost" | "challenge_needed" | ...
+	Reason   string `json:"reason"`
+	Charge   string `json:"charge"`
 }
 
 // ===========================================================================
@@ -298,12 +298,12 @@ type Dispute struct {
 // dispatches on Type; the per-event-type handlers re-decode Data.Raw
 // into the right concrete object (PaymentIntent, Invoice, ...).
 type Event struct {
-	ID            string          `json:"id"`
-	Type          string          `json:"type"`
-	APIVersion    string          `json:"api_version"`
-	Created       int64           `json:"created"`
-	Livemode      bool            `json:"livemode"`
-	Data          EventData       `json:"data"`
+	ID         string    `json:"id"`
+	Type       string    `json:"type"`
+	APIVersion string    `json:"api_version"`
+	Created    int64     `json:"created"`
+	Livemode   bool      `json:"livemode"`
+	Data       EventData `json:"data"`
 	// Request is the idempotency envelope for events triggered by a
 	// write API call (vs Stripe-internal triggers). Empty for
 	// Stripe-initiated events.
@@ -335,7 +335,7 @@ type EventData struct {
 // the *http.Response).
 type APIError struct {
 	// StatusCode is the HTTP status code from the response.
-	StatusCode int `json:"-"`
+	StatusCode int    `json:"-"`
 	Type       string `json:"type"`
 	Code       string `json:"code,omitempty"`
 	Message    string `json:"message"`

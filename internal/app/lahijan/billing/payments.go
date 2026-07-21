@@ -53,6 +53,8 @@ type PaymentsService struct {
 // *stripe.Provider. Declared as an interface here so tests substitute
 // a fake without pulling the providers package into every test file.
 // *stripe.Provider satisfies this interface.
+//
+//nolint:interfacebloat // the surface intentionally mirrors the Stripe REST API the service consumes; splitting would create artificial seams.
 type StripeGateway interface {
 	Name() string
 	Ping(ctx context.Context) error
@@ -69,6 +71,9 @@ type StripeGateway interface {
 	CreateSubscription(ctx context.Context, req stripe.CreateSubscriptionRequest, idempotencyKey string) (stripe.Subscription, error)
 	GetSubscription(ctx context.Context, id string) (stripe.Subscription, error)
 	CancelSubscription(ctx context.Context, id string, cancelAtPeriodEnd bool) (stripe.Subscription, error)
+	// WebhookSecret returns the endpoint's `whsec_...` signing secret.
+	// SENSITIVE — never log. Empty string means "webhooks disabled".
+	WebhookSecret() string
 }
 
 // PaymentsConfig carries the process-wide knobs the payments service
@@ -135,6 +140,12 @@ func (s *PaymentsService) Gateway() StripeGateway { return s.gw }
 // Config returns the service config. Exposed so the api handler can
 // surface the publishable key to the SPA.
 func (s *PaymentsService) Config() PaymentsConfig { return s.config }
+
+// Repos returns the underlying repository aggregate. Exposed so the
+// webhook-events list handler (which lives in api/) can read the
+// ingestion log directly — the service surface only owns the
+// ingestion path, not the read path.
+func (s *PaymentsService) Repos() *database.Repos { return s.repos }
 
 // auditEmit is the PaymentsService's mirror of Service.auditEmit.
 // Returns the audit row id so the caller pairs it with auditMarkOutcome.
@@ -351,8 +362,8 @@ func (s *PaymentsService) AddPaymentMethod(
 		}
 	}
 	// Attach upstream.
-	if _, err := s.gw.AttachPaymentMethod(ctx, paymentMethodID, customerID); err != nil {
-		return gen.BillingPaymentMethod{}, fmt.Errorf("billing.payments.add_pm: attach: %w", err)
+	if _, errAttach := s.gw.AttachPaymentMethod(ctx, paymentMethodID, customerID); errAttach != nil {
+		return gen.BillingPaymentMethod{}, fmt.Errorf("billing.payments.add_pm: attach: %w", errAttach)
 	}
 	enc, errEnc := s.crypto.Seal(customerID)
 	if errEnc != nil {
@@ -396,8 +407,8 @@ func (s *PaymentsService) AddPaymentMethod(
 	}
 	s.auditMarkOutcome(ctx, auditID, true, map[string]any{"payment_method_id": row.ID})
 	s.emitEvent(ctx, eventbus.BillingPaymentMethodAdded, tenantID, userID, row.ID, map[string]any{
-		"brand":  pm.Card.Brand,
-		"last4":  pm.Card.Last4,
+		"brand": pm.Card.Brand,
+		"last4": pm.Card.Last4,
 	})
 	return row, nil
 }
@@ -501,12 +512,12 @@ func (s *PaymentsService) CreateTopupIntent(
 		Currency: cur,
 		Customer: customerID,
 		Metadata: map[string]any{
-			"tenant_id":     tenantID.String(),
-			"user_id":       userID.String(),
-			"lahijan_kind":  "topup",
+			"tenant_id":      tenantID.String(),
+			"user_id":        userID.String(),
+			"lahijan_kind":   "topup",
 			"customer_email": email,
 		},
-		Description: fmt.Sprintf("Lahijan balance top-up (%s)", displayName),
+		Description:  fmt.Sprintf("Lahijan balance top-up (%s)", displayName),
 		ReceiptEmail: email,
 	}, idemp)
 	if err != nil {
@@ -546,7 +557,7 @@ func (s *PaymentsService) HandleWebhook(
 	signatureHeader string,
 	body []byte,
 ) error {
-	event, err := stripe.VerifyWebhook(s.gw.(*stripe.Provider).WebhookSecret(), signatureHeader, body, time.Now(), 0)
+	event, err := stripe.VerifyWebhook(s.gw.WebhookSecret(), signatureHeader, body, time.Now(), 0)
 	if err != nil {
 		return fmt.Errorf("billing.payments.webhook: verify: %w", err)
 	}

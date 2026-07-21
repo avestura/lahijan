@@ -379,9 +379,9 @@ func (s *Server) handlePaymentMethods(w http.ResponseWriter, r *http.Request) {
 		}
 		customerID := r.URL.Query().Get("customer")
 		out := struct {
-			Object  string               `json:"object"`
+			Object  string                 `json:"object"`
 			Data    []stripe.PaymentMethod `json:"data"`
-			HasMore bool                 `json:"has_more"`
+			HasMore bool                   `json:"has_more"`
 		}{Object: "list"}
 		s.mu.Lock()
 		for _, pm := range s.paymentMethods {
@@ -567,10 +567,10 @@ func (s *Server) handleProducts(w http.ResponseWriter, r *http.Request) {
 	if rest == "" && r.Method == http.MethodGet {
 		// List (also serves as the ping probe).
 		out := struct {
-			Object  string            `json:"object"`
-			Data    []stripe.Product  `json:"data"`
-			HasMore bool              `json:"has_more"`
-			URL     string            `json:"url"`
+			Object  string           `json:"object"`
+			Data    []stripe.Product `json:"data"`
+			HasMore bool             `json:"has_more"`
+			URL     string           `json:"url"`
 		}{Object: "list"}
 		s.mu.Lock()
 		for _, p := range s.products {

@@ -92,9 +92,9 @@ func (p *Provider) ListSubscriptionsForCustomer(
 	form.Set("limit", itoa(limit))
 	form.Set("status", "all")
 	var list struct {
-		Object  string        `json:"object"`
+		Object  string         `json:"object"`
 		Data    []Subscription `json:"data"`
-		HasMore bool          `json:"has_more"`
+		HasMore bool           `json:"has_more"`
 	}
 	if err := p.do(ctx, "GET", "/v1/subscriptions?"+form.Encode(), nil, "", &list); err != nil {
 		setStatus(span, err)

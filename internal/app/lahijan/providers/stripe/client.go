@@ -10,7 +10,6 @@
 package stripe
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -193,9 +192,9 @@ func (p *Provider) do(ctx context.Context, method, path string, body url.Values,
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		raw, _ := readResponse(ctx, resp.Body)
-		err := classify(resp, raw)
-		setStatus(span, err)
-		return err
+		classifyErr := classify(resp, raw)
+		setStatus(span, classifyErr)
+		return classifyErr
 	}
 
 	raw, err := readResponse(ctx, resp.Body)
@@ -270,20 +269,3 @@ func wrapCtxErr(err error) error {
 	}
 	return err
 }
-
-// Re-export small helpers used by tests so they do not need to import
-// net/url directly.
-var (
-	NewForm = url.Values{}
-)
-
-// encodeForm is a tiny helper that returns the form-encoded byte slice
-// for the supplied url.Values. Used by the webhook receiver's body
-// re-encode (when verifying signatures on a re-read body).
-func encodeForm(v url.Values) []byte {
-	return []byte(v.Encode())
-}
-
-// reExportReader is a sanity check that bytes.NewReader is reachable
-// (the test surface uses it for body re-reads).
-func reExportReader(b []byte) *bytes.Reader { return bytes.NewReader(b) }

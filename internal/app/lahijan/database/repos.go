@@ -69,11 +69,11 @@ type Repos struct {
 	// the per-user recurring subscriptions (BillingSubscriptions),
 	// the admin-issued promo codes (BillingPromoCodes), and the
 	// idempotent Stripe webhook ingestion log (BillingWebhookEvents).
-	BillingPlans           *BillingPlansRepository
-	BillingPaymentMethods  *BillingPaymentMethodsRepository
-	BillingSubscriptions   *BillingSubscriptionsRepository
-	BillingPromoCodes      *BillingPromoCodesRepository
-	BillingWebhookEvents   *BillingWebhookEventsRepository
+	BillingPlans          *BillingPlansRepository
+	BillingPaymentMethods *BillingPaymentMethodsRepository
+	BillingSubscriptions  *BillingSubscriptionsRepository
+	BillingPromoCodes     *BillingPromoCodesRepository
+	BillingWebhookEvents  *BillingWebhookEventsRepository
 }
 
 // NewRepos builds the aggregate repository from a pool or transaction. The

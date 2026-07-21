@@ -79,10 +79,43 @@ const (
 	BillingLedgerEntryTypeDebit  BillingLedgerEntryType = "debit"
 )
 
+// Defines values for BillingPlanInterval.
+const (
+	BillingPlanIntervalMonthly BillingPlanInterval = "monthly"
+	BillingPlanIntervalYearly  BillingPlanInterval = "yearly"
+)
+
+// Defines values for BillingPlanCreateRequestInterval.
+const (
+	BillingPlanCreateRequestIntervalMonthly BillingPlanCreateRequestInterval = "monthly"
+	BillingPlanCreateRequestIntervalYearly  BillingPlanCreateRequestInterval = "yearly"
+)
+
+// Defines values for BillingPlanUpdateRequestInterval.
+const (
+	BillingPlanUpdateRequestIntervalMonthly BillingPlanUpdateRequestInterval = "monthly"
+	BillingPlanUpdateRequestIntervalYearly  BillingPlanUpdateRequestInterval = "yearly"
+)
+
 // Defines values for BillingReceiptStatus.
 const (
 	BillingReceiptStatusPending BillingReceiptStatus = "pending"
 	BillingReceiptStatusReady   BillingReceiptStatus = "ready"
+)
+
+// Defines values for BillingSubscriptionStatus.
+const (
+	BillingSubscriptionStatusActive   BillingSubscriptionStatus = "active"
+	BillingSubscriptionStatusCanceled BillingSubscriptionStatus = "canceled"
+	BillingSubscriptionStatusExpired  BillingSubscriptionStatus = "expired"
+)
+
+// Defines values for BillingWebhookEventStatus.
+const (
+	BillingWebhookEventStatusApplied   BillingWebhookEventStatus = "applied"
+	BillingWebhookEventStatusDuplicate BillingWebhookEventStatus = "duplicate"
+	BillingWebhookEventStatusFailed    BillingWebhookEventStatus = "failed"
+	BillingWebhookEventStatusReceived  BillingWebhookEventStatus = "received"
 )
 
 // Defines values for ComputeBackupStatus.
@@ -562,6 +595,18 @@ type BillingBalance struct {
 	UserId    openapi_types.UUID `json:"userId"`
 }
 
+// BillingConfig defines model for BillingConfig.
+type BillingConfig struct {
+	// Enabled Whether the Stripe gateway is configured on this server.
+	Enabled bool `json:"enabled"`
+
+	// LiveMode Whether the gateway is in live (vs test) mode.
+	LiveMode *bool `json:"liveMode,omitempty"`
+
+	// PublishableKey The Stripe publishable key (pk_*); empty when disabled.
+	PublishableKey *string `json:"publishableKey,omitempty"`
+}
+
 // BillingLedgerEntry defines model for BillingLedgerEntry.
 type BillingLedgerEntry struct {
 	// AmountCents Amount in integer centimals; always positive.
@@ -597,6 +642,108 @@ type BillingLedgerPage struct {
 	Offset int                  `json:"offset"`
 	Total  int                  `json:"total"`
 }
+
+// BillingPaymentMethod defines model for BillingPaymentMethod.
+type BillingPaymentMethod struct {
+	Active                bool               `json:"active"`
+	Brand                 string             `json:"brand"`
+	CreatedAt             time.Time          `json:"createdAt"`
+	ExpMonth              *int               `json:"expMonth"`
+	ExpYear               *int               `json:"expYear"`
+	Fingerprint           *string            `json:"fingerprint,omitempty"`
+	Id                    openapi_types.UUID `json:"id"`
+	IsDefault             bool               `json:"isDefault"`
+	Last4                 string             `json:"last4"`
+	StripePaymentMethodId string             `json:"stripePaymentMethodId"`
+	TenantId              openapi_types.UUID `json:"tenantId"`
+	UpdatedAt             time.Time          `json:"updatedAt"`
+	UserId                openapi_types.UUID `json:"userId"`
+}
+
+// BillingPaymentMethodAttachRequest defines model for BillingPaymentMethodAttachRequest.
+type BillingPaymentMethodAttachRequest struct {
+	// SetDefault Make this the user's default card.
+	SetDefault *bool `json:"setDefault,omitempty"`
+
+	// StripePaymentMethodId The pm_* id from the SPA's SetupIntent flow.
+	StripePaymentMethodId string `json:"stripePaymentMethodId"`
+}
+
+// BillingPaymentMethodPage defines model for BillingPaymentMethodPage.
+type BillingPaymentMethodPage struct {
+	Items  []BillingPaymentMethod `json:"items"`
+	Limit  int                    `json:"limit"`
+	Offset int                    `json:"offset"`
+	Total  int                    `json:"total"`
+}
+
+// BillingPlan defines model for BillingPlan.
+type BillingPlan struct {
+	Active      bool               `json:"active"`
+	CreatedAt   time.Time          `json:"createdAt"`
+	Currency    string             `json:"currency"`
+	Description *string            `json:"description,omitempty"`
+	Id          openapi_types.UUID `json:"id"`
+
+	// IncludedQuotaCents Quota credited each interval on invoice.paid.
+	IncludedQuotaCents     int64               `json:"includedQuotaCents"`
+	Interval               BillingPlanInterval `json:"interval"`
+	Name                   string              `json:"name"`
+	OverageDiscountPercent int                 `json:"overageDiscountPercent"`
+	PriceCents             int64               `json:"priceCents"`
+	Slug                   string              `json:"slug"`
+	SortOrder              int                 `json:"sortOrder"`
+	StripePriceId          *string             `json:"stripePriceId"`
+
+	// StripeProductId Stripe Product id; NULL until the plan is pushed to Stripe.
+	StripeProductId *string            `json:"stripeProductId"`
+	TenantId        openapi_types.UUID `json:"tenantId"`
+	UpdatedAt       time.Time          `json:"updatedAt"`
+}
+
+// BillingPlanInterval defines model for BillingPlan.Interval.
+type BillingPlanInterval string
+
+// BillingPlanCreateRequest defines model for BillingPlanCreateRequest.
+type BillingPlanCreateRequest struct {
+	Active                 *bool                            `json:"active,omitempty"`
+	Currency               *string                          `json:"currency,omitempty"`
+	Description            *string                          `json:"description,omitempty"`
+	IncludedQuotaCents     *int64                           `json:"includedQuotaCents,omitempty"`
+	Interval               BillingPlanCreateRequestInterval `json:"interval"`
+	Name                   string                           `json:"name"`
+	OverageDiscountPercent *int                             `json:"overageDiscountPercent,omitempty"`
+	PriceCents             int64                            `json:"priceCents"`
+	Slug                   string                           `json:"slug"`
+	SortOrder              *int                             `json:"sortOrder,omitempty"`
+}
+
+// BillingPlanCreateRequestInterval defines model for BillingPlanCreateRequest.Interval.
+type BillingPlanCreateRequestInterval string
+
+// BillingPlanPage defines model for BillingPlanPage.
+type BillingPlanPage struct {
+	Items  []BillingPlan `json:"items"`
+	Limit  int           `json:"limit"`
+	Offset int           `json:"offset"`
+	Total  int           `json:"total"`
+}
+
+// BillingPlanUpdateRequest defines model for BillingPlanUpdateRequest.
+type BillingPlanUpdateRequest struct {
+	Active                 *bool                            `json:"active,omitempty"`
+	Currency               *string                          `json:"currency,omitempty"`
+	Description            *string                          `json:"description,omitempty"`
+	IncludedQuotaCents     *int64                           `json:"includedQuotaCents,omitempty"`
+	Interval               BillingPlanUpdateRequestInterval `json:"interval"`
+	Name                   string                           `json:"name"`
+	OverageDiscountPercent *int                             `json:"overageDiscountPercent,omitempty"`
+	PriceCents             int64                            `json:"priceCents"`
+	SortOrder              *int                             `json:"sortOrder,omitempty"`
+}
+
+// BillingPlanUpdateRequestInterval defines model for BillingPlanUpdateRequest.Interval.
+type BillingPlanUpdateRequestInterval string
 
 // BillingPrice defines model for BillingPrice.
 type BillingPrice struct {
@@ -634,6 +781,52 @@ type BillingPriceUpsertRequest struct {
 	PriceCents    int64      `json:"priceCents"`
 	ResourceType  string     `json:"resourceType"`
 	Unit          string     `json:"unit"`
+}
+
+// BillingPromoCode defines model for BillingPromoCode.
+type BillingPromoCode struct {
+	AppliesToPlanId *openapi_types.UUID `json:"appliesToPlanId"`
+	Code            string              `json:"code"`
+	CreatedAt       time.Time           `json:"createdAt"`
+	CreatedBy       openapi_types.UUID  `json:"createdBy"`
+	CreditCents     int64               `json:"creditCents"`
+	Currency        string              `json:"currency"`
+	ExpiresAt       *time.Time          `json:"expiresAt"`
+	Id              openapi_types.UUID  `json:"id"`
+
+	// MaxUses Max redeems platform-wide. NULL = unlimited; 1 = single-use.
+	MaxUses   *int               `json:"maxUses"`
+	Note      *string            `json:"note,omitempty"`
+	RevokedAt *time.Time         `json:"revokedAt"`
+	TenantId  openapi_types.UUID `json:"tenantId"`
+	TimesUsed int                `json:"timesUsed"`
+	UpdatedAt time.Time          `json:"updatedAt"`
+}
+
+// BillingPromoCodeCreateRequest defines model for BillingPromoCodeCreateRequest.
+type BillingPromoCodeCreateRequest struct {
+	AppliesToPlanId *openapi_types.UUID `json:"appliesToPlanId"`
+
+	// Code URL-safe code; uppercase by convention.
+	Code        string     `json:"code"`
+	CreditCents int64      `json:"creditCents"`
+	Currency    *string    `json:"currency,omitempty"`
+	ExpiresAt   *time.Time `json:"expiresAt"`
+	MaxUses     *int       `json:"maxUses"`
+	Note        *string    `json:"note,omitempty"`
+}
+
+// BillingPromoCodePage defines model for BillingPromoCodePage.
+type BillingPromoCodePage struct {
+	Items  []BillingPromoCode `json:"items"`
+	Limit  int                `json:"limit"`
+	Offset int                `json:"offset"`
+	Total  int                `json:"total"`
+}
+
+// BillingPromoCodeRedeemRequest defines model for BillingPromoCodeRedeemRequest.
+type BillingPromoCodeRedeemRequest struct {
+	Code string `json:"code"`
 }
 
 // BillingReceipt defines model for BillingReceipt.
@@ -679,6 +872,68 @@ type BillingRefundRequest struct {
 	Reference      *string             `json:"reference,omitempty"`
 }
 
+// BillingSubscription defines model for BillingSubscription.
+type BillingSubscription struct {
+	CanceledAt       *time.Time         `json:"canceledAt"`
+	CreatedAt        time.Time          `json:"createdAt"`
+	Currency         string             `json:"currency"`
+	CurrentPeriodEnd *time.Time         `json:"currentPeriodEnd"`
+	Id               openapi_types.UUID `json:"id"`
+
+	// IncludedQuotaCents Frozen quota snapshot at subscription time.
+	IncludedQuotaCents     int64              `json:"includedQuotaCents"`
+	Interval               string             `json:"interval"`
+	OverageDiscountPercent int                `json:"overageDiscountPercent"`
+	PlanId                 openapi_types.UUID `json:"planId"`
+
+	// PriceCents Frozen price snapshot at subscription time.
+	PriceCents           int64                     `json:"priceCents"`
+	Status               BillingSubscriptionStatus `json:"status"`
+	StripeSubscriptionId string                    `json:"stripeSubscriptionId"`
+	TenantId             openapi_types.UUID        `json:"tenantId"`
+	UpdatedAt            time.Time                 `json:"updatedAt"`
+	UserId               openapi_types.UUID        `json:"userId"`
+}
+
+// BillingSubscriptionStatus defines model for BillingSubscription.Status.
+type BillingSubscriptionStatus string
+
+// BillingSubscriptionCreateRequest defines model for BillingSubscriptionCreateRequest.
+type BillingSubscriptionCreateRequest struct {
+	// PaymentMethodId Optional cached payment-method row id to use as the subscription's default.
+	PaymentMethodId *openapi_types.UUID `json:"paymentMethodId"`
+	PlanId          openapi_types.UUID  `json:"planId"`
+}
+
+// BillingSubscriptionPage defines model for BillingSubscriptionPage.
+type BillingSubscriptionPage struct {
+	Items  []BillingSubscription `json:"items"`
+	Limit  int                   `json:"limit"`
+	Offset int                   `json:"offset"`
+	Total  int                   `json:"total"`
+}
+
+// BillingTopupIntent defines model for BillingTopupIntent.
+type BillingTopupIntent struct {
+	AmountCents int64 `json:"amountCents"`
+
+	// ClientSecret The Stripe client secret the SPA uses to confirm via Stripe.js.
+	ClientSecret string `json:"clientSecret"`
+	Currency     string `json:"currency"`
+
+	// Id The Stripe PaymentIntent id (pi_*).
+	Id string `json:"id"`
+}
+
+// BillingTopupIntentRequest defines model for BillingTopupIntentRequest.
+type BillingTopupIntentRequest struct {
+	// AmountCents The top-up amount in integer centimals.
+	AmountCents int64 `json:"amountCents"`
+
+	// Currency ISO 4217 currency code.
+	Currency *string `json:"currency,omitempty"`
+}
+
 // BillingTopupRequest defines model for BillingTopupRequest.
 type BillingTopupRequest struct {
 	// AmountCents The credit amount in integer centimals.
@@ -711,6 +966,31 @@ type BillingUsagePage struct {
 	Limit  int                 `json:"limit"`
 	Offset int                 `json:"offset"`
 	Total  int                 `json:"total"`
+}
+
+// BillingWebhookEvent defines model for BillingWebhookEvent.
+type BillingWebhookEvent struct {
+	ErrorMessage     *string                   `json:"errorMessage"`
+	Id               openapi_types.UUID        `json:"id"`
+	LedgerEntryIds   *[]openapi_types.UUID     `json:"ledgerEntryIds,omitempty"`
+	ProcessedAt      *time.Time                `json:"processedAt"`
+	ReceivedAt       time.Time                 `json:"receivedAt"`
+	Status           BillingWebhookEventStatus `json:"status"`
+	StripeApiVersion *string                   `json:"stripeApiVersion"`
+	StripeEventId    string                    `json:"stripeEventId"`
+	StripeEventType  string                    `json:"stripeEventType"`
+	TenantId         *openapi_types.UUID       `json:"tenantId"`
+}
+
+// BillingWebhookEventStatus defines model for BillingWebhookEvent.Status.
+type BillingWebhookEventStatus string
+
+// BillingWebhookEventPage defines model for BillingWebhookEventPage.
+type BillingWebhookEventPage struct {
+	Items  []BillingWebhookEvent `json:"items"`
+	Limit  int                   `json:"limit"`
+	Offset int                   `json:"offset"`
+	Total  int                   `json:"total"`
 }
 
 // ComputeBackup defines model for ComputeBackup.
@@ -1803,8 +2083,35 @@ type NotImplemented = Error
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = Error
 
+// ListAdminBillingPlansParams defines parameters for ListAdminBillingPlans.
+type ListAdminBillingPlansParams struct {
+	// Limit Maximum number of items to return (1..200).
+	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of items to skip for pagination.
+	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
 // ListAdminBillingPricesParams defines parameters for ListAdminBillingPrices.
 type ListAdminBillingPricesParams struct {
+	// Limit Maximum number of items to return (1..200).
+	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of items to skip for pagination.
+	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// ListAdminBillingPromoCodesParams defines parameters for ListAdminBillingPromoCodes.
+type ListAdminBillingPromoCodesParams struct {
+	// Limit Maximum number of items to return (1..200).
+	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of items to skip for pagination.
+	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// ListAdminBillingWebhookEventsParams defines parameters for ListAdminBillingWebhookEvents.
+type ListAdminBillingWebhookEventsParams struct {
 	// Limit Maximum number of items to return (1..200).
 	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
 
@@ -1924,6 +2231,20 @@ type AssertionConsumerServiceSAMLFormdataBody struct {
 
 	// SAMLResponse Base64-encoded SAML Response XML the IdP signed.
 	SAMLResponse string `form:"SAMLResponse" json:"SAMLResponse"`
+}
+
+// ListBillingPlansParams defines parameters for ListBillingPlans.
+type ListBillingPlansParams struct {
+	// Limit Maximum number of items to return (1..200).
+	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of items to skip for pagination.
+	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// CancelMySubscriptionParams defines parameters for CancelMySubscription.
+type CancelMySubscriptionParams struct {
+	CancelAtPeriodEnd *bool `form:"cancelAtPeriodEnd,omitempty" json:"cancelAtPeriodEnd,omitempty"`
 }
 
 // ListComputeBackupTargetsParams defines parameters for ListComputeBackupTargets.
@@ -2106,8 +2427,20 @@ type ListStorageCredentialsParams struct {
 	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
 }
 
+// StripeWebhookJSONBody defines parameters for StripeWebhook.
+type StripeWebhookJSONBody map[string]interface{}
+
+// CreateAdminBillingPlanJSONRequestBody defines body for CreateAdminBillingPlan for application/json ContentType.
+type CreateAdminBillingPlanJSONRequestBody = BillingPlanCreateRequest
+
+// UpdateAdminBillingPlanJSONRequestBody defines body for UpdateAdminBillingPlan for application/json ContentType.
+type UpdateAdminBillingPlanJSONRequestBody = BillingPlanUpdateRequest
+
 // UpsertAdminBillingPriceJSONRequestBody defines body for UpsertAdminBillingPrice for application/json ContentType.
 type UpsertAdminBillingPriceJSONRequestBody = BillingPriceUpsertRequest
+
+// CreateAdminBillingPromoCodeJSONRequestBody defines body for CreateAdminBillingPromoCode for application/json ContentType.
+type CreateAdminBillingPromoCodeJSONRequestBody = BillingPromoCodeCreateRequest
 
 // UploadAdminPluginMultipartRequestBody defines body for UploadAdminPlugin for multipart/form-data ContentType.
 type UploadAdminPluginMultipartRequestBody UploadAdminPluginMultipartBody
@@ -2153,6 +2486,18 @@ type AssertionConsumerServiceSAMLFormdataRequestBody AssertionConsumerServiceSAM
 
 // VerifyEmailJSONRequestBody defines body for VerifyEmail for application/json ContentType.
 type VerifyEmailJSONRequestBody = TokenRequest
+
+// AddMyPaymentMethodJSONRequestBody defines body for AddMyPaymentMethod for application/json ContentType.
+type AddMyPaymentMethodJSONRequestBody = BillingPaymentMethodAttachRequest
+
+// RedeemMyPromoCodeJSONRequestBody defines body for RedeemMyPromoCode for application/json ContentType.
+type RedeemMyPromoCodeJSONRequestBody = BillingPromoCodeRedeemRequest
+
+// CreateMySubscriptionJSONRequestBody defines body for CreateMySubscription for application/json ContentType.
+type CreateMySubscriptionJSONRequestBody = BillingSubscriptionCreateRequest
+
+// CreateMyTopupIntentJSONRequestBody defines body for CreateMyTopupIntent for application/json ContentType.
+type CreateMyTopupIntentJSONRequestBody = BillingTopupIntentRequest
 
 // CreateComputeBackupTargetJSONRequestBody defines body for CreateComputeBackupTarget for application/json ContentType.
 type CreateComputeBackupTargetJSONRequestBody = ComputeBackupTargetCreateRequest
@@ -2244,6 +2589,9 @@ type PresignStorageObjectJSONRequestBody = StoragePresignRequest
 // SetStorageBucketQuotaJSONRequestBody defines body for SetStorageBucketQuota for application/json ContentType.
 type SetStorageBucketQuotaJSONRequestBody = StorageQuotaRequest
 
+// StripeWebhookJSONRequestBody defines body for StripeWebhook for application/json ContentType.
+type StripeWebhookJSONRequestBody StripeWebhookJSONBody
+
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
 
@@ -2317,6 +2665,28 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// ListAdminBillingPlans request
+	ListAdminBillingPlans(ctx context.Context, params *ListAdminBillingPlansParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateAdminBillingPlanWithBody request with any body
+	CreateAdminBillingPlanWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateAdminBillingPlan(ctx context.Context, body CreateAdminBillingPlanJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteAdminBillingPlan request
+	DeleteAdminBillingPlan(ctx context.Context, planId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAdminBillingPlan request
+	GetAdminBillingPlan(ctx context.Context, planId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateAdminBillingPlanWithBody request with any body
+	UpdateAdminBillingPlanWithBody(ctx context.Context, planId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateAdminBillingPlan(ctx context.Context, planId openapi_types.UUID, body UpdateAdminBillingPlanJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PushAdminBillingPlanToStripe request
+	PushAdminBillingPlanToStripe(ctx context.Context, planId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListAdminBillingPrices request
 	ListAdminBillingPrices(ctx context.Context, params *ListAdminBillingPricesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -2324,6 +2694,20 @@ type ClientInterface interface {
 	UpsertAdminBillingPriceWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	UpsertAdminBillingPrice(ctx context.Context, body UpsertAdminBillingPriceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListAdminBillingPromoCodes request
+	ListAdminBillingPromoCodes(ctx context.Context, params *ListAdminBillingPromoCodesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateAdminBillingPromoCodeWithBody request with any body
+	CreateAdminBillingPromoCodeWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateAdminBillingPromoCode(ctx context.Context, body CreateAdminBillingPromoCodeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RevokeAdminBillingPromoCode request
+	RevokeAdminBillingPromoCode(ctx context.Context, promoCodeId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListAdminBillingWebhookEvents request
+	ListAdminBillingWebhookEvents(ctx context.Context, params *ListAdminBillingWebhookEventsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListAdminJobs request
 	ListAdminJobs(ctx context.Context, params *ListAdminJobsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2484,6 +2868,44 @@ type ClientInterface interface {
 	VerifyEmailWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	VerifyEmail(ctx context.Context, body VerifyEmailJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetBillingConfig request
+	GetBillingConfig(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListMyPaymentMethods request
+	ListMyPaymentMethods(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddMyPaymentMethodWithBody request with any body
+	AddMyPaymentMethodWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	AddMyPaymentMethod(ctx context.Context, body AddMyPaymentMethodJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RemoveMyPaymentMethod request
+	RemoveMyPaymentMethod(ctx context.Context, paymentMethodId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListBillingPlans request
+	ListBillingPlans(ctx context.Context, params *ListBillingPlansParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RedeemMyPromoCodeWithBody request with any body
+	RedeemMyPromoCodeWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	RedeemMyPromoCode(ctx context.Context, body RedeemMyPromoCodeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListMySubscriptions request
+	ListMySubscriptions(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateMySubscriptionWithBody request with any body
+	CreateMySubscriptionWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateMySubscription(ctx context.Context, body CreateMySubscriptionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CancelMySubscription request
+	CancelMySubscription(ctx context.Context, subscriptionId openapi_types.UUID, params *CancelMySubscriptionParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateMyTopupIntentWithBody request with any body
+	CreateMyTopupIntentWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateMyTopupIntent(ctx context.Context, body CreateMyTopupIntentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListComputeBackupTargets request
 	ListComputeBackupTargets(ctx context.Context, params *ListComputeBackupTargetsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2815,8 +3237,109 @@ type ClientInterface interface {
 	// GetStorageBucketUsage request
 	GetStorageBucketUsage(ctx context.Context, bucketId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// StripeWebhookWithBody request with any body
+	StripeWebhookWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	StripeWebhook(ctx context.Context, body StripeWebhookJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetHealth request
 	GetHealth(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+func (c *Client) ListAdminBillingPlans(ctx context.Context, params *ListAdminBillingPlansParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAdminBillingPlansRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateAdminBillingPlanWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateAdminBillingPlanRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateAdminBillingPlan(ctx context.Context, body CreateAdminBillingPlanJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateAdminBillingPlanRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteAdminBillingPlan(ctx context.Context, planId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteAdminBillingPlanRequest(c.Server, planId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetAdminBillingPlan(ctx context.Context, planId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAdminBillingPlanRequest(c.Server, planId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateAdminBillingPlanWithBody(ctx context.Context, planId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateAdminBillingPlanRequestWithBody(c.Server, planId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateAdminBillingPlan(ctx context.Context, planId openapi_types.UUID, body UpdateAdminBillingPlanJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateAdminBillingPlanRequest(c.Server, planId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PushAdminBillingPlanToStripe(ctx context.Context, planId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPushAdminBillingPlanToStripeRequest(c.Server, planId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 func (c *Client) ListAdminBillingPrices(ctx context.Context, params *ListAdminBillingPricesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -2845,6 +3368,66 @@ func (c *Client) UpsertAdminBillingPriceWithBody(ctx context.Context, contentTyp
 
 func (c *Client) UpsertAdminBillingPrice(ctx context.Context, body UpsertAdminBillingPriceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpsertAdminBillingPriceRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListAdminBillingPromoCodes(ctx context.Context, params *ListAdminBillingPromoCodesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAdminBillingPromoCodesRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateAdminBillingPromoCodeWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateAdminBillingPromoCodeRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateAdminBillingPromoCode(ctx context.Context, body CreateAdminBillingPromoCodeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateAdminBillingPromoCodeRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) RevokeAdminBillingPromoCode(ctx context.Context, promoCodeId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRevokeAdminBillingPromoCodeRequest(c.Server, promoCodeId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListAdminBillingWebhookEvents(ctx context.Context, params *ListAdminBillingWebhookEventsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAdminBillingWebhookEventsRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -3541,6 +4124,174 @@ func (c *Client) VerifyEmailWithBody(ctx context.Context, contentType string, bo
 
 func (c *Client) VerifyEmail(ctx context.Context, body VerifyEmailJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewVerifyEmailRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetBillingConfig(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetBillingConfigRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListMyPaymentMethods(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListMyPaymentMethodsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AddMyPaymentMethodWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddMyPaymentMethodRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AddMyPaymentMethod(ctx context.Context, body AddMyPaymentMethodJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddMyPaymentMethodRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) RemoveMyPaymentMethod(ctx context.Context, paymentMethodId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveMyPaymentMethodRequest(c.Server, paymentMethodId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListBillingPlans(ctx context.Context, params *ListBillingPlansParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListBillingPlansRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) RedeemMyPromoCodeWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRedeemMyPromoCodeRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) RedeemMyPromoCode(ctx context.Context, body RedeemMyPromoCodeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRedeemMyPromoCodeRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListMySubscriptions(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListMySubscriptionsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateMySubscriptionWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateMySubscriptionRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateMySubscription(ctx context.Context, body CreateMySubscriptionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateMySubscriptionRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CancelMySubscription(ctx context.Context, subscriptionId openapi_types.UUID, params *CancelMySubscriptionParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCancelMySubscriptionRequest(c.Server, subscriptionId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateMyTopupIntentWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateMyTopupIntentRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateMyTopupIntent(ctx context.Context, body CreateMyTopupIntentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateMyTopupIntentRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -4991,6 +5742,30 @@ func (c *Client) GetStorageBucketUsage(ctx context.Context, bucketId openapi_typ
 	return c.Client.Do(req)
 }
 
+func (c *Client) StripeWebhookWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStripeWebhookRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) StripeWebhook(ctx context.Context, body StripeWebhookJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStripeWebhookRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) GetHealth(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetHealthRequest(c.Server)
 	if err != nil {
@@ -5001,6 +5776,260 @@ func (c *Client) GetHealth(ctx context.Context, reqEditors ...RequestEditorFn) (
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+// NewListAdminBillingPlansRequest generates requests for ListAdminBillingPlans
+func NewListAdminBillingPlansRequest(server string, params *ListAdminBillingPlansParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/billing/plans")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateAdminBillingPlanRequest calls the generic CreateAdminBillingPlan builder with application/json body
+func NewCreateAdminBillingPlanRequest(server string, body CreateAdminBillingPlanJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateAdminBillingPlanRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateAdminBillingPlanRequestWithBody generates requests for CreateAdminBillingPlan with any type of body
+func NewCreateAdminBillingPlanRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/billing/plans")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteAdminBillingPlanRequest generates requests for DeleteAdminBillingPlan
+func NewDeleteAdminBillingPlanRequest(server string, planId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "planId", runtime.ParamLocationPath, planId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/billing/plans/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetAdminBillingPlanRequest generates requests for GetAdminBillingPlan
+func NewGetAdminBillingPlanRequest(server string, planId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "planId", runtime.ParamLocationPath, planId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/billing/plans/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateAdminBillingPlanRequest calls the generic UpdateAdminBillingPlan builder with application/json body
+func NewUpdateAdminBillingPlanRequest(server string, planId openapi_types.UUID, body UpdateAdminBillingPlanJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateAdminBillingPlanRequestWithBody(server, planId, "application/json", bodyReader)
+}
+
+// NewUpdateAdminBillingPlanRequestWithBody generates requests for UpdateAdminBillingPlan with any type of body
+func NewUpdateAdminBillingPlanRequestWithBody(server string, planId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "planId", runtime.ParamLocationPath, planId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/billing/plans/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewPushAdminBillingPlanToStripeRequest generates requests for PushAdminBillingPlanToStripe
+func NewPushAdminBillingPlanToStripeRequest(server string, planId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "planId", runtime.ParamLocationPath, planId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/billing/plans/%s/push", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }
 
 // NewListAdminBillingPricesRequest generates requests for ListAdminBillingPrices
@@ -5104,6 +6133,210 @@ func NewUpsertAdminBillingPriceRequestWithBody(server string, contentType string
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListAdminBillingPromoCodesRequest generates requests for ListAdminBillingPromoCodes
+func NewListAdminBillingPromoCodesRequest(server string, params *ListAdminBillingPromoCodesParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/billing/promo-codes")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateAdminBillingPromoCodeRequest calls the generic CreateAdminBillingPromoCode builder with application/json body
+func NewCreateAdminBillingPromoCodeRequest(server string, body CreateAdminBillingPromoCodeJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateAdminBillingPromoCodeRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateAdminBillingPromoCodeRequestWithBody generates requests for CreateAdminBillingPromoCode with any type of body
+func NewCreateAdminBillingPromoCodeRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/billing/promo-codes")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRevokeAdminBillingPromoCodeRequest generates requests for RevokeAdminBillingPromoCode
+func NewRevokeAdminBillingPromoCodeRequest(server string, promoCodeId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "promoCodeId", runtime.ParamLocationPath, promoCodeId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/billing/promo-codes/%s/revoke", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListAdminBillingWebhookEventsRequest generates requests for ListAdminBillingWebhookEvents
+func NewListAdminBillingWebhookEventsRequest(server string, params *ListAdminBillingWebhookEventsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/billing/webhook-events")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -7149,6 +8382,402 @@ func NewVerifyEmailRequestWithBody(server string, contentType string, body io.Re
 	}
 
 	operationPath := fmt.Sprintf("/api/v1/auth/verify-email")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetBillingConfigRequest generates requests for GetBillingConfig
+func NewGetBillingConfigRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/billing/config")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListMyPaymentMethodsRequest generates requests for ListMyPaymentMethods
+func NewListMyPaymentMethodsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/billing/payment-methods")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAddMyPaymentMethodRequest calls the generic AddMyPaymentMethod builder with application/json body
+func NewAddMyPaymentMethodRequest(server string, body AddMyPaymentMethodJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAddMyPaymentMethodRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewAddMyPaymentMethodRequestWithBody generates requests for AddMyPaymentMethod with any type of body
+func NewAddMyPaymentMethodRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/billing/payment-methods")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRemoveMyPaymentMethodRequest generates requests for RemoveMyPaymentMethod
+func NewRemoveMyPaymentMethodRequest(server string, paymentMethodId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "paymentMethodId", runtime.ParamLocationPath, paymentMethodId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/billing/payment-methods/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListBillingPlansRequest generates requests for ListBillingPlans
+func NewListBillingPlansRequest(server string, params *ListBillingPlansParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/billing/plans")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRedeemMyPromoCodeRequest calls the generic RedeemMyPromoCode builder with application/json body
+func NewRedeemMyPromoCodeRequest(server string, body RedeemMyPromoCodeJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRedeemMyPromoCodeRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewRedeemMyPromoCodeRequestWithBody generates requests for RedeemMyPromoCode with any type of body
+func NewRedeemMyPromoCodeRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/billing/redeem")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListMySubscriptionsRequest generates requests for ListMySubscriptions
+func NewListMySubscriptionsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/billing/subscriptions")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateMySubscriptionRequest calls the generic CreateMySubscription builder with application/json body
+func NewCreateMySubscriptionRequest(server string, body CreateMySubscriptionJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateMySubscriptionRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateMySubscriptionRequestWithBody generates requests for CreateMySubscription with any type of body
+func NewCreateMySubscriptionRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/billing/subscriptions")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewCancelMySubscriptionRequest generates requests for CancelMySubscription
+func NewCancelMySubscriptionRequest(server string, subscriptionId openapi_types.UUID, params *CancelMySubscriptionParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "subscriptionId", runtime.ParamLocationPath, subscriptionId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/billing/subscriptions/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.CancelAtPeriodEnd != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "cancelAtPeriodEnd", runtime.ParamLocationQuery, *params.CancelAtPeriodEnd); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateMyTopupIntentRequest calls the generic CreateMyTopupIntent builder with application/json body
+func NewCreateMyTopupIntentRequest(server string, body CreateMyTopupIntentJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateMyTopupIntentRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateMyTopupIntentRequestWithBody generates requests for CreateMyTopupIntent with any type of body
+func NewCreateMyTopupIntentRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/billing/topup")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -11297,6 +12926,46 @@ func NewGetStorageBucketUsageRequest(server string, bucketId openapi_types.UUID)
 	return req, nil
 }
 
+// NewStripeWebhookRequest calls the generic StripeWebhook builder with application/json body
+func NewStripeWebhookRequest(server string, body StripeWebhookJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewStripeWebhookRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewStripeWebhookRequestWithBody generates requests for StripeWebhook with any type of body
+func NewStripeWebhookRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/webhooks/stripe")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewGetHealthRequest generates requests for GetHealth
 func NewGetHealthRequest(server string) (*http.Request, error) {
 	var err error
@@ -11367,6 +13036,28 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+	// ListAdminBillingPlansWithResponse request
+	ListAdminBillingPlansWithResponse(ctx context.Context, params *ListAdminBillingPlansParams, reqEditors ...RequestEditorFn) (*ListAdminBillingPlansResponse, error)
+
+	// CreateAdminBillingPlanWithBodyWithResponse request with any body
+	CreateAdminBillingPlanWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateAdminBillingPlanResponse, error)
+
+	CreateAdminBillingPlanWithResponse(ctx context.Context, body CreateAdminBillingPlanJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateAdminBillingPlanResponse, error)
+
+	// DeleteAdminBillingPlanWithResponse request
+	DeleteAdminBillingPlanWithResponse(ctx context.Context, planId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteAdminBillingPlanResponse, error)
+
+	// GetAdminBillingPlanWithResponse request
+	GetAdminBillingPlanWithResponse(ctx context.Context, planId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetAdminBillingPlanResponse, error)
+
+	// UpdateAdminBillingPlanWithBodyWithResponse request with any body
+	UpdateAdminBillingPlanWithBodyWithResponse(ctx context.Context, planId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateAdminBillingPlanResponse, error)
+
+	UpdateAdminBillingPlanWithResponse(ctx context.Context, planId openapi_types.UUID, body UpdateAdminBillingPlanJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateAdminBillingPlanResponse, error)
+
+	// PushAdminBillingPlanToStripeWithResponse request
+	PushAdminBillingPlanToStripeWithResponse(ctx context.Context, planId openapi_types.UUID, reqEditors ...RequestEditorFn) (*PushAdminBillingPlanToStripeResponse, error)
+
 	// ListAdminBillingPricesWithResponse request
 	ListAdminBillingPricesWithResponse(ctx context.Context, params *ListAdminBillingPricesParams, reqEditors ...RequestEditorFn) (*ListAdminBillingPricesResponse, error)
 
@@ -11374,6 +13065,20 @@ type ClientWithResponsesInterface interface {
 	UpsertAdminBillingPriceWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpsertAdminBillingPriceResponse, error)
 
 	UpsertAdminBillingPriceWithResponse(ctx context.Context, body UpsertAdminBillingPriceJSONRequestBody, reqEditors ...RequestEditorFn) (*UpsertAdminBillingPriceResponse, error)
+
+	// ListAdminBillingPromoCodesWithResponse request
+	ListAdminBillingPromoCodesWithResponse(ctx context.Context, params *ListAdminBillingPromoCodesParams, reqEditors ...RequestEditorFn) (*ListAdminBillingPromoCodesResponse, error)
+
+	// CreateAdminBillingPromoCodeWithBodyWithResponse request with any body
+	CreateAdminBillingPromoCodeWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateAdminBillingPromoCodeResponse, error)
+
+	CreateAdminBillingPromoCodeWithResponse(ctx context.Context, body CreateAdminBillingPromoCodeJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateAdminBillingPromoCodeResponse, error)
+
+	// RevokeAdminBillingPromoCodeWithResponse request
+	RevokeAdminBillingPromoCodeWithResponse(ctx context.Context, promoCodeId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RevokeAdminBillingPromoCodeResponse, error)
+
+	// ListAdminBillingWebhookEventsWithResponse request
+	ListAdminBillingWebhookEventsWithResponse(ctx context.Context, params *ListAdminBillingWebhookEventsParams, reqEditors ...RequestEditorFn) (*ListAdminBillingWebhookEventsResponse, error)
 
 	// ListAdminJobsWithResponse request
 	ListAdminJobsWithResponse(ctx context.Context, params *ListAdminJobsParams, reqEditors ...RequestEditorFn) (*ListAdminJobsResponse, error)
@@ -11534,6 +13239,44 @@ type ClientWithResponsesInterface interface {
 	VerifyEmailWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*VerifyEmailResponse, error)
 
 	VerifyEmailWithResponse(ctx context.Context, body VerifyEmailJSONRequestBody, reqEditors ...RequestEditorFn) (*VerifyEmailResponse, error)
+
+	// GetBillingConfigWithResponse request
+	GetBillingConfigWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetBillingConfigResponse, error)
+
+	// ListMyPaymentMethodsWithResponse request
+	ListMyPaymentMethodsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListMyPaymentMethodsResponse, error)
+
+	// AddMyPaymentMethodWithBodyWithResponse request with any body
+	AddMyPaymentMethodWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddMyPaymentMethodResponse, error)
+
+	AddMyPaymentMethodWithResponse(ctx context.Context, body AddMyPaymentMethodJSONRequestBody, reqEditors ...RequestEditorFn) (*AddMyPaymentMethodResponse, error)
+
+	// RemoveMyPaymentMethodWithResponse request
+	RemoveMyPaymentMethodWithResponse(ctx context.Context, paymentMethodId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RemoveMyPaymentMethodResponse, error)
+
+	// ListBillingPlansWithResponse request
+	ListBillingPlansWithResponse(ctx context.Context, params *ListBillingPlansParams, reqEditors ...RequestEditorFn) (*ListBillingPlansResponse, error)
+
+	// RedeemMyPromoCodeWithBodyWithResponse request with any body
+	RedeemMyPromoCodeWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RedeemMyPromoCodeResponse, error)
+
+	RedeemMyPromoCodeWithResponse(ctx context.Context, body RedeemMyPromoCodeJSONRequestBody, reqEditors ...RequestEditorFn) (*RedeemMyPromoCodeResponse, error)
+
+	// ListMySubscriptionsWithResponse request
+	ListMySubscriptionsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListMySubscriptionsResponse, error)
+
+	// CreateMySubscriptionWithBodyWithResponse request with any body
+	CreateMySubscriptionWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMySubscriptionResponse, error)
+
+	CreateMySubscriptionWithResponse(ctx context.Context, body CreateMySubscriptionJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMySubscriptionResponse, error)
+
+	// CancelMySubscriptionWithResponse request
+	CancelMySubscriptionWithResponse(ctx context.Context, subscriptionId openapi_types.UUID, params *CancelMySubscriptionParams, reqEditors ...RequestEditorFn) (*CancelMySubscriptionResponse, error)
+
+	// CreateMyTopupIntentWithBodyWithResponse request with any body
+	CreateMyTopupIntentWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMyTopupIntentResponse, error)
+
+	CreateMyTopupIntentWithResponse(ctx context.Context, body CreateMyTopupIntentJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMyTopupIntentResponse, error)
 
 	// ListComputeBackupTargetsWithResponse request
 	ListComputeBackupTargetsWithResponse(ctx context.Context, params *ListComputeBackupTargetsParams, reqEditors ...RequestEditorFn) (*ListComputeBackupTargetsResponse, error)
@@ -11865,8 +13608,169 @@ type ClientWithResponsesInterface interface {
 	// GetStorageBucketUsageWithResponse request
 	GetStorageBucketUsageWithResponse(ctx context.Context, bucketId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetStorageBucketUsageResponse, error)
 
+	// StripeWebhookWithBodyWithResponse request with any body
+	StripeWebhookWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StripeWebhookResponse, error)
+
+	StripeWebhookWithResponse(ctx context.Context, body StripeWebhookJSONRequestBody, reqEditors ...RequestEditorFn) (*StripeWebhookResponse, error)
+
 	// GetHealthWithResponse request
 	GetHealthWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetHealthResponse, error)
+}
+
+type ListAdminBillingPlansResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *BillingPlanPage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r ListAdminBillingPlansResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListAdminBillingPlansResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateAdminBillingPlanResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *BillingPlan
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateAdminBillingPlanResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateAdminBillingPlanResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteAdminBillingPlanResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON409      *Error
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteAdminBillingPlanResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteAdminBillingPlanResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetAdminBillingPlanResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *BillingPlan
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAdminBillingPlanResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAdminBillingPlanResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpdateAdminBillingPlanResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *BillingPlan
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateAdminBillingPlanResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateAdminBillingPlanResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PushAdminBillingPlanToStripeResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *BillingPlan
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r PushAdminBillingPlanToStripeResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PushAdminBillingPlanToStripeResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
 }
 
 type ListAdminBillingPricesResponse struct {
@@ -11914,6 +13818,107 @@ func (r UpsertAdminBillingPriceResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r UpsertAdminBillingPriceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListAdminBillingPromoCodesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *BillingPromoCodePage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r ListAdminBillingPromoCodesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListAdminBillingPromoCodesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateAdminBillingPromoCodeResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *BillingPromoCode
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateAdminBillingPromoCodeResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateAdminBillingPromoCodeResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type RevokeAdminBillingPromoCodeResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r RevokeAdminBillingPromoCodeResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RevokeAdminBillingPromoCodeResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListAdminBillingWebhookEventsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *BillingWebhookEventPage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r ListAdminBillingWebhookEventsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListAdminBillingWebhookEventsResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -12992,6 +14997,260 @@ func (r VerifyEmailResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r VerifyEmailResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetBillingConfigResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *BillingConfig
+}
+
+// Status returns HTTPResponse.Status
+func (r GetBillingConfigResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetBillingConfigResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListMyPaymentMethodsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *BillingPaymentMethodPage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r ListMyPaymentMethodsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListMyPaymentMethodsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type AddMyPaymentMethodResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *BillingPaymentMethod
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r AddMyPaymentMethodResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AddMyPaymentMethodResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type RemoveMyPaymentMethodResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r RemoveMyPaymentMethodResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemoveMyPaymentMethodResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListBillingPlansResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *BillingPlanPage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r ListBillingPlansResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListBillingPlansResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type RedeemMyPromoCodeResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *BillingLedgerEntry
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON409      *Error
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r RedeemMyPromoCodeResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RedeemMyPromoCodeResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListMySubscriptionsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *BillingSubscriptionPage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r ListMySubscriptionsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListMySubscriptionsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateMySubscriptionResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *BillingSubscription
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateMySubscriptionResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateMySubscriptionResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CancelMySubscriptionResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r CancelMySubscriptionResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CancelMySubscriptionResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateMyTopupIntentResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *BillingTopupIntent
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateMyTopupIntentResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateMyTopupIntentResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -15268,6 +17527,28 @@ func (r GetStorageBucketUsageResponse) StatusCode() int {
 	return 0
 }
 
+type StripeWebhookResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r StripeWebhookResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r StripeWebhookResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetHealthResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -15289,6 +17570,76 @@ func (r GetHealthResponse) StatusCode() int {
 		return r.HTTPResponse.StatusCode
 	}
 	return 0
+}
+
+// ListAdminBillingPlansWithResponse request returning *ListAdminBillingPlansResponse
+func (c *ClientWithResponses) ListAdminBillingPlansWithResponse(ctx context.Context, params *ListAdminBillingPlansParams, reqEditors ...RequestEditorFn) (*ListAdminBillingPlansResponse, error) {
+	rsp, err := c.ListAdminBillingPlans(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListAdminBillingPlansResponse(rsp)
+}
+
+// CreateAdminBillingPlanWithBodyWithResponse request with arbitrary body returning *CreateAdminBillingPlanResponse
+func (c *ClientWithResponses) CreateAdminBillingPlanWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateAdminBillingPlanResponse, error) {
+	rsp, err := c.CreateAdminBillingPlanWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateAdminBillingPlanResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateAdminBillingPlanWithResponse(ctx context.Context, body CreateAdminBillingPlanJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateAdminBillingPlanResponse, error) {
+	rsp, err := c.CreateAdminBillingPlan(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateAdminBillingPlanResponse(rsp)
+}
+
+// DeleteAdminBillingPlanWithResponse request returning *DeleteAdminBillingPlanResponse
+func (c *ClientWithResponses) DeleteAdminBillingPlanWithResponse(ctx context.Context, planId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteAdminBillingPlanResponse, error) {
+	rsp, err := c.DeleteAdminBillingPlan(ctx, planId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteAdminBillingPlanResponse(rsp)
+}
+
+// GetAdminBillingPlanWithResponse request returning *GetAdminBillingPlanResponse
+func (c *ClientWithResponses) GetAdminBillingPlanWithResponse(ctx context.Context, planId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetAdminBillingPlanResponse, error) {
+	rsp, err := c.GetAdminBillingPlan(ctx, planId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAdminBillingPlanResponse(rsp)
+}
+
+// UpdateAdminBillingPlanWithBodyWithResponse request with arbitrary body returning *UpdateAdminBillingPlanResponse
+func (c *ClientWithResponses) UpdateAdminBillingPlanWithBodyWithResponse(ctx context.Context, planId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateAdminBillingPlanResponse, error) {
+	rsp, err := c.UpdateAdminBillingPlanWithBody(ctx, planId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateAdminBillingPlanResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpdateAdminBillingPlanWithResponse(ctx context.Context, planId openapi_types.UUID, body UpdateAdminBillingPlanJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateAdminBillingPlanResponse, error) {
+	rsp, err := c.UpdateAdminBillingPlan(ctx, planId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateAdminBillingPlanResponse(rsp)
+}
+
+// PushAdminBillingPlanToStripeWithResponse request returning *PushAdminBillingPlanToStripeResponse
+func (c *ClientWithResponses) PushAdminBillingPlanToStripeWithResponse(ctx context.Context, planId openapi_types.UUID, reqEditors ...RequestEditorFn) (*PushAdminBillingPlanToStripeResponse, error) {
+	rsp, err := c.PushAdminBillingPlanToStripe(ctx, planId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePushAdminBillingPlanToStripeResponse(rsp)
 }
 
 // ListAdminBillingPricesWithResponse request returning *ListAdminBillingPricesResponse
@@ -15315,6 +17666,50 @@ func (c *ClientWithResponses) UpsertAdminBillingPriceWithResponse(ctx context.Co
 		return nil, err
 	}
 	return ParseUpsertAdminBillingPriceResponse(rsp)
+}
+
+// ListAdminBillingPromoCodesWithResponse request returning *ListAdminBillingPromoCodesResponse
+func (c *ClientWithResponses) ListAdminBillingPromoCodesWithResponse(ctx context.Context, params *ListAdminBillingPromoCodesParams, reqEditors ...RequestEditorFn) (*ListAdminBillingPromoCodesResponse, error) {
+	rsp, err := c.ListAdminBillingPromoCodes(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListAdminBillingPromoCodesResponse(rsp)
+}
+
+// CreateAdminBillingPromoCodeWithBodyWithResponse request with arbitrary body returning *CreateAdminBillingPromoCodeResponse
+func (c *ClientWithResponses) CreateAdminBillingPromoCodeWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateAdminBillingPromoCodeResponse, error) {
+	rsp, err := c.CreateAdminBillingPromoCodeWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateAdminBillingPromoCodeResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateAdminBillingPromoCodeWithResponse(ctx context.Context, body CreateAdminBillingPromoCodeJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateAdminBillingPromoCodeResponse, error) {
+	rsp, err := c.CreateAdminBillingPromoCode(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateAdminBillingPromoCodeResponse(rsp)
+}
+
+// RevokeAdminBillingPromoCodeWithResponse request returning *RevokeAdminBillingPromoCodeResponse
+func (c *ClientWithResponses) RevokeAdminBillingPromoCodeWithResponse(ctx context.Context, promoCodeId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RevokeAdminBillingPromoCodeResponse, error) {
+	rsp, err := c.RevokeAdminBillingPromoCode(ctx, promoCodeId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRevokeAdminBillingPromoCodeResponse(rsp)
+}
+
+// ListAdminBillingWebhookEventsWithResponse request returning *ListAdminBillingWebhookEventsResponse
+func (c *ClientWithResponses) ListAdminBillingWebhookEventsWithResponse(ctx context.Context, params *ListAdminBillingWebhookEventsParams, reqEditors ...RequestEditorFn) (*ListAdminBillingWebhookEventsResponse, error) {
+	rsp, err := c.ListAdminBillingWebhookEvents(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListAdminBillingWebhookEventsResponse(rsp)
 }
 
 // ListAdminJobsWithResponse request returning *ListAdminJobsResponse
@@ -15823,6 +18218,128 @@ func (c *ClientWithResponses) VerifyEmailWithResponse(ctx context.Context, body 
 		return nil, err
 	}
 	return ParseVerifyEmailResponse(rsp)
+}
+
+// GetBillingConfigWithResponse request returning *GetBillingConfigResponse
+func (c *ClientWithResponses) GetBillingConfigWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetBillingConfigResponse, error) {
+	rsp, err := c.GetBillingConfig(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetBillingConfigResponse(rsp)
+}
+
+// ListMyPaymentMethodsWithResponse request returning *ListMyPaymentMethodsResponse
+func (c *ClientWithResponses) ListMyPaymentMethodsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListMyPaymentMethodsResponse, error) {
+	rsp, err := c.ListMyPaymentMethods(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListMyPaymentMethodsResponse(rsp)
+}
+
+// AddMyPaymentMethodWithBodyWithResponse request with arbitrary body returning *AddMyPaymentMethodResponse
+func (c *ClientWithResponses) AddMyPaymentMethodWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddMyPaymentMethodResponse, error) {
+	rsp, err := c.AddMyPaymentMethodWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddMyPaymentMethodResponse(rsp)
+}
+
+func (c *ClientWithResponses) AddMyPaymentMethodWithResponse(ctx context.Context, body AddMyPaymentMethodJSONRequestBody, reqEditors ...RequestEditorFn) (*AddMyPaymentMethodResponse, error) {
+	rsp, err := c.AddMyPaymentMethod(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddMyPaymentMethodResponse(rsp)
+}
+
+// RemoveMyPaymentMethodWithResponse request returning *RemoveMyPaymentMethodResponse
+func (c *ClientWithResponses) RemoveMyPaymentMethodWithResponse(ctx context.Context, paymentMethodId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RemoveMyPaymentMethodResponse, error) {
+	rsp, err := c.RemoveMyPaymentMethod(ctx, paymentMethodId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemoveMyPaymentMethodResponse(rsp)
+}
+
+// ListBillingPlansWithResponse request returning *ListBillingPlansResponse
+func (c *ClientWithResponses) ListBillingPlansWithResponse(ctx context.Context, params *ListBillingPlansParams, reqEditors ...RequestEditorFn) (*ListBillingPlansResponse, error) {
+	rsp, err := c.ListBillingPlans(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListBillingPlansResponse(rsp)
+}
+
+// RedeemMyPromoCodeWithBodyWithResponse request with arbitrary body returning *RedeemMyPromoCodeResponse
+func (c *ClientWithResponses) RedeemMyPromoCodeWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RedeemMyPromoCodeResponse, error) {
+	rsp, err := c.RedeemMyPromoCodeWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRedeemMyPromoCodeResponse(rsp)
+}
+
+func (c *ClientWithResponses) RedeemMyPromoCodeWithResponse(ctx context.Context, body RedeemMyPromoCodeJSONRequestBody, reqEditors ...RequestEditorFn) (*RedeemMyPromoCodeResponse, error) {
+	rsp, err := c.RedeemMyPromoCode(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRedeemMyPromoCodeResponse(rsp)
+}
+
+// ListMySubscriptionsWithResponse request returning *ListMySubscriptionsResponse
+func (c *ClientWithResponses) ListMySubscriptionsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListMySubscriptionsResponse, error) {
+	rsp, err := c.ListMySubscriptions(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListMySubscriptionsResponse(rsp)
+}
+
+// CreateMySubscriptionWithBodyWithResponse request with arbitrary body returning *CreateMySubscriptionResponse
+func (c *ClientWithResponses) CreateMySubscriptionWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMySubscriptionResponse, error) {
+	rsp, err := c.CreateMySubscriptionWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateMySubscriptionResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateMySubscriptionWithResponse(ctx context.Context, body CreateMySubscriptionJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMySubscriptionResponse, error) {
+	rsp, err := c.CreateMySubscription(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateMySubscriptionResponse(rsp)
+}
+
+// CancelMySubscriptionWithResponse request returning *CancelMySubscriptionResponse
+func (c *ClientWithResponses) CancelMySubscriptionWithResponse(ctx context.Context, subscriptionId openapi_types.UUID, params *CancelMySubscriptionParams, reqEditors ...RequestEditorFn) (*CancelMySubscriptionResponse, error) {
+	rsp, err := c.CancelMySubscription(ctx, subscriptionId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCancelMySubscriptionResponse(rsp)
+}
+
+// CreateMyTopupIntentWithBodyWithResponse request with arbitrary body returning *CreateMyTopupIntentResponse
+func (c *ClientWithResponses) CreateMyTopupIntentWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMyTopupIntentResponse, error) {
+	rsp, err := c.CreateMyTopupIntentWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateMyTopupIntentResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateMyTopupIntentWithResponse(ctx context.Context, body CreateMyTopupIntentJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMyTopupIntentResponse, error) {
+	rsp, err := c.CreateMyTopupIntent(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateMyTopupIntentResponse(rsp)
 }
 
 // ListComputeBackupTargetsWithResponse request returning *ListComputeBackupTargetsResponse
@@ -16875,6 +19392,23 @@ func (c *ClientWithResponses) GetStorageBucketUsageWithResponse(ctx context.Cont
 	return ParseGetStorageBucketUsageResponse(rsp)
 }
 
+// StripeWebhookWithBodyWithResponse request with arbitrary body returning *StripeWebhookResponse
+func (c *ClientWithResponses) StripeWebhookWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StripeWebhookResponse, error) {
+	rsp, err := c.StripeWebhookWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStripeWebhookResponse(rsp)
+}
+
+func (c *ClientWithResponses) StripeWebhookWithResponse(ctx context.Context, body StripeWebhookJSONRequestBody, reqEditors ...RequestEditorFn) (*StripeWebhookResponse, error) {
+	rsp, err := c.StripeWebhook(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStripeWebhookResponse(rsp)
+}
+
 // GetHealthWithResponse request returning *GetHealthResponse
 func (c *ClientWithResponses) GetHealthWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetHealthResponse, error) {
 	rsp, err := c.GetHealth(ctx, reqEditors...)
@@ -16882,6 +19416,330 @@ func (c *ClientWithResponses) GetHealthWithResponse(ctx context.Context, reqEdit
 		return nil, err
 	}
 	return ParseGetHealthResponse(rsp)
+}
+
+// ParseListAdminBillingPlansResponse parses an HTTP response from a ListAdminBillingPlansWithResponse call
+func ParseListAdminBillingPlansResponse(rsp *http.Response) (*ListAdminBillingPlansResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListAdminBillingPlansResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BillingPlanPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateAdminBillingPlanResponse parses an HTTP response from a CreateAdminBillingPlanWithResponse call
+func ParseCreateAdminBillingPlanResponse(rsp *http.Response) (*CreateAdminBillingPlanResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateAdminBillingPlanResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest BillingPlan
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteAdminBillingPlanResponse parses an HTTP response from a DeleteAdminBillingPlanWithResponse call
+func ParseDeleteAdminBillingPlanResponse(rsp *http.Response) (*DeleteAdminBillingPlanResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteAdminBillingPlanResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetAdminBillingPlanResponse parses an HTTP response from a GetAdminBillingPlanWithResponse call
+func ParseGetAdminBillingPlanResponse(rsp *http.Response) (*GetAdminBillingPlanResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAdminBillingPlanResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BillingPlan
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateAdminBillingPlanResponse parses an HTTP response from a UpdateAdminBillingPlanWithResponse call
+func ParseUpdateAdminBillingPlanResponse(rsp *http.Response) (*UpdateAdminBillingPlanResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateAdminBillingPlanResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BillingPlan
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePushAdminBillingPlanToStripeResponse parses an HTTP response from a PushAdminBillingPlanToStripeWithResponse call
+func ParsePushAdminBillingPlanToStripeResponse(rsp *http.Response) (*PushAdminBillingPlanToStripeResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PushAdminBillingPlanToStripeResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BillingPlan
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
 }
 
 // ParseListAdminBillingPricesResponse parses an HTTP response from a ListAdminBillingPricesWithResponse call
@@ -16958,6 +19816,201 @@ func ParseUpsertAdminBillingPriceResponse(rsp *http.Response) (*UpsertAdminBilli
 			return nil, err
 		}
 		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListAdminBillingPromoCodesResponse parses an HTTP response from a ListAdminBillingPromoCodesWithResponse call
+func ParseListAdminBillingPromoCodesResponse(rsp *http.Response) (*ListAdminBillingPromoCodesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListAdminBillingPromoCodesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BillingPromoCodePage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateAdminBillingPromoCodeResponse parses an HTTP response from a CreateAdminBillingPromoCodeWithResponse call
+func ParseCreateAdminBillingPromoCodeResponse(rsp *http.Response) (*CreateAdminBillingPromoCodeResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateAdminBillingPromoCodeResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest BillingPromoCode
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRevokeAdminBillingPromoCodeResponse parses an HTTP response from a RevokeAdminBillingPromoCodeWithResponse call
+func ParseRevokeAdminBillingPromoCodeResponse(rsp *http.Response) (*RevokeAdminBillingPromoCodeResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RevokeAdminBillingPromoCodeResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListAdminBillingWebhookEventsResponse parses an HTTP response from a ListAdminBillingWebhookEventsWithResponse call
+func ParseListAdminBillingWebhookEventsResponse(rsp *http.Response) (*ListAdminBillingWebhookEventsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListAdminBillingWebhookEventsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BillingWebhookEventPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest Unauthorized
@@ -18896,6 +21949,504 @@ func ParseVerifyEmailResponse(rsp *http.Response) (*VerifyEmailResponse, error) 
 			return nil, err
 		}
 		response.JSON400 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetBillingConfigResponse parses an HTTP response from a GetBillingConfigWithResponse call
+func ParseGetBillingConfigResponse(rsp *http.Response) (*GetBillingConfigResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetBillingConfigResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BillingConfig
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListMyPaymentMethodsResponse parses an HTTP response from a ListMyPaymentMethodsWithResponse call
+func ParseListMyPaymentMethodsResponse(rsp *http.Response) (*ListMyPaymentMethodsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListMyPaymentMethodsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BillingPaymentMethodPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAddMyPaymentMethodResponse parses an HTTP response from a AddMyPaymentMethodWithResponse call
+func ParseAddMyPaymentMethodResponse(rsp *http.Response) (*AddMyPaymentMethodResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AddMyPaymentMethodResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest BillingPaymentMethod
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRemoveMyPaymentMethodResponse parses an HTTP response from a RemoveMyPaymentMethodWithResponse call
+func ParseRemoveMyPaymentMethodResponse(rsp *http.Response) (*RemoveMyPaymentMethodResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemoveMyPaymentMethodResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListBillingPlansResponse parses an HTTP response from a ListBillingPlansWithResponse call
+func ParseListBillingPlansResponse(rsp *http.Response) (*ListBillingPlansResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListBillingPlansResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BillingPlanPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRedeemMyPromoCodeResponse parses an HTTP response from a RedeemMyPromoCodeWithResponse call
+func ParseRedeemMyPromoCodeResponse(rsp *http.Response) (*RedeemMyPromoCodeResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RedeemMyPromoCodeResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest BillingLedgerEntry
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListMySubscriptionsResponse parses an HTTP response from a ListMySubscriptionsWithResponse call
+func ParseListMySubscriptionsResponse(rsp *http.Response) (*ListMySubscriptionsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListMySubscriptionsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BillingSubscriptionPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateMySubscriptionResponse parses an HTTP response from a CreateMySubscriptionWithResponse call
+func ParseCreateMySubscriptionResponse(rsp *http.Response) (*CreateMySubscriptionResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateMySubscriptionResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest BillingSubscription
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCancelMySubscriptionResponse parses an HTTP response from a CancelMySubscriptionWithResponse call
+func ParseCancelMySubscriptionResponse(rsp *http.Response) (*CancelMySubscriptionResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CancelMySubscriptionResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateMyTopupIntentResponse parses an HTTP response from a CreateMyTopupIntentWithResponse call
+func ParseCreateMyTopupIntentResponse(rsp *http.Response) (*CreateMyTopupIntentResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateMyTopupIntentResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest BillingTopupIntent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
 
 	}
 
@@ -23254,6 +26805,32 @@ func ParseGetStorageBucketUsageResponse(rsp *http.Response) (*GetStorageBucketUs
 			return nil, err
 		}
 		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseStripeWebhookResponse parses an HTTP response from a StripeWebhookWithResponse call
+func ParseStripeWebhookResponse(rsp *http.Response) (*StripeWebhookResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &StripeWebhookResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
 
 	}
 

@@ -664,6 +664,15 @@
   "billing.err_duplicate": {
     "other": "رشته‌ای با این کلید قدرت‌نمایی از پیش وجود دارد."
   },
+  "billing.err_payments_disabled": {
+    "other": "دروازهٔ پرداخت روی این کارساز فعال نیست."
+  },
+  "billing.err_conflict": {
+    "other": "درخواست با وضعیت کنونی تضاد دارد."
+  },
+  "billing.err_webhook_signature": {
+    "other": "راستی‌آزمایی امضای webhook ناموفق بود."
+  },
 
   "audit.action_billing_balance_topup": {
     "other": "موجودی کاربر شارژ شد"
@@ -682,5 +691,41 @@
   },
   "audit.action_billing_receipt_generate": {
     "other": "رسید صورتحساب تولید شد"
+  },
+  "audit.action_billing_plan_create": {
+    "other": "طرح اشتراک ایجاد شد"
+  },
+  "audit.action_billing_plan_update": {
+    "other": "طرح اشتراک به‌روزرسانی شد"
+  },
+  "audit.action_billing_plan_delete": {
+    "other": "طرح اشتراک حذف شد"
+  },
+  "audit.action_billing_payment_method_add": {
+    "other": "روش پرداخت افزوده شد"
+  },
+  "audit.action_billing_payment_method_drop": {
+    "other": "روش پرداخت حذف شد"
+  },
+  "audit.action_billing_subscription_create": {
+    "other": "اشتراک ایجاد شد"
+  },
+  "audit.action_billing_subscription_cancel": {
+    "other": "اشتراک لغو شد"
+  },
+  "audit.action_billing_promo_code_create": {
+    "other": "کد تخفیف ایجاد شد"
+  },
+  "audit.action_billing_promo_code_revoke": {
+    "other": "کد تخفیف باطل شد"
+  },
+  "audit.action_billing_promo_code_redeem": {
+    "other": "کد تخفیف استفاده شد"
+  },
+  "audit.action_billing_webhook_received": {
+    "other": "Webhook استرایپ دریافت شد"
+  },
+  "audit.action_billing_webhook_applied": {
+    "other": "Webhook استرایپ اعمال شد"
   }
 }

@@ -105,10 +105,10 @@ func (s *PaymentsService) CreatePlan(
 	}
 	s.auditMarkOutcome(ctx, auditID, true, map[string]any{"plan_id": row.ID})
 	s.emitEvent(ctx, eventbus.BillingPlanCreated, tenantID, actorID, row.ID, map[string]any{
-		"slug":         row.Slug,
-		"name":         row.Name,
-		"price_cents":  row.PriceCents,
-		"interval":     row.Interval,
+		"slug":        row.Slug,
+		"name":        row.Name,
+		"price_cents": row.PriceCents,
+		"interval":    row.Interval,
 	})
 	return row, nil
 }
@@ -208,10 +208,10 @@ func (s *PaymentsService) UpdatePlan(
 		return err
 	}
 	auditID := s.auditEmit(ctx, audit.ActionBillingPlanUpdate, audit.ResourceBillingPlan, tenantID, actorID, planID, map[string]any{
-		"name":         params.Name,
-		"price_cents":  params.PriceCents,
-		"interval":     params.Interval,
-		"active":       params.Active,
+		"name":        params.Name,
+		"price_cents": params.PriceCents,
+		"interval":    params.Interval,
+		"active":      params.Active,
 	})
 	if err := s.repos.BillingPlans.Update(ctx, planID, database.UpdateBillingPlanParams{
 		Name:                   params.Name,
@@ -229,9 +229,9 @@ func (s *PaymentsService) UpdatePlan(
 	}
 	s.auditMarkOutcome(ctx, auditID, true, nil)
 	s.emitEvent(ctx, eventbus.BillingPlanUpdated, tenantID, actorID, planID, map[string]any{
-		"name":         params.Name,
-		"price_cents":  params.PriceCents,
-		"interval":     params.Interval,
+		"name":        params.Name,
+		"price_cents": params.PriceCents,
+		"interval":    params.Interval,
 	})
 	return nil
 }
@@ -397,14 +397,14 @@ func (s *PaymentsService) CreateSubscription(
 		}
 	}
 	auditID := s.auditEmit(ctx, audit.ActionBillingSubscriptionCreate, audit.ResourceBillingSubscription, tenantID, userID, uuid.Nil, map[string]any{
-		"plan_id":         plan.ID,
-		"plan_slug":       plan.Slug,
-		"price_cents":     plan.PriceCents,
+		"plan_id":     plan.ID,
+		"plan_slug":   plan.Slug,
+		"price_cents": plan.PriceCents,
 	})
 	idemp := "sub:" + tenantID.String() + ":" + userID.String() + ":" + plan.ID.String()
 	sub, err := s.gw.CreateSubscription(ctx, stripe.CreateSubscriptionRequest{
-		Customer:            customerID,
-		Price:               *plan.StripePriceID,
+		Customer:             customerID,
+		Price:                *plan.StripePriceID,
 		DefaultPaymentMethod: defaultPM,
 		Metadata: map[string]any{
 			"tenant_id": tenantID.String(),
@@ -418,16 +418,16 @@ func (s *PaymentsService) CreateSubscription(
 	}
 	periodEnd := time.Unix(sub.CurrentPeriodEnd, 0)
 	row, err := s.repos.BillingSubscriptions.Create(ctx, database.CreateBillingSubscriptionParams{
-		UserID:                  userID,
-		PlanID:                  plan.ID,
-		StripeSubscriptionID:    sub.ID,
-		Interval:                plan.Interval,
-		PriceCents:              plan.PriceCents,
-		Currency:                plan.Currency,
-		IncludedQuotaCents:      plan.IncludedQuotaCents,
-		OverageDiscountPercent:  plan.OverageDiscountPercent,
-		Status:                  "active",
-		CurrentPeriodEnd:        &periodEnd,
+		UserID:                 userID,
+		PlanID:                 plan.ID,
+		StripeSubscriptionID:   sub.ID,
+		Interval:               plan.Interval,
+		PriceCents:             plan.PriceCents,
+		Currency:               plan.Currency,
+		IncludedQuotaCents:     plan.IncludedQuotaCents,
+		OverageDiscountPercent: plan.OverageDiscountPercent,
+		Status:                 "active",
+		CurrentPeriodEnd:       &periodEnd,
 		Metadata: map[string]any{
 			"stripe_subscription_id": sub.ID,
 		},

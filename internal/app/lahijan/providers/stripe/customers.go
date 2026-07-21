@@ -65,9 +65,9 @@ func (p *Provider) FindCustomerByEmail(ctx context.Context, email string) (Custo
 	form.Set("email", email)
 	form.Set("limit", "1")
 	var list struct {
-		Object string    `json:"object"`
-		Data   []Customer `json:"data"`
-		HasMore bool     `json:"has_more"`
+		Object  string     `json:"object"`
+		Data    []Customer `json:"data"`
+		HasMore bool       `json:"has_more"`
 	}
 	if err := p.do(ctx, "GET", "/v1/customers?"+form.Encode(), nil, "", &list); err != nil {
 		setStatus(span, err)

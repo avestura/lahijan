@@ -363,6 +363,41 @@ func Start() error {
 		billing.NoopMeter{},
 		billing.Config{},
 	)
+
+	// WS-27: build the payment gateway module
+	// (internal/app/lahijan/billing/payments.go). Opt-in: when
+	// billing.stripe.enabled is false the gateway stays nil and every
+	// payment endpoint degrades to 501, exactly like ADR-0013's
+	// ledger-only mode. The gateway wraps the WS-17 billing service
+	// for ledger writes so a top-up via Stripe produces a normal
+	// ledger credit row.
+	var paymentsSvc *billing.PaymentsService
+	if conf.GetBillingStripeEnabled() {
+		gw, err := buildStripeProvider()
+		if err != nil {
+			log.Fatalf("failed to build stripe provider: %s", err.Error())
+		}
+		crypto, err := buildBillingCrypto()
+		if err != nil {
+			log.Fatalf("failed to build billing crypto envelope: %s", err.Error())
+		}
+		paymentsSvc = billing.NewPaymentsService(
+			billingSvc,
+			authDeps.repos,
+			gw,
+			crypto,
+			authDeps.audit,
+			wasmDeps.bus,
+			rbac.NewEvaluator(authDeps.repos.Memberships),
+			billing.PaymentsConfig{
+				PublishableKey: conf.GetBillingStripePublishableKey(),
+			},
+		)
+		slog.Info("billing: stripe gateway enabled",
+			slog.String("live_mode", stripeLiveModeLabel(conf.GetBillingStripeSecretKey())))
+	} else {
+		slog.Info("billing: stripe gateway disabled (ledger-only mode per ADR-0013)")
+	}
 	// Register the billing River workers when jobs are enabled so
 	// the metering/rollup/enforcement/receipts pipelines are live
 	// the moment the supervisor starts. The workers share a
@@ -462,6 +497,7 @@ func Start() error {
 		DNSSvc:         dnsSvc,
 		StorageSvc:     storageSvc,
 		BillingSvc:     billingSvc,
+		PaymentsSvc:    paymentsSvc,
 	}), policy)
 
 	// WS-09: mount River's built-in web UI (admin-only). The UI ships its

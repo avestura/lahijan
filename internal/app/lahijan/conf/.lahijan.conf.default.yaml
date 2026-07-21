@@ -576,3 +576,33 @@ bootstrap:
   # length of the generated random password when adminPassword is empty.
   # 24 chars over the alphanumeric+symbol alphabet is ~150 bits of entropy.
   generatedPasswordLength: 24
+
+# WS-27: payment gateway (Stripe). Opt-in: when billing.stripe.enabled
+# is false (the default), program.Start skips building the gateway and
+# the payment endpoints degrade to 501 "feature disabled". The
+# ledger-only mode (ADR-0013) keeps working in either case.
+billing:
+  stripe:
+    # toggles the Stripe gateway. When false, every /api/v1/billing/*
+    # endpoint returns 501; the webhook receiver at /api/v1/webhooks/
+    # stripe returns 200 + discards the body (so Stripe doesn't retry).
+    enabled: false
+    # Stripe secret key (sk_test_* or sk_live_*). SENSITIVE — never log
+    # at debug level. Sourced from env LAHIJAN_BILLING_STRIPE_SECRET_KEY.
+    secretKey: ""
+    # Stripe publishable key (pk_test_* or pk_live_*). Safe to expose
+    # to the SPA via /api/v1/billing/config. Sourced from env
+    # LAHIJAN_BILLING_STRIPE_PUBLISHABLE_KEY.
+    publishableKey: ""
+    # Stripe webhook signing secret (whsec_*). Used to verify the
+    # Stripe-Signature header. SENSITIVE. Sourced from env
+    # LAHIJAN_BILLING_STRIPE_WEBHOOK_SECRET.
+    webhookSecret: ""
+    # Stripe REST API origin. Default targets production. Tests override
+    # to point at an httptest server.
+    apiBaseURL: "https://api.stripe.com"
+    # Stripe API version pin (sent as Stripe-Version header). Empty
+    # means the driver default applies.
+    apiVersion: ""
+    # per-call timeout for Stripe API calls. 30s is a generous cap.
+    requestTimeoutSeconds: 30

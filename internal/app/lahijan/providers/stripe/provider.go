@@ -62,8 +62,8 @@ func (p *Provider) Ping(ctx context.Context) error {
 // (caller's responsibility to guard).
 func (p *Provider) Capabilities() Capabilities {
 	return Capabilities{
-		APIVersion:     p.apiVersion,
-		LiveMode:       isLiveKey(p.secretKey),
+		APIVersion:      p.apiVersion,
+		LiveMode:        isLiveKey(p.secretKey),
 		WebhooksEnabled: p.webhookSecretSet(),
 	}
 }

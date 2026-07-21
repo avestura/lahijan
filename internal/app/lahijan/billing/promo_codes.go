@@ -159,11 +159,11 @@ func (s *PaymentsService) RedeemPromoCode(
 	// will add the check; the field is captured for audit.
 
 	// Increment the use counter atomically.
-	if err := s.repos.BillingPromoCodes.IncrementUse(ctx, row.ID); err != nil {
-		if errors.Is(err, database.ErrPromoCodeExhausted) {
+	if errInc := s.repos.BillingPromoCodes.IncrementUse(ctx, row.ID); errInc != nil {
+		if errors.Is(errInc, database.ErrPromoCodeExhausted) {
 			return gen.LedgerEntry{}, ErrPromoCodeExhausted
 		}
-		return gen.LedgerEntry{}, fmt.Errorf("billing.promo_codes.redeem: increment: %w", err)
+		return gen.LedgerEntry{}, fmt.Errorf("billing.promo_codes.redeem: increment: %w", errInc)
 	}
 	auditID := s.auditEmit(ctx, audit.ActionBillingPromoCodeRedeem, audit.ResourceBillingPromoCode, tenantID, userID, row.ID, map[string]any{
 		"code":         code,
