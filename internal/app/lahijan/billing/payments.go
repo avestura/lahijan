@@ -596,37 +596,22 @@ func (s *PaymentsService) HandleWebhook(
 		return fmt.Errorf("billing.payments.webhook: insert event: %w", err)
 	}
 
+	// resolveMarkCtx returns a context with the tenant scope set so the
+	// webhook_events repo (tenant-scoped at the repo seam) can read +
+	// update the row. uuid.Nil is passed when the event metadata lacks
+	// a tenant_id (rare; the table allows NULL tenant_id).
+	resolveMarkCtx := func(base context.Context) context.Context {
+		return database.WithTenant(base, tenantID)
+	}
+
 	// Dispatch. A handler failure marks the event as failed + returns
 	// an error so Stripe retries the delivery.
 	ledgerIDs, err := s.dispatchEvent(ctx, event, tenantID)
 	if err != nil {
-		// MarkFailed needs a tenant scope too — wrap ctx explicitly.
-		markCtx := ctx
-		if tenantID != uuid.Nil {
-			markCtx = database.WithTenant(ctx, tenantID)
-		} else {
-			// No tenant in the event metadata; use a synthetic empty
-			// scope so the repo can read the row by global id. The
-			// BillingWebhookEvents table is the only repo in the
-			// dispatch path that tolerates a nil tenant; we still pass
-			// a non-nil scope so the gen code's tenant_id IS NULL
-			// filter matches.
-			markCtx = database.WithTenant(ctx, uuid.Nil)
-		}
-		_ = s.repos.BillingWebhookEvents.MarkFailed(markCtx, whEvent.ID, err.Error())
+		_ = s.repos.BillingWebhookEvents.MarkFailed(resolveMarkCtx(ctx), whEvent.ID, err.Error())
 		return fmt.Errorf("billing.payments.webhook: dispatch %s: %w", event.Type, err)
 	}
-	// MarkApplied needs a tenant scope. The webhook_events table is
-	// tenant-scoped at the repo layer; we pass the tenant we resolved
-	// from the event metadata (uuid.Nil if absent — the table allows
-	// NULL tenant_id).
-	markCtx := ctx
-	if tenantID != uuid.Nil {
-		markCtx = database.WithTenant(ctx, tenantID)
-	} else {
-		markCtx = database.WithTenant(ctx, uuid.Nil)
-	}
-	if err := s.repos.BillingWebhookEvents.MarkApplied(markCtx, whEvent.ID, ledgerIDs); err != nil {
+	if err := s.repos.BillingWebhookEvents.MarkApplied(resolveMarkCtx(ctx), whEvent.ID, ledgerIDs); err != nil {
 		return fmt.Errorf("billing.payments.webhook: mark applied: %w", err)
 	}
 	return nil

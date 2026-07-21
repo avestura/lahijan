@@ -97,7 +97,7 @@ Docs ready. Work not in MVP. Will be scheduled when MVP is shipped.
 | [WS-24](./WS-24-novnc-web-console.md) | noVNC Web Console for VMs | done | WS-11, WS-20 |
 | [WS-25](./WS-25-scheduled-snapshots-backups.md) | Scheduled Snapshots & Backups | done | WS-11, WS-09 |
 | [WS-26](./WS-26-multi-node-cluster.md) | Multi-Node / HA Control Plane | done | WS-23 |
-| [WS-27](./WS-27-payment-gateway-stripe.md) | Payment Gateway (Stripe) + Subscriptions | deferred | WS-17 |
+| [WS-27](./WS-27-payment-gateway-stripe.md) | Payment Gateway (Stripe) + Subscriptions | done | WS-17 |
 | [WS-28](./WS-28-dns-recursor-dnsdist-registrar.md) | DNS Recursor + dnsdist + Registrar Resale | deferred | WS-12 |
 | [WS-29](./WS-29-s3-lifecycle-versioning.md) | S3 Lifecycle / Versioning / Object Lock | deferred | WS-13 |
 | [WS-30](./WS-30-public-ip-floating-ips.md) | Public IP Assignment & Floating IPs | deferred | WS-11, WS-26 |

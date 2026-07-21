@@ -596,9 +596,9 @@ func (s *Server) StripeWebhook(c *fiber.Ctx) error {
 		// operator (and tests) can see WHY verification failed. The
 		// outer envelope still uses the localised message.
 		return SendBadRequest(c, i18n.T(c.UserContext(), "billing.err_webhook_signature", nil), map[string]any{
-			"detail":       err.Error(),
-			"body_len":     len(body),
-			"sig_present":  sig != "",
+			"detail":      err.Error(),
+			"body_len":    len(body),
+			"sig_present": sig != "",
 		})
 	}
 	return c.SendStatus(fiber.StatusOK)
