@@ -49,12 +49,61 @@ type fakeSW struct {
 	presignCalls int
 	presignLast  presignCall
 
+	// WS-29 recording fields. Each call appends to its slice; the
+	// "latest" lookup is from the tail.
+	versioningCalls  []versioningCall
+	lifecycleCalls   []lifecycleCall
+	objectLockCalls  []objectLockCall
+	restoreCalls     []restoreCall
+	deleteObjectCalls []deleteObjectCall
+
+	// listVersionsResult is returned by ListObjectVersions verbatim.
+	// Tests set this to drive the lifecycle evaluator worker.
+	listVersionsResult *seaweedfs.ObjectVersionsPage
+
 	createBucketErr error
 	deleteBucketErr error
 	mintErr         error
 	revokeErr       error
 	setQuotaErr     error
 	presignErr      error
+
+	// WS-29 error fields. nil = return success.
+	versioningErr error
+	lifecycleErr  error
+	objectLockErr error
+}
+
+// versioningCall records one SetBucketVersioning call.
+type versioningCall struct {
+	Bucket string
+	Status seaweedfs.VersioningStatus
+}
+
+// lifecycleCall records one SetBucketLifecycle call.
+type lifecycleCall struct {
+	Bucket string
+	Rules  []seaweedfs.LifecycleRule
+}
+
+// objectLockCall records one SetObjectLockConfiguration call.
+type objectLockCall struct {
+	Bucket string
+	Cfg    seaweedfs.ObjectLockConfig
+}
+
+// restoreCall records one RestoreObjectVersion call.
+type restoreCall struct {
+	Bucket    string
+	Key       string
+	VersionID string
+}
+
+// deleteObjectCall records one DeleteObject call.
+type deleteObjectCall struct {
+	Bucket    string
+	Key       string
+	VersionID string
 }
 
 type fakeBucketState struct {
@@ -219,6 +268,100 @@ func (f *fakeSW) PresignPutObject(_ context.Context, bucket, key string, ttl tim
 		Key:       key,
 		ExpiresAt: time.Now().Add(ttl),
 	}, nil
+}
+
+// --- WS-29 stubs: the in-memory fakeSW records the latest call so the
+// new lifecycle / versioning / object-lock integration tests can assert
+// the service layer pushed the right state to the provider. Returns
+// canned success unless an `*Err` field was set on the fake. ---
+
+func (f *fakeSW) SetBucketVersioning(_ context.Context, bucket string, status seaweedfs.VersioningStatus) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.versioningErr != nil {
+		return f.versioningErr
+	}
+	f.versioningCalls = append(f.versioningCalls, versioningCall{Bucket: bucket, Status: status})
+	return nil
+}
+
+func (f *fakeSW) GetBucketVersioning(_ context.Context, bucket string) (seaweedfs.VersioningStatus, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for i := len(f.versioningCalls) - 1; i >= 0; i-- {
+		if f.versioningCalls[i].Bucket == bucket {
+			return f.versioningCalls[i].Status, nil
+		}
+	}
+	return seaweedfs.VersioningStatusUnversioned, nil
+}
+
+func (f *fakeSW) ListObjectVersions(_ context.Context, bucket, prefix, keyMarker, versionIDMarker string, maxKeys int32) (*seaweedfs.ObjectVersionsPage, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.listVersionsResult, nil
+}
+
+func (f *fakeSW) RestoreObjectVersion(_ context.Context, bucket, key, versionID string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.restoreCalls = append(f.restoreCalls, restoreCall{Bucket: bucket, Key: key, VersionID: versionID})
+	return nil
+}
+
+func (f *fakeSW) SetBucketLifecycle(_ context.Context, bucket string, rules []seaweedfs.LifecycleRule) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.lifecycleErr != nil {
+		return f.lifecycleErr
+	}
+	f.lifecycleCalls = append(f.lifecycleCalls, lifecycleCall{Bucket: bucket, Rules: rules})
+	return nil
+}
+
+func (f *fakeSW) GetBucketLifecycle(_ context.Context, bucket string) ([]seaweedfs.LifecycleRule, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for i := len(f.lifecycleCalls) - 1; i >= 0; i-- {
+		if f.lifecycleCalls[i].Bucket == bucket {
+			return f.lifecycleCalls[i].Rules, nil
+		}
+	}
+	return nil, nil
+}
+
+func (f *fakeSW) SetObjectLockConfiguration(_ context.Context, bucket string, cfg seaweedfs.ObjectLockConfig) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.objectLockErr != nil {
+		return f.objectLockErr
+	}
+	f.objectLockCalls = append(f.objectLockCalls, objectLockCall{Bucket: bucket, Cfg: cfg})
+	return nil
+}
+
+func (f *fakeSW) GetObjectLockConfiguration(_ context.Context, bucket string) (seaweedfs.ObjectLockConfig, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for i := len(f.objectLockCalls) - 1; i >= 0; i-- {
+		if f.objectLockCalls[i].Bucket == bucket {
+			return f.objectLockCalls[i].Cfg, nil
+		}
+	}
+	return seaweedfs.ObjectLockConfig{}, nil
+}
+
+func (f *fakeSW) DeleteObject(_ context.Context, bucket, key, versionID string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.deleteObjectCalls = append(f.deleteObjectCalls, deleteObjectCall{Bucket: bucket, Key: key, VersionID: versionID})
+	return nil
+}
+
+func (f *fakeSW) AbortMultipartUpload(_ context.Context, bucket, key, uploadID string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return nil
 }
 
 // recorderBus is a minimal eventbus.Bus-shaped recorder.
