@@ -64,6 +64,17 @@ type (
 	StorageCredential    = gen.StorageCredential
 	StorageLifecycleRule = gen.StorageLifecycleRule
 
+	// IPPool / IPPoolRange / FloatingIP are the row aliases (WS-30,
+	// ADR-0037). Services reference these (e.g. database.IPPool)
+	// instead of gen.IpPool. The sqlc-generated names use the
+	// snake_case table name (IpPool / IpPoolRange / FloatingIp); the
+	// database package re-exports them under the idiomatic-Go form
+	// without changing the underlying type (these are type aliases,
+	// not wrappers).
+	IPPool       = gen.IpPool
+	IPPoolRange  = gen.IpPoolRange
+	FloatingIP   = gen.FloatingIp
+
 	// Price is the billing price catalog row alias (WS-17).
 	// LedgerEntry / UsageEvent / Receipt / UserBalance mirror the
 	// other billing tables so services can reference them without

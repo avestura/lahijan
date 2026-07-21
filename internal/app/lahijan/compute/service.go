@@ -26,6 +26,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"net/netip"
 
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/audit"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/rbac"
@@ -123,6 +124,21 @@ type Service struct {
 	// backup CRUD paths surface ErrCryptoRequired when the envelope is
 	// missing on a path that needs it.
 	crypto cryptoEnvelope
+	// ptrPublisher is the reverse-DNS auto-publish seam the WS-30
+	// floating-IP attach/detach path uses to write/remove PTR records
+	// into the operator's reverse zone (ADR-0037 sub-decision A).
+	// nil-appropriate in tests / when DNS module is disabled; the path
+	// silently no-ops.
+	ptrPublisher ptrPublisher
+	// meter is the WS-17 usage-meter seam the WS-30 floating-IP
+	// allocate/release path uses to start/stop per-IP-hour usage events
+	// (ADR-0037). nil-appropriate in tests; the path silently no-ops.
+	meter meter
+	// forwardNetwork is the name of the Incus network the best-effort
+	// forward is pushed to on attach (ADR-0037 sub-decision B). Empty
+	// means the operator topology does not allow a forward and the
+	// attach path records forward_push_status="unsupported".
+	forwardNetwork string
 }
 
 // cryptoEnvelope is the narrow seam the service needs from
@@ -139,7 +155,7 @@ type cryptoEnvelope interface {
 // sub-interfaces so the surface stays reviewable; the concrete
 // *incus.Provider satisfies the union.
 //
-//nolint:interfacebloat // intentional: 8 sub-interfaces composed by category; each is small
+//nolint:interfacebloat // intentional: 9 sub-interfaces composed by category; each is small
 type incusProvider interface {
 	incusProjectOps
 	incusInstanceOps
@@ -149,6 +165,7 @@ type incusProvider interface {
 	incusVolumeOps
 	incusExecOps
 	incusConsoleOps
+	incusForwardOps
 }
 
 // incusProjectOps covers tenant -> Incus project mapping + bootstrap.
@@ -181,6 +198,15 @@ type incusProfileOps interface {
 type incusNetworkOps interface {
 	CreateNetwork(ctx context.Context, project string, body incus.NetworksPost) error
 	DeleteNetwork(ctx context.Context, project, name string) error
+}
+
+// incusForwardOps covers the WS-30 best-effort network-forward push path
+// (ADR-0037 sub-decision B). The methods accept the project + network
+// name + listen address; the compute service resolves these from the
+// floating IP row + the configured forward network.
+type incusForwardOps interface {
+	CreateNetworkForward(ctx context.Context, project, network, listenAddress string, ports []map[string]any) error
+	DeleteNetworkForward(ctx context.Context, project, network, listenAddress string) error
 }
 
 // incusVolumeOps covers storage volume CRUD.
@@ -222,6 +248,32 @@ type eventBus interface {
 	Emit(ctx context.Context, e eventbus.Event) error
 }
 
+// ptrPublisher is the narrow seam the WS-30 floating-IP path needs from
+// the DNS module (ADR-0037 sub-decision A). PublishPTR writes a PTR
+// record for the IP into the operator's reverse zone; UnpublishPTR
+// removes it. Implementations are tenant-aware (the operator's reverse
+// zone is owned by some tenant; the adapter from dns.Service sets up
+// that tenant's context internally).
+//
+// nil-appropriate in tests; the path silently no-ops when the seam is
+// unset (e.g. when the DNS module is disabled in config).
+type ptrPublisher interface {
+	PublishPTR(ctx context.Context, zoneID uuid.UUID, ip netip.Addr, target string) error
+	UnpublishPTR(ctx context.Context, zoneID uuid.UUID, ip netip.Addr) error
+}
+
+// meter is the narrow seam the WS-30 floating-IP path needs from the
+// billing module (ADR-0037). StartIPUsage begins emitting per-IP-hour
+// usage events for the allocation; StopIPUsage stops them. The default
+// cadence mirrors the compute metering (once per minute).
+//
+// nil-appropriate in tests; the path silently no-ops when the seam is
+// unset (e.g. when billing is in ledger-only mode without metering).
+type meter interface {
+	StartIPUsage(ctx context.Context, tenantID uuid.UUID, ip netip.Addr, floatingIPID uuid.UUID) error
+	StopIPUsage(ctx context.Context, tenantID uuid.UUID, ip netip.Addr) error
+}
+
 // Config carries the few process-wide knobs the service needs.
 type Config struct {
 	// Quotas is the per-tenant resource cap. The defaults are documented in
@@ -241,6 +293,22 @@ type Config struct {
 	// ClusterPlacementDriver when providers.incus.placement.mode ==
 	// "cluster".
 	Placement PlacementDriver
+
+	// PTRPublisher is the reverse-DNS auto-publish seam (WS-30,
+	// ADR-0037). Nil-appropriate — the attach/detach path silently
+	// no-ops when unset.
+	PTRPublisher ptrPublisher
+
+	// Meter is the per-IP-hour usage-meter seam (WS-30, ADR-0037).
+	// Nil-appropriate — the allocate/release path silently no-ops when
+	// unset.
+	Meter meter
+
+	// ForwardNetwork is the Incus network name the best-effort forward
+	// is pushed to on attach (WS-30, ADR-0037 sub-decision B). Empty
+	// means the operator topology does not allow a forward and the
+	// attach path records forward_push_status="unsupported".
+	ForwardNetwork string
 }
 
 // New builds a Service. Every dependency is required except `bus`,
@@ -266,14 +334,17 @@ func New(
 		placement = NewLocalPlacementDriver()
 	}
 	return &Service{
-		provider:  provider,
-		repos:     r,
-		audit:     emitter,
-		bus:       bus,
-		policy:    policy,
-		quotas:    quotas,
-		placement: placement,
-		crypto:    cfg.Crypto,
+		provider:       provider,
+		repos:          r,
+		audit:          emitter,
+		bus:            bus,
+		policy:         policy,
+		quotas:         quotas,
+		placement:      placement,
+		crypto:         cfg.Crypto,
+		ptrPublisher:   cfg.PTRPublisher,
+		meter:          cfg.Meter,
+		forwardNetwork: cfg.ForwardNetwork,
 	}
 }
 
