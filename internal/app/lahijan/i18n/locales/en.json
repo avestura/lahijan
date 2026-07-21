@@ -295,11 +295,26 @@
   "billing.err_invalid_period": { "other": "The supplied period is malformed." },
   "billing.err_insufficient_balance": { "other": "Insufficient balance." },
   "billing.err_duplicate": { "other": "A row with this idempotency key already exists." },
+  "billing.err_payments_disabled": { "other": "The payment gateway is not enabled on this server." },
+  "billing.err_conflict": { "other": "The request conflicts with the current state." },
+  "billing.err_webhook_signature": { "other": "Webhook signature verification failed." },
 
   "audit.action_billing_balance_topup": { "other": "User balance topped up" },
   "audit.action_billing_balance_refund": { "other": "User balance refunded" },
   "audit.action_billing_balance_rebuild": { "other": "User balance cache rebuilt" },
   "audit.action_billing_price_upsert": { "other": "Price catalog updated" },
   "audit.action_billing_price_expire": { "other": "Price catalog entry expired" },
-  "audit.action_billing_receipt_generate": { "other": "Billing receipt generated" }
+  "audit.action_billing_receipt_generate": { "other": "Billing receipt generated" },
+  "audit.action_billing_plan_create": { "other": "Subscription plan created" },
+  "audit.action_billing_plan_update": { "other": "Subscription plan updated" },
+  "audit.action_billing_plan_delete": { "other": "Subscription plan deleted" },
+  "audit.action_billing_payment_method_add": { "other": "Payment method added" },
+  "audit.action_billing_payment_method_drop": { "other": "Payment method removed" },
+  "audit.action_billing_subscription_create": { "other": "Subscription created" },
+  "audit.action_billing_subscription_cancel": { "other": "Subscription canceled" },
+  "audit.action_billing_promo_code_create": { "other": "Promo code created" },
+  "audit.action_billing_promo_code_revoke": { "other": "Promo code revoked" },
+  "audit.action_billing_promo_code_redeem": { "other": "Promo code redeemed" },
+  "audit.action_billing_webhook_received": { "other": "Stripe webhook received" },
+  "audit.action_billing_webhook_applied": { "other": "Stripe webhook applied" }
 }

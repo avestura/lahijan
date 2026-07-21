@@ -378,6 +378,50 @@ func AuditGate(policy middleware.PolicyResolver) apigen.MiddlewareFunc {
 			return middleware.RequirePerm(policy, rbac.PermBillingReceiptRead)(c)
 		case isBillingMeReceiptsPath(path) && method == "POST":
 			return middleware.RequirePerm(policy, rbac.PermBillingReceiptCreate)(c)
+
+		// WS-27: payment gateway endpoints. The user-tree routes
+		// (/api/v1/billing/*) require the user-scoped perms; the
+		// admin-tree routes (/api/v1/admin/billing/{plans,promo-codes,
+		// webhook-events}/*) require the admin perms. The webhook
+		// receiver (/api/v1/webhooks/stripe) is UNAUTHENTICATED —
+		// signature verification is the auth, and the audit gate
+		// bypasses it entirely.
+		case isBillingWebhookPath(path) && method == "POST":
+			return c.Next()
+		case isBillingConfigPath(path) && method == "GET":
+			return c.Next()
+		case isBillingPublicPlansPath(path) && method == "GET":
+			return c.Next()
+		case isBillingPaymentMethodsPath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermBillingPaymentMethodManage)(c)
+		case isBillingPaymentMethodsPath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermBillingPaymentMethodManage)(c)
+		case isBillingPaymentMethodPath(path) && method == "DELETE":
+			return middleware.RequirePerm(policy, rbac.PermBillingPaymentMethodManage)(c)
+		case isBillingTopupPath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermBillingPaymentIntentCreate)(c)
+		case isBillingSubscriptionsPath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermBillingSubscriptionManage)(c)
+		case isBillingSubscriptionsPath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermBillingSubscriptionManage)(c)
+		case isBillingSubscriptionPath(path) && method == "DELETE":
+			return middleware.RequirePerm(policy, rbac.PermBillingSubscriptionManage)(c)
+		case isBillingRedeemPath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermBillingPromoCodeRedeem)(c)
+		case isBillingAdminPlansPath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermBillingPlanRead)(c)
+		case isBillingAdminPlanPushPath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermBillingPlanManage)(c)
+		case isBillingAdminPlansPath(path) && (method == "POST" || method == "PATCH" || method == "DELETE"):
+			return middleware.RequirePerm(policy, rbac.PermBillingPlanManage)(c)
+		case isBillingAdminPromoCodesPath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermBillingPromoCodeManage)(c)
+		case isBillingAdminPromoCodesPath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermBillingPromoCodeManage)(c)
+		case isBillingAdminPromoCodeRevokePath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermBillingPromoCodeManage)(c)
+		case isBillingAdminWebhookEventsPath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermBillingWebhookRead)(c)
 		}
 		return c.Next()
 	}
@@ -738,4 +782,89 @@ func isBillingAdminUserLedgerPath(path string) bool {
 // per-user balance (GET read or POST rebuild).
 func isBillingAdminUserBalancePath(path string) bool {
 	return strings.HasPrefix(path, "/api/v1/admin/users/") && strings.HasSuffix(path, "/balance")
+}
+
+// -------------------------------------------------------------------------
+// WS-27 payment-gateway path helpers.
+//
+// The user-tree has four roots:
+//   * /api/v1/billing/config                                 (public config)
+//   * /api/v1/billing/payment-methods*                       (card cache)
+//   * /api/v1/billing/topup                                  (one-shot PI)
+//   * /api/v1/billing/subscriptions*                         (recurring)
+//   * /api/v1/billing/redeem                                 (promo codes)
+//   * /api/v1/billing/plans                                  (public list)
+//
+// The admin-tree has three roots:
+//   * /api/v1/admin/billing/plans* + .../push
+//   * /api/v1/admin/billing/promo-codes* + .../revoke
+//   * /api/v1/admin/billing/webhook-events
+//
+// Plus the webhook receiver:
+//   * /api/v1/webhooks/stripe                                (no rbac)
+// -------------------------------------------------------------------------
+
+func isBillingConfigPath(path string) bool {
+	return path == "/api/v1/billing/config"
+}
+
+func isBillingPublicPlansPath(path string) bool {
+	return path == "/api/v1/billing/plans"
+}
+
+func isBillingPaymentMethodsPath(path string) bool {
+	return path == "/api/v1/billing/payment-methods"
+}
+
+func isBillingPaymentMethodPath(path string) bool {
+	return strings.HasPrefix(path, "/api/v1/billing/payment-methods/")
+}
+
+func isBillingTopupPath(path string) bool {
+	return path == "/api/v1/billing/topup"
+}
+
+func isBillingSubscriptionsPath(path string) bool {
+	return path == "/api/v1/billing/subscriptions"
+}
+
+func isBillingSubscriptionPath(path string) bool {
+	return strings.HasPrefix(path, "/api/v1/billing/subscriptions/")
+}
+
+func isBillingRedeemPath(path string) bool {
+	return path == "/api/v1/billing/redeem"
+}
+
+func isBillingAdminPlansPath(path string) bool {
+	if path == "/api/v1/admin/billing/plans" {
+		return true
+	}
+	if !strings.HasPrefix(path, "/api/v1/admin/billing/plans/") {
+		return false
+	}
+	return !isBillingAdminPlanPushPath(path)
+}
+
+func isBillingAdminPlanPushPath(path string) bool {
+	return strings.HasPrefix(path, "/api/v1/admin/billing/plans/") && strings.HasSuffix(path, "/push")
+}
+
+func isBillingAdminPromoCodesPath(path string) bool {
+	if path == "/api/v1/admin/billing/promo-codes" {
+		return true
+	}
+	return strings.HasPrefix(path, "/api/v1/admin/billing/promo-codes/")
+}
+
+func isBillingAdminPromoCodeRevokePath(path string) bool {
+	return strings.HasPrefix(path, "/api/v1/admin/billing/promo-codes/") && strings.HasSuffix(path, "/revoke")
+}
+
+func isBillingAdminWebhookEventsPath(path string) bool {
+	return path == "/api/v1/admin/billing/webhook-events"
+}
+
+func isBillingWebhookPath(path string) bool {
+	return path == "/api/v1/webhooks/stripe"
 }

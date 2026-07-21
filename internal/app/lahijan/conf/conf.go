@@ -947,3 +947,58 @@ func GetBootstrapAdminDisplayName() string {
 func GetBootstrapGeneratedPasswordLength() int {
 	return viper.GetInt("bootstrap.generatedPasswordLength")
 }
+
+// ===========================================================================
+// WS-27: payment gateway (Stripe). Opt-in: every accessor below is
+// safe to call with billing.stripe.enabled=false; the wire-up code in
+// program.Start guards the construction on the enabled flag.
+// ===========================================================================
+
+// GetBillingStripeEnabled reports whether the Stripe payment gateway is
+// wired into this process. When false (the default), program.Start
+// skips building the gateway and the payment endpoints degrade to 501
+// "feature disabled". ADR-0013 / ADR-0034.
+func GetBillingStripeEnabled() bool {
+	return viper.GetBool("billing.stripe.enabled")
+}
+
+// GetBillingStripeSecretKey returns the Stripe secret key (sk_*)
+// used for server-to-Stripe calls. SENSITIVE — never logged at debug
+// level. Sourced from env LAHIJAN_BILLING_STRIPE_SECRET_KEY.
+func GetBillingStripeSecretKey() string {
+	return viper.GetString("billing.stripe.secretKey")
+}
+
+// GetBillingStripePublishableKey returns the Stripe publishable key
+// (pk_*) the SPA uses to bootstrap Stripe.js. Sourced from env
+// LAHIJAN_BILLING_STRIPE_PUBLISHABLE_KEY. Safe to surface to the SPA.
+func GetBillingStripePublishableKey() string {
+	return viper.GetString("billing.stripe.publishableKey")
+}
+
+// GetBillingStripeWebhookSecret returns the `whsec_*` secret used to
+// verify Stripe webhook signatures. SENSITIVE — never logged. Sourced
+// from env LAHIJAN_BILLING_STRIPE_WEBHOOK_SECRET.
+func GetBillingStripeWebhookSecret() string {
+	return viper.GetString("billing.stripe.webhookSecret")
+}
+
+// GetBillingStripeAPIBaseURL returns the Stripe REST API origin. The
+// default targets production (https://api.stripe.com). Tests override
+// to point at an httptest server.
+func GetBillingStripeAPIBaseURL() string {
+	return viper.GetString("billing.stripe.apiBaseURL")
+}
+
+// GetBillingStripeAPIVersion pins the Stripe API version (sent as the
+// Stripe-Version header on every request). Empty means the driver
+// default applies (a recent stable version baked into the driver).
+func GetBillingStripeAPIVersion() string {
+	return viper.GetString("billing.stripe.apiVersion")
+}
+
+// GetBillingStripeRequestTimeoutSeconds returns the per-call timeout
+// for Stripe API calls. Default 30s.
+func GetBillingStripeRequestTimeoutSeconds() int {
+	return viper.GetInt("billing.stripe.requestTimeoutSeconds")
+}

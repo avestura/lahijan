@@ -132,6 +132,15 @@ type Server struct {
 	// emitter + the WASM event bus. Nil-appropriate when the billing
 	// subsystem is disabled; the handlers degrade to 501.
 	billingSvc *billing.Service
+
+	// WS-27: payment gateway deps. PaymentsSvc is the entrypoint every
+	// /api/v1/billing/* + /api/v1/admin/billing/{plans,promo-codes,
+	// webhook-events}* + /api/v1/webhooks/stripe handler talks to; it
+	// wraps the Stripe provider + the payment_methods / subscriptions
+	// / plans / promo_codes / webhook_events repos + the WS-17 billing
+	// service (for ledger writes). Nil-appropriate when the Stripe
+	// gateway is disabled; the handlers degrade to 501.
+	paymentsSvc *billing.PaymentsService
 }
 
 // ServerDeps carries the dependencies NewServer requires. Wire it once from
@@ -205,6 +214,11 @@ type ServerDeps struct {
 	// entrypoint every billing handler talks to. Nil-appropriate when
 	// the billing subsystem is disabled; the handlers degrade to 501.
 	BillingSvc *billing.Service
+
+	// WS-27: payment gateway deps. PaymentsSvc is the entrypoint every
+	// payment handler talks to. Nil-appropriate when the Stripe gateway
+	// is disabled; the handlers degrade to 501.
+	PaymentsSvc *billing.PaymentsService
 }
 
 // NewServer builds the API server with the given dependencies.
@@ -236,6 +250,7 @@ func NewServer(deps ServerDeps) *Server {
 		dnsSvc:          deps.DNSSvc,
 		storageSvc:      deps.StorageSvc,
 		billingSvc:      deps.BillingSvc,
+		paymentsSvc:     deps.PaymentsSvc,
 	}
 	if s.tracer == nil {
 		s.tracer = Tracer()
@@ -284,6 +299,19 @@ func (s *Server) SetStorageService(svc *storage.Service) {
 func (s *Server) SetBillingService(svc *billing.Service) {
 	s.billingSvc = svc
 }
+
+// SetPaymentsService mirrors SetBillingService for the WS-27 payment
+// gateway. Used by integration tests that wire a real (httptest-backed)
+// payments service after the standard newTestApp path has run.
+// Production code passes PaymentsSvc via ServerDeps at construction.
+func (s *Server) SetPaymentsService(svc *billing.PaymentsService) {
+	s.paymentsSvc = svc
+}
+
+// PaymentsService returns the wired payments service (or nil when the
+// Stripe gateway is disabled). Exported so integration tests can drive
+// the service layer directly.
+func (s *Server) PaymentsService() *billing.PaymentsService { return s.paymentsSvc }
 
 // BillingService returns the wired billing service (or nil when the
 // billing subsystem is disabled). Exported so integration tests can

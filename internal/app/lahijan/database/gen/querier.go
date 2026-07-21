@@ -26,12 +26,24 @@ type Querier interface {
 	ConsumeEmailToken(ctx context.Context, tokenHash string) (int64, error)
 	ConsumeMFAPendingSession(ctx context.Context, id uuid.UUID) error
 	ConsumeRecoveryCode(ctx context.Context, arg ConsumeRecoveryCodeParams) error
+	//: tenant-scoped.
+	CountActiveBillingPlans(ctx context.Context, tenantID uuid.UUID) (int64, error)
 	//: tenant-scoped
 	CountAuditLogForTenant(ctx context.Context, tenantID *uuid.UUID) (int64, error)
 	//: tenant-scoped; same filters as ListAuditLogForTenantFiltered, for pagination.
 	CountAuditLogForTenantFiltered(ctx context.Context, arg CountAuditLogForTenantFilteredParams) (int64, error)
 	//: admin-only; pagination counterpart to ListAuditLogGlobalFiltered.
 	CountAuditLogGlobalFiltered(ctx context.Context, arg CountAuditLogGlobalFilteredParams) (int64, error)
+	//: tenant-scoped
+	CountBillingPaymentMethodsForUser(ctx context.Context, arg CountBillingPaymentMethodsForUserParams) (int64, error)
+	//: tenant-scoped.
+	CountBillingPlans(ctx context.Context, tenantID uuid.UUID) (int64, error)
+	//: tenant-scoped
+	CountBillingPromoCodes(ctx context.Context, tenantID uuid.UUID) (int64, error)
+	//: tenant-scoped
+	CountBillingSubscriptionsForUser(ctx context.Context, arg CountBillingSubscriptionsForUserParams) (int64, error)
+	//: tenant-scoped.
+	CountBillingWebhookEvents(ctx context.Context, tenantID *uuid.UUID) (int64, error)
 	//: tenant-scoped
 	CountComputeBackupTargets(ctx context.Context, tenantID uuid.UUID) (int64, error)
 	//: tenant-scoped
@@ -98,6 +110,39 @@ type Querier interface {
 	// UPDATE and DELETE.
 	// ===========================================================================
 	CreateAuditLogOutcome(ctx context.Context, arg CreateAuditLogOutcomeParams) (AuditLogOutcome, error)
+	// ===========================================================================
+	// billing_payment_methods: per-user Stripe PaymentMethod cache.
+	// ===========================================================================
+	//: tenant-scoped
+	CreateBillingPaymentMethod(ctx context.Context, arg CreateBillingPaymentMethodParams) (BillingPaymentMethod, error)
+	// Billing queries (WS-27, ADR-0034). Payment gateway (Stripe) + plans +
+	// subscriptions + promo codes + webhook events. Five new tables, each
+	// tenant-scoped via WithTenant at the repository seam. The
+	// billing_webhook_events table is the idempotency boundary for Stripe
+	// webhook delivery; the UNIQUE on stripe_event_id is what makes a
+	// duplicate Stripe delivery a no-op rather than a double-credit.
+	// ===========================================================================
+	// billing_plans: admin-managed subscription catalog.
+	// ===========================================================================
+	//: tenant-scoped
+	CreateBillingPlan(ctx context.Context, arg CreateBillingPlanParams) (BillingPlan, error)
+	// ===========================================================================
+	// billing_promo_codes: admin-issued prepaid / promo codes.
+	// ===========================================================================
+	//: tenant-scoped
+	CreateBillingPromoCode(ctx context.Context, arg CreateBillingPromoCodeParams) (BillingPromoCode, error)
+	// ===========================================================================
+	// billing_subscriptions: per-user recurring subscriptions.
+	// ===========================================================================
+	//: tenant-scoped
+	CreateBillingSubscription(ctx context.Context, arg CreateBillingSubscriptionParams) (BillingSubscription, error)
+	// ===========================================================================
+	// billing_webhook_events: idempotent Stripe webhook ingestion log.
+	// ===========================================================================
+	//: NOT tenant-scoped at insert time — the webhook receiver has no
+	//: tenant in ctx (the Stripe call is unsigned user-context). The
+	//: tenant_id is resolved from the event payload + set explicitly.
+	CreateBillingWebhookEvent(ctx context.Context, arg CreateBillingWebhookEventParams) (BillingWebhookEvent, error)
 	// compute_backups (WS-25): tenant-scoped per-snapshot exported backups.
 	// Append-only for audit (no UPDATEs to size_bytes or status beyond the
 	// worker's progress); soft-deleted when the remote bytes are removed.
@@ -289,11 +334,19 @@ type Querier interface {
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	// user_webauthn_credentials: per-user WebAuthn / passkey credentials (WS-07c).
 	CreateWebauthnCredential(ctx context.Context, arg CreateWebauthnCredentialParams) (UserWebauthnCredential, error)
+	//: tenant-scoped; soft-delete. The row stays for audit history; the
+	//: Stripe PaymentMethod itself is detached at the gateway layer.
+	DeactivateBillingPaymentMethod(ctx context.Context, arg DeactivateBillingPaymentMethodParams) error
 	//: tenant-scoped; used by the zone-delete path so the FK cascade is
 	//: explicit even before the zone row goes away.
 	DeleteAllDNSRecordsInZone(ctx context.Context, arg DeleteAllDNSRecordsInZoneParams) error
 	// Used before regenerating a fresh batch: every old code is invalidated.
 	DeleteAllRecoveryCodesForUser(ctx context.Context, userID uuid.UUID) error
+	//: tenant-scoped; hard delete. Plans referenced by an existing
+	//: subscription row cannot be deleted (FK ON DELETE NO ACTION on
+	//: billing_subscriptions.plan_id); the service layer should
+	//: deactivate instead.
+	DeleteBillingPlan(ctx context.Context, arg DeleteBillingPlanParams) error
 	//: tenant-scoped
 	DeleteDNSRecord(ctx context.Context, arg DeleteDNSRecordParams) error
 	//: tenant-scoped
@@ -350,6 +403,26 @@ type Querier interface {
 	//: tenant). System events are visible from any tenant so operators can trace
 	//: auth flows even when scoped.
 	GetAuditLogForTenant(ctx context.Context, arg GetAuditLogForTenantParams) (AuditLog, error)
+	//: tenant-scoped
+	GetBillingPaymentMethodByID(ctx context.Context, arg GetBillingPaymentMethodByIDParams) (BillingPaymentMethod, error)
+	//: tenant-scoped
+	GetBillingPaymentMethodByStripeID(ctx context.Context, arg GetBillingPaymentMethodByStripeIDParams) (BillingPaymentMethod, error)
+	//: tenant-scoped
+	GetBillingPlanByID(ctx context.Context, arg GetBillingPlanByIDParams) (BillingPlan, error)
+	//: tenant-scoped
+	GetBillingPlanBySlug(ctx context.Context, arg GetBillingPlanBySlugParams) (BillingPlan, error)
+	//: tenant-scoped; used by the redeem path. Case-sensitive on the code
+	//: (admin normalises to uppercase at create time).
+	GetBillingPromoCodeByCode(ctx context.Context, arg GetBillingPromoCodeByCodeParams) (BillingPromoCode, error)
+	//: tenant-scoped
+	GetBillingPromoCodeByID(ctx context.Context, arg GetBillingPromoCodeByIDParams) (BillingPromoCode, error)
+	//: tenant-scoped
+	GetBillingSubscriptionByID(ctx context.Context, arg GetBillingSubscriptionByIDParams) (BillingSubscription, error)
+	//: tenant-scoped; used by the webhook handler to reconcile.
+	GetBillingSubscriptionByStripeID(ctx context.Context, arg GetBillingSubscriptionByStripeIDParams) (BillingSubscription, error)
+	//: NOT tenant-scoped — the idempotency check at receive time happens
+	//: before the tenant is known. The lookup is by the global Stripe id.
+	GetBillingWebhookEventByStripeID(ctx context.Context, stripeEventID string) (BillingWebhookEvent, error)
 	//: tenant-scoped
 	GetComputeBackupByID(ctx context.Context, arg GetComputeBackupByIDParams) (ComputeBackup, error)
 	//: tenant-scoped
@@ -525,6 +598,18 @@ type Querier interface {
 	// Bumps the failure counter; the caller checks if it crosses the threshold
 	// and calls RevokeMFAPendingSession to lock the user out.
 	IncMFAPendingSessionFailures(ctx context.Context, id uuid.UUID) error
+	//: tenant-scoped; atomically bumps times_used. The unique index on
+	//: (tenant, code) + the WHERE on this UPDATE guards the redeem race
+	//: (two concurrent redeems both pass the read check; only one UPDATE
+	//: finds the row not-yet-bumped past max_uses... actually both could
+	//: still bump, so the service layer wraps the read + the bump in a
+	//: tx with SELECT ... FOR UPDATE).
+	IncrementBillingPromoCodeUse(ctx context.Context, arg IncrementBillingPromoCodeUseParams) error
+	//: tenant-scoped; only active plans, for the public pricing page.
+	ListActiveBillingPlans(ctx context.Context, arg ListActiveBillingPlansParams) ([]BillingPlan, error)
+	//: tenant-scoped; used by the metering rollup to find users with
+	//: an overage discount.
+	ListActiveBillingSubscriptions(ctx context.Context, tenantID uuid.UUID) ([]BillingSubscription, error)
 	// Every subscription across every plugin. The bus uses this at emit
 	// time to find every plugin that matches the topic; the per-plugin
 	// filter then enqueues the dispatch.
@@ -543,6 +628,21 @@ type Querier interface {
 	ListAuditLogGlobalFiltered(ctx context.Context, arg ListAuditLogGlobalFilteredParams) ([]AuditLog, error)
 	//: newest-first so the caller can pick the latest as the current status.
 	ListAuditLogOutcomes(ctx context.Context, auditID uuid.UUID) ([]AuditLogOutcome, error)
+	//: tenant-scoped; used by the dedup check before attaching a new card.
+	ListBillingPaymentMethodsByFingerprint(ctx context.Context, arg ListBillingPaymentMethodsByFingerprintParams) ([]BillingPaymentMethod, error)
+	//: tenant-scoped; only active methods, newest first.
+	ListBillingPaymentMethodsForUser(ctx context.Context, arg ListBillingPaymentMethodsForUserParams) ([]BillingPaymentMethod, error)
+	//: tenant-scoped; ordered by sort_order then name so the pricing
+	//: page + dashboard render a stable list.
+	ListBillingPlans(ctx context.Context, arg ListBillingPlansParams) ([]BillingPlan, error)
+	//: tenant-scoped; ordered by created_at desc so the admin dashboard
+	//: shows recent codes first.
+	ListBillingPromoCodes(ctx context.Context, arg ListBillingPromoCodesParams) ([]BillingPromoCode, error)
+	//: tenant-scoped; only active + canceled (expired ones drop off the
+	//: dashboard after a configurable retention period).
+	ListBillingSubscriptionsForUser(ctx context.Context, arg ListBillingSubscriptionsForUserParams) ([]BillingSubscription, error)
+	//: tenant-scoped; admin ops + dashboard. Newest first.
+	ListBillingWebhookEvents(ctx context.Context, arg ListBillingWebhookEventsParams) ([]BillingWebhookEvent, error)
 	//: tenant-scoped
 	ListComputeBackupTargets(ctx context.Context, arg ListComputeBackupTargetsParams) ([]ComputeBackupTarget, error)
 	//: tenant-scoped
@@ -655,10 +755,20 @@ type Querier interface {
 	//: in the tenant whose balance is <= 0 and whose last_entry_at is older
 	//: than the supplied cutoff (so the grace period is enforced).
 	ListZeroBalances(ctx context.Context, arg ListZeroBalancesParams) ([]UserBalance, error)
+	//: tenant-scoped; flips status to applied + records the ledger ids.
+	MarkBillingWebhookEventApplied(ctx context.Context, arg MarkBillingWebhookEventAppliedParams) error
+	//: tenant-scoped; the event was already applied; record the dup.
+	MarkBillingWebhookEventDuplicate(ctx context.Context, arg MarkBillingWebhookEventDuplicateParams) error
+	//: tenant-scoped; records the error so the operator can investigate.
+	//: The webhook handler returns 5xx so Stripe retries.
+	MarkBillingWebhookEventFailed(ctx context.Context, arg MarkBillingWebhookEventFailedParams) error
 	//: tenant-scoped; records that the policy just ran at $3 and schedules the
 	//: next run at $3 + cadence (the caller computes the next_run_at). Used by
 	//: the take worker after every run, success or failure.
 	MarkComputeSnapshotPolicyRun(ctx context.Context, arg MarkComputeSnapshotPolicyRunParams) error
+	//: tenant-scoped; sets is_default=true on the supplied id. Pair with
+	//: ClearDefaultBillingPaymentMethod inside a tx.
+	MarkDefaultBillingPaymentMethod(ctx context.Context, arg MarkDefaultBillingPaymentMethodParams) error
 	RevokeAllRefreshTokensForUser(ctx context.Context, userID uuid.UUID) error
 	RevokeAllSessionsForUser(ctx context.Context, userID uuid.UUID) error
 	//: tenant-scoped
@@ -666,6 +776,8 @@ type Querier interface {
 	// storage service at bucket-delete time so no orphaned credentials outlive
 	// their parent bucket.
 	RevokeAllStorageCredentialsForBucket(ctx context.Context, arg RevokeAllStorageCredentialsForBucketParams) error
+	//: tenant-scoped; soft-delete. The code stays for audit; redeem refuses.
+	RevokeBillingPromoCode(ctx context.Context, arg RevokeBillingPromoCodeParams) error
 	// Invalidate every outstanding email token of a kind for a user (e.g. when
 	// re-issuing a verification token, revoke the previous one).
 	RevokeEmailTokensForUser(ctx context.Context, arg RevokeEmailTokensForUserParams) error
@@ -685,6 +797,12 @@ type Querier interface {
 	// separately by the storage service via the provider's RevokeCredentials
 	// so the access key stops signing requests immediately.
 	RevokeStorageCredential(ctx context.Context, arg RevokeStorageCredentialParams) error
+	//: tenant-scoped; records the Stripe Product + Price ids after the
+	//: admin pushes the plan to Stripe.
+	SetBillingPlanStripeIDs(ctx context.Context, arg SetBillingPlanStripeIDsParams) error
+	//: tenant-scoped; used by the webhook handler to flip status +
+	//: current_period_end + canceled_at.
+	SetBillingSubscriptionStatus(ctx context.Context, arg SetBillingSubscriptionStatusParams) error
 	//: tenant-scoped; records the final size + checksum + remote_location
 	//: after a successful upload. Only the worker calls this.
 	SetComputeBackupResult(ctx context.Context, arg SetComputeBackupResultParams) error
@@ -694,13 +812,13 @@ type Querier interface {
 	SetComputeBackupStatus(ctx context.Context, arg SetComputeBackupStatusParams) error
 	//: tenant-scoped; replaces the AES-GCM-encrypted credentials envelope.
 	SetComputeBackupTargetSecret(ctx context.Context, arg SetComputeBackupTargetSecretParams) error
-	//: tenant-scoped; records the resolved fingerprint after a successful
-	//: CreateInstance against Incus.
-	SetComputeInstanceImageFingerprint(ctx context.Context, arg SetComputeInstanceImageFingerprintParams) error
 	//: tenant-scoped; caches the Incus-reported cluster member (Location)
 	//: after a create / migrate / reconcile. NULL means the daemon is not
 	//: clustered or the instance has no placement metadata.
 	SetComputeInstanceClusterMember(ctx context.Context, arg SetComputeInstanceClusterMemberParams) error
+	//: tenant-scoped; records the resolved fingerprint after a successful
+	//: CreateInstance against Incus.
+	SetComputeInstanceImageFingerprint(ctx context.Context, arg SetComputeInstanceImageFingerprintParams) error
 	//: tenant-scoped; caches the last-known Incus status. Called after every
 	//: lifecycle transition (start/stop/restart/freeze) and on read-reconcile.
 	SetComputeInstanceStatus(ctx context.Context, arg SetComputeInstanceStatusParams) error
@@ -717,6 +835,10 @@ type Querier interface {
 	// Flips the cached is_dnssec_enabled flag. Called by the DNS service after
 	// a successful EnableDNSSEC / DisableDNSSEC against PDNS.
 	SetDNSZoneDNSSECCached(ctx context.Context, arg SetDNSZoneDNSSECCachedParams) error
+	//: tenant-scoped; clears any prior default for the user + sets the
+	//: new default. Two statements inside a tx; the service layer wraps
+	//: both in a single transaction.
+	SetDefaultBillingPaymentMethod(ctx context.Context, arg SetDefaultBillingPaymentMethodParams) error
 	//: tenant-scoped
 	SetMembershipRole(ctx context.Context, arg SetMembershipRoleParams) error
 	// Promote a plugin from pending -> active, or active -> disabled. The
@@ -788,6 +910,10 @@ type Querier interface {
 	// Updates the cached last_used_at column. Called by the access-log shipping
 	// pipeline (Phase 7) when SeaweedFS emits a per-identity access event.
 	TouchStorageCredentialLastUsed(ctx context.Context, arg TouchStorageCredentialLastUsedParams) error
+	//: tenant-scoped; replaces the user-editable fields. The Stripe
+	//: ids columns are updated separately via SetBillingPlanStripeIDs
+	//: so a config edit does not require re-pushing the plan to Stripe.
+	UpdateBillingPlan(ctx context.Context, arg UpdateBillingPlanParams) error
 	//: tenant-scoped; replaces the user-editable fields. The encrypted_secret_json
 	//: column is updated separately via SetComputeBackupTargetSecret so a config
 	//: edit does not require re-uploading the credentials.

@@ -76,6 +76,20 @@ const (
 	BillingRefund     = "billing.balance.refunded"
 )
 
+// Billing payments + subscriptions events (WS-27, ADR-0034). Emitted
+// by the payments service when money lands via Stripe or when a promo
+// code is redeemed. Plugins subscribe to drive "thank you" emails,
+// referral credits, or analytics pipelines.
+const (
+	BillingPaymentSucceeded      = "billing.payment.succeeded"
+	BillingPaymentMethodAdded    = "billing.payment_method.added"
+	BillingSubscriptionActivated = "billing.subscription.activated"
+	BillingSubscriptionCanceled  = "billing.subscription.canceled"
+	BillingPromoCodeRedeemed     = "billing.promo_code.redeemed"
+	BillingPlanCreated           = "billing.plan.created"
+	BillingPlanUpdated           = "billing.plan.updated"
+)
+
 // Plugin subsystem events (WS-10b/c). Emitted by the installer + the
 // host-function framework. Plugins can subscribe to react to other
 // plugins' lifecycles (e.g. a "kill switch" plugin that disables itself
@@ -111,6 +125,9 @@ func AllEvents() []string {
 		S3BucketCreated, S3BucketUpdated, S3BucketDeleted,
 		S3BucketQuotaSet, S3CredentialMinted, S3CredentialRevoked, S3PresignIssued,
 		BillingLowBalance, BillingToppedUp, BillingCharge, BillingRefund,
+		BillingPaymentSucceeded, BillingPaymentMethodAdded,
+		BillingSubscriptionActivated, BillingSubscriptionCanceled,
+		BillingPromoCodeRedeemed, BillingPlanCreated, BillingPlanUpdated,
 		PluginInstalled, PluginEnabled, PluginDisabled, PluginDeleted,
 		UserRegistered, UserLogin, UserLogout,
 	}

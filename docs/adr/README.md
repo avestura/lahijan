@@ -41,6 +41,7 @@ Accepted; corrections land as new ADRs that supersede prior ones.
 | [0031](./0031-novnc-web-console-proxy.md) | noVNC web console proxy — vendor assets under web/public/novnc/, in-process WebSocket bridge | Accepted | 2026-07-20 |
 | [0032](./0032-scheduled-snapshots-backups-design.md) | Scheduled snapshots + off-host backup design — River-driven schedules, BackupTarget interface, AES-GCM credential envelope | Accepted | 2026-07-21 |
 | [0033](./0033-multi-node-cluster-design.md) | Multi-node cluster design — PlacementDriver + ClusterPlacementDriver, Incus cluster API, advisory-locked scheduling | Accepted | 2026-07-21 |
+| [0034](./0034-payment-gateway-stripe-design.md) | Payment Gateway (Stripe) design — thin HTTP client, ledger-layered, webhook-first | Accepted | 2026-07-21 |
 
 ## How to write a new ADR
 

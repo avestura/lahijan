@@ -3720,9 +3720,508 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "501": { $ref: "#/components/responses/NotImplemented" }
 
-# ---------------------------------------------------------------------------
-# Components
-# ---------------------------------------------------------------------------
+  # -------------------------------------------------------------------------
+  # Payment gateway (WS-27, ADR-0034). User-facing endpoints under
+  # /api/v1/billing/* manage the caller's own payment methods +
+  # subscriptions + promo-code redemption. The webhook receiver is
+  # unauthenticated (signature verification is the auth). All amounts
+  # are integer centimals.
+  # -------------------------------------------------------------------------
+
+  /api/v1/billing/config:
+    get:
+      tags: [billing]
+      operationId: getBillingConfig
+      summary: Get the public payment-gateway config (publishable key)
+      description: |
+        Returns the Stripe publishable key the SPA needs to bootstrap
+        Stripe.js. Returns a "disabled" payload when the gateway is not
+        configured; the SPA hides the "Add card" affordance in that case.
+      responses:
+        "200":
+          description: The public gateway config.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingConfig" }
+
+  /api/v1/billing/payment-methods:
+    get:
+      tags: [billing]
+      operationId: listMyPaymentMethods
+      summary: List the caller's payment methods
+      description: |
+        Returns the caller's active Stripe PaymentMethods. Card data is
+        cached at attach time so the SPA can render without a Stripe
+        round-trip.
+      responses:
+        "200":
+          description: A page of payment methods.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingPaymentMethodPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+    post:
+      tags: [billing]
+      operationId: addMyPaymentMethod
+      summary: Attach a Stripe PaymentMethod to the caller's customer
+      description: |
+        Attaches the supplied Stripe PaymentMethod id (produced by the
+        SPA's SetupIntent flow) to the caller's Stripe Customer. The
+        card data is hosted by Stripe; Lahijan never sees the card
+        number. Returns the cached payment-method row.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BillingPaymentMethodAttachRequest" }
+      responses:
+        "201":
+          description: The attached payment method.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingPaymentMethod" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/billing/payment-methods/{paymentMethodId}:
+    delete:
+      tags: [billing]
+      operationId: removeMyPaymentMethod
+      summary: Detach the caller's payment method
+      description: |
+        Detaches the supplied PaymentMethod from the caller's Stripe
+        Customer. Soft-deletes the Lahijan-side cache row; the audit
+        history survives.
+      parameters:
+        - name: paymentMethodId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204":
+          description: Detached.
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/billing/topup:
+    post:
+      tags: [billing]
+      operationId: createMyTopupIntent
+      summary: Create a Stripe PaymentIntent for a balance top-up
+      description: |
+        Creates a Stripe PaymentIntent for the supplied amount. The SPA
+        confirms the intent via Stripe.js using the returned client
+        secret. The webhook receiver credits the ledger when the
+        `payment_intent.succeeded` event lands.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BillingTopupIntentRequest" }
+      responses:
+        "201":
+          description: The PaymentIntent.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingTopupIntent" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/billing/subscriptions:
+    get:
+      tags: [billing]
+      operationId: listMySubscriptions
+      summary: List the caller's subscriptions
+      description: |
+        Returns the caller's active + canceled subscriptions (expired
+        ones drop off the dashboard after a configurable retention
+        period).
+      responses:
+        "200":
+          description: A page of subscriptions.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingSubscriptionPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+    post:
+      tags: [billing]
+      operationId: createMySubscription
+      summary: Subscribe the caller to a plan
+      description: |
+        Creates a Stripe Subscription for the caller against the
+        supplied plan. The webhook receiver credits the included-quota
+        amount when the `invoice.paid` event lands.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BillingSubscriptionCreateRequest" }
+      responses:
+        "201":
+          description: The created subscription.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingSubscription" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/billing/subscriptions/{subscriptionId}:
+    delete:
+      tags: [billing]
+      operationId: cancelMySubscription
+      summary: Cancel the caller's subscription
+      description: |
+        Cancels the supplied subscription. `cancel_at_period_end=true`
+        keeps it active until the current period ends; false cancels
+        immediately.
+      parameters:
+        - name: subscriptionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: cancelAtPeriodEnd
+          in: query
+          required: false
+          schema: { type: boolean, default: true }
+      responses:
+        "204":
+          description: Canceled.
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/billing/redeem:
+    post:
+      tags: [billing]
+      operationId: redeemMyPromoCode
+      summary: Redeem a promo code
+      description: |
+        Credits the caller's ledger with the code's `credit_cents`.
+        Idempotent on (tenant, user, code) — a duplicate redeem returns
+        the same ledger row.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BillingPromoCodeRedeemRequest" }
+      responses:
+        "201":
+          description: The ledger entry created by the redeem.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingLedgerEntry" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: The code is exhausted, revoked, or expired.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/billing/plans:
+    get:
+      tags: [billing]
+      operationId: listBillingPlans
+      summary: List the tenant's subscription plans
+      description: |
+        Returns the tenant's subscription plans. Unauthenticated callers
+        (e.g. the marketing pricing page) may use this without a
+        session when the tenant allows it; otherwise requires
+        billing.plan.read.
+      parameters:
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+      responses:
+        "200":
+          description: A page of plans.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingPlanPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  # Admin: plan CRUD + push-to-stripe + promo codes + webhook events.
+
+  /api/v1/admin/billing/plans:
+    get:
+      tags: [billing, admin]
+      operationId: listAdminBillingPlans
+      summary: List the tenant's plans (admin)
+      description: |
+        Returns a paginated list of every plan (active + inactive) in
+        the tenant. Requires billing.plan.read.
+      parameters:
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+      responses:
+        "200":
+          description: A page of plans.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingPlanPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+    post:
+      tags: [billing, admin]
+      operationId: createAdminBillingPlan
+      summary: Create a subscription plan
+      description: |
+        Creates a billing_plan row scoped to the caller's tenant. The
+        Stripe Product + Price ids are NOT set here; the admin uses
+        POST /admin/billing/plans/{planId}/push to create them after
+        the plan exists. Requires billing.plan.manage. Emits an audit
+        event before + after.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BillingPlanCreateRequest" }
+      responses:
+        "201":
+          description: The created plan.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingPlan" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/admin/billing/plans/{planId}:
+    get:
+      tags: [billing, admin]
+      operationId: getAdminBillingPlan
+      summary: Get a plan (admin)
+      description: Returns the plan with the supplied id.
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The plan.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingPlan" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+    patch:
+      tags: [billing, admin]
+      operationId: updateAdminBillingPlan
+      summary: Update a plan
+      description: |
+        Replaces the user-editable fields of a plan. The Stripe ids
+        columns are updated separately via the push endpoint.
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BillingPlanUpdateRequest" }
+      responses:
+        "200":
+          description: The updated plan.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingPlan" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+    delete:
+      tags: [billing, admin]
+      operationId: deleteAdminBillingPlan
+      summary: Delete a plan
+      description: |
+        Hard-deletes a plan. Plans referenced by an existing
+        subscription cannot be deleted; deactivate via PATCH instead.
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204":
+          description: Deleted.
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: The plan is referenced by an existing subscription.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/admin/billing/plans/{planId}/push:
+    post:
+      tags: [billing, admin]
+      operationId: pushAdminBillingPlanToStripe
+      summary: Push a plan to Stripe (create Product + Price)
+      description: |
+        Creates the upstream Stripe Product + Price for the supplied
+        plan and records the ids on the local row. Idempotent: a
+        re-run with the plan already pushed is a no-op.
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The plan with the Stripe ids populated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingPlan" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/admin/billing/promo-codes:
+    get:
+      tags: [billing, admin]
+      operationId: listAdminBillingPromoCodes
+      summary: List the tenant's promo codes (admin)
+      description: |
+        Returns a paginated list of non-revoked promo codes. Requires
+        billing.promo_code.manage.
+      parameters:
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+      responses:
+        "200":
+          description: A page of promo codes.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingPromoCodePage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+    post:
+      tags: [billing, admin]
+      operationId: createAdminBillingPromoCode
+      summary: Create a promo code
+      description: |
+        Mints a billing_promo_codes row scoped to the caller's tenant.
+        Requires billing.promo_code.manage. Emits an audit event before
+        + after.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BillingPromoCodeCreateRequest" }
+      responses:
+        "201":
+          description: The created promo code.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingPromoCode" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/admin/billing/promo-codes/{promoCodeId}/revoke:
+    post:
+      tags: [billing, admin]
+      operationId: revokeAdminBillingPromoCode
+      summary: Revoke a promo code
+      description: Soft-deletes a promo code so future redeems refuse.
+      parameters:
+        - name: promoCodeId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204":
+          description: Revoked.
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/admin/billing/webhook-events:
+    get:
+      tags: [billing, admin]
+      operationId: listAdminBillingWebhookEvents
+      summary: List recent Stripe webhook events
+      description: |
+        Returns a paginated list of recently-received Stripe webhook
+        events for ops debugging. Requires billing.webhook.read.
+      parameters:
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+      responses:
+        "200":
+          description: A page of webhook events.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingWebhookEventPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/webhooks/stripe:
+    post:
+      tags: [billing]
+      operationId: stripeWebhook
+      summary: Stripe webhook receiver
+      description: |
+        Verifies the Stripe-Signature header against the raw body, then
+        dispatches the per-event-type handler. Idempotent on the Stripe
+        event id; a duplicate delivery is a no-op. Returns 200 on
+        success + on signature failure (Stripe treats non-2xx as
+        "retry"; we accept signed-but-malformed payloads so Stripe
+        doesn't retry forever).
+
+        This endpoint is UNAUTHENTICATED at the rbac layer — signature
+        verification is the auth.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        "200":
+          description: Received (always, to stop Stripe retries).
+        "400":
+          description: Malformed body or signature failure.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  # -------------------------------------------------------------------------
+  # Components
+  # -------------------------------------------------------------------------
 components:
   # Standard headers reused across auth responses.
   headers:
@@ -5995,3 +6494,390 @@ components:
       properties:
         periodStart: { type: string, format: date-time }
         periodEnd:   { type: string, format: date-time }
+
+    # -----------------------------------------------------------------
+    # Payment gateway schemas (WS-27, ADR-0034).
+    # -----------------------------------------------------------------
+
+    BillingConfig:
+      type: object
+      required: [enabled]
+      additionalProperties: false
+      properties:
+        enabled:
+          type: boolean
+          description: Whether the Stripe gateway is configured on this server.
+        publishableKey:
+          type: string
+          description: The Stripe publishable key (pk_*); empty when disabled.
+        liveMode:
+          type: boolean
+          description: Whether the gateway is in live (vs test) mode.
+
+    BillingPaymentMethod:
+      type: object
+      required: [id, tenantId, userId, stripePaymentMethodId, brand, last4, active, isDefault, createdAt, updatedAt]
+      additionalProperties: false
+      properties:
+        id:                    { type: string, format: uuid }
+        tenantId:              { type: string, format: uuid }
+        userId:                { type: string, format: uuid }
+        stripePaymentMethodId: { type: string }
+        brand:                 { type: string }
+        last4:                 { type: string }
+        fingerprint:           { type: string }
+        expMonth:
+          type: integer
+          nullable: true
+        expYear:
+          type: integer
+          nullable: true
+        active:                { type: boolean }
+        isDefault:             { type: boolean }
+        createdAt:             { type: string, format: date-time }
+        updatedAt:             { type: string, format: date-time }
+
+    BillingPaymentMethodPage:
+      type: object
+      required: [items, total, limit, offset]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/BillingPaymentMethod" }
+        total:  { type: integer }
+        limit:  { type: integer }
+        offset: { type: integer }
+
+    BillingPaymentMethodAttachRequest:
+      type: object
+      required: [stripePaymentMethodId]
+      additionalProperties: false
+      properties:
+        stripePaymentMethodId:
+          type: string
+          description: The pm_* id from the SPA's SetupIntent flow.
+        setDefault:
+          type: boolean
+          default: false
+          description: Make this the user's default card.
+
+    BillingTopupIntentRequest:
+      type: object
+      required: [amountCents]
+      additionalProperties: false
+      properties:
+        amountCents:
+          type: integer
+          format: int64
+          minimum: 1
+          description: The top-up amount in integer centimals.
+        currency:
+          type: string
+          default: usd
+          description: ISO 4217 currency code.
+
+    BillingTopupIntent:
+      type: object
+      required: [id, clientSecret, amountCents, currency]
+      additionalProperties: false
+      properties:
+        id:           { type: string, description: The Stripe PaymentIntent id (pi_*). }
+        clientSecret:
+          type: string
+          description: The Stripe client secret the SPA uses to confirm via Stripe.js.
+        amountCents:
+          type: integer
+          format: int64
+        currency: { type: string }
+
+    BillingPlan:
+      type: object
+      required: [id, tenantId, slug, name, interval, priceCents, currency, includedQuotaCents, overageDiscountPercent, active, sortOrder, createdAt, updatedAt]
+      additionalProperties: false
+      properties:
+        id:                    { type: string, format: uuid }
+        tenantId:              { type: string, format: uuid }
+        slug:                  { type: string }
+        name:                  { type: string }
+        description:           { type: string }
+        interval:
+          type: string
+          enum: [monthly, yearly]
+        priceCents:
+          type: integer
+          format: int64
+        currency:              { type: string }
+        includedQuotaCents:
+          type: integer
+          format: int64
+          description: Quota credited each interval on invoice.paid.
+        overageDiscountPercent:
+          type: integer
+          minimum: 0
+          maximum: 100
+        stripeProductId:
+          type: string
+          nullable: true
+          description: Stripe Product id; NULL until the plan is pushed to Stripe.
+        stripePriceId:
+          type: string
+          nullable: true
+        active:                { type: boolean }
+        sortOrder:             { type: integer }
+        createdAt:             { type: string, format: date-time }
+        updatedAt:             { type: string, format: date-time }
+
+    BillingPlanPage:
+      type: object
+      required: [items, total, limit, offset]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/BillingPlan" }
+        total:  { type: integer }
+        limit:  { type: integer }
+        offset: { type: integer }
+
+    BillingPlanCreateRequest:
+      type: object
+      required: [slug, name, interval, priceCents]
+      additionalProperties: false
+      properties:
+        slug:                   { type: string }
+        name:                   { type: string }
+        description:            { type: string }
+        interval:
+          type: string
+          enum: [monthly, yearly]
+        priceCents:
+          type: integer
+          format: int64
+          minimum: 0
+        currency:
+          type: string
+          default: USD
+        includedQuotaCents:
+          type: integer
+          format: int64
+          minimum: 0
+          default: 0
+        overageDiscountPercent:
+          type: integer
+          minimum: 0
+          maximum: 100
+          default: 0
+        active:
+          type: boolean
+          default: true
+        sortOrder:
+          type: integer
+          default: 0
+
+    BillingPlanUpdateRequest:
+      type: object
+      required: [name, interval, priceCents]
+      additionalProperties: false
+      properties:
+        name:                   { type: string }
+        description:            { type: string }
+        interval:
+          type: string
+          enum: [monthly, yearly]
+        priceCents:
+          type: integer
+          format: int64
+          minimum: 0
+        currency:               { type: string }
+        includedQuotaCents:
+          type: integer
+          format: int64
+          minimum: 0
+        overageDiscountPercent:
+          type: integer
+          minimum: 0
+          maximum: 100
+        active:                 { type: boolean }
+        sortOrder:              { type: integer }
+
+    BillingSubscription:
+      type: object
+      required: [id, tenantId, userId, planId, stripeSubscriptionId, interval, priceCents, currency, includedQuotaCents, overageDiscountPercent, status, createdAt, updatedAt]
+      additionalProperties: false
+      properties:
+        id:                     { type: string, format: uuid }
+        tenantId:               { type: string, format: uuid }
+        userId:                 { type: string, format: uuid }
+        planId:                 { type: string, format: uuid }
+        stripeSubscriptionId:   { type: string }
+        interval:               { type: string }
+        priceCents:
+          type: integer
+          format: int64
+          description: Frozen price snapshot at subscription time.
+        currency:               { type: string }
+        includedQuotaCents:
+          type: integer
+          format: int64
+          description: Frozen quota snapshot at subscription time.
+        overageDiscountPercent: { type: integer }
+        status:
+          type: string
+          enum: [active, canceled, expired]
+        currentPeriodEnd:
+          type: string
+          format: date-time
+          nullable: true
+        canceledAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:              { type: string, format: date-time }
+        updatedAt:              { type: string, format: date-time }
+
+    BillingSubscriptionPage:
+      type: object
+      required: [items, total, limit, offset]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/BillingSubscription" }
+        total:  { type: integer }
+        limit:  { type: integer }
+        offset: { type: integer }
+
+    BillingSubscriptionCreateRequest:
+      type: object
+      required: [planId]
+      additionalProperties: false
+      properties:
+        planId: { type: string, format: uuid }
+        paymentMethodId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Optional cached payment-method row id to use as the subscription's default.
+
+    BillingPromoCode:
+      type: object
+      required: [id, tenantId, code, creditCents, currency, timesUsed, createdBy, createdAt, updatedAt]
+      additionalProperties: false
+      properties:
+        id:            { type: string, format: uuid }
+        tenantId:      { type: string, format: uuid }
+        code:          { type: string }
+        note:          { type: string }
+        creditCents:   { type: integer, format: int64 }
+        currency:      { type: string }
+        appliesToPlanId:
+          type: string
+          format: uuid
+          nullable: true
+        maxUses:
+          type: integer
+          nullable: true
+          description: Max redeems platform-wide. NULL = unlimited; 1 = single-use.
+        timesUsed:     { type: integer }
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        revokedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdBy:     { type: string, format: uuid }
+        createdAt:     { type: string, format: date-time }
+        updatedAt:     { type: string, format: date-time }
+
+    BillingPromoCodePage:
+      type: object
+      required: [items, total, limit, offset]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/BillingPromoCode" }
+        total:  { type: integer }
+        limit:  { type: integer }
+        offset: { type: integer }
+
+    BillingPromoCodeCreateRequest:
+      type: object
+      required: [code, creditCents]
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+          description: URL-safe code; uppercase by convention.
+        note:            { type: string }
+        creditCents:
+          type: integer
+          format: int64
+          minimum: 1
+        currency:
+          type: string
+          default: USD
+        appliesToPlanId:
+          type: string
+          format: uuid
+          nullable: true
+        maxUses:
+          type: integer
+          nullable: true
+          minimum: 1
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    BillingPromoCodeRedeemRequest:
+      type: object
+      required: [code]
+      additionalProperties: false
+      properties:
+        code: { type: string }
+
+    BillingWebhookEvent:
+      type: object
+      required: [id, stripeEventId, stripeEventType, status, receivedAt]
+      additionalProperties: false
+      properties:
+        id:                { type: string, format: uuid }
+        tenantId:
+          type: string
+          format: uuid
+          nullable: true
+        stripeEventId:     { type: string }
+        stripeEventType:   { type: string }
+        stripeApiVersion:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [received, applied, duplicate, failed]
+        ledgerEntryIds:
+          type: array
+          items: { type: string, format: uuid }
+        errorMessage:
+          type: string
+          nullable: true
+        receivedAt:        { type: string, format: date-time }
+        processedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    BillingWebhookEventPage:
+      type: object
+      required: [items, total, limit, offset]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/BillingWebhookEvent" }
+        total:  { type: integer }
+        limit:  { type: integer }
+        offset: { type: integer }

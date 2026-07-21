@@ -95,6 +95,119 @@ type AuditLogOutcome struct {
 	CreatedAt time.Time       `json:"created_at"`
 }
 
+// Per-user Stripe PaymentMethod cache (WS-27). Card data is hosted by Stripe.
+type BillingPaymentMethod struct {
+	ID       uuid.UUID `json:"id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+	UserID   uuid.UUID `json:"user_id"`
+	// Stripe PaymentMethod id (pm_*). Useless without the merchant key.
+	StripePaymentMethodID string `json:"stripe_payment_method_id"`
+	// AES-GCM-encrypted Stripe Customer id (cus_*).
+	EncryptedStripeCustomerID string `json:"encrypted_stripe_customer_id"`
+	Brand                     string `json:"brand"`
+	Last4                     string `json:"last4"`
+	// Stripe card fingerprint; used to detect duplicates without storing PII.
+	Fingerprint string          `json:"fingerprint"`
+	ExpMonth    *int32          `json:"exp_month"`
+	ExpYear     *int32          `json:"exp_year"`
+	IsDefault   bool            `json:"is_default"`
+	Active      bool            `json:"active"`
+	Metadata    json.RawMessage `json:"metadata"`
+	CreatedAt   time.Time       `json:"created_at"`
+	UpdatedAt   time.Time       `json:"updated_at"`
+}
+
+// Admin-managed subscription plans (WS-27, ADR-0034). One row per recurring billing product.
+type BillingPlan struct {
+	ID       uuid.UUID `json:"id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+	// URL-safe name; unique within the tenant.
+	Slug        string `json:"slug"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	// Billing interval: monthly | yearly.
+	Interval string `json:"interval"`
+	// Recurring price in integer centimals.
+	PriceCents int64  `json:"price_cents"`
+	Currency   string `json:"currency"`
+	// Quota credited each interval on invoice.paid.
+	IncludedQuotaCents int64 `json:"included_quota_cents"`
+	// Percent discount on metered usage while active (0..100).
+	OverageDiscountPercent int32 `json:"overage_discount_percent"`
+	// Stripe Product id; NULL until the plan is pushed to Stripe.
+	StripeProductID *string `json:"stripe_product_id"`
+	// Stripe Price id; NULL until the plan is pushed to Stripe.
+	StripePriceID *string   `json:"stripe_price_id"`
+	Active        bool      `json:"active"`
+	SortOrder     int32     `json:"sort_order"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
+// Admin-issued prepaid / promo codes (WS-27). Redeem credits the user's ledger.
+type BillingPromoCode struct {
+	ID       uuid.UUID `json:"id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+	// URL-safe code; unique within the tenant. Uppercase by convention.
+	Code string `json:"code"`
+	Note string `json:"note"`
+	// Credit applied on redeem, in integer centimals.
+	CreditCents     int64      `json:"credit_cents"`
+	Currency        string     `json:"currency"`
+	AppliesToPlanID *uuid.UUID `json:"applies_to_plan_id"`
+	// Max redeems platform-wide. NULL = unlimited; 1 = single-use.
+	MaxUses *int32 `json:"max_uses"`
+	// Current redeem count. Atomically incremented on redeem.
+	TimesUsed int32      `json:"times_used"`
+	ExpiresAt *time.Time `json:"expires_at"`
+	RevokedAt *time.Time `json:"revoked_at"`
+	CreatedBy uuid.UUID  `json:"created_by"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+}
+
+// Per-user recurring subscriptions (WS-27). Lifecycle: active -> canceled -> expired.
+type BillingSubscription struct {
+	ID       uuid.UUID `json:"id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+	UserID   uuid.UUID `json:"user_id"`
+	PlanID   uuid.UUID `json:"plan_id"`
+	// Stripe Subscription id (sub_*). Unique platform-wide.
+	StripeSubscriptionID string `json:"stripe_subscription_id"`
+	Interval             string `json:"interval"`
+	// Frozen price snapshot at subscription time; admin plan edits do not alter this.
+	PriceCents int64  `json:"price_cents"`
+	Currency   string `json:"currency"`
+	// Frozen included-quota snapshot at subscription time.
+	IncludedQuotaCents int64 `json:"included_quota_cents"`
+	// Frozen overage-discount snapshot at subscription time.
+	OverageDiscountPercent int32           `json:"overage_discount_percent"`
+	Status                 string          `json:"status"`
+	CurrentPeriodEnd       *time.Time      `json:"current_period_end"`
+	CanceledAt             *time.Time      `json:"canceled_at"`
+	Metadata               json.RawMessage `json:"metadata"`
+	CreatedAt              time.Time       `json:"created_at"`
+	UpdatedAt              time.Time       `json:"updated_at"`
+}
+
+// Idempotent Stripe webhook ingestion log (WS-27, ADR-0034).
+type BillingWebhookEvent struct {
+	ID       uuid.UUID  `json:"id"`
+	TenantID *uuid.UUID `json:"tenant_id"`
+	// Stripe event id; UNIQUE = idempotency boundary.
+	StripeEventID    string          `json:"stripe_event_id"`
+	StripeEventType  string          `json:"stripe_event_type"`
+	StripeApiVersion *string         `json:"stripe_api_version"`
+	Payload          json.RawMessage `json:"payload"`
+	// received | applied | duplicate | failed.
+	Status string `json:"status"`
+	// Ledger entries produced by this event (rarely >1).
+	LedgerEntryIds []uuid.UUID `json:"ledger_entry_ids"`
+	ErrorMessage   *string     `json:"error_message"`
+	ReceivedAt     time.Time   `json:"received_at"`
+	ProcessedAt    *time.Time  `json:"processed_at"`
+}
+
 // Per-snapshot exported backups. Append-only for audit; soft-deleted on remote delete.
 type ComputeBackup struct {
 	ID         uuid.UUID `json:"id"`
@@ -172,8 +285,7 @@ type ComputeInstance struct {
 	CreatedAt   time.Time       `json:"created_at"`
 	UpdatedAt   time.Time       `json:"updated_at"`
 	DeletedAt   *time.Time      `json:"deleted_at"`
-	// Incus cluster member hosting the instance. NULL = single-node daemon.
-	// Reconciled from the daemon on read. (WS-26)
+	// Incus cluster member hosting the instance. NULL = single-node daemon. Reconciled from the daemon on read.
 	ClusterMember *string `json:"cluster_member"`
 }
 

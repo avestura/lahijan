@@ -140,6 +140,15 @@ var defaultRoles = []RoleDefinition{
 			PermBillingReceiptCreate,
 			PermBillingPriceCatalogRead,
 			PermBillingPriceCatalogUpdate,
+			// billing payments + subscriptions (WS-27, admin = full)
+			PermBillingPaymentMethodManage,
+			PermBillingPaymentIntentCreate,
+			PermBillingSubscriptionManage,
+			PermBillingPromoCodeRedeem,
+			PermBillingPlanManage,
+			PermBillingPlanRead,
+			PermBillingPromoCodeManage,
+			PermBillingWebhookRead,
 			// plugins
 			PermPluginsRead,
 			PermPluginsInstall,
@@ -205,6 +214,12 @@ var defaultRoles = []RoleDefinition{
 			PermBillingLedgerRead,
 			PermBillingReceiptRead,
 			PermBillingPriceCatalogRead,
+			// billing payments + subscriptions (WS-27, member = own only)
+			PermBillingPaymentMethodManage,
+			PermBillingPaymentIntentCreate,
+			PermBillingSubscriptionManage,
+			PermBillingPromoCodeRedeem,
+			PermBillingPlanRead,
 			// plugins (read-only)
 			PermPluginsRead,
 		},
@@ -241,6 +256,8 @@ var defaultRoles = []RoleDefinition{
 			PermBillingLedgerRead,
 			PermBillingReceiptRead,
 			PermBillingPriceCatalogRead,
+			// billing payments + subscriptions (WS-27 reads)
+			PermBillingPlanRead,
 			// plugins reads
 			PermPluginsRead,
 		},

@@ -307,7 +307,15 @@ func (r *ComputeInstancesRepository) ListByClusterMember(
 	if err != nil {
 		return nil, err
 	}
+	// sqlc regenerated ClusterMember as *string (the column is nullable,
+	// so a non-pointer comparison would never match NULL). Wrap the
+	// caller's string in a pointer; an empty input becomes nil so the
+	// query degrades to "every instance without a cluster member".
+	var memberPtr *string
+	if member != "" {
+		memberPtr = &member
+	}
 	return r.q.ListComputeInstancesByClusterMember(ctx, gen.ListComputeInstancesByClusterMemberParams{
-		TenantID: tenantID, ClusterMember: member,
+		TenantID: tenantID, ClusterMember: memberPtr,
 	})
 }

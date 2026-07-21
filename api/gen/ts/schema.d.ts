@@ -2449,6 +2449,374 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/billing/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the public payment-gateway config (publishable key)
+         * @description Returns the Stripe publishable key the SPA needs to bootstrap
+         *     Stripe.js. Returns a "disabled" payload when the gateway is not
+         *     configured; the SPA hides the "Add card" affordance in that case.
+         */
+        get: operations["getBillingConfig"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/payment-methods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the caller's payment methods
+         * @description Returns the caller's active Stripe PaymentMethods. Card data is
+         *     cached at attach time so the SPA can render without a Stripe
+         *     round-trip.
+         */
+        get: operations["listMyPaymentMethods"];
+        put?: never;
+        /**
+         * Attach a Stripe PaymentMethod to the caller's customer
+         * @description Attaches the supplied Stripe PaymentMethod id (produced by the
+         *     SPA's SetupIntent flow) to the caller's Stripe Customer. The
+         *     card data is hosted by Stripe; Lahijan never sees the card
+         *     number. Returns the cached payment-method row.
+         */
+        post: operations["addMyPaymentMethod"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/payment-methods/{paymentMethodId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Detach the caller's payment method
+         * @description Detaches the supplied PaymentMethod from the caller's Stripe
+         *     Customer. Soft-deletes the Lahijan-side cache row; the audit
+         *     history survives.
+         */
+        delete: operations["removeMyPaymentMethod"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/topup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a Stripe PaymentIntent for a balance top-up
+         * @description Creates a Stripe PaymentIntent for the supplied amount. The SPA
+         *     confirms the intent via Stripe.js using the returned client
+         *     secret. The webhook receiver credits the ledger when the
+         *     `payment_intent.succeeded` event lands.
+         */
+        post: operations["createMyTopupIntent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the caller's subscriptions
+         * @description Returns the caller's active + canceled subscriptions (expired
+         *     ones drop off the dashboard after a configurable retention
+         *     period).
+         */
+        get: operations["listMySubscriptions"];
+        put?: never;
+        /**
+         * Subscribe the caller to a plan
+         * @description Creates a Stripe Subscription for the caller against the
+         *     supplied plan. The webhook receiver credits the included-quota
+         *     amount when the `invoice.paid` event lands.
+         */
+        post: operations["createMySubscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/subscriptions/{subscriptionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Cancel the caller's subscription
+         * @description Cancels the supplied subscription. `cancel_at_period_end=true`
+         *     keeps it active until the current period ends; false cancels
+         *     immediately.
+         */
+        delete: operations["cancelMySubscription"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/redeem": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Redeem a promo code
+         * @description Credits the caller's ledger with the code's `credit_cents`.
+         *     Idempotent on (tenant, user, code) — a duplicate redeem returns
+         *     the same ledger row.
+         */
+        post: operations["redeemMyPromoCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the tenant's subscription plans
+         * @description Returns the tenant's subscription plans. Unauthenticated callers
+         *     (e.g. the marketing pricing page) may use this without a
+         *     session when the tenant allows it; otherwise requires
+         *     billing.plan.read.
+         */
+        get: operations["listBillingPlans"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/billing/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the tenant's plans (admin)
+         * @description Returns a paginated list of every plan (active + inactive) in
+         *     the tenant. Requires billing.plan.read.
+         */
+        get: operations["listAdminBillingPlans"];
+        put?: never;
+        /**
+         * Create a subscription plan
+         * @description Creates a billing_plan row scoped to the caller's tenant. The
+         *     Stripe Product + Price ids are NOT set here; the admin uses
+         *     POST /admin/billing/plans/{planId}/push to create them after
+         *     the plan exists. Requires billing.plan.manage. Emits an audit
+         *     event before + after.
+         */
+        post: operations["createAdminBillingPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/billing/plans/{planId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a plan (admin)
+         * @description Returns the plan with the supplied id.
+         */
+        get: operations["getAdminBillingPlan"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a plan
+         * @description Hard-deletes a plan. Plans referenced by an existing
+         *     subscription cannot be deleted; deactivate via PATCH instead.
+         */
+        delete: operations["deleteAdminBillingPlan"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a plan
+         * @description Replaces the user-editable fields of a plan. The Stripe ids
+         *     columns are updated separately via the push endpoint.
+         */
+        patch: operations["updateAdminBillingPlan"];
+        trace?: never;
+    };
+    "/api/v1/admin/billing/plans/{planId}/push": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Push a plan to Stripe (create Product + Price)
+         * @description Creates the upstream Stripe Product + Price for the supplied
+         *     plan and records the ids on the local row. Idempotent: a
+         *     re-run with the plan already pushed is a no-op.
+         */
+        post: operations["pushAdminBillingPlanToStripe"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/billing/promo-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the tenant's promo codes (admin)
+         * @description Returns a paginated list of non-revoked promo codes. Requires
+         *     billing.promo_code.manage.
+         */
+        get: operations["listAdminBillingPromoCodes"];
+        put?: never;
+        /**
+         * Create a promo code
+         * @description Mints a billing_promo_codes row scoped to the caller's tenant.
+         *     Requires billing.promo_code.manage. Emits an audit event before
+         *     + after.
+         */
+        post: operations["createAdminBillingPromoCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/billing/promo-codes/{promoCodeId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke a promo code
+         * @description Soft-deletes a promo code so future redeems refuse.
+         */
+        post: operations["revokeAdminBillingPromoCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/billing/webhook-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List recent Stripe webhook events
+         * @description Returns a paginated list of recently-received Stripe webhook
+         *     events for ops debugging. Requires billing.webhook.read.
+         */
+        get: operations["listAdminBillingWebhookEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/stripe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stripe webhook receiver
+         * @description Verifies the Stripe-Signature header against the raw body, then
+         *     dispatches the per-event-type handler. Idempotent on the Stripe
+         *     event id; a duplicate delivery is a no-op. Returns 200 on
+         *     success + on signature failure (Stripe treats non-2xx as
+         *     "retry"; we accept signed-but-malformed payloads so Stripe
+         *     doesn't retry forever).
+         *
+         *     This endpoint is UNAUTHENTICATED at the rbac layer — signature
+         *     verification is the auth.
+         */
+        post: operations["stripeWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3940,6 +4308,262 @@ export interface components {
             periodStart: string;
             /** Format: date-time */
             periodEnd: string;
+        };
+        BillingConfig: {
+            /** @description Whether the Stripe gateway is configured on this server. */
+            enabled: boolean;
+            /** @description The Stripe publishable key (pk_*); empty when disabled. */
+            publishableKey?: string;
+            /** @description Whether the gateway is in live (vs test) mode. */
+            liveMode?: boolean;
+        };
+        BillingPaymentMethod: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            tenantId: string;
+            /** Format: uuid */
+            userId: string;
+            stripePaymentMethodId: string;
+            brand: string;
+            last4: string;
+            fingerprint?: string;
+            expMonth?: number | null;
+            expYear?: number | null;
+            active: boolean;
+            isDefault: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        BillingPaymentMethodPage: {
+            items: components["schemas"]["BillingPaymentMethod"][];
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        BillingPaymentMethodAttachRequest: {
+            /** @description The pm_* id from the SPA's SetupIntent flow. */
+            stripePaymentMethodId: string;
+            /**
+             * @description Make this the user's default card.
+             * @default false
+             */
+            setDefault: boolean;
+        };
+        BillingTopupIntentRequest: {
+            /**
+             * Format: int64
+             * @description The top-up amount in integer centimals.
+             */
+            amountCents: number;
+            /**
+             * @description ISO 4217 currency code.
+             * @default usd
+             */
+            currency: string;
+        };
+        BillingTopupIntent: {
+            /** @description The Stripe PaymentIntent id (pi_*). */
+            id: string;
+            /** @description The Stripe client secret the SPA uses to confirm via Stripe.js. */
+            clientSecret: string;
+            /** Format: int64 */
+            amountCents: number;
+            currency: string;
+        };
+        BillingPlan: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            tenantId: string;
+            slug: string;
+            name: string;
+            description?: string;
+            /** @enum {string} */
+            interval: "monthly" | "yearly";
+            /** Format: int64 */
+            priceCents: number;
+            currency: string;
+            /**
+             * Format: int64
+             * @description Quota credited each interval on invoice.paid.
+             */
+            includedQuotaCents: number;
+            overageDiscountPercent: number;
+            /** @description Stripe Product id; NULL until the plan is pushed to Stripe. */
+            stripeProductId?: string | null;
+            stripePriceId?: string | null;
+            active: boolean;
+            sortOrder: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        BillingPlanPage: {
+            items: components["schemas"]["BillingPlan"][];
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        BillingPlanCreateRequest: {
+            slug: string;
+            name: string;
+            description?: string;
+            /** @enum {string} */
+            interval: "monthly" | "yearly";
+            /** Format: int64 */
+            priceCents: number;
+            /** @default USD */
+            currency: string;
+            /**
+             * Format: int64
+             * @default 0
+             */
+            includedQuotaCents: number;
+            /** @default 0 */
+            overageDiscountPercent: number;
+            /** @default true */
+            active: boolean;
+            /** @default 0 */
+            sortOrder: number;
+        };
+        BillingPlanUpdateRequest: {
+            name: string;
+            description?: string;
+            /** @enum {string} */
+            interval: "monthly" | "yearly";
+            /** Format: int64 */
+            priceCents: number;
+            currency?: string;
+            /** Format: int64 */
+            includedQuotaCents?: number;
+            overageDiscountPercent?: number;
+            active?: boolean;
+            sortOrder?: number;
+        };
+        BillingSubscription: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            tenantId: string;
+            /** Format: uuid */
+            userId: string;
+            /** Format: uuid */
+            planId: string;
+            stripeSubscriptionId: string;
+            interval: string;
+            /**
+             * Format: int64
+             * @description Frozen price snapshot at subscription time.
+             */
+            priceCents: number;
+            currency: string;
+            /**
+             * Format: int64
+             * @description Frozen quota snapshot at subscription time.
+             */
+            includedQuotaCents: number;
+            overageDiscountPercent: number;
+            /** @enum {string} */
+            status: "active" | "canceled" | "expired";
+            /** Format: date-time */
+            currentPeriodEnd?: string | null;
+            /** Format: date-time */
+            canceledAt?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        BillingSubscriptionPage: {
+            items: components["schemas"]["BillingSubscription"][];
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        BillingSubscriptionCreateRequest: {
+            /** Format: uuid */
+            planId: string;
+            /**
+             * Format: uuid
+             * @description Optional cached payment-method row id to use as the subscription's default.
+             */
+            paymentMethodId?: string | null;
+        };
+        BillingPromoCode: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            tenantId: string;
+            code: string;
+            note?: string;
+            /** Format: int64 */
+            creditCents: number;
+            currency: string;
+            /** Format: uuid */
+            appliesToPlanId?: string | null;
+            /** @description Max redeems platform-wide. NULL = unlimited; 1 = single-use. */
+            maxUses?: number | null;
+            timesUsed: number;
+            /** Format: date-time */
+            expiresAt?: string | null;
+            /** Format: date-time */
+            revokedAt?: string | null;
+            /** Format: uuid */
+            createdBy: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        BillingPromoCodePage: {
+            items: components["schemas"]["BillingPromoCode"][];
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        BillingPromoCodeCreateRequest: {
+            /** @description URL-safe code; uppercase by convention. */
+            code: string;
+            note?: string;
+            /** Format: int64 */
+            creditCents: number;
+            /** @default USD */
+            currency: string;
+            /** Format: uuid */
+            appliesToPlanId?: string | null;
+            maxUses?: number | null;
+            /** Format: date-time */
+            expiresAt?: string | null;
+        };
+        BillingPromoCodeRedeemRequest: {
+            code: string;
+        };
+        BillingWebhookEvent: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            tenantId?: string | null;
+            stripeEventId: string;
+            stripeEventType: string;
+            stripeApiVersion?: string | null;
+            /** @enum {string} */
+            status: "received" | "applied" | "duplicate" | "failed";
+            ledgerEntryIds?: string[];
+            errorMessage?: string | null;
+            /** Format: date-time */
+            receivedAt: string;
+            /** Format: date-time */
+            processedAt?: string | null;
+        };
+        BillingWebhookEventPage: {
+            items: components["schemas"]["BillingWebhookEvent"][];
+            total: number;
+            limit: number;
+            offset: number;
         };
     };
     responses: {
@@ -8056,6 +8680,586 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             501: components["responses"]["NotImplemented"];
+        };
+    };
+    getBillingConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The public gateway config. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingConfig"];
+                };
+            };
+        };
+    };
+    listMyPaymentMethods: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of payment methods. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingPaymentMethodPage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    addMyPaymentMethod: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingPaymentMethodAttachRequest"];
+            };
+        };
+        responses: {
+            /** @description The attached payment method. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingPaymentMethod"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    removeMyPaymentMethod: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                paymentMethodId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Detached. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    createMyTopupIntent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingTopupIntentRequest"];
+            };
+        };
+        responses: {
+            /** @description The PaymentIntent. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingTopupIntent"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    listMySubscriptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of subscriptions. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingSubscriptionPage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    createMySubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingSubscriptionCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description The created subscription. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingSubscription"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    cancelMySubscription: {
+        parameters: {
+            query?: {
+                cancelAtPeriodEnd?: boolean;
+            };
+            header?: never;
+            path: {
+                subscriptionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Canceled. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    redeemMyPromoCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingPromoCodeRedeemRequest"];
+            };
+        };
+        responses: {
+            /** @description The ledger entry created by the redeem. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingLedgerEntry"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The code is exhausted, revoked, or expired. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    listBillingPlans: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of items to return (1..200). */
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Number of items to skip for pagination. */
+                offset?: components["parameters"]["PageOffset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of plans. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingPlanPage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    listAdminBillingPlans: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of items to return (1..200). */
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Number of items to skip for pagination. */
+                offset?: components["parameters"]["PageOffset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of plans. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingPlanPage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    createAdminBillingPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingPlanCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description The created plan. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingPlan"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    getAdminBillingPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                planId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The plan. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingPlan"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    deleteAdminBillingPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                planId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The plan is referenced by an existing subscription. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    updateAdminBillingPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                planId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingPlanUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description The updated plan. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingPlan"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    pushAdminBillingPlanToStripe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                planId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The plan with the Stripe ids populated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingPlan"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    listAdminBillingPromoCodes: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of items to return (1..200). */
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Number of items to skip for pagination. */
+                offset?: components["parameters"]["PageOffset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of promo codes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingPromoCodePage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    createAdminBillingPromoCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingPromoCodeCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description The created promo code. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingPromoCode"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    revokeAdminBillingPromoCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                promoCodeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revoked. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    listAdminBillingWebhookEvents: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of items to return (1..200). */
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Number of items to skip for pagination. */
+                offset?: components["parameters"]["PageOffset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of webhook events. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingWebhookEventPage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    stripeWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Received (always, to stop Stripe retries). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Malformed body or signature failure. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
 }
