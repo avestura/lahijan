@@ -373,6 +373,35 @@ type ComputeStorageVolume struct {
 	DeletedAt   *time.Time      `json:"deleted_at"`
 }
 
+// Per-tenant domain registrations through Lahijan registrar resale (WS-28).
+type DnsDomain struct {
+	ID       uuid.UUID `json:"id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+	// Canonical domain name with trailing dot; lowercase enforced by the service.
+	Name string `json:"name"`
+	// Lifecycle status: available | registered | pending | transferred | expired.
+	Status string `json:"status"`
+	// Registrar back-office order id; cross-tenant unique when non-empty.
+	RegistrarOrderID string `json:"registrar_order_id"`
+	ContactProfileID string `json:"contact_profile_id"`
+	// Optional FK into dns_zones; set when Lahijan auto-provisions the zone.
+	ZoneID *uuid.UUID `json:"zone_id"`
+	// Frozen price snapshot at registration time; integer cents.
+	PriceCents  int64  `json:"price_cents"`
+	Currency    string `json:"currency"`
+	PeriodYears int32  `json:"period_years"`
+	// Ledger row that paid for the registration; NULL for search results.
+	LedgerEntryID *uuid.UUID `json:"ledger_entry_id"`
+	// Cached DNSSEC state; flipped by the registrar service when DS-at-parent + zone-sign both succeed.
+	IsDnssecEnabled bool `json:"is_dnssec_enabled"`
+	// Off by default; when true the future renewal job charges + renews before expiry.
+	IsAutoRenew  bool       `json:"is_auto_renew"`
+	RegisteredAt *time.Time `json:"registered_at"`
+	ExpiresAt    *time.Time `json:"expires_at"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+}
+
 // Per-tenant DNS records. Mirrors PDNS RRsets; the DNS service (WS-15) upserts on every change.
 type DnsRecord struct {
 	ID       uuid.UUID `json:"id"`

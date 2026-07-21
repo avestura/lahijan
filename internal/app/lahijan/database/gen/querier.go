@@ -66,6 +66,8 @@ type Querier interface {
 	CountComputeSnapshotsByInstance(ctx context.Context, arg CountComputeSnapshotsByInstanceParams) (int64, error)
 	//: tenant-scoped
 	CountComputeStorageVolumes(ctx context.Context, tenantID uuid.UUID) (int64, error)
+	//: tenant-scoped
+	CountDNSDomains(ctx context.Context, tenantID uuid.UUID) (int64, error)
 	//: tenant-scoped; the quota checker uses this to enforce the per-tenant
 	//: record cap.
 	CountDNSRecordsForTenant(ctx context.Context, tenantID uuid.UUID) (int64, error)
@@ -185,6 +187,17 @@ type Querier interface {
 	// compute_storage_volumes (WS-14): tenant-scoped custom storage volumes.
 	//: tenant-scoped
 	CreateComputeStorageVolume(ctx context.Context, arg CreateComputeStorageVolumeParams) (ComputeStorageVolume, error)
+	// DNS domains: tenant-scoped domain registration lifecycle (WS-28).
+	//
+	// Every query that reads user data is tenant-scoped via WithTenant
+	// (database/tenant.go). The two exceptions are:
+	//
+	//   * GetDNSDomainByOrderGlobal — admin-only cross-tenant lookup used by
+	//     the registrar service to deduplicate orders across tenants.
+	//   * SetDNSDomainStatus — internal lifecycle transition; the service
+	//     layer asserts tenant scope before calling.
+	//: tenant-scoped
+	CreateDNSDomain(ctx context.Context, arg CreateDNSDomainParams) (DnsDomain, error)
 	// dns_records (WS-15): tenant-scoped records for the DNS module. Every
 	// query here filters by tenant_id (set by WithTenant at the repo seam).
 	// The zone_id is always supplied by the caller (the DNS service resolves
@@ -348,6 +361,8 @@ type Querier interface {
 	//: deactivate instead.
 	DeleteBillingPlan(ctx context.Context, arg DeleteBillingPlanParams) error
 	//: tenant-scoped
+	DeleteDNSDomain(ctx context.Context, arg DeleteDNSDomainParams) error
+	//: tenant-scoped
 	DeleteDNSRecord(ctx context.Context, arg DeleteDNSRecordParams) error
 	//: tenant-scoped
 	DeleteDNSZone(ctx context.Context, arg DeleteDNSZoneParams) error
@@ -462,6 +477,17 @@ type Querier interface {
 	//: tenant-scoped; returns the one "effective_to IS NULL" row for the
 	//: (tenant, resource, unit) tuple, or no rows if none is currently in effect.
 	GetCurrentPrice(ctx context.Context, arg GetCurrentPriceParams) (Price, error)
+	//: tenant-scoped
+	GetDNSDomainByID(ctx context.Context, arg GetDNSDomainByIDParams) (DnsDomain, error)
+	//: tenant-scoped
+	// Returns the row only when the canonical domain name is owned by the
+	// tenant in ctx. Used by the registrar service on every privileged call
+	// to enforce tenant isolation at the repository seam.
+	GetDNSDomainByName(ctx context.Context, arg GetDNSDomainByNameParams) (DnsDomain, error)
+	// Admin-only path: no tenant scoping. Used by the registrar service's
+	// cross-tenant "is this order already tracked?" lookup at registration
+	// time so two tenants cannot double-claim the same order id.
+	GetDNSDomainByOrderGlobal(ctx context.Context, registrarOrderID string) (DnsDomain, error)
 	//: tenant-scoped
 	GetDNSRecordByID(ctx context.Context, arg GetDNSRecordByIDParams) (DnsRecord, error)
 	//: tenant-scoped; looks up by (zone_id, name, type, content) — the unique
@@ -681,6 +707,12 @@ type Querier interface {
 	ListComputeSnapshotsByInstance(ctx context.Context, arg ListComputeSnapshotsByInstanceParams) ([]ComputeSnapshot, error)
 	//: tenant-scoped
 	ListComputeStorageVolumes(ctx context.Context, arg ListComputeStorageVolumesParams) ([]ComputeStorageVolume, error)
+	//: tenant-scoped
+	ListDNSDomains(ctx context.Context, arg ListDNSDomainsParams) ([]DnsDomain, error)
+	//: tenant-scoped
+	// Returns every domain in the tenant whose expires_at is before the
+	// supplied timestamp. Used by the future renewal job to drive auto-renew.
+	ListDNSDomainsExpiringBefore(ctx context.Context, arg ListDNSDomainsExpiringBeforeParams) ([]DnsDomain, error)
 	//: tenant-scoped; returns every RR in the zone, ordered by (name, type)
 	//: so the UI renders a stable list.
 	ListDNSRecordsInZone(ctx context.Context, arg ListDNSRecordsInZoneParams) ([]DnsRecord, error)
@@ -829,6 +861,30 @@ type Querier interface {
 	//: tenant-scoped; records the daemon-reported size after a successful
 	//: CreateSnapshot call.
 	SetComputeSnapshotSize(ctx context.Context, arg SetComputeSnapshotSizeParams) error
+	//: tenant-scoped
+	SetDNSDomainAutoRenew(ctx context.Context, arg SetDNSDomainAutoRenewParams) error
+	//: tenant-scoped
+	// Flips the cached is_dnssec_enabled flag. Called by the registrar
+	// service after a successful publish-DS + sign-zone composition.
+	SetDNSDomainDNSSECCached(ctx context.Context, arg SetDNSDomainDNSSECCachedParams) error
+	//: tenant-scoped
+	// Updates the registered_at + expires_at timestamps after a successful
+	// register / renew. registered_at is only set when the caller supplies
+	// a non-null value (renew keeps the original registration date).
+	SetDNSDomainExpiry(ctx context.Context, arg SetDNSDomainExpiryParams) error
+	//: tenant-scoped
+	// Records the ledger entry id that paid for the registration / renewal.
+	SetDNSDomainLedgerLink(ctx context.Context, arg SetDNSDomainLedgerLinkParams) error
+	//: tenant-scoped
+	// Records the registrar's order id after a successful register / transfer.
+	SetDNSDomainOrderID(ctx context.Context, arg SetDNSDomainOrderIDParams) error
+	//: tenant-scoped
+	// Flips the lifecycle status. Called by the registrar service after a
+	// register / renew / transfer / expire transition.
+	SetDNSDomainStatus(ctx context.Context, arg SetDNSDomainStatusParams) error
+	//: tenant-scoped
+	// Links the row to the auto-provisioned dns_zones row.
+	SetDNSDomainZoneLink(ctx context.Context, arg SetDNSDomainZoneLinkParams) error
 	//: tenant-scoped
 	SetDNSZoneAXFRCached(ctx context.Context, arg SetDNSZoneAXFRCachedParams) error
 	//: tenant-scoped

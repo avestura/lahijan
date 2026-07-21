@@ -35,6 +35,7 @@ type Repos struct {
 	PluginHTTPHandlers    *PluginHTTPHandlersRepository
 	DNSZones              *DNSZonesRepository
 	DNSRecords            *DNSRecordsRepository
+	DNSDomains            *DNSDomainsRepository
 	ComputeInstances      *ComputeInstancesRepository
 	ComputeImages         *ComputeImagesRepository
 	ComputeProfiles       *ComputeProfilesRepository
@@ -102,6 +103,7 @@ func NewRepos(db DBTX) *Repos {
 		PluginHTTPHandlers:      NewPluginHTTPHandlersRepository(q),
 		DNSZones:                NewDNSZonesRepository(q),
 		DNSRecords:              NewDNSRecordsRepository(q),
+		DNSDomains:              NewDNSDomainsRepository(q),
 		ComputeInstances:        NewComputeInstancesRepository(q),
 		ComputeImages:           NewComputeImagesRepository(q),
 		ComputeProfiles:         NewComputeProfilesRepository(q),
