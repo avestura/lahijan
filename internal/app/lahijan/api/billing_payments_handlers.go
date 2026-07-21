@@ -132,15 +132,15 @@ func (s *Server) ListMyPaymentMethods(c *fiber.Ctx) error {
 
 // AddMyPaymentMethod handles POST /api/v1/billing/payment-methods.
 func (s *Server) AddMyPaymentMethod(c *fiber.Ctx) error {
+	if s.paymentsSvc == nil {
+		return SendError(c, fiber.StatusNotImplemented, CodeNotImplemented, paymentsDisabledMsg(c), nil)
+	}
 	var req apigen.BillingPaymentMethodAttachRequest
 	if err := c.BodyParser(&req); err != nil {
 		return SendBadRequest(c, i18n.T(c.UserContext(), "auth.err_bad_request", nil), nil)
 	}
 	if req.StripePaymentMethodId == "" {
 		return SendBadRequest(c, i18n.T(c.UserContext(), "billing.err_bad_request", nil), nil)
-	}
-	if s.paymentsSvc == nil {
-		return SendError(c, fiber.StatusNotImplemented, CodeNotImplemented, paymentsDisabledMsg(c), nil)
 	}
 	tid, uid, ok := s.billingTenantAndUser(c)
 	if !ok {
@@ -175,15 +175,15 @@ func (s *Server) RemoveMyPaymentMethod(c *fiber.Ctx, paymentMethodID openapi_typ
 
 // CreateMyTopupIntent handles POST /api/v1/billing/topup.
 func (s *Server) CreateMyTopupIntent(c *fiber.Ctx) error {
+	if s.paymentsSvc == nil {
+		return SendError(c, fiber.StatusNotImplemented, CodeNotImplemented, paymentsDisabledMsg(c), nil)
+	}
 	var req apigen.BillingTopupIntentRequest
 	if err := c.BodyParser(&req); err != nil {
 		return SendBadRequest(c, i18n.T(c.UserContext(), "auth.err_bad_request", nil), nil)
 	}
 	if req.AmountCents <= 0 {
 		return SendBadRequest(c, i18n.T(c.UserContext(), "billing.err_invalid_amount", nil), nil)
-	}
-	if s.paymentsSvc == nil {
-		return SendError(c, fiber.StatusNotImplemented, CodeNotImplemented, paymentsDisabledMsg(c), nil)
 	}
 	tid, uid, ok := s.billingTenantAndUser(c)
 	if !ok {
@@ -234,12 +234,12 @@ func (s *Server) ListMySubscriptions(c *fiber.Ctx) error {
 
 // CreateMySubscription handles POST /api/v1/billing/subscriptions.
 func (s *Server) CreateMySubscription(c *fiber.Ctx) error {
+	if s.paymentsSvc == nil {
+		return SendError(c, fiber.StatusNotImplemented, CodeNotImplemented, paymentsDisabledMsg(c), nil)
+	}
 	var req apigen.BillingSubscriptionCreateRequest
 	if err := c.BodyParser(&req); err != nil {
 		return SendBadRequest(c, i18n.T(c.UserContext(), "auth.err_bad_request", nil), nil)
-	}
-	if s.paymentsSvc == nil {
-		return SendError(c, fiber.StatusNotImplemented, CodeNotImplemented, paymentsDisabledMsg(c), nil)
 	}
 	tid, uid, ok := s.billingTenantAndUser(c)
 	if !ok {
@@ -279,19 +279,19 @@ func (s *Server) CancelMySubscription(c *fiber.Ctx, subscriptionID openapi_types
 
 // RedeemMyPromoCode handles POST /api/v1/billing/redeem.
 func (s *Server) RedeemMyPromoCode(c *fiber.Ctx) error {
-	var req apigen.BillingPromoCodeRedeemRequest
-	if err := c.BodyParser(&req); err != nil {
-		return SendBadRequest(c, i18n.T(c.UserContext(), "auth.err_bad_request", nil), nil)
-	}
-	if req.Code == "" {
-		return SendBadRequest(c, i18n.T(c.UserContext(), "billing.err_bad_request", nil), nil)
-	}
 	if s.paymentsSvc == nil {
 		// Promo codes are a billing-only feature; they don't need the
 		// Stripe gateway. The handler still needs a payments service
 		// today (the redeem path is implemented there); fall back to
 		// 501 when the payments service is not wired.
 		return SendError(c, fiber.StatusNotImplemented, CodeNotImplemented, paymentsDisabledMsg(c), nil)
+	}
+	var req apigen.BillingPromoCodeRedeemRequest
+	if err := c.BodyParser(&req); err != nil {
+		return SendBadRequest(c, i18n.T(c.UserContext(), "auth.err_bad_request", nil), nil)
+	}
+	if req.Code == "" {
+		return SendBadRequest(c, i18n.T(c.UserContext(), "billing.err_bad_request", nil), nil)
 	}
 	tid, uid, ok := s.billingTenantAndUser(c)
 	if !ok {
@@ -360,12 +360,12 @@ func (s *Server) ListAdminBillingPlans(c *fiber.Ctx, params apigen.ListAdminBill
 
 // CreateAdminBillingPlan handles POST /api/v1/admin/billing/plans.
 func (s *Server) CreateAdminBillingPlan(c *fiber.Ctx) error {
+	if s.paymentsSvc == nil {
+		return SendError(c, fiber.StatusNotImplemented, CodeNotImplemented, paymentsDisabledMsg(c), nil)
+	}
 	var req apigen.BillingPlanCreateRequest
 	if err := c.BodyParser(&req); err != nil {
 		return SendBadRequest(c, i18n.T(c.UserContext(), "auth.err_bad_request", nil), nil)
-	}
-	if s.paymentsSvc == nil {
-		return SendError(c, fiber.StatusNotImplemented, CodeNotImplemented, paymentsDisabledMsg(c), nil)
 	}
 	tid, uid, ok := s.billingTenantAndUser(c)
 	if !ok {
@@ -407,12 +407,12 @@ func (s *Server) GetAdminBillingPlan(c *fiber.Ctx, planID openapi_types.UUID) er
 
 // UpdateAdminBillingPlan handles PATCH /api/v1/admin/billing/plans/{planId}.
 func (s *Server) UpdateAdminBillingPlan(c *fiber.Ctx, planID openapi_types.UUID) error {
+	if s.paymentsSvc == nil {
+		return SendError(c, fiber.StatusNotImplemented, CodeNotImplemented, paymentsDisabledMsg(c), nil)
+	}
 	var req apigen.BillingPlanUpdateRequest
 	if err := c.BodyParser(&req); err != nil {
 		return SendBadRequest(c, i18n.T(c.UserContext(), "auth.err_bad_request", nil), nil)
-	}
-	if s.paymentsSvc == nil {
-		return SendError(c, fiber.StatusNotImplemented, CodeNotImplemented, paymentsDisabledMsg(c), nil)
 	}
 	tid, uid, ok := s.billingTenantAndUser(c)
 	if !ok {
@@ -498,12 +498,12 @@ func (s *Server) ListAdminBillingPromoCodes(c *fiber.Ctx, params apigen.ListAdmi
 
 // CreateAdminBillingPromoCode handles POST /api/v1/admin/billing/promo-codes.
 func (s *Server) CreateAdminBillingPromoCode(c *fiber.Ctx) error {
+	if s.paymentsSvc == nil {
+		return SendError(c, fiber.StatusNotImplemented, CodeNotImplemented, paymentsDisabledMsg(c), nil)
+	}
 	var req apigen.BillingPromoCodeCreateRequest
 	if err := c.BodyParser(&req); err != nil {
 		return SendBadRequest(c, i18n.T(c.UserContext(), "auth.err_bad_request", nil), nil)
-	}
-	if s.paymentsSvc == nil {
-		return SendError(c, fiber.StatusNotImplemented, CodeNotImplemented, paymentsDisabledMsg(c), nil)
 	}
 	tid, uid, ok := s.billingTenantAndUser(c)
 	if !ok {
@@ -592,7 +592,14 @@ func (s *Server) StripeWebhook(c *fiber.Ctx) error {
 	sig := c.Get("Stripe-Signature")
 	body := c.Body()
 	if err := s.paymentsSvc.HandleWebhook(c.UserContext(), sig, body); err != nil {
-		return SendBadRequest(c, i18n.T(c.UserContext(), "billing.err_webhook_signature", nil), nil)
+		// Return the verifier's error in the response details so the
+		// operator (and tests) can see WHY verification failed. The
+		// outer envelope still uses the localised message.
+		return SendBadRequest(c, i18n.T(c.UserContext(), "billing.err_webhook_signature", nil), map[string]any{
+			"detail":       err.Error(),
+			"body_len":     len(body),
+			"sig_present":  sig != "",
+		})
 	}
 	return c.SendStatus(fiber.StatusOK)
 }

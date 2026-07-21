@@ -45,6 +45,12 @@ import (
 func newPaymentsTestApp(t *testing.T) (*testApp, *billing.Service, *billing.PaymentsService, *fake.Server) {
 	t.Helper()
 	ta, billingSvc := newBillingTestApp(t)
+	// RBAC catalog seed is required for billingSeedUserInTenant to
+	// resolve roles. Each test that needs a user-with-role calls this
+	// helper; the seed is idempotent so it's safe to call per-test.
+	seedCtx, seedCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer seedCancel()
+	require.NoError(t, rbac.SeedOnce(seedCtx, ta.repos))
 	srv := fake.NewServer(t)
 	gw, err := stripe.NewClient(stripe.Config{
 		HTTPClient:    &http.Client{},
@@ -181,13 +187,20 @@ func TestStripeWebhook_HappyPath(t *testing.T) {
 		},
 	}
 	body, sig := srv.EmitWebhookBytes(ev)
+	// Sanity-check: the verifier should accept this signature.
+	_, vErr := stripe.VerifyWebhook(srv.WebhookSecret, sig, body, time.Now(), 0)
+	require.NoError(t, vErr, "signature must verify locally before we send to the handler")
 	req := httptest.NewRequest("POST", "/api/v1/webhooks/stripe", bytes.NewReader(body))
 	req.Header.Set("Stripe-Signature", sig)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := ta.app.Test(req, -1)
 	require.NoError(t, err)
 	defer resp.Body.Close()
-	assert.Equal(t, 200, resp.StatusCode, "happy-path webhook -> 200")
+	if !assert.Equal(t, 200, resp.StatusCode, "happy-path webhook -> 200") {
+		// On failure, print the body so the operator can see what went wrong.
+		raw, _ := io.ReadAll(resp.Body)
+		t.Logf("webhook response body: %s", string(raw))
+	}
 
 	// Verify the ledger row landed.
 	rctx := database.WithTenant(context.Background(), tid)
@@ -218,14 +231,25 @@ func TestStripeWebhook_AdminListEvents(t *testing.T) {
 	tid := tenant.ID
 	uid, _ := billingSeedUserInTenant(t, ta, tid.String(), rbac.RoleTenantAdmin)
 
-	// Emit + deliver one event.
+	// Emit + deliver one event with the tenant_id in metadata so the
+	// list query (which is tenant-scoped via the admin user's session)
+	// can find it.
 	ev := stripe.Event{
 		ID:         "evt_list_" + uuid.NewString(),
 		Type:       "invoice.paid",
 		APIVersion: "2024-06-20",
 		Created:    time.Now().Unix(),
 		Data: stripe.EventData{
-			Object: jsonPI(t, stripe.Invoice{ID: "in_1", Total: 0, Currency: "usd", Status: "paid"}),
+			Object: jsonPI(t, stripe.Invoice{
+				ID:       "in_1",
+				Total:    0,
+				Currency: "usd",
+				Status:   "paid",
+				Metadata: map[string]any{
+					"tenant_id": tid.String(),
+					"user_id":   uid.String(),
+				},
+			}),
 		},
 	}
 	body, sig := srv.EmitWebhookBytes(ev)
@@ -260,12 +284,12 @@ func TestStripeWebhook_RBACGate(t *testing.T) {
 	ta, _, _, _ := newPaymentsTestApp(t)
 	tenant := testutil.NewTenant(context.Background(), t, testutil.Pool())
 	tid := tenant.ID
-	_, _ = billingSeedUserInTenant(t, ta, tid.String(), rbac.RoleTenantViewer)
+	uid, _ := billingSeedUserInTenant(t, ta, tid.String(), rbac.RoleTenantViewer)
 
-	users, err := ta.repos.Users.List(context.Background(), 50, 0)
+	// Resolve the seeded viewer's email + log in to get a session.
+	ctx := context.Background()
+	user, err := ta.repos.Users.GetByID(ctx, uid)
 	require.NoError(t, err)
-	require.GreaterOrEqual(t, len(users), 1)
-	user := users[len(users)-1]
 	sess := sessionFor(t, ta, user.Email)
 
 	listReq := httptest.NewRequest("GET", "/api/v1/admin/billing/webhook-events", nil)

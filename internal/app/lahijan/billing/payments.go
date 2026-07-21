@@ -600,10 +600,33 @@ func (s *PaymentsService) HandleWebhook(
 	// an error so Stripe retries the delivery.
 	ledgerIDs, err := s.dispatchEvent(ctx, event, tenantID)
 	if err != nil {
-		_ = s.repos.BillingWebhookEvents.MarkFailed(ctx, whEvent.ID, err.Error())
+		// MarkFailed needs a tenant scope too — wrap ctx explicitly.
+		markCtx := ctx
+		if tenantID != uuid.Nil {
+			markCtx = database.WithTenant(ctx, tenantID)
+		} else {
+			// No tenant in the event metadata; use a synthetic empty
+			// scope so the repo can read the row by global id. The
+			// BillingWebhookEvents table is the only repo in the
+			// dispatch path that tolerates a nil tenant; we still pass
+			// a non-nil scope so the gen code's tenant_id IS NULL
+			// filter matches.
+			markCtx = database.WithTenant(ctx, uuid.Nil)
+		}
+		_ = s.repos.BillingWebhookEvents.MarkFailed(markCtx, whEvent.ID, err.Error())
 		return fmt.Errorf("billing.payments.webhook: dispatch %s: %w", event.Type, err)
 	}
-	if err := s.repos.BillingWebhookEvents.MarkApplied(ctx, whEvent.ID, ledgerIDs); err != nil {
+	// MarkApplied needs a tenant scope. The webhook_events table is
+	// tenant-scoped at the repo layer; we pass the tenant we resolved
+	// from the event metadata (uuid.Nil if absent — the table allows
+	// NULL tenant_id).
+	markCtx := ctx
+	if tenantID != uuid.Nil {
+		markCtx = database.WithTenant(ctx, tenantID)
+	} else {
+		markCtx = database.WithTenant(ctx, uuid.Nil)
+	}
+	if err := s.repos.BillingWebhookEvents.MarkApplied(markCtx, whEvent.ID, ledgerIDs); err != nil {
 		return fmt.Errorf("billing.payments.webhook: mark applied: %w", err)
 	}
 	return nil
