@@ -172,11 +172,11 @@ const (
 	// render a stable history. The ip_pool.* actions are operator-only
 	// (RequirePerm(compute.ip_pool.manage)); the floating_ip.* actions
 	// are tenant-scoped.
-	ActionComputeIPPoolCreate     = "compute.ip_pool.create"
-	ActionComputeIPPoolUpdate     = "compute.ip_pool.update"
-	ActionComputeIPPoolDelete     = "compute.ip_pool.delete"
-	ActionComputeIPPoolRangeAdd   = "compute.ip_pool.range.add"
-	ActionComputeIPPoolRangeDelete = "compute.ip_pool.range.delete"
+	ActionComputeIPPoolCreate       = "compute.ip_pool.create"
+	ActionComputeIPPoolUpdate       = "compute.ip_pool.update"
+	ActionComputeIPPoolDelete       = "compute.ip_pool.delete"
+	ActionComputeIPPoolRangeAdd     = "compute.ip_pool.range.add"
+	ActionComputeIPPoolRangeDelete  = "compute.ip_pool.range.delete"
 	ActionComputeFloatingIPAllocate = "compute.floating_ip.allocate"
 	ActionComputeFloatingIPAttach   = "compute.floating_ip.attach"
 	ActionComputeFloatingIPDetach   = "compute.floating_ip.detach"
@@ -243,9 +243,9 @@ const (
 	// Compute IP-pool + floating-IP resource types (WS-30, ADR-0037).
 	// Emitted by the compute service on every state-changing privileged
 	// action across the public-IP surface.
-	ResourceIPPool     = "ip_pool"
+	ResourceIPPool      = "ip_pool"
 	ResourceIPPoolRange = "ip_pool_range"
-	ResourceFloatingIP = "floating_ip"
+	ResourceFloatingIP  = "floating_ip"
 )
 
 // Event is the data an emitter records. TenantID is nil for system-level auth

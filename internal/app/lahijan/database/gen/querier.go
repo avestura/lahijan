@@ -546,6 +546,12 @@ type Querier interface {
 	//: identity of an RR. Used by the DNS service to short-circuit "this RR
 	//: already exists" before issuing a PDNS REPLACE.
 	GetDNSRecordByIdentity(ctx context.Context, arg GetDNSRecordByIdentityParams) (DnsRecord, error)
+	// Admin-only path: no tenant scoping. Used by the WS-30 PTR publisher
+	// (program/compute_ip_ptrs.go) to find the PTR record for an IP in the
+	// operator-owned reverse zone without knowing which tenant owns the
+	// zone. The (zone_id, name, type) tuple is unique by construction
+	// (a zone has one PTR per name) so the lookup is deterministic.
+	GetDNSRecordByNameGlobal(ctx context.Context, arg GetDNSRecordByNameGlobalParams) (DnsRecord, error)
 	// Admin-only path: no tenant scoping. Used by the DNS service's
 	// cross-tenant "is this canonical id owned by anyone?" check.
 	GetDNSZoneByCanonical(ctx context.Context, canonicalID string) (DnsZone, error)
@@ -556,6 +562,10 @@ type Querier interface {
 	GetDNSZoneByCanonicalForTenant(ctx context.Context, arg GetDNSZoneByCanonicalForTenantParams) (DnsZone, error)
 	//: tenant-scoped
 	GetDNSZoneByID(ctx context.Context, arg GetDNSZoneByIDParams) (DnsZone, error)
+	// Admin-only path: no tenant scoping. Used by the WS-30 PTR publisher
+	// (program/compute_ip_ptrs.go) to look up the operator-owned reverse
+	// zone by id without knowing which tenant owns it.
+	GetDNSZoneByIDGlobal(ctx context.Context, id uuid.UUID) (DnsZone, error)
 	GetEmailTokenByHash(ctx context.Context, tokenHash string) (EmailToken, error)
 	//: tenant-scoped
 	// Used by the service layer to detect "this address is already

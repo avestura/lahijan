@@ -12,9 +12,9 @@ package database
 
 import (
 	"context"
+	"net/netip"
 
 	"github.com/google/uuid"
-	"net/netip"
 
 	"github.com/avestura/lahijan/internal/app/lahijan/database/gen"
 )
@@ -35,13 +35,13 @@ func NewFloatingIPsRepository(q *gen.Queries) *FloatingIPsRepository {
 // from the caller. Address is the resolved host IP (the service layer
 // computes the next-free address before this call).
 type CreateFloatingIPParams struct {
-	PoolID             uuid.UUID
-	Address            netip.Addr
-	Family             int32
-	PtrTarget          *string
-	InstanceID         *uuid.UUID
-	NetworkName        *string
-	ForwardPushStatus  string
+	PoolID            uuid.UUID
+	Address           netip.Addr
+	Family            int32
+	PtrTarget         *string
+	InstanceID        *uuid.UUID
+	NetworkName       *string
+	ForwardPushStatus string
 }
 
 // Create inserts a new floating_ips row scoped to the tenant in ctx.
@@ -55,14 +55,14 @@ func (r *FloatingIPsRepository) Create(
 		return gen.FloatingIp{}, err
 	}
 	return r.q.CreateFloatingIP(ctx, gen.CreateFloatingIPParams{
-		TenantID:           tenantID,
-		PoolID:             arg.PoolID,
-		Address:            arg.Address,
-		Family:             arg.Family,
-		PtrTarget:          arg.PtrTarget,
-		InstanceID:         arg.InstanceID,
-		NetworkName:        arg.NetworkName,
-		ForwardPushStatus:  arg.ForwardPushStatus,
+		TenantID:          tenantID,
+		PoolID:            arg.PoolID,
+		Address:           arg.Address,
+		Family:            arg.Family,
+		PtrTarget:         arg.PtrTarget,
+		InstanceID:        arg.InstanceID,
+		NetworkName:       arg.NetworkName,
+		ForwardPushStatus: arg.ForwardPushStatus,
 	})
 }
 
@@ -178,10 +178,10 @@ func (r *FloatingIPsRepository) ListAllAddressesInPool(ctx context.Context, pool
 // non-nil InstanceID to attach; pass nil to detach. NetworkName +
 // ForwardPushStatus record the best-effort Incus forward push outcome.
 type SetFloatingIPInstanceParams struct {
-	ID                 uuid.UUID
-	InstanceID         *uuid.UUID
-	ForwardPushStatus  string
-	NetworkName        *string
+	ID                uuid.UUID
+	InstanceID        *uuid.UUID
+	ForwardPushStatus string
+	NetworkName       *string
 }
 
 // SetInstance attaches (instance_id != nil) or detaches (instance_id == nil)

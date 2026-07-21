@@ -167,6 +167,31 @@ func (q *Queries) GetDNSZoneByID(ctx context.Context, arg GetDNSZoneByIDParams) 
 	return i, err
 }
 
+const getDNSZoneByIDGlobal = `-- name: GetDNSZoneByIDGlobal :one
+SELECT id, tenant_id, canonical_id, name, kind, is_dnssec_enabled, is_axfr_enabled, description, created_at, updated_at FROM dns_zones WHERE id = $1
+`
+
+// Admin-only path: no tenant scoping. Used by the WS-30 PTR publisher
+// (program/compute_ip_ptrs.go) to look up the operator-owned reverse
+// zone by id without knowing which tenant owns it.
+func (q *Queries) GetDNSZoneByIDGlobal(ctx context.Context, id uuid.UUID) (DnsZone, error) {
+	row := q.db.QueryRow(ctx, getDNSZoneByIDGlobal, id)
+	var i DnsZone
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.CanonicalID,
+		&i.Name,
+		&i.Kind,
+		&i.IsDnssecEnabled,
+		&i.IsAxfrEnabled,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const listDNSZones = `-- name: ListDNSZones :many
 SELECT id, tenant_id, canonical_id, name, kind, is_dnssec_enabled, is_axfr_enabled, description, created_at, updated_at FROM dns_zones
 WHERE tenant_id = $1

@@ -23,10 +23,10 @@ package compute
 
 import (
 	"context"
+	"net/netip"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"net/netip"
 
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/audit"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/rbac"
@@ -359,5 +359,32 @@ func (s *Service) WithCrypto(c cryptoEnvelope) *Service {
 	}
 	out := *s
 	out.crypto = c
+	return &out
+}
+
+// WithPTRPublisher returns a copy of the service with the reverse-DNS
+// auto-publish seam replaced. Used by program.Start to wire the dns
+// adapter after both compute + DNS services exist (the adapter needs
+// the dns.Service which is built after compute). Nil is fine — the
+// floating-IP path silently no-ops when the seam is unset.
+func (s *Service) WithPTRPublisher(p ptrPublisher) *Service {
+	if s == nil {
+		return s
+	}
+	out := *s
+	out.ptrPublisher = p
+	return &out
+}
+
+// WithMeter returns a copy of the service with the per-IP-hour meter
+// seam replaced. Used by program.Start to wire the billing adapter
+// after both compute + billing services exist. Nil is fine — the
+// allocate/release path silently no-ops when the seam is unset.
+func (s *Service) WithMeter(m meter) *Service {
+	if s == nil {
+		return s
+	}
+	out := *s
+	out.meter = m
 	return &out
 }

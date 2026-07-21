@@ -655,10 +655,11 @@ func isComputeInstanceMigratePath(path string) bool {
 
 // isComputeIPPoolPath reports whether path targets the admin IP-pool
 // tree (collection or specific pool + its ranges). Matches:
-//   /api/v1/admin/compute/ip-pools
-//   /api/v1/admin/compute/ip-pools/{id}
-//   /api/v1/admin/compute/ip-pools/{id}/ranges
-//   /api/v1/admin/compute/ip-pools/{id}/ranges/{rangeId}
+//
+//	/api/v1/admin/compute/ip-pools
+//	/api/v1/admin/compute/ip-pools/{id}
+//	/api/v1/admin/compute/ip-pools/{id}/ranges
+//	/api/v1/admin/compute/ip-pools/{id}/ranges/{rangeId}
 func isComputeIPPoolPath(path string) bool {
 	if path == "/api/v1/admin/compute/ip-pools" {
 		return true

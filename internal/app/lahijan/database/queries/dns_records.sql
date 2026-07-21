@@ -34,6 +34,15 @@ WHERE tenant_id = $1 AND id = $2;
 SELECT * FROM dns_records
 WHERE tenant_id = $1 AND zone_id = $2 AND name = $3 AND type = $4 AND content = $5;
 
+-- name: GetDNSRecordByNameGlobal :one
+-- Admin-only path: no tenant scoping. Used by the WS-30 PTR publisher
+-- (program/compute_ip_ptrs.go) to find the PTR record for an IP in the
+-- operator-owned reverse zone without knowing which tenant owns the
+-- zone. The (zone_id, name, type) tuple is unique by construction
+-- (a zone has one PTR per name) so the lookup is deterministic.
+SELECT * FROM dns_records
+WHERE zone_id = $1 AND name = $2 AND type = $3;
+
 -- name: ListDNSRecordsInZone :many
 --: tenant-scoped; returns every RR in the zone, ordered by (name, type)
 --: so the UI renders a stable list.

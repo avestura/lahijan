@@ -148,3 +148,8 @@ var ErrFloatingIPAlreadyAttached = errors.New("compute: instance already has a f
 // ErrFloatingIPNotAttached is returned when a detach call targets a
 // floating IP that is not currently attached. 409 conflict.
 var ErrFloatingIPNotAttached = errors.New("compute: floating ip is not attached to any instance")
+
+// ErrIPPoolHasAllocations is returned when a delete-pool call would
+// strand live allocations. The service wraps the error with the count
+// when surfacing; the handler maps it to 409 conflict.
+var ErrIPPoolHasAllocations = errors.New("compute: ip pool still has allocations")

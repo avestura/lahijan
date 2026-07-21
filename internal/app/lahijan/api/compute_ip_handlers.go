@@ -19,7 +19,7 @@ import (
 	"errors"
 
 	"github.com/gofiber/fiber/v2"
- openapi_types "github.com/oapi-codegen/runtime/types"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/avestura/lahijan/api/gen/go"
 	"github.com/avestura/lahijan/internal/app/lahijan/compute"

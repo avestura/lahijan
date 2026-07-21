@@ -762,6 +762,16 @@ func GetProvidersIncusPlacementMode() PlacementMode {
 	return PlacementModeLocal
 }
 
+// GetProvidersIncusFloatingIPForwardNetwork returns the Incus network
+// name the WS-30 floating-IP attach path pushes a forward onto
+// (ADR-0037 sub-decision B). Empty means the operator topology does
+// not allow a forward and the attach records forward_push_status=
+// "unsupported" (the operator's external automation handles plumbing
+// via BGP/FRR/static route).
+func GetProvidersIncusFloatingIPForwardNetwork() string {
+	return viper.GetString("providers.incus.floatingIPs.forwardNetwork")
+}
+
 // ---------------------------------------------------------------------------
 // PowerDNS provider (WS-12). Every getter reads a key under providers.powerdns.*.
 // ---------------------------------------------------------------------------

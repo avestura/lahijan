@@ -116,7 +116,7 @@ const (
 	// ip_pool.* slug is operator-only (granted to platform.admin only);
 	// the floating_ip.* slugs are tenant-scoped, granted to tenant.admin
 	// (manage) + tenant.viewer (read). ---
-	PermComputeIPPoolManage    = "compute.ip_pool.manage"
+	PermComputeIPPoolManage     = "compute.ip_pool.manage"
 	PermComputeFloatingIPManage = "compute.floating_ip.manage"
 	PermComputeFloatingIPRead   = "compute.floating_ip.read"
 

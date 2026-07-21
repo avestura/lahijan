@@ -61,9 +61,9 @@ type Repos struct {
 	// (ADR-0037). IPPools + IPPoolRanges are GLOBAL (operator-owned);
 	// FloatingIPs is tenant-scoped. Postgres is the source of truth; the
 	// Incus network forward is best-effort.
-	IPPools       *IPPoolsRepository
-	IPPoolRanges  *IPPoolRangesRepository
-	FloatingIPs   *FloatingIPsRepository
+	IPPools      *IPPoolsRepository
+	IPPoolRanges *IPPoolRangesRepository
+	FloatingIPs  *FloatingIPsRepository
 
 	// WS-17: billing & metering. Five sub-repositories: the admin-managed
 	// price catalog (BillingPrices), the append-only per-user ledger

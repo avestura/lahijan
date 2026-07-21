@@ -7,15 +7,15 @@
 //
 //  1. RBAC check (api/middleware.RequirePerm at the HTTP boundary).
 //  2. Validation (pool exists + active; instance exists within tenant;
-//    ptr_target is a canonical DNS name when set).
+//     ptr_target is a canonical DNS name when set).
 //  3. Audit emit (status=pending) — the row exists even if step 6 fails.
 //  4. Allocation / state change in Postgres (source of truth).
 //  5. Best-effort Incus forward push (ADR-0037 sub-decision B). A failed
-//    push does NOT roll back the allocation; the operator may be using
-//    external plumbing. The push outcome is recorded in
-//    floating_ips.forward_push_status.
+//     push does NOT roll back the allocation; the operator may be using
+//     external plumbing. The push outcome is recorded in
+//     floating_ips.forward_push_status.
 //  6. PTR auto-publish into the pool's reverse zone (when the pool has
-//    ptr_zone_id set + the publisher seam is wired).
+//     ptr_zone_id set + the publisher seam is wired).
 //  7. WASM event bus emit (compute.ip.assigned / .released).
 //  8. Per-IP-hour usage meter start/stop (when the meter seam is wired).
 //  9. Audit mark-outcome (success | failure).
@@ -67,8 +67,8 @@ func (s *Service) AllocateFloatingIP(
 	var ptrTarget *string
 	if strings.TrimSpace(params.PtrTarget) != "" {
 		target := ensureTrailingDot(strings.TrimSpace(params.PtrTarget))
-		if err := validateCanonicalDNSName(target); err != nil {
-			return FloatingIPRow{}, fmt.Errorf("compute.floating_ip.allocate: %w", err)
+		if vErr := validateCanonicalDNSName(target); vErr != nil {
+			return FloatingIPRow{}, fmt.Errorf("compute.floating_ip.allocate: %w", vErr)
 		}
 		ptrTarget = &target
 	}
@@ -142,10 +142,10 @@ func (s *Service) AllocateFloatingIP(
 
 	// WASM event emit.
 	s.emitIPEvent(ctx, eventbus.ComputeIPAssigned, tenantID, userID, row.ID, map[string]any{
-		"trigger":  "allocate",
-		"address":  addr.String(),
-		"family":   family,
-		"pool_id":  params.PoolID.String(),
+		"trigger": "allocate",
+		"address": addr.String(),
+		"family":  family,
+		"pool_id": params.PoolID.String(),
 	})
 
 	_ = s.audit.MarkOutcome(ctx, auditID, audit.Outcome{Status: audit.StatusSuccess, Details: map[string]any{
@@ -278,11 +278,11 @@ func (s *Service) AttachFloatingIP(
 	// WASM event emit with trigger=attach so plugins can distinguish
 	// from the allocate-time emit.
 	s.emitIPEvent(ctx, eventbus.ComputeIPAssigned, tenantID, userID, row.ID, map[string]any{
-		"trigger":           "attach",
-		"address":           row.Address.String(),
-		"instance_id":       instanceID.String(),
-		"instance_name":     inst.Name,
-		"forward_push":      pushStatus,
+		"trigger":       "attach",
+		"address":       row.Address.String(),
+		"instance_id":   instanceID.String(),
+		"instance_name": inst.Name,
+		"forward_push":  pushStatus,
 	})
 
 	_ = s.audit.MarkOutcome(ctx, auditID, audit.Outcome{Status: audit.StatusSuccess, Details: map[string]any{
@@ -332,8 +332,8 @@ func (s *Service) DetachFloatingIP(
 		if err := s.provider.DeleteNetworkForward(ctx, project, *row.NetworkName, row.Address.String()); err != nil {
 			// Log via audit details; do not fail the detach.
 			_ = s.audit.MarkOutcome(ctx, auditID, audit.Outcome{Status: audit.StatusSuccess, Details: map[string]any{
-				"warning":          "forward_delete_failed",
-				"forward_error":    err.Error(),
+				"warning":       "forward_delete_failed",
+				"forward_error": err.Error(),
 			}})
 		}
 	}
@@ -462,9 +462,9 @@ func (s *Service) SetFloatingIPPTRTarget(
 		ResourceID:   &row.ID,
 		Status:       audit.StatusPending,
 		Metadata: map[string]any{
-			"address":     row.Address.String(),
-			"ptr_target":  newTarget,
-			"previous":    row.PtrTarget,
+			"address":    row.Address.String(),
+			"ptr_target": newTarget,
+			"previous":   row.PtrTarget,
 		},
 	})
 
@@ -543,15 +543,6 @@ func validateCanonicalDNSName(name string) error {
 		}
 	}
 	return nil
-}
-
-// incusProjectName returns the Incus project name for the tenant via
-// the provider. Kept here to centralise the call.
-func (s *Service) incusProjectName(tenantID uuid.UUID) string {
-	if s.provider == nil {
-		return ""
-	}
-	return s.provider.ProjectName(tenantID)
 }
 
 // ErrFloatingIPAlreadyAllocated is the sentinel for the race-condition

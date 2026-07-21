@@ -20,7 +20,6 @@ package compute
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/netip"
 	"strings"
@@ -265,10 +264,10 @@ func (s *Service) AddIPPoolRange(
 		ResourceID:   &row.ID,
 		Status:       audit.StatusSuccess,
 		Metadata: map[string]any{
-			"pool_id":           params.PoolID.String(),
-			"cidr":              canon,
-			"family":            params.Family,
-			"excluded_count":    len(cleanExcluded),
+			"pool_id":        params.PoolID.String(),
+			"cidr":           canon,
+			"family":         params.Family,
+			"excluded_count": len(cleanExcluded),
 		},
 	})
 	return row, nil
@@ -368,7 +367,3 @@ func descriptionOrNil(s string) *string {
 	}
 	return &s
 }
-
-// Sentinel returned when a delete-pool call would strand allocations.
-// Wrap with the count when surfacing; the handler maps to 409 conflict.
-var ErrIPPoolHasAllocations = errors.New("compute: ip pool still has allocations")

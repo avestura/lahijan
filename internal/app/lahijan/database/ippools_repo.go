@@ -124,10 +124,10 @@ func NewIPPoolRangesRepository(q *gen.Queries) *IPPoolRangesRepository {
 // (e.g. ["203.0.113.0", "203.0.113.255"]) the service layer marshals to
 // JSONB before insert.
 type CreateIPPoolRangeParams struct {
-	PoolID              uuid.UUID
-	Cidr                string
-	Family              int32
-	ExcludedAddresses   []string
+	PoolID            uuid.UUID
+	Cidr              string
+	Family            int32
+	ExcludedAddresses []string
 }
 
 // Create inserts a new ip_pool_ranges row. The ExcludedAddresses slice

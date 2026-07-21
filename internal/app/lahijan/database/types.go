@@ -71,9 +71,9 @@ type (
 	// database package re-exports them under the idiomatic-Go form
 	// without changing the underlying type (these are type aliases,
 	// not wrappers).
-	IPPool       = gen.IpPool
-	IPPoolRange  = gen.IpPoolRange
-	FloatingIP   = gen.FloatingIp
+	IPPool      = gen.IpPool
+	IPPoolRange = gen.IpPoolRange
+	FloatingIP  = gen.FloatingIp
 
 	// Price is the billing price catalog row alias (WS-17).
 	// LedgerEntry / UsageEvent / Receipt / UserBalance mirror the

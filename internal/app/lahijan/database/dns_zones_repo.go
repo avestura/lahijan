@@ -104,6 +104,17 @@ func (r *DNSZonesRepository) GetByCanonicalGlobal(
 	return r.q.GetDNSZoneByCanonical(ctx, canonicalID)
 }
 
+// GetByIDGlobal is the admin-only cross-tenant lookup by primary key.
+// Used by the WS-30 PTR publisher (program/compute_ip_ptrs.go) to find
+// the operator-owned reverse zone by id without knowing which tenant
+// owns it.
+func (r *DNSZonesRepository) GetByIDGlobal(
+	ctx context.Context,
+	id uuid.UUID,
+) (gen.DnsZone, error) {
+	return r.q.GetDNSZoneByIDGlobal(ctx, id)
+}
+
 // List returns a page of dns_zones rows within the tenant in ctx.
 func (r *DNSZonesRepository) List(
 	ctx context.Context,

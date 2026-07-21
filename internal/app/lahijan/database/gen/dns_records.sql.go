@@ -211,6 +211,41 @@ func (q *Queries) GetDNSRecordByIdentity(ctx context.Context, arg GetDNSRecordBy
 	return i, err
 }
 
+const getDNSRecordByNameGlobal = `-- name: GetDNSRecordByNameGlobal :one
+SELECT id, tenant_id, zone_id, name, type, content, ttl, prio, disabled, created_at, updated_at FROM dns_records
+WHERE zone_id = $1 AND name = $2 AND type = $3
+`
+
+type GetDNSRecordByNameGlobalParams struct {
+	ZoneID uuid.UUID `json:"zone_id"`
+	Name   string    `json:"name"`
+	Type   string    `json:"type"`
+}
+
+// Admin-only path: no tenant scoping. Used by the WS-30 PTR publisher
+// (program/compute_ip_ptrs.go) to find the PTR record for an IP in the
+// operator-owned reverse zone without knowing which tenant owns the
+// zone. The (zone_id, name, type) tuple is unique by construction
+// (a zone has one PTR per name) so the lookup is deterministic.
+func (q *Queries) GetDNSRecordByNameGlobal(ctx context.Context, arg GetDNSRecordByNameGlobalParams) (DnsRecord, error) {
+	row := q.db.QueryRow(ctx, getDNSRecordByNameGlobal, arg.ZoneID, arg.Name, arg.Type)
+	var i DnsRecord
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.ZoneID,
+		&i.Name,
+		&i.Type,
+		&i.Content,
+		&i.Ttl,
+		&i.Prio,
+		&i.Disabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const listDNSRecordsInZone = `-- name: ListDNSRecordsInZone :many
 SELECT id, tenant_id, zone_id, name, type, content, ttl, prio, disabled, created_at, updated_at FROM dns_records
 WHERE tenant_id = $1 AND zone_id = $2

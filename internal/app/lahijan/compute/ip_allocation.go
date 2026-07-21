@@ -100,11 +100,9 @@ func firstFreeInPrefix(
 	net := prefix.Masked().Addr()
 	bits := prefix.Bits()
 	isV4 := net.Is4()
-	hostBits := bits
+	hostBits := 128 - bits
 	if isV4 {
 		hostBits = 32 - bits
-	} else {
-		hostBits = 128 - bits
 	}
 	// /32 + /128: only one address (the network). For these prefixes
 	// the network IS the host; skip the auto-skip-network rule.
@@ -127,10 +125,10 @@ func firstFreeInPrefix(
 	const maxIter = 65536
 	cur := net
 	for i := 0; i < maxIter; i++ {
-		if !(i == 0 && skipNetwork) && !isExcludedOrAllocated(cur, excluded, allocated) {
+		if (i != 0 || !skipNetwork) && !isExcludedOrAllocated(cur, excluded, allocated) {
 			// cur is a candidate; but if this is the broadcast
 			// address, skip it.
-			if !(skipBroadcast && isBroadcast(cur, prefix)) {
+			if !skipBroadcast || !isBroadcast(cur, prefix) {
 				return cur, true
 			}
 		}

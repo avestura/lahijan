@@ -30,6 +30,7 @@ type fakeRepoShim struct {
 func (f *fakeRepoShim) listRanges(_ context.Context, _ uuidAny) ([]gen.IpPoolRange, error) {
 	return f.ranges, nil
 }
+
 func (f *fakeRepoShim) listAllocated(_ context.Context, _ uuidAny) ([]string, error) {
 	return f.allocated, nil
 }
