@@ -137,6 +137,22 @@ type s3BucketAPI interface {
 	ListBuckets(ctx context.Context, params *awss3.ListBucketsInput, optFns ...func(*awss3.Options)) (*awss3.ListBucketsOutput, error)
 	PutObject(ctx context.Context, params *awss3.PutObjectInput, optFns ...func(*awss3.Options)) (*awss3.PutObjectOutput, error)
 	GetObject(ctx context.Context, params *awss3.GetObjectInput, optFns ...func(*awss3.Options)) (*awss3.GetObjectOutput, error)
+	// WS-29: bucket lifecycle + versioning + object lock. The lifecycle
+	// evaluator worker also uses DeleteObject / DeleteObjects /
+	// ListObjectVersions / AbortMultipartUpload / CopyObject (restore)
+	// to enforce the configured policy server-side.
+	PutBucketVersioning(ctx context.Context, params *awss3.PutBucketVersioningInput, optFns ...func(*awss3.Options)) (*awss3.PutBucketVersioningOutput, error)
+	GetBucketVersioning(ctx context.Context, params *awss3.GetBucketVersioningInput, optFns ...func(*awss3.Options)) (*awss3.GetBucketVersioningOutput, error)
+	ListObjectVersions(ctx context.Context, params *awss3.ListObjectVersionsInput, optFns ...func(*awss3.Options)) (*awss3.ListObjectVersionsOutput, error)
+	PutBucketLifecycleConfiguration(ctx context.Context, params *awss3.PutBucketLifecycleConfigurationInput, optFns ...func(*awss3.Options)) (*awss3.PutBucketLifecycleConfigurationOutput, error)
+	GetBucketLifecycleConfiguration(ctx context.Context, params *awss3.GetBucketLifecycleConfigurationInput, optFns ...func(*awss3.Options)) (*awss3.GetBucketLifecycleConfigurationOutput, error)
+	DeleteBucketLifecycle(ctx context.Context, params *awss3.DeleteBucketLifecycleInput, optFns ...func(*awss3.Options)) (*awss3.DeleteBucketLifecycleOutput, error)
+	PutObjectLockConfiguration(ctx context.Context, params *awss3.PutObjectLockConfigurationInput, optFns ...func(*awss3.Options)) (*awss3.PutObjectLockConfigurationOutput, error)
+	GetObjectLockConfiguration(ctx context.Context, params *awss3.GetObjectLockConfigurationInput, optFns ...func(*awss3.Options)) (*awss3.GetObjectLockConfigurationOutput, error)
+	DeleteObject(ctx context.Context, params *awss3.DeleteObjectInput, optFns ...func(*awss3.Options)) (*awss3.DeleteObjectOutput, error)
+	DeleteObjects(ctx context.Context, params *awss3.DeleteObjectsInput, optFns ...func(*awss3.Options)) (*awss3.DeleteObjectsOutput, error)
+	AbortMultipartUpload(ctx context.Context, params *awss3.AbortMultipartUploadInput, optFns ...func(*awss3.Options)) (*awss3.AbortMultipartUploadOutput, error)
+	CopyObject(ctx context.Context, params *awss3.CopyObjectInput, optFns ...func(*awss3.Options)) (*awss3.CopyObjectOutput, error)
 }
 
 // presignAPI is the narrow subset of *awss3.PresignClient the driver
