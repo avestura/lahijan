@@ -108,9 +108,9 @@ type ContactProfile struct {
 	Address2 string
 
 	// City / State / Zip / CountryCode (ISO 3166-1 alpha-2). Required.
-	City       string
-	State      string
-	Zip        string
+	City        string
+	State       string
+	Zip         string
 	CountryCode string
 }
 
@@ -265,8 +265,8 @@ type SetDSRecordsRequest struct {
 // propagation is asynchronous; callers should poll GetDomain if they
 // need to confirm.
 type SetDSRecordsResponse struct {
-	Domain     string
-	Applied    bool
+	Domain      string
+	Applied     bool
 	RecordCount int32
 }
 

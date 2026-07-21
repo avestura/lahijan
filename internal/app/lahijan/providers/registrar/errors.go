@@ -124,14 +124,11 @@ func containsLower(msg, substr string) bool {
 	if len(msg) < len(substr) {
 		return false
 	}
-	mi := 0
 	for i := 0; i+len(substr) <= len(msg); i++ {
 		if equalFoldLower(msg[i:i+len(substr)], substr) {
-			mi++
 			return true
 		}
 	}
-	_ = mi
 	return false
 }
 

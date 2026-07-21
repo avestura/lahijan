@@ -62,10 +62,10 @@ func on_event(payloadPtr, payloadLen uint32) {
 	// 3. If we crossed the threshold, emit a tick event + reset.
 	if count >= defaultThreshold {
 		tickPayload, _ := json.Marshal(map[string]any{
-			"topic":     "plugin.autoscaler.tick",
-			"trigger":   "compute.instance.cpu_high",
-			"count":     count,
-			"event":     json.RawMessage(readMem(payloadPtr, payloadLen)),
+			"topic":   "plugin.autoscaler.tick",
+			"trigger": "compute.instance.cpu_high",
+			"count":   count,
+			"event":   json.RawMessage(readMem(payloadPtr, payloadLen)),
 		})
 		eventsEmit("plugin.autoscaler.tick", tickPayload)
 		kvSet([]byte(counterKey), []byte("0"), 0)
@@ -95,9 +95,11 @@ func itoa(n int) string {
 func kvGet(key, buf []byte) int32 {
 	return get(ptrOf(key), uint32(len(key)), ptrOf(buf), uint32(len(buf)))
 }
+
 func kvSet(key, val []byte, ttlMs int64) int32 {
 	return set(ptrOf(key), uint32(len(key)), ptrOf(val), uint32(len(val)), ttlMs)
 }
+
 func eventsEmit(topic string, payload []byte) int32 {
 	t := []byte(topic)
 	return emit(ptrOf(t), uint32(len(t)), ptrOf(payload), uint32(len(payload)))

@@ -20,6 +20,8 @@ import "context"
 //
 // Methods are safe for concurrent use. Per-call state lives only on
 // the call stack.
+//
+//nolint:interfacebloat // registrar surface needs all 9 ops; split would force 2+ interfaces per driver
 type Provider interface {
 	// Name returns the internal registrar identifier (e.g. "opensrs").
 	// NEVER surfaces to end users (per pillar 1 they see "domain

@@ -39,13 +39,13 @@ import (
 // fixture bundles the per-test dependencies. Every test gets a fresh
 // fixture so parallel tests do not collide on Postgres state.
 type fixture struct {
-	svc      *registrarsvc.Service
-	billing  *fakeBilling
-	bus      *recorderBus
-	auditEm  *capturingEmitter
-	tenantID uuid.UUID
-	userID   uuid.UUID
-	ctx      context.Context
+	svc       *registrarsvc.Service
+	billing   *fakeBilling
+	bus       *recorderBus
+	auditEm   *capturingEmitter
+	tenantID  uuid.UUID
+	userID    uuid.UUID
+	ctx       context.Context
 	tenantCtx context.Context
 }
 
@@ -56,12 +56,12 @@ func newFixture(t *testing.T) *fixture {
 	tenant := testutil.NewTenant(ctx, t, testutil.Pool())
 	user := testutil.NewUser(ctx, t, testutil.Pool(), false)
 	f := &fixture{
-		bus:      &recorderBus{},
-		auditEm:  newCapturingEmitter(),
-		billing:  newFakeBilling(),
-		tenantID: tenant.ID,
-		userID:   user.ID,
-		ctx:      ctx,
+		bus:       &recorderBus{},
+		auditEm:   newCapturingEmitter(),
+		billing:   newFakeBilling(),
+		tenantID:  tenant.ID,
+		userID:    user.ID,
+		ctx:       ctx,
 		tenantCtx: database.WithTenant(ctx, tenant.ID),
 	}
 	// Build a real OpenSRS provider pointing at the in-process fake.
@@ -129,8 +129,8 @@ func (r *recorderBus) Topics() []string {
 // capturingEmitter implements audit.Emitter. Records every Emit so tests
 // can assert on the action + resource.
 type capturingEmitter struct {
-	mu      sync.Mutex
-	events  []audit.Event
+	mu       sync.Mutex
+	events   []audit.Event
 	outcomes map[uuid.UUID]audit.Outcome
 }
 
@@ -172,11 +172,11 @@ func newFakeRegistrarServer() *fake.Server {
 // server so this test file does not pull in the fake package directly
 // (the fake is internal-only).
 type fakeRegistrarServer struct {
-	close func()
+	close    func()
 	provider *registrar.OpenSRSProvider
 }
 
-func (s *fakeRegistrarServer) Close() { s.close() }
+func (s *fakeRegistrarServer) Close()                               { s.close() }
 func (s *fakeRegistrarServer) Provider() *registrar.OpenSRSProvider { return s.provider }
 
 // ===========================================================================

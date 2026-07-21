@@ -133,8 +133,8 @@ func TestProvider_Register_Success(t *testing.T) {
 			Zip:            "90001",
 			CountryCode:    "US",
 		},
-		AutoRenew:     true,
-		WHOISPrivacy:  true,
+		AutoRenew:    true,
+		WHOISPrivacy: true,
 	})
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp.OrderID)
@@ -203,9 +203,9 @@ func TestProvider_Renew_Success(t *testing.T) {
 	p := srv.Provider()
 
 	resp, err := p.RenewDomain(ctx, registrar.RenewDomainRequest{
-		Domain:       "lahijan-renew-success.com",
-		OrderID:      "PRE-EXISTING-3",
-		PeriodYears:  1,
+		Domain:      "lahijan-renew-success.com",
+		OrderID:     "PRE-EXISTING-3",
+		PeriodYears: 1,
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "lahijan-renew-success.com", resp.Domain)

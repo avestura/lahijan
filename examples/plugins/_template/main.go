@@ -8,13 +8,13 @@
 //
 // To turn this template into a real plugin:
 //
-//   1. Copy this directory and rename the package in main.go.
-//   2. Edit lahijan.manifest.yaml to declare the permissions you need.
-//   3. Declare the matching host-function imports below (use the
-//      signatures in docs/architecture/plugins.md).
-//   4. Implement the entrypoints your manifest declares (on_event,
-//      on_request, on_tick, ...).
-//   5. Run `make build` to produce plugin.wasm.
+//  1. Copy this directory and rename the package in main.go.
+//  2. Edit lahijan.manifest.yaml to declare the permissions you need.
+//  3. Declare the matching host-function imports below (use the
+//     signatures in docs/architecture/plugins.md).
+//  4. Implement the entrypoints your manifest declares (on_event,
+//     on_request, on_tick, ...).
+//  5. Run `make build` to produce plugin.wasm.
 //
 // All strings + byte arrays are exchanged with the host via the
 // (ptr, len) convention from ADR-0024. The host function reads from /

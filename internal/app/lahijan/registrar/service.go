@@ -27,6 +27,7 @@ package registrar
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -72,6 +73,8 @@ type Service struct {
 // providerDriver is the narrow seam the service needs from
 // providers/registrar.Provider. Defined here so tests can swap a fake
 // without dragging the full provider surface into the test file.
+//
+//nolint:interfacebloat // registrar service needs all 9 ops; mirrors the driver interface 1:1
 type providerDriver interface {
 	Name() string
 	Ping(ctx context.Context) error
@@ -216,8 +219,8 @@ type RegisterDomainRequest struct {
 	Contact       *registrar.ContactProfile
 	AutoRenew     bool
 	WHOISPrivacy  bool
-	AutoProvision bool   // when true, also call CreateZone on success
-	AutoDNSSEC    bool   // when true, sign zone + publish DS at parent
+	AutoProvision bool // when true, also call CreateZone on success
+	AutoDNSSEC    bool // when true, sign zone + publish DS at parent
 	Nameservers   []string
 }
 
@@ -281,12 +284,16 @@ func (s *Service) RegisterDomain(
 	}
 	price := pickPrice(check.Pricing, req.PeriodYears)
 	if price == nil {
-		_ = s.audit.MarkOutcome(ctx, auditID, audit.Outcome{Status: audit.StatusFailure, Details: map[string]any{"error": "no pricing for requested period"}})
+		_ = s.audit.MarkOutcome(ctx, auditID, audit.Outcome{
+			Status:  audit.StatusFailure,
+			Details: map[string]any{"error": "no pricing for requested period"},
+		})
 		return database.DNSDomain{}, ErrNoPricing
 	}
 	charged := applyMargin(price.PriceCents, s.config.MarginPercent)
 	currency := orDefault(price.Currency, s.config.DefaultCurrency)
-	idem := fmt.Sprintf("dns.domain.register:%s:%s:%d", tenantID, req.Domain, req.PeriodYears)
+	idem := "dns.domain.register:" + tenantID.String() + ":" + req.Domain + ":" +
+		strconv.Itoa(int(req.PeriodYears))
 	ledger, err := s.billing.PostCharge(ctx, tenantID, billing.PostChargeParams{
 		UserID:         userID,
 		AmountCents:    charged,
@@ -307,11 +314,11 @@ func (s *Service) RegisterDomain(
 	// 2) Place the registrar order. On failure we record a refund row
 	//    so the user's balance is restored.
 	regResp, err := s.provider.RegisterDomain(ctx, registrar.RegisterDomainRequest{
-		Domain:        req.Domain,
-		PeriodYears:   req.PeriodYears,
-		Contact:       contact,
-		AutoRenew:     req.AutoRenew,
-		WHOISPrivacy:  req.WHOISPrivacy,
+		Domain:       req.Domain,
+		PeriodYears:  req.PeriodYears,
+		Contact:      contact,
+		AutoRenew:    req.AutoRenew,
+		WHOISPrivacy: req.WHOISPrivacy,
 	})
 	if err != nil {
 		// Best-effort refund. The ledger's append-only invariant
@@ -320,7 +327,7 @@ func (s *Service) RegisterDomain(
 			UserID:      userID,
 			AmountCents: -charged,
 			Currency:    currency,
-			Reference:   fmt.Sprintf("domain register refund: %s", req.Domain),
+			Reference:   "domain register refund: " + req.Domain,
 			Metadata: map[string]any{
 				"domain":          req.Domain,
 				"original_charge": ledger.ID,
@@ -351,17 +358,17 @@ func (s *Service) RegisterDomain(
 
 	// 4) Emit the registered event.
 	s.emitEvent(ctx, eventbus.DNSDomainRegistered, tenantID, userID, row.ID, map[string]any{
-		"domain":         row.Name,
-		"order_id":       row.RegistrarOrderID,
-		"price_cents":    charged,
-		"ledger_entry":   ledger.ID,
-		"expires_at":     row.ExpiresAt,
+		"domain":       row.Name,
+		"order_id":     row.RegistrarOrderID,
+		"price_cents":  charged,
+		"ledger_entry": ledger.ID,
+		"expires_at":   row.ExpiresAt,
 	})
 
 	_ = s.audit.MarkOutcome(ctx, auditID, audit.Outcome{Status: audit.StatusSuccess, Details: map[string]any{
-		"domain_id":     row.ID,
-		"order_id":      row.RegistrarOrderID,
-		"ledger_entry":  ledger.ID,
+		"domain_id":    row.ID,
+		"order_id":     row.RegistrarOrderID,
+		"ledger_entry": ledger.ID,
 	}})
 	return row, nil
 }
@@ -413,7 +420,8 @@ func (s *Service) RenewDomain(
 
 	// Charge first (same reasoning as RegisterDomain).
 	charged := applyMargin(row.PriceCents/int64(row.PeriodYears)*int64(req.PeriodYears), s.config.MarginPercent)
-	idem := fmt.Sprintf("dns.domain.renew:%s:%s:%d", tenantID, row.ID, req.PeriodYears)
+	idem := "dns.domain.renew:" + tenantID.String() + ":" + row.ID.String() + ":" +
+		strconv.Itoa(int(req.PeriodYears))
 	ledger, err := s.billing.PostCharge(ctx, tenantID, billing.PostChargeParams{
 		UserID:         userID,
 		AmountCents:    charged,
@@ -421,8 +429,8 @@ func (s *Service) RenewDomain(
 		Reference:      fmt.Sprintf("domain renew: %s (%dy)", row.Name, req.PeriodYears),
 		IdempotencyKey: &idem,
 		Metadata: map[string]any{
-			"domain":    row.Name,
-			"order_id":  row.RegistrarOrderID,
+			"domain":   row.Name,
+			"order_id": row.RegistrarOrderID,
 		},
 	})
 	if err != nil {
@@ -432,9 +440,9 @@ func (s *Service) RenewDomain(
 
 	// Renew at the registrar.
 	resp, err := s.provider.RenewDomain(ctx, registrar.RenewDomainRequest{
-		Domain:       stripTrailingDot(row.Name),
-		OrderID:      row.RegistrarOrderID,
-		PeriodYears:  req.PeriodYears,
+		Domain:      stripTrailingDot(row.Name),
+		OrderID:     row.RegistrarOrderID,
+		PeriodYears: req.PeriodYears,
 	})
 	if err != nil {
 		// Refund.
@@ -442,7 +450,7 @@ func (s *Service) RenewDomain(
 			UserID:      userID,
 			AmountCents: -charged,
 			Currency:    row.Currency,
-			Reference:   fmt.Sprintf("domain renew refund: %s", row.Name),
+			Reference:   "domain renew refund: " + row.Name,
 			Metadata: map[string]any{
 				"original_charge": ledger.ID,
 				"registrar_error": err.Error(),
@@ -464,10 +472,10 @@ func (s *Service) RenewDomain(
 	row.ExpiresAt = resp.ExpiresAt
 
 	s.emitEvent(ctx, eventbus.DNSDomainRenewed, tenantID, userID, row.ID, map[string]any{
-		"domain":        row.Name,
-		"order_id":      row.RegistrarOrderID,
-		"expires_at":    resp.ExpiresAt,
-		"ledger_entry":  ledger.ID,
+		"domain":       row.Name,
+		"order_id":     row.RegistrarOrderID,
+		"expires_at":   resp.ExpiresAt,
+		"ledger_entry": ledger.ID,
 	})
 
 	_ = s.audit.MarkOutcome(ctx, auditID, audit.Outcome{Status: audit.StatusSuccess, Details: map[string]any{
@@ -480,12 +488,12 @@ func (s *Service) RenewDomain(
 
 // TransferDomainRequest carries the user-controlled fields of a transfer.
 type TransferDomainRequest struct {
-	Domain       string
-	AuthCode     string
-	PeriodYears  int32
-	Contact      *registrar.ContactProfile
+	Domain        string
+	AuthCode      string
+	PeriodYears   int32
+	Contact       *registrar.ContactProfile
 	AutoProvision bool
-	AutoDNSSEC   bool
+	AutoDNSSEC    bool
 }
 
 // TransferDomain initiates an EPP transfer from another registrar.
@@ -530,7 +538,8 @@ func (s *Service) TransferDomain(
 	// Charge first using the standard per-year price (transfers cost
 	// the same as a 1y renewal at most registrars).
 	charged := applyMargin(1000*int64(req.PeriodYears), s.config.MarginPercent)
-	idem := fmt.Sprintf("dns.domain.transfer:%s:%s:%d", tenantID, req.Domain, req.PeriodYears)
+	idem := "dns.domain.transfer:" + tenantID.String() + ":" + req.Domain + ":" +
+		strconv.Itoa(int(req.PeriodYears))
 	ledger, err := s.billing.PostCharge(ctx, tenantID, billing.PostChargeParams{
 		UserID:         userID,
 		AmountCents:    charged,
@@ -558,7 +567,7 @@ func (s *Service) TransferDomain(
 			UserID:      userID,
 			AmountCents: -charged,
 			Currency:    s.config.DefaultCurrency,
-			Reference:   fmt.Sprintf("domain transfer refund: %s", req.Domain),
+			Reference:   "domain transfer refund: " + req.Domain,
 			Metadata: map[string]any{
 				"original_charge": ledger.ID,
 				"registrar_error": err.Error(),
@@ -585,9 +594,9 @@ func (s *Service) TransferDomain(
 	}
 
 	s.emitEvent(ctx, eventbus.DNSDomainTransferred, tenantID, userID, row.ID, map[string]any{
-		"domain":        row.Name,
-		"order_id":      row.RegistrarOrderID,
-		"ledger_entry":  ledger.ID,
+		"domain":       row.Name,
+		"order_id":     row.RegistrarOrderID,
+		"ledger_entry": ledger.ID,
 	})
 
 	_ = s.audit.MarkOutcome(ctx, auditID, audit.Outcome{Status: audit.StatusSuccess, Details: map[string]any{
@@ -660,7 +669,7 @@ func (s *Service) DeleteDomain(
 		ResourceID:   &row.ID,
 		Status:       audit.StatusPending,
 		Metadata: map[string]any{
-			"domain":         row.Name,
+			"domain":             row.Name,
 			"registrar_order_id": row.RegistrarOrderID,
 		},
 	})
@@ -669,7 +678,7 @@ func (s *Service) DeleteDomain(
 		return fmt.Errorf("registrar: delete domain: %w", err)
 	}
 	s.emitEvent(ctx, eventbus.DNSDomainDeleted, tenantID, userID, row.ID, map[string]any{
-		"domain":         row.Name,
+		"domain":             row.Name,
 		"registrar_order_id": row.RegistrarOrderID,
 	})
 	_ = s.audit.MarkOutcome(ctx, auditID, audit.Outcome{Status: audit.StatusSuccess, Details: nil})

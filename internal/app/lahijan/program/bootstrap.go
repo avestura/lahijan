@@ -98,7 +98,8 @@ func runBootstrap(ctx context.Context, deps *authDeps) {
 	// Log the credentials banner. WARN level so the operator notices; the
 	// "password" attribute carries the raw value exactly once. The notice
 	// attributes are stable so log-grep rules can match them.
-	slog.Warn("bootstrap: first-run admin credentials (change immediately)",
+	slog.Warn(
+		"bootstrap: first-run admin credentials (change immediately)",
 		"email", cfg.AdminEmail,
 		"user_id", res.UserID,
 		"tenant_id", res.TenantID,

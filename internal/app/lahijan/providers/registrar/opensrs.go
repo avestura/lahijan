@@ -167,7 +167,7 @@ func (p *OpenSRSProvider) CheckDomain(
 	ctx, span := startSpan(ctx, "check", domainAttr(req.Domain))
 	defer span.End()
 
-	body := opensrsCheckRequest{Domain: req.Domain}
+	body := opensrsCheckRequest(req)
 	var resp opensrsCheckResponse
 	if err := p.do(ctx, http.MethodPost, "domains/lookup", body, &resp); err != nil {
 		setStatus(span, err)
@@ -181,11 +181,7 @@ func (p *OpenSRSProvider) CheckDomain(
 		Pricing:   make([]DomainPricing, 0, len(resp.Pricing)),
 	}
 	for _, pr := range resp.Pricing {
-		out.Pricing = append(out.Pricing, DomainPricing{
-			PeriodYears: pr.PeriodYears,
-			PriceCents:  pr.PriceCents,
-			Currency:    pr.Currency,
-		})
+		out.Pricing = append(out.Pricing, DomainPricing(pr))
 	}
 	if !out.Available && out.Status == "" {
 		out.Status = StatusUnavailable
@@ -203,13 +199,13 @@ func (p *OpenSRSProvider) RegisterDomain(
 	defer span.End()
 
 	body := opensrsRegisterRequest{
-		Domain:        req.Domain,
-		PeriodYears:   req.PeriodYears,
-		AutoRenew:     req.AutoRenew,
-		WHOISPrivacy:  req.WHOISPrivacy,
-		OwnerContact:  toOpenSRSContact(req.Contact),
-		AdminContact:  toOpenSRSContact(req.Contact),
-		TechContact:   toOpenSRSContact(req.Contact),
+		Domain:         req.Domain,
+		PeriodYears:    req.PeriodYears,
+		AutoRenew:      req.AutoRenew,
+		WHOISPrivacy:   req.WHOISPrivacy,
+		OwnerContact:   toOpenSRSContact(req.Contact),
+		AdminContact:   toOpenSRSContact(req.Contact),
+		TechContact:    toOpenSRSContact(req.Contact),
 		BillingContact: toOpenSRSContact(req.Contact),
 	}
 	var resp opensrsRegisterResponse
@@ -336,12 +332,7 @@ func (p *OpenSRSProvider) SetDSRecords(
 
 	records := make([]opensrsDSRecord, 0, len(req.Records))
 	for _, r := range req.Records {
-		records = append(records, opensrsDSRecord{
-			KeyTag:     r.KeyTag,
-			Algorithm:  r.Algorithm,
-			DigestType: r.DigestType,
-			Digest:     r.Digest,
-		})
+		records = append(records, opensrsDSRecord(r))
 	}
 	body := opensrsSetDSRequest{Records: records}
 	var resp opensrsSetDSResponse
@@ -377,8 +368,8 @@ func (p *OpenSRSProvider) do(
 		return wrapCtxErr(err)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	if err := classifyHTTP(resp); err != nil {
-		return err
+	if clsErr := classifyHTTP(resp); clsErr != nil {
+		return clsErr
 	}
 	if out == nil {
 		return nil
@@ -450,20 +441,20 @@ func classifyHTTP(resp *http.Response) error {
 	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
 	apiErr := decodeOpenSRSError(resp.StatusCode, body)
-	switch {
-	case apiErr.StatusCode == http.StatusNotFound:
+	switch apiErr.StatusCode {
+	case http.StatusNotFound:
 		return fmt.Errorf("%w: %s", ErrNotFound, apiErr.Message)
-	case apiErr.StatusCode == http.StatusForbidden:
+	case http.StatusForbidden:
 		return fmt.Errorf("%w: %s", ErrForbidden, apiErr.Message)
-	case apiErr.StatusCode == http.StatusUnauthorized:
+	case http.StatusUnauthorized:
 		return fmt.Errorf("%w: %s", ErrUnauthenticated, apiErr.Message)
-	case apiErr.StatusCode == http.StatusBadRequest:
+	case http.StatusBadRequest:
 		// OpenSRS reports insufficient funds as 400 + code 485.
 		if apiErr.Code == "485" {
 			return fmt.Errorf("%w: %s", ErrInsufficientFunds, apiErr.Message)
 		}
 		return fmt.Errorf("%w: %s", ErrBadRequest, apiErr.Message)
-	case apiErr.StatusCode == http.StatusConflict:
+	case http.StatusConflict:
 		if strings.Contains(strings.ToLower(apiErr.Message), "exists") {
 			return fmt.Errorf("%w: %s", ErrAlreadyExists, apiErr.Message)
 		}

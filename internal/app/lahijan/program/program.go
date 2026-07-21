@@ -374,13 +374,13 @@ func Start() error {
 	// ledger credit row.
 	var paymentsSvc *billing.PaymentsService
 	if conf.GetBillingStripeEnabled() {
-		gw, err := buildStripeProvider()
-		if err != nil {
-			log.Fatalf("failed to build stripe provider: %s", err.Error())
+		gw, gwErr := buildStripeProvider()
+		if gwErr != nil {
+			log.Fatalf("failed to build stripe provider: %s", gwErr.Error())
 		}
-		crypto, err := buildBillingCrypto()
-		if err != nil {
-			log.Fatalf("failed to build billing crypto envelope: %s", err.Error())
+		crypto, cryptoErr := buildBillingCrypto()
+		if cryptoErr != nil {
+			log.Fatalf("failed to build billing crypto envelope: %s", cryptoErr.Error())
 		}
 		paymentsSvc = billing.NewPaymentsService(
 			billingSvc,

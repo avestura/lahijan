@@ -42,18 +42,22 @@ func buildRegistrarDeps(_ context.Context) (registrarDeps, error) {
 	case "opensrs":
 		apiKey := conf.GetProvidersRegistrarOpenSRSAPIKey()
 		if apiKey == "" {
-			return registrarDeps{}, errors.New("providers.registrar.openSRS.apiKey must be set when providers.registrar.enabled is true and provider=opensrs")
+			return registrarDeps{}, errors.New(
+				"providers.registrar.openSRS.apiKey must be set when " +
+					"providers.registrar.enabled is true and provider=opensrs")
 		}
 		username := conf.GetProvidersRegistrarOpenSRSUsername()
 		if username == "" {
-			return registrarDeps{}, errors.New("providers.registrar.openSRS.username must be set when providers.registrar.enabled is true and provider=opensrs")
+			return registrarDeps{}, errors.New(
+				"providers.registrar.openSRS.username must be set when " +
+					"providers.registrar.enabled is true and provider=opensrs")
 		}
 		p, err := registrar.NewOpenSRSProvider(registrar.OpenSRSConfig{
 			HTTPClient: &http.Client{
 				Timeout: time.Duration(conf.GetProvidersRegistrarOpenSRSRequestTimeoutSeconds()) * time.Second,
 			},
-			BaseURL: conf.GetProvidersRegistrarOpenSRSBaseURL(),
-			APIKey:  apiKey,
+			BaseURL:  conf.GetProvidersRegistrarOpenSRSBaseURL(),
+			APIKey:   apiKey,
 			Username: username,
 		})
 		if err != nil {
@@ -79,6 +83,9 @@ func buildRegistrarDeps(_ context.Context) (registrarDeps, error) {
 		fiberlog.Info("registrar provider wired in noop mode")
 		return registrarDeps{provider: registrar.NoopProvider{}}, nil
 	default:
-		return registrarDeps{}, errors.New("providers.registrar.provider " + conf.GetProvidersRegistrarProvider() + " is not supported (in-tree: opensrs, noop)")
+		provider := conf.GetProvidersRegistrarProvider()
+		return registrarDeps{}, errors.New(
+			"providers.registrar.provider " + provider +
+				" is not supported (in-tree: opensrs, noop)")
 	}
 }

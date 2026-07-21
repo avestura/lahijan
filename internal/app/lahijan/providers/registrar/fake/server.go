@@ -59,11 +59,11 @@ type Server struct {
 }
 
 type fakeDomain struct {
-	domain      registrar.GetDomainResponse
-	registered  bool
-	authCode    string
-	dsRecords   []registrar.DSRecord
-	createdAt   time.Time
+	domain     registrar.GetDomainResponse
+	registered bool
+	authCode   string
+	dsRecords  []registrar.DSRecord
+	createdAt  time.Time
 }
 
 // NewServer builds a fake registrar HTTP server. The returned Server is
@@ -91,8 +91,8 @@ func shortUUID() string {
 // returned provider can be passed directly to registrar.New.
 func (s *Server) Provider() *registrar.OpenSRSProvider {
 	p, err := registrar.NewOpenSRSProvider(registrar.OpenSRSConfig{
-		HTTPClient: s.Server.Client(),
-		BaseURL:    s.Server.URL,
+		HTTPClient: s.Client(),
+		BaseURL:    s.URL,
 		APIKey:     "fake-test-key",
 		Username:   "fake-test-user",
 	})
@@ -180,28 +180,28 @@ func (s *Server) handleLookup(w http.ResponseWriter, r *http.Request) {
 // faithful — a typo in the driver's JSON tag fails the test the same
 // way a real OpenSRS would.
 type wireContact struct {
-	Firstname   string `json:"firstname"`
-	Lastname    string `json:"lastname"`
-	Email       string `json:"email"`
-	Phone       string `json:"phone"`
-	Address1    string `json:"address1"`
-	City        string `json:"city"`
-	State       string `json:"state"`
-	Zip         string `json:"zip"`
-	Country     string `json:"country"`
+	Firstname string `json:"firstname"`
+	Lastname  string `json:"lastname"`
+	Email     string `json:"email"`
+	Phone     string `json:"phone"`
+	Address1  string `json:"address1"`
+	City      string `json:"city"`
+	State     string `json:"state"`
+	Zip       string `json:"zip"`
+	Country   string `json:"country"`
 }
 
 type wireRegisterRequest struct {
-	Domain        string      `json:"domain"`
-	PeriodYears   int32       `json:"period_years"`
-	AutoRenew     bool        `json:"auto_renew"`
-	WHOISPrivacy  bool        `json:"whois_privacy"`
-	Owner         wireContact `json:"owner"`
+	Domain       string      `json:"domain"`
+	PeriodYears  int32       `json:"period_years"`
+	AutoRenew    bool        `json:"auto_renew"`
+	WHOISPrivacy bool        `json:"whois_privacy"`
+	Owner        wireContact `json:"owner"`
 }
 
 type wireRenewRequest struct {
-	OrderID       string `json:"order_id"`
-	PeriodYears   int32  `json:"period_years"`
+	OrderID     string `json:"order_id"`
+	PeriodYears int32  `json:"period_years"`
 }
 
 type wireTransferRequest struct {

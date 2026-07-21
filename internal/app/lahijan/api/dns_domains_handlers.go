@@ -277,10 +277,10 @@ func (s *Server) TransferDNSDomain(c *fiber.Ctx) error {
 	}
 	contact := bodyContactToService(body.Contact)
 	row, err := s.registrarSvc.TransferDomain(c.UserContext(), tid, uid, registrarsvc.TransferDomainRequest{
-		Domain:        body.Domain,
-		AuthCode:      body.AuthCode,
-		PeriodYears:   int32(body.PeriodYears),
-		Contact:       contact,
+		Domain:      body.Domain,
+		AuthCode:    body.AuthCode,
+		PeriodYears: int32(body.PeriodYears),
+		Contact:     contact,
 	})
 	if err != nil {
 		return mapRegistrarError(c, err)

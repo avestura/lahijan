@@ -37,10 +37,10 @@ const (
 // "dns.domain.*" to drive lifecycle notifications + billing
 // reconciliation.
 const (
-	DNSDomainRegistered = "dns.domain.registered"
-	DNSDomainRenewed    = "dns.domain.renewed"
-	DNSDomainTransferred = "dns.domain.transferred"
-	DNSDomainDeleted    = "dns.domain.deleted"
+	DNSDomainRegistered    = "dns.domain.registered"
+	DNSDomainRenewed       = "dns.domain.renewed"
+	DNSDomainTransferred   = "dns.domain.transferred"
+	DNSDomainDeleted       = "dns.domain.deleted"
 	DNSDomainDNSSECToggled = "dns.domain.dnssec.toggled"
 )
 
