@@ -371,14 +371,24 @@ $wrapperBody = @"
 try { `$host.UI.RawUI.WindowTitle = '$title' } catch {}
 Set-Location -LiteralPath '$repoRoot'
 
+# Start-Transcript captures every Write-Host / native-command output to a log
+# file. Unlike Tee-Object it does NOT break TTY detection (opencode still
+# sees a real TTY and streams at full speed), but we still get a complete
+# record of what the agent did. Essential for diagnosing silent failures
+# (e.g. the WS-28 incident where the agent exited in 2.5 minutes with zero
+# commits and no log was captured).
+`$transcriptPath = '$wrapperFile.transcript'
+try { Start-Transcript -Path `$transcriptPath -Force | Out-Null } catch {}
+
 Write-Host ''
 Write-Host '===================================================================' -ForegroundColor Cyan
 Write-Host '  $WsId - $slug  (mode: $modeLabel)' -ForegroundColor Cyan
 Write-Host '  opencode run --agent ws-implementer --auto' -ForegroundColor DarkCyan
 if ('$Model' -ne '') { Write-Host "  model: $Model" -ForegroundColor DarkCyan }
-Write-Host "  prompt:  $promptFile" -ForegroundColor DarkGray
-Write-Host "  branch:  $branchName" -ForegroundColor DarkGray
-Write-Host "  ws doc:   $wsDocPath" -ForegroundColor DarkGray
+Write-Host "  prompt:     $promptFile" -ForegroundColor DarkGray
+Write-Host "  branch:     $branchName" -ForegroundColor DarkGray
+Write-Host "  ws doc:     $wsDocPath" -ForegroundColor DarkGray
+Write-Host "  transcript: `$transcriptPath" -ForegroundColor DarkGray
 Write-Host '-------------------------------------------------------------------' -ForegroundColor DarkGray
 Write-Host '  When opencode finishes, look for this line in the output:' -ForegroundColor DarkGray
 Write-Host '    WS_IMPLEMENTATION_COMPLETE: $WsId' -ForegroundColor Green
@@ -398,6 +408,8 @@ if (`$ocExit -eq 0) {
     Write-Host "  opencode exited with code `$ocExit" -ForegroundColor Red
 }
 $tailBlock
+
+try { Stop-Transcript | Out-Null } catch {}
 "@
 
 $wrapperBody | Out-File -FilePath $wrapperFile -Encoding utf8
@@ -516,6 +528,22 @@ if (-not $shouldMerge) {
     Write-Info "to resume later: .\scripts\Invoke-WorkstreamTui.ps1 -WsId $WsId -Resume"
     return
 }
+
+# CRITICAL guard: refuse to merge if the agent committed nothing. The WS-28
+# incident showed that opencode can exit cleanly (code 0) after only a couple
+# of minutes without producing any commits - merging in that state would be a
+# no-op ('Already up to date.') and silently delete the branch, losing the
+# only signal that something went wrong.
+$aheadRaw = Invoke-GitCapture 'rev-list','--count',"main..$branchName"
+$aheadCount = [int]$aheadRaw.Trim()
+if ($aheadCount -eq 0) {
+    Write-Fail "branch $branchName has 0 commits ahead of main (agent committed nothing)"
+    Write-Info "this usually means opencode exited early without doing the work"
+    Write-Info "transcript: ${wrapperFile}.transcript"
+    Write-Info "branch left as-is; inspect the transcript, then re-run with -Resume"
+    return
+}
+Write-OK "branch has $aheadCount commit(s) ahead of main; proceeding to merge"
 
 # Commit any uncommitted leftovers, then merge.
 # Same `git add -u` rationale as the resume-mode leftover commit above:
