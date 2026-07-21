@@ -60,10 +60,10 @@ func on_event(payloadPtr, payloadLen uint32) {
 // "blocks" shape so the message renders nicely in the channel.
 func renderSlackMessage(eventPayload []byte) []byte {
 	var event struct {
-		Topic       string `json:"topic"`
-		TenantID    string `json:"tenant_id"`
-		ResourceID  string `json:"resource_id"`
-		ActorType   string `json:"actor_type"`
+		Topic      string `json:"topic"`
+		TenantID   string `json:"tenant_id"`
+		ResourceID string `json:"resource_id"`
+		ActorType  string `json:"actor_type"`
 	}
 	_ = json.Unmarshal(eventPayload, &event) // best-effort decode
 

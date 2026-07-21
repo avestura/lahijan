@@ -31,6 +31,19 @@ const (
 	DNSRecordDeleted      = "dns.record.deleted"
 )
 
+// DNS domain (registrar resale) events (WS-28). Emitted by the
+// registrar service whenever a domain is registered / renewed /
+// transferred / DNSSEC-at-parent toggled. Plugins subscribe via
+// "dns.domain.*" to drive lifecycle notifications + billing
+// reconciliation.
+const (
+	DNSDomainRegistered    = "dns.domain.registered"
+	DNSDomainRenewed       = "dns.domain.renewed"
+	DNSDomainTransferred   = "dns.domain.transferred"
+	DNSDomainDeleted       = "dns.domain.deleted"
+	DNSDomainDNSSECToggled = "dns.domain.dnssec.toggled"
+)
+
 // Compute module events (WS-11, WS-14). Emitted by the compute service
 // on lifecycle transitions. Plugins subscribe via "compute.instance.*"
 // to drive autoscaler / notifier behaviour.
@@ -118,6 +131,8 @@ func AllEvents() []string {
 		DNSZoneCreated, DNSZoneUpdated, DNSZoneDeleted,
 		DNSZoneDNSECSecured, DNSZoneDNSSECDisabled, DNSZoneDNSSECRotated,
 		DNSRecordCreated, DNSRecordUpdated, DNSRecordDeleted,
+		DNSDomainRegistered, DNSDomainRenewed, DNSDomainTransferred,
+		DNSDomainDeleted, DNSDomainDNSSECToggled,
 		ComputeInstanceCreated, ComputeInstanceStarted, ComputeInstanceStopped,
 		ComputeInstanceRestarted, ComputeInstanceDeleted,
 		ComputeSnapshotTaken, ComputeSnapshotPruned,

@@ -320,6 +320,24 @@ func AuditGate(policy middleware.PolicyResolver) apigen.MiddlewareFunc {
 		case isDNSTemplatePath(path) && method == "GET":
 			return middleware.RequirePerm(policy, rbac.PermDNSZoneRead)(c)
 
+		// WS-28: DNS domain (registrar resale) endpoints. Every
+		// /api/v1/dns/domains/* path is gated. The paid endpoints
+		// (register / renew / transfer) require their own slug so
+		// tenant.viewer (which holds search + read only) cannot
+		// accidentally trigger a charge.
+		case isDNSDomainRenewPath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermDNSDomainRenew)(c)
+		case isDNSDomainTransferPath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermDNSDomainTransfer)(c)
+		case isDNSDomainSearchPath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermDNSDomainSearch)(c)
+		case isDNSDomainPath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermDNSDomainRegister)(c)
+		case isDNSDomainPath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermDNSDomainRead)(c)
+		case isDNSDomainPath(path) && method == "DELETE":
+			return middleware.RequirePerm(policy, rbac.PermDNSDomainDelete)(c)
+
 		// WS-16: storage module endpoints. Every /api/v1/storage/* path
 		// is gated; the slug maps 1:1 with the rbac.PermS3* registry so
 		// the policy evaluator can answer with the caller's role grant
@@ -653,6 +671,41 @@ func isDNSApplyTemplatePath(path string) bool {
 // catalog.
 func isDNSTemplatePath(path string) bool {
 	return path == "/api/v1/dns/templates"
+}
+
+// -------------------------------------------------------------------------
+// WS-28 DNS domain (registrar resale) path helpers.
+// -------------------------------------------------------------------------
+
+// isDNSDomainPath reports whether path targets the domains collection
+// or a specific domain (but NOT the renew / search / transfer sub-paths).
+func isDNSDomainPath(path string) bool {
+	if path == "/api/v1/dns/domains" {
+		return true
+	}
+	if !strings.HasPrefix(path, "/api/v1/dns/domains/") {
+		return false
+	}
+	return !isDNSDomainRenewPath(path)
+}
+
+// isDNSDomainSearchPath reports whether path is the search endpoint.
+func isDNSDomainSearchPath(path string) bool {
+	return path == "/api/v1/dns/domains/search"
+}
+
+// isDNSDomainTransferPath reports whether path is the transfer endpoint.
+func isDNSDomainTransferPath(path string) bool {
+	return path == "/api/v1/dns/domains/transfer"
+}
+
+// isDNSDomainRenewPath reports whether path is the per-domain renew
+// endpoint (POST /api/v1/dns/domains/{id}/renew).
+func isDNSDomainRenewPath(path string) bool {
+	if !strings.HasPrefix(path, "/api/v1/dns/domains/") {
+		return false
+	}
+	return strings.HasSuffix(path, "/renew")
 }
 
 // isStorageBucketPath reports whether path targets the buckets collection

@@ -195,7 +195,8 @@ func isExpectedClose(err error) bool {
 	if errors.Is(err, gorillaws.ErrCloseSent) {
 		return true
 	}
-	if gorillaws.IsCloseError(err,
+	if gorillaws.IsCloseError(
+		err,
 		gorillaws.CloseNormalClosure,
 		gorillaws.CloseGoingAway,
 		gorillaws.CloseNoStatusReceived,

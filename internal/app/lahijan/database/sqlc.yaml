@@ -37,6 +37,7 @@ sql:
       - "queries/plugin_http_handlers.sql"
       - "queries/dns_zones.sql"
       - "queries/dns_records.sql"
+      - "queries/dns_domains.sql"
       - "queries/compute_instances.sql"
       - "queries/compute_images.sql"
       - "queries/compute_profiles.sql"

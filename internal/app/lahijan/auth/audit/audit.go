@@ -138,6 +138,18 @@ const (
 	ActionBillingPromoCodeRedeem    = "billing.promo_code.redeem"
 	ActionBillingWebhookReceived    = "billing.webhook.received"
 	ActionBillingWebhookApplied     = "billing.webhook.applied"
+
+	// DNS domain (registrar resale) actions (WS-28). Emitted by the
+	// registrar service on every state-changing privileged action
+	// across search / register / renew / transfer / DNSSEC. Each row
+	// carries the domain name + the registrar order id in metadata so
+	// the audit query API can render a stable history.
+	ActionDNSDomainSearch   = "dns.domain.search"
+	ActionDNSDomainRegister = "dns.domain.register"
+	ActionDNSDomainRenew    = "dns.domain.renew"
+	ActionDNSDomainTransfer = "dns.domain.transfer"
+	ActionDNSDomainDelete   = "dns.domain.delete"
+	ActionDNSDomainDNSSEC   = "dns.domain.dnssec"
 )
 
 // Standard statuses recorded on audit_log.status and audit_log_outcomes.status.
@@ -186,6 +198,10 @@ const (
 	ResourceBillingSubscription  = "billing_subscription"
 	ResourceBillingPromoCode     = "billing_promo_code"
 	ResourceBillingWebhookEvent  = "billing_webhook_event"
+
+	// DNS domain resource type (WS-28 registrar resale). Emitted by
+	// the registrar service.
+	ResourceDNSDomain = "dns_domain"
 )
 
 // Event is the data an emitter records. TenantID is nil for system-level auth

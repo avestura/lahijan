@@ -3069,6 +3069,209 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "501": { $ref: "#/components/responses/NotImplemented" }
 
+  # ===========================================================================
+  # DNS module — domain registration / registrar resale (WS-28).
+  #
+  # Every domain endpoint is tenant-scoped via the X-Tenant-Id header. The
+  # registrar surface mirrors the lifecycle a user can drive: search ->
+  # register -> renew -> transfer -> (delete the cached row). The platform
+  # NEVER exposes the registrar's brand name (OpenSRS, ResellerClub, ...)
+  # in the API or the UI (per pillar 1).
+  # ===========================================================================
+
+  /api/v1/dns/domains/search:
+    post:
+      tags: [dns]
+      operationId: searchDNSDomain
+      summary: Search domain availability
+      description: |
+        Asks the registrar whether the domain is available for registration
+        + the per-period retail price (with Lahijan's margin applied). The
+        search is metered by the registrar; the audit trail records the
+        actor.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DNSDomainSearchRequest" }
+      responses:
+        "200":
+          description: The search result (available + pricing per period).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DNSDomainSearchResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/dns/domains:
+    get:
+      tags: [dns]
+      operationId: listDNSDomains
+      summary: List registered domains
+      description: |
+        Returns a paginated list of the domains the tenant has registered,
+        renewed, or transferred through Lahijan.
+      parameters:
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+      responses:
+        "200":
+          description: A page of domains.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DNSDomainPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+    post:
+      tags: [dns]
+      operationId: registerDNSDomain
+      summary: Register a new domain
+      description: |
+        Places a new registration order with the registrar + charges the
+        caller's ledger. The charge is reversed if the registrar rejects
+        the order (the ledger is append-only so the reversal is a new
+        credit row with source=refund).
+
+        When `autoProvision` is true Lahijan also creates the matching
+        dns_zones row on success. When `autoDNSSEC` is true Lahijan also
+        signs the zone (WS-15 EnableDNSSEC) and publishes the DS at the
+        parent.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DNSDomainRegisterRequest" }
+      responses:
+        "201":
+          description: Domain registered.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DNSDomain" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "402":
+          description: Insufficient balance.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "409":
+          description: Domain already registered.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/dns/domains/{domainId}:
+    parameters:
+      - name: domainId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [dns]
+      operationId: getDNSDomain
+      summary: Get a registered domain
+      responses:
+        "200":
+          description: The domain row.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DNSDomain" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+    delete:
+      tags: [dns]
+      operationId: deleteDNSDomain
+      summary: Remove a domain from the tenant
+      description: |
+        Removes the dns_domains row. Does NOT cancel the registration at
+        the registrar — that is an irreversible action the user must take
+        explicitly via the registrar's back-office. The audit row records
+        "domain removed from tenant view; registration unchanged at the
+        registrar".
+      responses:
+        "204": { description: Domain row removed. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/dns/domains/{domainId}/renew:
+    parameters:
+      - name: domainId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [dns]
+      operationId: renewDNSDomain
+      summary: Renew a registered domain
+      description: |
+        Extends an existing registration by the requested period + charges
+        the caller's ledger. Idempotent per (tenant, domain, period).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DNSDomainRenewRequest" }
+      responses:
+        "200":
+          description: Domain renewed; the updated row.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DNSDomain" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "402":
+          description: Insufficient balance.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/dns/domains/transfer:
+    post:
+      tags: [dns]
+      operationId: transferDNSDomain
+      summary: Transfer a domain from another registrar
+      description: |
+        Initiates an EPP transfer from another registrar + charges the
+        caller's ledger. Returns 409 when the domain is locked for
+        transfer.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DNSDomainTransferRequest" }
+      responses:
+        "201":
+          description: Transfer initiated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DNSDomain" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "402":
+          description: Insufficient balance.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "409":
+          description: Domain locked for transfer.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
   # =========================================================================
   # Object Storage (WS-16). Per ADR-0011 the data plane is direct from the
   # user's S3 client to the backend; Lahijan only manages the control plane
@@ -6881,3 +7084,177 @@ components:
         total:  { type: integer }
         limit:  { type: integer }
         offset: { type: integer }
+
+    # =========================================================================
+    # DNS domain schemas (WS-28 registrar resale).
+    # =========================================================================
+
+    DNSDomain:
+      type: object
+      required: [id, tenantId, name, status, priceCents, currency, periodYears, isDnssecEnabled, isAutoRenew, createdAt, updatedAt]
+      additionalProperties: false
+      properties:
+        id:                 { type: string, format: uuid }
+        tenantId:           { type: string, format: uuid }
+        name:
+          type: string
+          description: Canonical domain name with trailing dot.
+        status:
+          type: string
+          enum: [available, registered, pending, transferred, expired]
+        registrarOrderId:   { type: string }
+        contactProfileId:   { type: string }
+        zoneId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Optional FK into dns_zones; set when Lahijan auto-provisions the zone.
+        priceCents:
+          type: integer
+          format: int64
+          description: Frozen price snapshot at registration time; integer cents.
+        currency:           { type: string }
+        periodYears:        { type: integer }
+        ledgerEntryId:
+          type: string
+          format: uuid
+          nullable: true
+        isDnssecEnabled:    { type: boolean }
+        isAutoRenew:        { type: boolean }
+        registeredAt:
+          type: string
+          format: date-time
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:          { type: string, format: date-time }
+        updatedAt:          { type: string, format: date-time }
+
+    DNSDomainPage:
+      type: object
+      required: [items, total, limit, offset]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/DNSDomain" }
+        total:  { type: integer }
+        limit:  { type: integer }
+        offset: { type: integer }
+
+    DNSDomainSearchRequest:
+      type: object
+      required: [domain]
+      additionalProperties: false
+      properties:
+        domain:
+          type: string
+          minLength: 1
+          description: Canonical domain name without a trailing dot.
+
+    DNSDomainSearchResult:
+      type: object
+      required: [domain, available, status, pricing]
+      additionalProperties: false
+      properties:
+        domain:     { type: string }
+        available:  { type: boolean }
+        status:
+          type: string
+          enum: [available, unavailable]
+        reason:     { type: string }
+        pricing:
+          type: array
+          items: { $ref: "#/components/schemas/DNSDomainPricing" }
+
+    DNSDomainPricing:
+      type: object
+      required: [periodYears, priceCents, currency]
+      additionalProperties: false
+      properties:
+        periodYears: { type: integer, minimum: 1, maximum: 10 }
+        priceCents:  { type: integer, format: int64 }
+        currency:    { type: string }
+
+    DNSDomainRegisterRequest:
+      type: object
+      required: [domain, periodYears]
+      additionalProperties: false
+      properties:
+        domain:
+          type: string
+          minLength: 1
+          description: Canonical domain name without a trailing dot.
+        periodYears:
+          type: integer
+          minimum: 1
+          maximum: 10
+        contact:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/DNSDomainContact"
+        autoRenew:
+          type: boolean
+          default: false
+        whoisPrivacy:
+          type: boolean
+          default: false
+        autoProvision:
+          type: boolean
+          default: true
+          description: When true Lahijan creates the matching dns_zones row on success.
+        autoDNSSEC:
+          type: boolean
+          default: false
+          description: When true Lahijan signs the zone + publishes DS at the parent.
+
+    DNSDomainRenewRequest:
+      type: object
+      required: [periodYears]
+      additionalProperties: false
+      properties:
+        periodYears:
+          type: integer
+          minimum: 1
+          maximum: 10
+
+    DNSDomainTransferRequest:
+      type: object
+      required: [domain, authCode, periodYears]
+      additionalProperties: false
+      properties:
+        domain:
+          type: string
+          minLength: 1
+          description: Canonical domain name without a trailing dot.
+        authCode:
+          type: string
+          minLength: 1
+          description: EPP auth code the losing registrar shared with the registrant.
+        periodYears:
+          type: integer
+          minimum: 1
+          maximum: 10
+        contact:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/DNSDomainContact"
+
+    DNSDomainContact:
+      type: object
+      required: [ownerFirstname, ownerLastname, ownerEmail, ownerPhone, address1, city, state, zip, countryCode]
+      additionalProperties: false
+      properties:
+        ownerFirstname:    { type: string }
+        ownerLastname:     { type: string }
+        ownerOrganization: { type: string }
+        ownerEmail:        { type: string, format: email }
+        ownerPhone:        { type: string, description: E.164 format. }
+        address1:          { type: string }
+        address2:          { type: string }
+        city:              { type: string }
+        state:             { type: string }
+        zip:               { type: string }
+        countryCode:       { type: string, description: ISO 3166-1 alpha-2. }

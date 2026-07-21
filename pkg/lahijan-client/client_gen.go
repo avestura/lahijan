@@ -183,6 +183,21 @@ const (
 	ComputeInstanceCreateRequestTypeVirtualMachine ComputeInstanceCreateRequestType = "virtual-machine"
 )
 
+// Defines values for DNSDomainStatus.
+const (
+	DNSDomainStatusAvailable   DNSDomainStatus = "available"
+	DNSDomainStatusExpired     DNSDomainStatus = "expired"
+	DNSDomainStatusPending     DNSDomainStatus = "pending"
+	DNSDomainStatusRegistered  DNSDomainStatus = "registered"
+	DNSDomainStatusTransferred DNSDomainStatus = "transferred"
+)
+
+// Defines values for DNSDomainSearchResultStatus.
+const (
+	DNSDomainSearchResultStatusAvailable   DNSDomainSearchResultStatus = "available"
+	DNSDomainSearchResultStatusUnavailable DNSDomainSearchResultStatus = "unavailable"
+)
+
 // Defines values for DNSRecordCreateRequestType.
 const (
 	DNSRecordCreateRequestTypeA     DNSRecordCreateRequestType = "A"
@@ -1430,6 +1445,120 @@ type CreatePersonalAccessTokenRequest struct {
 	Scopes *[]string `json:"scopes,omitempty"`
 }
 
+// DNSDomain defines model for DNSDomain.
+type DNSDomain struct {
+	ContactProfileId *string             `json:"contactProfileId,omitempty"`
+	CreatedAt        time.Time           `json:"createdAt"`
+	Currency         string              `json:"currency"`
+	ExpiresAt        *time.Time          `json:"expiresAt"`
+	Id               openapi_types.UUID  `json:"id"`
+	IsAutoRenew      bool                `json:"isAutoRenew"`
+	IsDnssecEnabled  bool                `json:"isDnssecEnabled"`
+	LedgerEntryId    *openapi_types.UUID `json:"ledgerEntryId"`
+
+	// Name Canonical domain name with trailing dot.
+	Name        string `json:"name"`
+	PeriodYears int    `json:"periodYears"`
+
+	// PriceCents Frozen price snapshot at registration time; integer cents.
+	PriceCents       int64              `json:"priceCents"`
+	RegisteredAt     *time.Time         `json:"registeredAt"`
+	RegistrarOrderId *string            `json:"registrarOrderId,omitempty"`
+	Status           DNSDomainStatus    `json:"status"`
+	TenantId         openapi_types.UUID `json:"tenantId"`
+	UpdatedAt        time.Time          `json:"updatedAt"`
+
+	// ZoneId Optional FK into dns_zones; set when Lahijan auto-provisions the zone.
+	ZoneId *openapi_types.UUID `json:"zoneId"`
+}
+
+// DNSDomainStatus defines model for DNSDomain.Status.
+type DNSDomainStatus string
+
+// DNSDomainContact defines model for DNSDomainContact.
+type DNSDomainContact struct {
+	Address1 string  `json:"address1"`
+	Address2 *string `json:"address2,omitempty"`
+	City     string  `json:"city"`
+
+	// CountryCode ISO 3166-1 alpha-2.
+	CountryCode       string              `json:"countryCode"`
+	OwnerEmail        openapi_types.Email `json:"ownerEmail"`
+	OwnerFirstname    string              `json:"ownerFirstname"`
+	OwnerLastname     string              `json:"ownerLastname"`
+	OwnerOrganization *string             `json:"ownerOrganization,omitempty"`
+
+	// OwnerPhone E.164 format.
+	OwnerPhone string `json:"ownerPhone"`
+	State      string `json:"state"`
+	Zip        string `json:"zip"`
+}
+
+// DNSDomainPage defines model for DNSDomainPage.
+type DNSDomainPage struct {
+	Items  []DNSDomain `json:"items"`
+	Limit  int         `json:"limit"`
+	Offset int         `json:"offset"`
+	Total  int         `json:"total"`
+}
+
+// DNSDomainPricing defines model for DNSDomainPricing.
+type DNSDomainPricing struct {
+	Currency    string `json:"currency"`
+	PeriodYears int    `json:"periodYears"`
+	PriceCents  int64  `json:"priceCents"`
+}
+
+// DNSDomainRegisterRequest defines model for DNSDomainRegisterRequest.
+type DNSDomainRegisterRequest struct {
+	// AutoDNSSEC When true Lahijan signs the zone + publishes DS at the parent.
+	AutoDNSSEC *bool `json:"autoDNSSEC,omitempty"`
+
+	// AutoProvision When true Lahijan creates the matching dns_zones row on success.
+	AutoProvision *bool             `json:"autoProvision,omitempty"`
+	AutoRenew     *bool             `json:"autoRenew,omitempty"`
+	Contact       *DNSDomainContact `json:"contact"`
+
+	// Domain Canonical domain name without a trailing dot.
+	Domain       string `json:"domain"`
+	PeriodYears  int    `json:"periodYears"`
+	WhoisPrivacy *bool  `json:"whoisPrivacy,omitempty"`
+}
+
+// DNSDomainRenewRequest defines model for DNSDomainRenewRequest.
+type DNSDomainRenewRequest struct {
+	PeriodYears int `json:"periodYears"`
+}
+
+// DNSDomainSearchRequest defines model for DNSDomainSearchRequest.
+type DNSDomainSearchRequest struct {
+	// Domain Canonical domain name without a trailing dot.
+	Domain string `json:"domain"`
+}
+
+// DNSDomainSearchResult defines model for DNSDomainSearchResult.
+type DNSDomainSearchResult struct {
+	Available bool                        `json:"available"`
+	Domain    string                      `json:"domain"`
+	Pricing   []DNSDomainPricing          `json:"pricing"`
+	Reason    *string                     `json:"reason,omitempty"`
+	Status    DNSDomainSearchResultStatus `json:"status"`
+}
+
+// DNSDomainSearchResultStatus defines model for DNSDomainSearchResult.Status.
+type DNSDomainSearchResultStatus string
+
+// DNSDomainTransferRequest defines model for DNSDomainTransferRequest.
+type DNSDomainTransferRequest struct {
+	// AuthCode EPP auth code the losing registrar shared with the registrant.
+	AuthCode string            `json:"authCode"`
+	Contact  *DNSDomainContact `json:"contact"`
+
+	// Domain Canonical domain name without a trailing dot.
+	Domain      string `json:"domain"`
+	PeriodYears int    `json:"periodYears"`
+}
+
 // DNSRecord defines model for DNSRecord.
 type DNSRecord struct {
 	// Content Zone-file wire form.
@@ -2355,6 +2484,15 @@ type ListComputeStorageVolumesParams struct {
 	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
 }
 
+// ListDNSDomainsParams defines parameters for ListDNSDomains.
+type ListDNSDomainsParams struct {
+	// Limit Maximum number of items to return (1..200).
+	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of items to skip for pagination.
+	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
 // ListDNSZonesParams defines parameters for ListDNSZones.
 type ListDNSZonesParams struct {
 	// Limit Maximum number of items to return (1..200).
@@ -2537,6 +2675,18 @@ type UpdateComputeSnapshotPolicyJSONRequestBody = ComputeSnapshotPolicyUpdateReq
 
 // CreateComputeStorageVolumeJSONRequestBody defines body for CreateComputeStorageVolume for application/json ContentType.
 type CreateComputeStorageVolumeJSONRequestBody = ComputeStorageVolumeCreateRequest
+
+// RegisterDNSDomainJSONRequestBody defines body for RegisterDNSDomain for application/json ContentType.
+type RegisterDNSDomainJSONRequestBody = DNSDomainRegisterRequest
+
+// SearchDNSDomainJSONRequestBody defines body for SearchDNSDomain for application/json ContentType.
+type SearchDNSDomainJSONRequestBody = DNSDomainSearchRequest
+
+// TransferDNSDomainJSONRequestBody defines body for TransferDNSDomain for application/json ContentType.
+type TransferDNSDomainJSONRequestBody = DNSDomainTransferRequest
+
+// RenewDNSDomainJSONRequestBody defines body for RenewDNSDomain for application/json ContentType.
+type RenewDNSDomainJSONRequestBody = DNSDomainRenewRequest
 
 // CreateDNSZoneJSONRequestBody defines body for CreateDNSZone for application/json ContentType.
 type CreateDNSZoneJSONRequestBody = DNSZoneCreateRequest
@@ -3070,6 +3220,35 @@ type ClientInterface interface {
 
 	// GetComputeStorageVolume request
 	GetComputeStorageVolume(ctx context.Context, volumeId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListDNSDomains request
+	ListDNSDomains(ctx context.Context, params *ListDNSDomainsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RegisterDNSDomainWithBody request with any body
+	RegisterDNSDomainWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	RegisterDNSDomain(ctx context.Context, body RegisterDNSDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SearchDNSDomainWithBody request with any body
+	SearchDNSDomainWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	SearchDNSDomain(ctx context.Context, body SearchDNSDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// TransferDNSDomainWithBody request with any body
+	TransferDNSDomainWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	TransferDNSDomain(ctx context.Context, body TransferDNSDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteDNSDomain request
+	DeleteDNSDomain(ctx context.Context, domainId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetDNSDomain request
+	GetDNSDomain(ctx context.Context, domainId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RenewDNSDomainWithBody request with any body
+	RenewDNSDomainWithBody(ctx context.Context, domainId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	RenewDNSDomain(ctx context.Context, domainId openapi_types.UUID, body RenewDNSDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListDNSTemplates request
 	ListDNSTemplates(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -5000,6 +5179,138 @@ func (c *Client) DeleteComputeStorageVolume(ctx context.Context, volumeId openap
 
 func (c *Client) GetComputeStorageVolume(ctx context.Context, volumeId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetComputeStorageVolumeRequest(c.Server, volumeId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListDNSDomains(ctx context.Context, params *ListDNSDomainsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListDNSDomainsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) RegisterDNSDomainWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRegisterDNSDomainRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) RegisterDNSDomain(ctx context.Context, body RegisterDNSDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRegisterDNSDomainRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) SearchDNSDomainWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSearchDNSDomainRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) SearchDNSDomain(ctx context.Context, body SearchDNSDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSearchDNSDomainRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) TransferDNSDomainWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewTransferDNSDomainRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) TransferDNSDomain(ctx context.Context, body TransferDNSDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewTransferDNSDomainRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteDNSDomain(ctx context.Context, domainId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteDNSDomainRequest(c.Server, domainId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetDNSDomain(ctx context.Context, domainId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetDNSDomainRequest(c.Server, domainId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) RenewDNSDomainWithBody(ctx context.Context, domainId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRenewDNSDomainRequestWithBody(c.Server, domainId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) RenewDNSDomain(ctx context.Context, domainId openapi_types.UUID, body RenewDNSDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRenewDNSDomainRequest(c.Server, domainId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -11007,6 +11318,306 @@ func NewGetComputeStorageVolumeRequest(server string, volumeId openapi_types.UUI
 	return req, nil
 }
 
+// NewListDNSDomainsRequest generates requests for ListDNSDomains
+func NewListDNSDomainsRequest(server string, params *ListDNSDomainsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/dns/domains")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRegisterDNSDomainRequest calls the generic RegisterDNSDomain builder with application/json body
+func NewRegisterDNSDomainRequest(server string, body RegisterDNSDomainJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRegisterDNSDomainRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewRegisterDNSDomainRequestWithBody generates requests for RegisterDNSDomain with any type of body
+func NewRegisterDNSDomainRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/dns/domains")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewSearchDNSDomainRequest calls the generic SearchDNSDomain builder with application/json body
+func NewSearchDNSDomainRequest(server string, body SearchDNSDomainJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSearchDNSDomainRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSearchDNSDomainRequestWithBody generates requests for SearchDNSDomain with any type of body
+func NewSearchDNSDomainRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/dns/domains/search")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewTransferDNSDomainRequest calls the generic TransferDNSDomain builder with application/json body
+func NewTransferDNSDomainRequest(server string, body TransferDNSDomainJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewTransferDNSDomainRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewTransferDNSDomainRequestWithBody generates requests for TransferDNSDomain with any type of body
+func NewTransferDNSDomainRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/dns/domains/transfer")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteDNSDomainRequest generates requests for DeleteDNSDomain
+func NewDeleteDNSDomainRequest(server string, domainId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "domainId", runtime.ParamLocationPath, domainId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/dns/domains/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetDNSDomainRequest generates requests for GetDNSDomain
+func NewGetDNSDomainRequest(server string, domainId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "domainId", runtime.ParamLocationPath, domainId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/dns/domains/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRenewDNSDomainRequest calls the generic RenewDNSDomain builder with application/json body
+func NewRenewDNSDomainRequest(server string, domainId openapi_types.UUID, body RenewDNSDomainJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRenewDNSDomainRequestWithBody(server, domainId, "application/json", bodyReader)
+}
+
+// NewRenewDNSDomainRequestWithBody generates requests for RenewDNSDomain with any type of body
+func NewRenewDNSDomainRequestWithBody(server string, domainId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "domainId", runtime.ParamLocationPath, domainId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/dns/domains/%s/renew", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListDNSTemplatesRequest generates requests for ListDNSTemplates
 func NewListDNSTemplatesRequest(server string) (*http.Request, error) {
 	var err error
@@ -13441,6 +14052,35 @@ type ClientWithResponsesInterface interface {
 
 	// GetComputeStorageVolumeWithResponse request
 	GetComputeStorageVolumeWithResponse(ctx context.Context, volumeId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeStorageVolumeResponse, error)
+
+	// ListDNSDomainsWithResponse request
+	ListDNSDomainsWithResponse(ctx context.Context, params *ListDNSDomainsParams, reqEditors ...RequestEditorFn) (*ListDNSDomainsResponse, error)
+
+	// RegisterDNSDomainWithBodyWithResponse request with any body
+	RegisterDNSDomainWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RegisterDNSDomainResponse, error)
+
+	RegisterDNSDomainWithResponse(ctx context.Context, body RegisterDNSDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*RegisterDNSDomainResponse, error)
+
+	// SearchDNSDomainWithBodyWithResponse request with any body
+	SearchDNSDomainWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SearchDNSDomainResponse, error)
+
+	SearchDNSDomainWithResponse(ctx context.Context, body SearchDNSDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*SearchDNSDomainResponse, error)
+
+	// TransferDNSDomainWithBodyWithResponse request with any body
+	TransferDNSDomainWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*TransferDNSDomainResponse, error)
+
+	TransferDNSDomainWithResponse(ctx context.Context, body TransferDNSDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*TransferDNSDomainResponse, error)
+
+	// DeleteDNSDomainWithResponse request
+	DeleteDNSDomainWithResponse(ctx context.Context, domainId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteDNSDomainResponse, error)
+
+	// GetDNSDomainWithResponse request
+	GetDNSDomainWithResponse(ctx context.Context, domainId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetDNSDomainResponse, error)
+
+	// RenewDNSDomainWithBodyWithResponse request with any body
+	RenewDNSDomainWithBodyWithResponse(ctx context.Context, domainId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RenewDNSDomainResponse, error)
+
+	RenewDNSDomainWithResponse(ctx context.Context, domainId openapi_types.UUID, body RenewDNSDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*RenewDNSDomainResponse, error)
 
 	// ListDNSTemplatesWithResponse request
 	ListDNSTemplatesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListDNSTemplatesResponse, error)
@@ -16417,6 +17057,192 @@ func (r GetComputeStorageVolumeResponse) StatusCode() int {
 	return 0
 }
 
+type ListDNSDomainsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *DNSDomainPage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r ListDNSDomainsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListDNSDomainsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type RegisterDNSDomainResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *DNSDomain
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON402      *Error
+	JSON403      *Forbidden
+	JSON409      *Error
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r RegisterDNSDomainResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RegisterDNSDomainResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type SearchDNSDomainResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *DNSDomainSearchResult
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r SearchDNSDomainResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SearchDNSDomainResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type TransferDNSDomainResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *DNSDomain
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON402      *Error
+	JSON403      *Forbidden
+	JSON409      *Error
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r TransferDNSDomainResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r TransferDNSDomainResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteDNSDomainResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteDNSDomainResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteDNSDomainResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetDNSDomainResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *DNSDomain
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r GetDNSDomainResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetDNSDomainResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type RenewDNSDomainResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *DNSDomain
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON402      *Error
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r RenewDNSDomainResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RenewDNSDomainResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type ListDNSTemplatesResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -18858,6 +19684,101 @@ func (c *ClientWithResponses) GetComputeStorageVolumeWithResponse(ctx context.Co
 		return nil, err
 	}
 	return ParseGetComputeStorageVolumeResponse(rsp)
+}
+
+// ListDNSDomainsWithResponse request returning *ListDNSDomainsResponse
+func (c *ClientWithResponses) ListDNSDomainsWithResponse(ctx context.Context, params *ListDNSDomainsParams, reqEditors ...RequestEditorFn) (*ListDNSDomainsResponse, error) {
+	rsp, err := c.ListDNSDomains(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListDNSDomainsResponse(rsp)
+}
+
+// RegisterDNSDomainWithBodyWithResponse request with arbitrary body returning *RegisterDNSDomainResponse
+func (c *ClientWithResponses) RegisterDNSDomainWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RegisterDNSDomainResponse, error) {
+	rsp, err := c.RegisterDNSDomainWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRegisterDNSDomainResponse(rsp)
+}
+
+func (c *ClientWithResponses) RegisterDNSDomainWithResponse(ctx context.Context, body RegisterDNSDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*RegisterDNSDomainResponse, error) {
+	rsp, err := c.RegisterDNSDomain(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRegisterDNSDomainResponse(rsp)
+}
+
+// SearchDNSDomainWithBodyWithResponse request with arbitrary body returning *SearchDNSDomainResponse
+func (c *ClientWithResponses) SearchDNSDomainWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SearchDNSDomainResponse, error) {
+	rsp, err := c.SearchDNSDomainWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSearchDNSDomainResponse(rsp)
+}
+
+func (c *ClientWithResponses) SearchDNSDomainWithResponse(ctx context.Context, body SearchDNSDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*SearchDNSDomainResponse, error) {
+	rsp, err := c.SearchDNSDomain(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSearchDNSDomainResponse(rsp)
+}
+
+// TransferDNSDomainWithBodyWithResponse request with arbitrary body returning *TransferDNSDomainResponse
+func (c *ClientWithResponses) TransferDNSDomainWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*TransferDNSDomainResponse, error) {
+	rsp, err := c.TransferDNSDomainWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseTransferDNSDomainResponse(rsp)
+}
+
+func (c *ClientWithResponses) TransferDNSDomainWithResponse(ctx context.Context, body TransferDNSDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*TransferDNSDomainResponse, error) {
+	rsp, err := c.TransferDNSDomain(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseTransferDNSDomainResponse(rsp)
+}
+
+// DeleteDNSDomainWithResponse request returning *DeleteDNSDomainResponse
+func (c *ClientWithResponses) DeleteDNSDomainWithResponse(ctx context.Context, domainId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteDNSDomainResponse, error) {
+	rsp, err := c.DeleteDNSDomain(ctx, domainId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteDNSDomainResponse(rsp)
+}
+
+// GetDNSDomainWithResponse request returning *GetDNSDomainResponse
+func (c *ClientWithResponses) GetDNSDomainWithResponse(ctx context.Context, domainId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetDNSDomainResponse, error) {
+	rsp, err := c.GetDNSDomain(ctx, domainId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetDNSDomainResponse(rsp)
+}
+
+// RenewDNSDomainWithBodyWithResponse request with arbitrary body returning *RenewDNSDomainResponse
+func (c *ClientWithResponses) RenewDNSDomainWithBodyWithResponse(ctx context.Context, domainId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RenewDNSDomainResponse, error) {
+	rsp, err := c.RenewDNSDomainWithBody(ctx, domainId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRenewDNSDomainResponse(rsp)
+}
+
+func (c *ClientWithResponses) RenewDNSDomainWithResponse(ctx context.Context, domainId openapi_types.UUID, body RenewDNSDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*RenewDNSDomainResponse, error) {
+	rsp, err := c.RenewDNSDomain(ctx, domainId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRenewDNSDomainResponse(rsp)
 }
 
 // ListDNSTemplatesWithResponse request returning *ListDNSTemplatesResponse
@@ -24679,6 +25600,412 @@ func ParseGetComputeStorageVolumeResponse(rsp *http.Response) (*GetComputeStorag
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListDNSDomainsResponse parses an HTTP response from a ListDNSDomainsWithResponse call
+func ParseListDNSDomainsResponse(rsp *http.Response) (*ListDNSDomainsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListDNSDomainsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DNSDomainPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRegisterDNSDomainResponse parses an HTTP response from a RegisterDNSDomainWithResponse call
+func ParseRegisterDNSDomainResponse(rsp *http.Response) (*RegisterDNSDomainResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RegisterDNSDomainResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest DNSDomain
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 402:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON402 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSearchDNSDomainResponse parses an HTTP response from a SearchDNSDomainWithResponse call
+func ParseSearchDNSDomainResponse(rsp *http.Response) (*SearchDNSDomainResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SearchDNSDomainResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DNSDomainSearchResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseTransferDNSDomainResponse parses an HTTP response from a TransferDNSDomainWithResponse call
+func ParseTransferDNSDomainResponse(rsp *http.Response) (*TransferDNSDomainResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &TransferDNSDomainResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest DNSDomain
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 402:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON402 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteDNSDomainResponse parses an HTTP response from a DeleteDNSDomainWithResponse call
+func ParseDeleteDNSDomainResponse(rsp *http.Response) (*DeleteDNSDomainResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteDNSDomainResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetDNSDomainResponse parses an HTTP response from a GetDNSDomainWithResponse call
+func ParseGetDNSDomainResponse(rsp *http.Response) (*GetDNSDomainResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetDNSDomainResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DNSDomain
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRenewDNSDomainResponse parses an HTTP response from a RenewDNSDomainWithResponse call
+func ParseRenewDNSDomainResponse(rsp *http.Response) (*RenewDNSDomainResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RenewDNSDomainResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DNSDomain
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 402:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON402 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
 
 	}
 

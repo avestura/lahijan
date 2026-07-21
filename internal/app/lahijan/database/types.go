@@ -42,14 +42,16 @@ type (
 	ComputeBackupTarget   = gen.ComputeBackupTarget
 	ComputeBackup         = gen.ComputeBackup
 
-	// DNSZone / DNSRecord are the row aliases (WS-12, WS-15). Services
-	// reference these (e.g. database.DNSZone) instead of gen.DnsZone.
-	// The sqlc-generated names use the snake_case table name (DnsZone /
-	// DnsRecord); the database package re-exports them under the
-	// idiomatic-Go DNS prefix without changing the underlying type
-	// (these are type aliases, not wrappers).
+	// DNSZone / DNSRecord / DNSDomain are the row aliases (WS-12, WS-15,
+	// WS-28). Services reference these (e.g. database.DNSZone) instead
+	// of gen.DnsZone. The sqlc-generated names use the snake_case table
+	// name (DnsZone / DnsRecord / DnsDomain); the database package
+	// re-exports them under the idiomatic-Go DNS prefix without
+	// changing the underlying type (these are type aliases, not
+	// wrappers).
 	DNSZone   = gen.DnsZone
 	DNSRecord = gen.DnsRecord
+	DNSDomain = gen.DnsDomain
 
 	// StorageBucket / StorageCredential are the row aliases (WS-16).
 	// Services reference these (e.g. database.StorageBucket) instead of

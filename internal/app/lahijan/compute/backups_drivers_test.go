@@ -48,7 +48,8 @@ func TestBackupTarget_FactoryUnknownKind(t *testing.T) {
 
 func TestBackupTarget_FactoryS3(t *testing.T) {
 	t.Parallel()
-	d, err := NewBackupTarget(BackupTargetKindS3,
+	d, err := NewBackupTarget(
+		BackupTargetKindS3,
 		BackupTargetConfig{S3Endpoint: "https://s3.example.com", S3Bucket: "b"},
 		BackupTargetSecret{S3AccessKeyID: "a", S3SecretKey: "s"},
 	)

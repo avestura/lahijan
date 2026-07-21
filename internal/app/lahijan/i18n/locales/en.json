@@ -230,6 +230,9 @@
   "dns.err_already_exists": { "other": "A DNS resource with this name already exists." },
   "dns.err_template_not_found": { "other": "DNS template not found." },
   "dns.err_bad_request": { "other": "The DNS request was malformed." },
+  "dns.err_domain_disabled": { "other": "Domain registration is not enabled on this server." },
+  "dns.err_domain_not_found": { "other": "Domain not found in this tenant." },
+  "dns.err_domain_unavailable": { "other": "This domain is not available for registration." },
 
   "audit.action_compute_instance_create": { "other": "Compute instance created" },
   "audit.action_compute_instance_start": { "other": "Compute instance started" },
@@ -273,6 +276,12 @@
   "audit.action_dns_zone_dnssec_enable": { "other": "DNSSEC enabled for zone" },
   "audit.action_dns_zone_dnssec_disable": { "other": "DNSSEC disabled for zone" },
   "audit.action_dns_zone_template_apply": { "other": "DNS template applied to zone" },
+  "audit.action_dns_domain_search": { "other": "Domain availability searched" },
+  "audit.action_dns_domain_register": { "other": "Domain registered" },
+  "audit.action_dns_domain_renew": { "other": "Domain renewed" },
+  "audit.action_dns_domain_transfer": { "other": "Domain transferred in" },
+  "audit.action_dns_domain_delete": { "other": "Domain removed from tenant" },
+  "audit.action_dns_domain_dnssec": { "other": "Domain DNSSEC toggled" },
 
   "s3.err_disabled": { "other": "The object storage subsystem is not enabled on this server." },
   "s3.err_not_found": { "other": "Object storage resource not found." },

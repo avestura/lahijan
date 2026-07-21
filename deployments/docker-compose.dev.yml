@@ -101,6 +101,12 @@ services:
   # (sourced upstream from PDNS' schema.pgsql.sql). The API key is read
   # from env LAHIJAN_PROVIDERS_POWERDNS_API_KEY (or PDNS_API_KEY for short)
   # and templated into pdns.conf at startup via envsubst.
+  #
+  # In the WS-28 full-DNS topology (recursor + dnsdist), this service is
+  # reached at powerdns:53 from dnsdist's "Pool" config. The 53 port is
+  # NOT published to the host in that topology — dnsdist owns the public
+  # 53 and routes by zone. Without the profile the dev port mapping
+  # (5300) is preserved so `dig @localhost -p 5300` still works.
   powerdns:
     image: powerdns/pdns-auth-49:4.9.3
     container_name: lahijan-powerdns-dev
@@ -135,7 +141,9 @@ services:
       # HTTP API the Lahijan driver talks to (conf.providers.powerdns.baseURL).
       - "${PDNS_API_PORT:-8081}:8081"
       # Authoritative DNS port (UDP + TCP). Exposed so the operator can
-      # `dig @localhost` against PDNS during dev.
+      # `dig @localhost` against PDNS during dev. When dns-full profile is
+      # on, dnsdist owns the public DNS port instead; this mapping still
+      # lets the operator reach PDNS directly for debugging.
       - "${PDNS_DNS_PORT:-5300}:53/udp"
       - "${PDNS_DNS_PORT:-5300}:53/tcp"
     volumes:
@@ -151,6 +159,115 @@ services:
       # TCP connect itself proves the daemon is up + the API is listening.
       # The alpine-based PDNS image ships wget (not curl), so we use it.
       test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://localhost:8081/api/v1/servers/localhost || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 15s
+
+  # PowerDNS Recursor (WS-28). Optional — only started when the operator
+  # passes `--profile dns-full` to docker compose. The recursor serves
+  # recursive DNS queries for clients that point their resolvers at
+  # Lahijan. In the full DNS topology (auth + recursor + dnsdist), dnsdist
+  # routes "not one of our zones" queries here; zones Lahijan is
+  # authoritative for go to the `powerdns` service instead.
+  #
+  # The recursor does NOT carry tenant_id — every tenant's clients share
+  # the same upstream view. Per-tenant filtering (e.g. RPZ block lists)
+  # is a Phase 7 candidate; the seam is the `lua-dns-script` policy file
+  # mounted below.
+  powerdns-recursor:
+    image: powerdns/pdns-recursor-49:4.9.3
+    container_name: lahijan-powerdns-recursor-dev
+    restart: unless-stopped
+    profiles: ["dns-full"]
+    depends_on:
+      powerdns:
+        condition: service_healthy
+    environment:
+      # Forward every query for a zone Lahijan is authoritative for to the
+      # `powerdns` auth service on the internal port (53). The auth daemon
+      # answers from its gpgsql-backed zone store.
+      PDNS_forward_zones:
+        # The literal "lahijan.local" is the dev-only fake TLD the operator
+        # can use to test forwarding without registering a real domain. In
+      # prod the operator adds the zones they host here (or relies on
+      # dnsdist's Pool routing instead).
+        "lahijan.local=powerdns:53"
+      # Local subnets allowed to recurse (the RFC1918 set + the compose
+      # network). Tighten in prod.
+      PDNS_allow_from: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+      # Webserver for the operator's status + API. Reuses the auth API
+      # key — the recursor's API is read-only for status queries.
+      PDNS_webserver: "yes"
+      PDNS_webserver_address: "0.0.0.0"
+      PDNS_webserver_port: "8082"
+      PDNS_webserver_allow_from: "0.0.0.0/0,::/0"
+      PDNS_api_key: ${PDNS_API_KEY:-lahijan-dev-pdns-key}
+      # Disable the dnsupdate endpoint on the recursor; only auth should
+      # accept updates.
+      PDNS_dnsupdate: "no"
+    ports:
+      # Recursor DNS port (UDP + TCP) — exposed so the operator can
+      # `dig @localhost -p 5301` against the recursor during dev.
+      - "${PDNS_RECURSOR_DNS_PORT:-5301}:5300/udp"
+      - "${PDNS_RECURSOR_DNS_PORT:-5301}:5300/tcp"
+      # Web API.
+      - "${PDNS_RECURSOR_API_PORT:-8082}:8082"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://localhost:8082/api/v1/servers/localhost || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 15s
+
+  # dnsdist (WS-28) — the protocol-aware DNS load-balancer that sits in
+  # front of `powerdns` (auth) and `powerdns-recursor`. Optional — only
+  # started when the operator passes `--profile dns-full`. dnsdist owns
+  # the public DNS port (53/udp+tcp on the host); it routes by zone via
+  # the `Pool` rules in deployments/dnsdist/dnsdist.conf.
+  #
+  # Rate-limiting + source-ACL routing are configured in the mounted
+  # dnsdist.conf. The operator can live-reload the config via the
+  # console port (TLS + API key, not exposed outside the compose
+  # network by default).
+  dnsdist:
+    image: powerdns/dnsdist-17:1.7.7
+    container_name: lahijan-dnsdist-dev
+    restart: unless-stopped
+    profiles: ["dns-full"]
+    depends_on:
+      powerdns:
+        condition: service_healthy
+      powerdns-recursor:
+        condition: service_healthy
+    command:
+      - "--supervised"
+      - "--disable-syslog"
+      # The config file is mounted below; dnsdist reads it at startup.
+      # The --config flag is implicit when the file is at the default
+      # /etc/dnsdist/dnsdist.conf path.
+    environment:
+      # Pass the upstream services so dnsdist.conf can reference them
+      # via envsubst at container start (the entrypoint image ships
+      # envsubst). See deployments/dnsdist/dnsdist.conf.template.
+      PDNS_AUTH_HOST: powerdns
+      PDNS_AUTH_PORT: "53"
+      PDNS_RECURSOR_HOST: powerdns-recursor
+      PDNS_RECURSOR_PORT: "5300"
+      DNSDIST_API_KEY: ${DNSDIST_API_KEY:-lahijan-dev-dnsdist-key}
+    ports:
+      # Public DNS port (UDP + TCP). When dns-full is on, dnsdist owns
+      # this port; the operator's firewall must allow UDP/TCP 53 from
+      # the internet to this host.
+      - "${DNSDIST_DNS_PORT:-5302}:53/udp"
+      - "${DNSDIST_DNS_PORT:-5302}:53/tcp"
+      # Web console (read-only status). The API key gates writes; the
+      # console port is for live-reload via the dnsdist CLI.
+      - "${DNSDIST_API_PORT:-8083}:8083"
+    volumes:
+      - ./dnsdist/dnsdist.conf.template:/etc/dnsdist/dnsdist.conf.template:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://localhost:8083/ || exit 1"]
       interval: 10s
       timeout: 3s
       retries: 12

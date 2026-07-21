@@ -230,7 +230,8 @@ func EnsurePlatformAdmin(ctx context.Context, deps Deps, cfg Config, log *slog.L
 		return Result{}, fmt.Errorf("bootstrap: create admin membership: %w", mErr)
 	}
 
-	log.Info("bootstrap: first-run admin created",
+	log.Info(
+		"bootstrap: first-run admin created",
 		"tenant_id", tenant.ID,
 		"user_id", user.ID,
 		"email", user.Email,

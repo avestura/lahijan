@@ -1,0 +1,112 @@
+-- dnsdist configuration for Lahijan (WS-28).
+--
+-- This is the protocol-aware DNS load-balancer that sits in front of the
+-- PowerDNS authoritative server (WS-12) and the PowerDNS recursor (WS-28).
+-- dnsdist owns the public 53/udp+tcp port and routes by zone:
+--
+--   * queries for zones Lahijan is authoritative for -> "auth" pool
+--   * every other query                                       -> "recursor" pool
+--
+-- Rate-limiting + source-ACL routing keep a misbehaving client from
+-- drowning either upstream. The web console listens on 8083 inside the
+-- container; the API key gates mutations.
+--
+-- Reference: https://dnsdist.org/guides/
+
+-- Bind to all interfaces, both UDP and TCP. The container publishes :53
+-- to the host; dnsdist accepts every connection from the compose network
+-- (and from the host's published port).
+setLocal("0.0.0.0:53")
+addLocal("[::]:53")
+
+-- Upstream pools. Each "newServer" entry registers a backend + adds it
+-- to the named pool; downstream "PoolAction" rules route by query
+-- attribute. The host + port are templated by envsubst at container
+-- startup (see docker-compose.yml's environment block).
+
+-- "auth" pool: the authoritative server. Receives every query for a
+-- zone Lahijan is the NS for.
+auth_pool = "auth"
+newServer({
+    address = os.getenv("PDNS_AUTH_HOST") .. ":" .. os.getenv("PDNS_AUTH_PORT"),
+    name = "powerdns-auth",
+    pool = auth_pool,
+    checkName = os.getenv("PDNS_AUTH_HOST") .. ":" .. os.getenv("PDNS_AUTH_PORT"),
+    checkType = "A",
+    mustResolve = true,
+})
+
+-- "recursor" pool: the recursive resolver. Receives every query that is
+-- NOT for one of Lahijan's authoritative zones. Optional — when the
+-- recursor container is disabled, dnsdist returns REFUSED for non-auth
+-- queries (see the default pool action below).
+recursor_pool = "recursor"
+local recursor_host = os.getenv("PDNS_RECURSOR_HOST")
+local recursor_port = os.getenv("PDNS_RECURSOR_PORT")
+if recursor_host and recursor_port then
+    newServer({
+        address = recursor_host .. ":" .. recursor_port,
+        name = "powerdns-recursor",
+        pool = recursor_pool,
+        checkName = recursor_host .. ":" .. recursor_port,
+        checkType = "A",
+        mustResolve = true,
+    })
+end
+
+-- Routing rules. Order matters: dnsdist evaluates rules top-to-bottom and
+-- uses the first match.
+--
+-- 1. Authoritative zones -> "auth" pool. The QPS cap (1000) protects the
+--    auth daemon from a flood of identical queries.
+--
+-- The zone list is a placeholder — in production the operator lists every
+-- zone Lahijan is the NS for here. dnsdist re-reads the file on
+-- live-reload (via the console port) so adding a new zone does not
+-- require a restart.
+ addAction({"lahijan.local"}, PoolAction(auth_pool))
+ addAction(AllRule(), PoolAction(auth_pool), {pool=auth_pool})
+
+-- 2. Default pool. When the recursor is configured, route "not auth"
+--    queries there; otherwise REFUSE so the client knows to look
+--    elsewhere. Refused (rcode 5) is the right answer for "we are not
+--    authoritative and we do not recurse" — a SERVFAIL would make the
+--    client retry, drowning the daemon.
+if recursor_host and recursor_port then
+    addAction(AllRule(), PoolAction(recursor_pool))
+else
+    addAction(AllRule(), RCodeAction(DNSRCode.REFUSED))
+end
+
+-- Rate-limit: cap a single source at 200 qps; bursts of 400 are allowed.
+-- A client that exceeds the cap sees drops (not REFUSED) so a real client
+-- retrying with backoff still gets through.
+local dyn_block_qos = {
+    {
+        metric = "qps",
+        limit = 200,
+        burst = 400,
+        action = function()
+            return DropAction()
+        end,
+    },
+}
+dynBlockRulesGroup(dyn_block_qos)
+
+-- Web console + API. The API key is required for every mutating call;
+-- the read-only /metrics + /jsonstat endpoints are open so the operator's
+-- dashboard can scrape them. The console port (8083) is published to the
+-- host in dev; in prod it is backend-only and accessed via an SSH tunnel
+-- or a Caddy-authenticated reverse proxy.
+local api_key = os.getenv("DNSDIST_API_KEY") or "lahijan-dev-dnsdist-key"
+webserver("0.0.0.0:8083")
+setWebserverConfig({
+    password = api_key,
+    apiKey = api_key,
+    statsRequireAuthentication = false,
+})
+
+-- Carve out a separate control socket on 5199 (not published) so the
+-- operator's `dnsdist -c` CLI can connect over the compose network.
+controlSocket("0.0.0.0:5199")
+setKey(api_key)

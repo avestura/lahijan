@@ -220,6 +220,101 @@ services:
           memory: 384M
 
   # ---------------------------------------------------------------------
+  # PowerDNS Recursor (WS-28). Optional — only started with
+  # `--profile dns-full`. When enabled, dnsdist (below) routes every
+  # non-authoritative query here so Lahijan can act as the user's
+  # recursive resolver too.
+  # ---------------------------------------------------------------------
+  powerdns-recursor:
+    image: powerdns/pdns-recursor-49:4.9.3
+    container_name: lahijan-prod-powerdns-recursor
+    restart: unless-stopped
+    profiles: ["dns-full"]
+    networks: [backend]
+    logging: *default-logging
+    depends_on:
+      powerdns:
+        condition: service_healthy
+    environment:
+      # In prod the operator lists the real forward-zones here (the
+      # domains Lahijan is authoritative for). dnsdist's PoolAction takes
+      # care of the same routing when both are enabled, so this is a
+      # belt-and-braces fallback.
+      PDNS_forward_zones: ${PDNS_FORWARD_ZONES:-}
+      # Tighter source ACL in prod; default is the compose network only.
+      PDNS_allow_from: ${PDNS_RECURSOR_ALLOW_FROM:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
+      PDNS_webserver: "yes"
+      PDNS_webserver_address: "0.0.0.0"
+      PDNS_webserver_port: "8082"
+      PDNS_webserver_allow_from: ${PDNS_WEBSERVER_ALLOW_FROM:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
+      PDNS_api_key: ${PDNS_API_KEY}
+      PDNS_dnsupdate: "no"
+    expose:
+      - "5300"
+      - "8082"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://localhost:8082/api/v1/servers/localhost || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 384M
+
+  # ---------------------------------------------------------------------
+  # dnsdist (WS-28) — protocol-aware DNS load-balancer in front of auth
+  # + recursor. Optional — only started with `--profile dns-full`. When
+  # enabled, this service publishes port 53 on the host; the bare
+  # `powerdns` service's port-53 mapping MUST be removed from the
+  # override file to avoid a conflict.
+  # ---------------------------------------------------------------------
+  dnsdist:
+    image: powerdns/dnsdist-17:1.7.7
+    container_name: lahijan-prod-dnsdist
+    restart: unless-stopped
+    profiles: ["dns-full"]
+    networks: [backend]
+    logging: *default-logging
+    depends_on:
+      powerdns:
+        condition: service_healthy
+      powerdns-recursor:
+        condition: service_healthy
+    command:
+      - "--supervised"
+      - "--disable-syslog"
+    environment:
+      PDNS_AUTH_HOST: powerdns
+      PDNS_AUTH_PORT: "53"
+      PDNS_RECURSOR_HOST: powerdns-recursor
+      PDNS_RECURSOR_PORT: "5300"
+      DNSDIST_API_KEY: ${DNSDIST_API_KEY}
+    ports:
+      # Public DNS port — same host port as `powerdns` when dns-full is
+      # OFF; with both profiles the operator picks one via the override
+      # file (the prod default is dnsdist on, powerdns port-53 off).
+      - "53:53/udp"
+      - "53:53/tcp"
+    expose:
+      - "8083"
+    volumes:
+      - ./dnsdist/dnsdist.conf.template:/etc/dnsdist/dnsdist.conf.template:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://localhost:8083/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 192M
+
+  # ---------------------------------------------------------------------
   # SeaweedFS — master + volume + filer + s3 (prod split).
   # ---------------------------------------------------------------------
   seaweed-master:
