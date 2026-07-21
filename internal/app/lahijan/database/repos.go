@@ -52,6 +52,10 @@ type Repos struct {
 	ComputeSnapshotPolicies *ComputeSnapshotPoliciesRepository
 	StorageBuckets          *StorageBucketsRepository
 	StorageCredentials      *StorageCredentialsRepository
+	// WS-29: per-bucket S3 lifecycle rules. Source-of-truth on the
+	// Lahijan side; pushed to SeaweedFS via the SDK + evaluated by the
+	// storage.lifecycle.evaluate River worker.
+	StorageLifecycleRules *StorageLifecycleRulesRepository
 
 	// WS-17: billing & metering. Five sub-repositories: the admin-managed
 	// price catalog (BillingPrices), the append-only per-user ledger
@@ -115,6 +119,7 @@ func NewRepos(db DBTX) *Repos {
 		ComputeSnapshotPolicies: NewComputeSnapshotPoliciesRepository(q),
 		StorageBuckets:          NewStorageBucketsRepository(q),
 		StorageCredentials:      NewStorageCredentialsRepository(q),
+		StorageLifecycleRules:   NewStorageLifecycleRulesRepository(q),
 		BillingPrices:           NewBillingPricesRepository(q),
 		BillingLedger:           NewBillingLedgerRepository(q),
 		BillingBalances:         NewBillingBalancesRepository(q),

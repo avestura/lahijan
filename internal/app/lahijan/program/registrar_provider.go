@@ -44,13 +44,15 @@ func buildRegistrarDeps(_ context.Context) (registrarDeps, error) {
 		if apiKey == "" {
 			return registrarDeps{}, errors.New(
 				"providers.registrar.openSRS.apiKey must be set when " +
-					"providers.registrar.enabled is true and provider=opensrs")
+					"providers.registrar.enabled is true and provider=opensrs",
+			)
 		}
 		username := conf.GetProvidersRegistrarOpenSRSUsername()
 		if username == "" {
 			return registrarDeps{}, errors.New(
 				"providers.registrar.openSRS.username must be set when " +
-					"providers.registrar.enabled is true and provider=opensrs")
+					"providers.registrar.enabled is true and provider=opensrs",
+			)
 		}
 		p, err := registrar.NewOpenSRSProvider(registrar.OpenSRSConfig{
 			HTTPClient: &http.Client{
@@ -86,6 +88,7 @@ func buildRegistrarDeps(_ context.Context) (registrarDeps, error) {
 		provider := conf.GetProvidersRegistrarProvider()
 		return registrarDeps{}, errors.New(
 			"providers.registrar.provider " + provider +
-				" is not supported (in-tree: opensrs, noop)")
+				" is not supported (in-tree: opensrs, noop)",
+		)
 	}
 }

@@ -324,3 +324,19 @@ func httpStatusFromErr(err error) int {
 	}
 	return 0
 }
+
+// isS3ErrorCode reports whether err carries the given AWS SDK error
+// code. Used by the lifecycle / objectlock getters to translate the
+// "not configured yet" SDK responses (NoSuchLifecycleConfiguration,
+// ObjectLockConfigurationNotFoundError) into empty results without
+// surfacing them as errors.
+func isS3ErrorCode(err error, code string) bool {
+	if err == nil || code == "" {
+		return false
+	}
+	var apiErr smithy.APIError
+	if !errors.As(err, &apiErr) {
+		return false
+	}
+	return apiErr.ErrorCode() == code
+}

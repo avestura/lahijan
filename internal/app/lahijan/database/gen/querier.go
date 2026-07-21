@@ -95,6 +95,8 @@ type Querier interface {
 	CountStorageBuckets(ctx context.Context, tenantID uuid.UUID) (int64, error)
 	//: tenant-scoped
 	CountStorageCredentialsForBucket(ctx context.Context, arg CountStorageCredentialsForBucketParams) (int64, error)
+	//: tenant-scoped
+	CountStorageLifecycleRules(ctx context.Context, arg CountStorageLifecycleRulesParams) (int64, error)
 	CountTenants(ctx context.Context) (int64, error)
 	CountUnusedRecoveryCodesForUser(ctx context.Context, userID uuid.UUID) (int64, error)
 	//: tenant-scoped; pagination counterpart to ListUsageEventsForUser.
@@ -323,6 +325,12 @@ type Querier interface {
 	// Every query is tenant-scoped via WithTenant (database/tenant.go).
 	//: tenant-scoped
 	CreateStorageCredential(ctx context.Context, arg CreateStorageCredentialParams) (StorageCredential, error)
+	// Storage lifecycle rules: tenant-scoped per-bucket S3 lifecycle rules
+	// (WS-29, ADR-0036). Every query is tenant-scoped via WithTenant
+	// (database/tenant.go) so a cross-tenant bucket_id surfaces as
+	// ErrNoRows, never as the row itself.
+	//: tenant-scoped
+	CreateStorageLifecycleRule(ctx context.Context, arg CreateStorageLifecycleRuleParams) (StorageLifecycleRule, error)
 	// user_totp_secrets: per-user TOTP (RFC 6238) secret used as a second
 	// factor at login (WS-07c). The secret column carries AES-GCM ciphertext
 	// produced by auth/secrets.Crypto; this query file treats it as opaque
@@ -355,6 +363,11 @@ type Querier interface {
 	DeleteAllDNSRecordsInZone(ctx context.Context, arg DeleteAllDNSRecordsInZoneParams) error
 	// Used before regenerating a fresh batch: every old code is invalidated.
 	DeleteAllRecoveryCodesForUser(ctx context.Context, userID uuid.UUID) error
+	//: tenant-scoped
+	// Bulk-delete used by the service layer when a user replaces the whole
+	// policy via PUT /lifecycle (the new policy is then written rule by
+	// rule in the same transaction).
+	DeleteAllStorageLifecycleRulesForBucket(ctx context.Context, arg DeleteAllStorageLifecycleRulesForBucketParams) error
 	//: tenant-scoped; hard delete. Plans referenced by an existing
 	//: subscription row cannot be deleted (FK ON DELETE NO ACTION on
 	//: billing_subscriptions.plan_id); the service layer should
@@ -393,6 +406,8 @@ type Querier interface {
 	// password_hash + OAuth/OIDC identities + other SAML identities before
 	// calling this).
 	DeleteSAMLIdentity(ctx context.Context, arg DeleteSAMLIdentityParams) error
+	//: tenant-scoped
+	DeleteStorageLifecycleRule(ctx context.Context, arg DeleteStorageLifecycleRuleParams) error
 	DeleteTOTPSecret(ctx context.Context, userID uuid.UUID) error
 	DeleteWebauthnCredential(ctx context.Context, arg DeleteWebauthnCredentialParams) error
 	//: tenant-scoped; closes the currently-in-effect price for the (resource,
@@ -595,6 +610,12 @@ type Querier interface {
 	GetStorageCredentialByAccessKeyGlobal(ctx context.Context, accessKeyID string) (StorageCredential, error)
 	//: tenant-scoped
 	GetStorageCredentialByID(ctx context.Context, arg GetStorageCredentialByIDParams) (StorageCredential, error)
+	//: tenant-scoped
+	// Lookup by (bucket_id, rule_id) — the natural key the storage service
+	// uses on every privileged call (UpdateRule / DeleteRule).
+	GetStorageLifecycleRule(ctx context.Context, arg GetStorageLifecycleRuleParams) (StorageLifecycleRule, error)
+	//: tenant-scoped
+	GetStorageLifecycleRuleByID(ctx context.Context, arg GetStorageLifecycleRuleByIDParams) (StorageLifecycleRule, error)
 	GetTOTPSecret(ctx context.Context, userID uuid.UUID) (UserTotpSecret, error)
 	GetTenantByID(ctx context.Context, id uuid.UUID) (Tenant, error)
 	GetTenantBySlug(ctx context.Context, slug string) (Tenant, error)
@@ -723,6 +744,11 @@ type Querier interface {
 	//: row before any DB write). Returns at most $1 rows so the worker
 	//: processes in bounded batches.
 	ListDueComputeSnapshotPolicies(ctx context.Context, arg ListDueComputeSnapshotPoliciesParams) ([]ComputeSnapshotPolicy, error)
+	//: tenant-scoped
+	// Lists every ENABLED rule across the tenant. Used by the lifecycle
+	// evaluator River worker on every tick so it can act on due rules in a
+	// single query per tenant.
+	ListEnabledStorageLifecycleRules(ctx context.Context, tenantID uuid.UUID) ([]StorageLifecycleRule, error)
 	//: tenant-scoped; returns snapshots whose expires_at has passed, ordered
 	//: oldest-first so the prune worker trims in creation order. The prune
 	//: worker caps the batch via the LIMIT it passes.
@@ -778,6 +804,10 @@ type Querier interface {
 	ListStorageCredentialsForBucket(ctx context.Context, arg ListStorageCredentialsForBucketParams) ([]StorageCredential, error)
 	//: tenant-scoped
 	ListStorageCredentialsForUser(ctx context.Context, arg ListStorageCredentialsForUserParams) ([]StorageCredential, error)
+	//: tenant-scoped
+	// Lists every rule attached to the given bucket within the tenant in
+	// ctx. Ordered by rule_id for deterministic UI rendering.
+	ListStorageLifecycleRules(ctx context.Context, arg ListStorageLifecycleRulesParams) ([]StorageLifecycleRule, error)
 	ListTenants(ctx context.Context, arg ListTenantsParams) ([]Tenant, error)
 	//: tenant-scoped; paginated, filterable by resource + date range.
 	ListUsageEventsForUser(ctx context.Context, arg ListUsageEventsForUserParams) ([]UsageEvent, error)
@@ -901,6 +931,13 @@ type Querier interface {
 	// CHECK constraint on the column rejects any other value at the DB layer.
 	SetPluginStatus(ctx context.Context, arg SetPluginStatusParams) error
 	//: tenant-scoped
+	// Replaces the bucket-level object-lock policy (WS-29). When
+	// object_lock_enabled is FALSE the mode + days columns are cleared so
+	// a re-enable after disable starts from a clean state. The SeaweedFS
+	// daemon is updated separately by the storage service via the provider's
+	// SetObjectLockConfiguration.
+	SetStorageBucketObjectLock(ctx context.Context, arg SetStorageBucketObjectLockParams) error
+	//: tenant-scoped
 	// Pushes the new quota dimensions to the row. The SeaweedFS daemon is
 	// updated separately by the storage service via the provider's
 	// SetBucketQuota so the daemon enforces the ceiling server-side.
@@ -909,6 +946,17 @@ type Querier interface {
 	// Updates the cached bytes_used / objects_used columns. Called by the
 	// WS-17 metering job after it polls SeaweedFS for the live bucket size.
 	SetStorageBucketUsage(ctx context.Context, arg SetStorageBucketUsageParams) error
+	//: tenant-scoped
+	// Flips the cached versioning_status column (WS-29). The SeaweedFS
+	// daemon is updated separately by the storage service via the provider's
+	// SetBucketVersioning so the daemon enforces the version semantics on
+	// every subsequent PUT / DELETE.
+	SetStorageBucketVersioning(ctx context.Context, arg SetStorageBucketVersioningParams) error
+	//: tenant-scoped
+	// Convenience update for the enable/disable toggle without rewriting
+	// the rest of the rule. Used by the service layer's Enable/DisableRule
+	// shortcuts so the audit row metadata can show only the changed field.
+	SetStorageLifecycleRuleStatus(ctx context.Context, arg SetStorageLifecycleRuleStatusParams) error
 	SetTenantActive(ctx context.Context, arg SetTenantActiveParams) error
 	//: tenant-scoped; marks the row deleted_at=now() after the worker has
 	//: removed the remote bytes. The row is retained for historical audit.
@@ -1007,6 +1055,10 @@ type Querier interface {
 	UpdateStorageBucketDescription(ctx context.Context, arg UpdateStorageBucketDescriptionParams) error
 	//: tenant-scoped
 	UpdateStorageBucketLabel(ctx context.Context, arg UpdateStorageBucketLabelParams) error
+	//: tenant-scoped
+	// Replaces the mutable fields of a rule. The rule_id (natural key) is
+	// immutable; the bucket_id is immutable (a rule cannot hop buckets).
+	UpdateStorageLifecycleRule(ctx context.Context, arg UpdateStorageLifecycleRuleParams) error
 	UpdateUserEmail(ctx context.Context, arg UpdateUserEmailParams) error
 	UpdateUserLocale(ctx context.Context, arg UpdateUserLocaleParams) error
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error

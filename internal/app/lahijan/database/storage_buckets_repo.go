@@ -240,3 +240,48 @@ func (r *StorageBucketsRepository) SoftDelete(
 		TenantID: tenantID, ID: id,
 	})
 }
+
+// SetVersioning updates the cached versioning_status column (WS-29,
+// ADR-0036). The SeaweedFS daemon is updated separately by the storage
+// service via the provider's SetBucketVersioning so the daemon enforces
+// the version semantics on every subsequent PUT / DELETE.
+func (r *StorageBucketsRepository) SetVersioning(
+	ctx context.Context,
+	id uuid.UUID,
+	status string,
+) error {
+	tenantID, err := TenantFromContext(ctx)
+	if err != nil {
+		return err
+	}
+	return r.q.SetStorageBucketVersioning(ctx, gen.SetStorageBucketVersioningParams{
+		TenantID: tenantID, ID: id, VersioningStatus: status,
+	})
+}
+
+// SetObjectLock replaces the bucket-level object-lock policy (WS-29,
+// ADR-0036). When enabled is FALSE the mode + days columns MUST be nil
+// (the storage service enforces this); the table-level CHECK guarantees
+// the invariant at the database layer.
+//
+// The SeaweedFS daemon is updated separately by the storage service via
+// the provider's SetObjectLockConfiguration.
+func (r *StorageBucketsRepository) SetObjectLock(
+	ctx context.Context,
+	id uuid.UUID,
+	enabled bool,
+	mode *string,
+	days *int32,
+) error {
+	tenantID, err := TenantFromContext(ctx)
+	if err != nil {
+		return err
+	}
+	return r.q.SetStorageBucketObjectLock(ctx, gen.SetStorageBucketObjectLockParams{
+		TenantID:                       tenantID,
+		ID:                             id,
+		ObjectLockEnabled:              enabled,
+		ObjectLockDefaultMode:          mode,
+		ObjectLockDefaultRetentionDays: days,
+	})
+}

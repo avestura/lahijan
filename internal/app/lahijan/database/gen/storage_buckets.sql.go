@@ -31,7 +31,7 @@ INSERT INTO storage_buckets (
     quota_bytes, quota_objects, bytes_used, objects_used
 )
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, 0)
-RETURNING id, tenant_id, name, slug, owner_user_id, label, description, quota_bytes, quota_objects, bytes_used, objects_used, created_at, updated_at, deleted_at
+RETURNING id, tenant_id, name, slug, owner_user_id, label, description, quota_bytes, quota_objects, bytes_used, objects_used, created_at, updated_at, deleted_at, versioning_status, object_lock_enabled, object_lock_default_mode, object_lock_default_retention_days
 `
 
 type CreateStorageBucketParams struct {
@@ -79,12 +79,16 @@ func (q *Queries) CreateStorageBucket(ctx context.Context, arg CreateStorageBuck
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.VersioningStatus,
+		&i.ObjectLockEnabled,
+		&i.ObjectLockDefaultMode,
+		&i.ObjectLockDefaultRetentionDays,
 	)
 	return i, err
 }
 
 const getStorageBucketByCanonicalName = `-- name: GetStorageBucketByCanonicalName :one
-SELECT id, tenant_id, name, slug, owner_user_id, label, description, quota_bytes, quota_objects, bytes_used, objects_used, created_at, updated_at, deleted_at FROM storage_buckets
+SELECT id, tenant_id, name, slug, owner_user_id, label, description, quota_bytes, quota_objects, bytes_used, objects_used, created_at, updated_at, deleted_at, versioning_status, object_lock_enabled, object_lock_default_mode, object_lock_default_retention_days FROM storage_buckets
 WHERE tenant_id = $1 AND name = $2 AND deleted_at IS NULL
 `
 
@@ -112,12 +116,16 @@ func (q *Queries) GetStorageBucketByCanonicalName(ctx context.Context, arg GetSt
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.VersioningStatus,
+		&i.ObjectLockEnabled,
+		&i.ObjectLockDefaultMode,
+		&i.ObjectLockDefaultRetentionDays,
 	)
 	return i, err
 }
 
 const getStorageBucketByCanonicalNameGlobal = `-- name: GetStorageBucketByCanonicalNameGlobal :one
-SELECT id, tenant_id, name, slug, owner_user_id, label, description, quota_bytes, quota_objects, bytes_used, objects_used, created_at, updated_at, deleted_at FROM storage_buckets WHERE name = $1
+SELECT id, tenant_id, name, slug, owner_user_id, label, description, quota_bytes, quota_objects, bytes_used, objects_used, created_at, updated_at, deleted_at, versioning_status, object_lock_enabled, object_lock_default_mode, object_lock_default_retention_days FROM storage_buckets WHERE name = $1
 `
 
 // Admin-only path: no tenant scoping. Used by the storage service's
@@ -142,12 +150,16 @@ func (q *Queries) GetStorageBucketByCanonicalNameGlobal(ctx context.Context, nam
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.VersioningStatus,
+		&i.ObjectLockEnabled,
+		&i.ObjectLockDefaultMode,
+		&i.ObjectLockDefaultRetentionDays,
 	)
 	return i, err
 }
 
 const getStorageBucketByID = `-- name: GetStorageBucketByID :one
-SELECT id, tenant_id, name, slug, owner_user_id, label, description, quota_bytes, quota_objects, bytes_used, objects_used, created_at, updated_at, deleted_at FROM storage_buckets
+SELECT id, tenant_id, name, slug, owner_user_id, label, description, quota_bytes, quota_objects, bytes_used, objects_used, created_at, updated_at, deleted_at, versioning_status, object_lock_enabled, object_lock_default_mode, object_lock_default_retention_days FROM storage_buckets
 WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL
 `
 
@@ -175,12 +187,16 @@ func (q *Queries) GetStorageBucketByID(ctx context.Context, arg GetStorageBucket
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.VersioningStatus,
+		&i.ObjectLockEnabled,
+		&i.ObjectLockDefaultMode,
+		&i.ObjectLockDefaultRetentionDays,
 	)
 	return i, err
 }
 
 const getStorageBucketBySlug = `-- name: GetStorageBucketBySlug :one
-SELECT id, tenant_id, name, slug, owner_user_id, label, description, quota_bytes, quota_objects, bytes_used, objects_used, created_at, updated_at, deleted_at FROM storage_buckets
+SELECT id, tenant_id, name, slug, owner_user_id, label, description, quota_bytes, quota_objects, bytes_used, objects_used, created_at, updated_at, deleted_at, versioning_status, object_lock_enabled, object_lock_default_mode, object_lock_default_retention_days FROM storage_buckets
 WHERE tenant_id = $1 AND slug = $2 AND deleted_at IS NULL
 `
 
@@ -208,12 +224,16 @@ func (q *Queries) GetStorageBucketBySlug(ctx context.Context, arg GetStorageBuck
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.VersioningStatus,
+		&i.ObjectLockEnabled,
+		&i.ObjectLockDefaultMode,
+		&i.ObjectLockDefaultRetentionDays,
 	)
 	return i, err
 }
 
 const listStorageBuckets = `-- name: ListStorageBuckets :many
-SELECT id, tenant_id, name, slug, owner_user_id, label, description, quota_bytes, quota_objects, bytes_used, objects_used, created_at, updated_at, deleted_at FROM storage_buckets
+SELECT id, tenant_id, name, slug, owner_user_id, label, description, quota_bytes, quota_objects, bytes_used, objects_used, created_at, updated_at, deleted_at, versioning_status, object_lock_enabled, object_lock_default_mode, object_lock_default_retention_days FROM storage_buckets
 WHERE tenant_id = $1 AND deleted_at IS NULL
 ORDER BY created_at DESC
 LIMIT $2 OFFSET $3
@@ -250,6 +270,10 @@ func (q *Queries) ListStorageBuckets(ctx context.Context, arg ListStorageBuckets
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.VersioningStatus,
+			&i.ObjectLockEnabled,
+			&i.ObjectLockDefaultMode,
+			&i.ObjectLockDefaultRetentionDays,
 		); err != nil {
 			return nil, err
 		}
@@ -259,6 +283,40 @@ func (q *Queries) ListStorageBuckets(ctx context.Context, arg ListStorageBuckets
 		return nil, err
 	}
 	return items, nil
+}
+
+const setStorageBucketObjectLock = `-- name: SetStorageBucketObjectLock :exec
+UPDATE storage_buckets
+SET object_lock_enabled = $3,
+    object_lock_default_mode = $4,
+    object_lock_default_retention_days = $5,
+    updated_at = now()
+WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL
+`
+
+type SetStorageBucketObjectLockParams struct {
+	TenantID                       uuid.UUID `json:"tenant_id"`
+	ID                             uuid.UUID `json:"id"`
+	ObjectLockEnabled              bool      `json:"object_lock_enabled"`
+	ObjectLockDefaultMode          *string   `json:"object_lock_default_mode"`
+	ObjectLockDefaultRetentionDays *int32    `json:"object_lock_default_retention_days"`
+}
+
+// : tenant-scoped
+// Replaces the bucket-level object-lock policy (WS-29). When
+// object_lock_enabled is FALSE the mode + days columns are cleared so
+// a re-enable after disable starts from a clean state. The SeaweedFS
+// daemon is updated separately by the storage service via the provider's
+// SetObjectLockConfiguration.
+func (q *Queries) SetStorageBucketObjectLock(ctx context.Context, arg SetStorageBucketObjectLockParams) error {
+	_, err := q.db.Exec(ctx, setStorageBucketObjectLock,
+		arg.TenantID,
+		arg.ID,
+		arg.ObjectLockEnabled,
+		arg.ObjectLockDefaultMode,
+		arg.ObjectLockDefaultRetentionDays,
+	)
+	return err
 }
 
 const setStorageBucketQuota = `-- name: SetStorageBucketQuota :exec
@@ -311,6 +369,28 @@ func (q *Queries) SetStorageBucketUsage(ctx context.Context, arg SetStorageBucke
 		arg.BytesUsed,
 		arg.ObjectsUsed,
 	)
+	return err
+}
+
+const setStorageBucketVersioning = `-- name: SetStorageBucketVersioning :exec
+UPDATE storage_buckets
+SET versioning_status = $3, updated_at = now()
+WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL
+`
+
+type SetStorageBucketVersioningParams struct {
+	TenantID         uuid.UUID `json:"tenant_id"`
+	ID               uuid.UUID `json:"id"`
+	VersioningStatus string    `json:"versioning_status"`
+}
+
+// : tenant-scoped
+// Flips the cached versioning_status column (WS-29). The SeaweedFS
+// daemon is updated separately by the storage service via the provider's
+// SetBucketVersioning so the daemon enforces the version semantics on
+// every subsequent PUT / DELETE.
+func (q *Queries) SetStorageBucketVersioning(ctx context.Context, arg SetStorageBucketVersioningParams) error {
+	_, err := q.db.Exec(ctx, setStorageBucketVersioning, arg.TenantID, arg.ID, arg.VersioningStatus)
 	return err
 }
 

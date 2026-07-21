@@ -2321,6 +2321,180 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/storage/buckets/{bucketId}/versioning": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get bucket versioning status
+         * @description Returns the cached versioning status from Postgres. Per
+         *     ADR-0036 the Lahijan-side row is the source of truth; no
+         *     daemon round-trip.
+         */
+        get: operations["getStorageBucketVersioning"];
+        /**
+         * Set bucket versioning status
+         * @description Pushes the new versioning status to the backend and updates the
+         *     cached storage_buckets row. A no-op when the new status equals
+         *     the cached status.
+         */
+        put: operations["setStorageBucketVersioning"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/storage/buckets/{bucketId}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List object versions in a bucket
+         * @description Returns a live page of object versions from the backend. Used
+         *     by the dashboard's version-browser UI; version listings are
+         *     inherently live (the object set changes between PUTs) so the
+         *     endpoint proxies through to the backend on every call.
+         */
+        get: operations["listStorageBucketVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/storage/buckets/{bucketId}/versions/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore a deleted object version
+         * @description Performs a server-side copy from the versioned source to the
+         *     current key, making the named version the new current version.
+         *     Used by the dashboard's "undelete" action on a versioned bucket.
+         */
+        post: operations["restoreStorageObjectVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/storage/buckets/{bucketId}/lifecycle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List lifecycle rules for a bucket
+         * @description Returns the cached lifecycle rules from Postgres. Per ADR-0036
+         *     the Lahijan-side rows are the source of truth.
+         */
+        get: operations["listStorageBucketLifecycleRules"];
+        /**
+         * Replace every lifecycle rule for a bucket
+         * @description Bulk-replaces the rule set: every existing rule is deleted and
+         *     the new rules from the request body are written in its place.
+         */
+        put: operations["replaceStorageBucketLifecycleRules"];
+        /** Create a lifecycle rule for a bucket */
+        post: operations["createStorageLifecycleRule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/storage/buckets/{bucketId}/lifecycle/{ruleId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a lifecycle rule */
+        delete: operations["deleteStorageLifecycleRule"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a lifecycle rule
+         * @description Replaces the mutable fields of a rule. The rule_id (natural
+         *     key) and bucket_id are immutable.
+         */
+        patch: operations["updateStorageLifecycleRule"];
+        trace?: never;
+    };
+    "/api/v1/storage/buckets/{bucketId}/lifecycle/{ruleId}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enable or disable a lifecycle rule
+         * @description Convenience endpoint for the enable/disable toggle without
+         *     rewriting the rest of the rule.
+         */
+        post: operations["setStorageLifecycleRuleStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/storage/buckets/{bucketId}/object-lock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get bucket object-lock policy
+         * @description Returns the cached bucket-level object-lock policy from
+         *     Postgres. Per ADR-0036 the Lahijan-side row is the source of
+         *     truth; no daemon round-trip.
+         */
+        get: operations["getStorageBucketObjectLock"];
+        /**
+         * Set bucket object-lock policy
+         * @description Pushes the new bucket-level object-lock policy to the backend
+         *     (when Enabled is true) and updates the cached storage_buckets
+         *     row. Disabling object lock is not supported by AWS S3; the
+         *     backend push is skipped when Enabled is false, but the
+         *     Postgres row is updated so the UI reflects the operator's
+         *     intent.
+         */
+        put: operations["setStorageBucketObjectLock"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/balance": {
         parameters: {
             query?: never;
@@ -4243,6 +4417,150 @@ export interface components {
              * @description Cached total object count.
              */
             objectsUsed: number;
+        };
+        StorageVersioningStatus: {
+            /**
+             * @description Bucket versioning state. Mirrors S3's
+             *     BucketVersioningStatus plus the explicit "unversioned"
+             *     value for buckets that have never been versioned.
+             * @enum {string}
+             */
+            status: "unversioned" | "enabled" | "suspended";
+        };
+        StorageObjectVersion: {
+            /** @description Object key. */
+            key: string;
+            /** @description S3-assigned version identifier. Empty on an unversioned bucket. */
+            versionId: string;
+            /** @description True when this version is the current version of the key. */
+            isLatest: boolean;
+            /** @description True when this entry represents a delete (logical delete on a versioned bucket). */
+            isDeleteMarker?: boolean;
+            /**
+             * Format: int64
+             * @description Object size in bytes. Zero for delete markers.
+             */
+            size?: number;
+            /**
+             * Format: date-time
+             * @description UTC timestamp the version was created.
+             */
+            lastModified?: string;
+        };
+        StorageObjectVersionsPage: {
+            /** @description Object versions on this page (does not include delete markers). */
+            versions: components["schemas"]["StorageObjectVersion"][];
+            /** @description Delete markers on this page. */
+            deleteMarkers: components["schemas"]["StorageObjectVersion"][];
+            /** @description Pagination cursor for the next page; empty when this is the last page. */
+            nextKeyMarker?: string;
+            /** @description Pagination cursor for the next page; empty when this is the last page. */
+            nextVersionIdMarker?: string;
+            /** @description True when the bucket has more versions to list. */
+            isTruncated: boolean;
+        };
+        StorageRestoreVersionRequest: {
+            /** @description Object key whose version is being restored. */
+            key: string;
+            /**
+             * @description Optional version identifier of the version to restore.
+             *     Empty restores the latest noncurrent version (best effort).
+             */
+            versionId?: string;
+        };
+        StorageLifecycleRule: {
+            /**
+             * Format: uuid
+             * @description The rule's primary key.
+             */
+            id: string;
+            /** Format: uuid */
+            bucketId: string;
+            /** @description User-provided rule identifier within the bucket. */
+            ruleId: string;
+            /**
+             * @description Rule status. Mirrors S3 LifecycleRule.Status.
+             * @enum {string}
+             */
+            status: "enabled" | "disabled";
+            /** @description Convenience boolean; true when status == "enabled". */
+            enabled: boolean;
+            /**
+             * @description Lifecycle action this rule performs.
+             * @enum {string}
+             */
+            action: "expiration" | "noncurrent_version_expiration" | "abort_incomplete_multipart" | "transition";
+            /**
+             * Format: int32
+             * @description Age in days after which the rule fires. Mutually exclusive with date.
+             */
+            days?: number | null;
+            /**
+             * Format: date
+             * @description Absolute date at which the rule fires. Mutually exclusive with days.
+             */
+            date?: string | null;
+            /** @description Required for transition rules; the storage class to transition to. */
+            storageClass?: string | null;
+            /** @description Prefix filter; NULL or empty = whole bucket. */
+            prefix?: string | null;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        StorageLifecycleRulePage: {
+            items: components["schemas"]["StorageLifecycleRule"][];
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        StorageLifecycleRuleCreateRequest: {
+            /** @description User-provided rule identifier within the bucket. */
+            ruleId: string;
+            /** @default true */
+            enabled: boolean;
+            /** @enum {string} */
+            action: "expiration" | "noncurrent_version_expiration" | "abort_incomplete_multipart" | "transition";
+            /** Format: int32 */
+            days?: number | null;
+            /** Format: date */
+            date?: string | null;
+            storageClass?: string | null;
+            prefix?: string | null;
+        };
+        StorageLifecycleRuleUpdateRequest: {
+            enabled?: boolean;
+            /** Format: int32 */
+            days?: number | null;
+            /** Format: date */
+            date?: string | null;
+            storageClass?: string | null;
+            prefix?: string | null;
+        };
+        StorageLifecycleRuleReplaceRequest: {
+            rules: components["schemas"]["StorageLifecycleRuleCreateRequest"][];
+        };
+        StorageLifecycleRuleStatusRequest: {
+            enabled: boolean;
+        };
+        StorageObjectLockConfig: {
+            /** @description True when object lock is enabled on the bucket. */
+            enabled: boolean;
+            /**
+             * @description Default retention mode applied to every new object. Required
+             *     when enabled is true; ignored when enabled is false.
+             *     GOVERNANCE: privileged users can bypass.
+             *     COMPLIANCE: no one can shorten or remove the retention.
+             * @enum {string}
+             */
+            mode?: "GOVERNANCE" | "COMPLIANCE";
+            /**
+             * Format: int32
+             * @description Default retention period in days. Required when enabled is
+             *     true; ignored when enabled is false.
+             */
+            days?: number;
         };
         BillingBalance: {
             /** Format: uuid */
@@ -8755,6 +9073,357 @@ export interface operations {
                     "application/json": components["schemas"]["StorageBucketUsage"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    getStorageBucketVersioning: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bucketId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The versioning status. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageVersioningStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    setStorageBucketVersioning: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bucketId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StorageVersioningStatus"];
+            };
+        };
+        responses: {
+            /** @description Versioning status set. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    listStorageBucketVersions: {
+        parameters: {
+            query?: {
+                prefix?: string;
+                keyMarker?: string;
+                versionIdMarker?: string;
+                maxKeys?: number;
+            };
+            header?: never;
+            path: {
+                bucketId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of object versions. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageObjectVersionsPage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    restoreStorageObjectVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bucketId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StorageRestoreVersionRequest"];
+            };
+        };
+        responses: {
+            /** @description Version restored. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    listStorageBucketLifecycleRules: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of items to return (1..200). */
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Number of items to skip for pagination. */
+                offset?: components["parameters"]["PageOffset"];
+            };
+            header?: never;
+            path: {
+                bucketId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of lifecycle rules. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageLifecycleRulePage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    replaceStorageBucketLifecycleRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bucketId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StorageLifecycleRuleReplaceRequest"];
+            };
+        };
+        responses: {
+            /** @description Rules replaced. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    createStorageLifecycleRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bucketId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StorageLifecycleRuleCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Rule created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageLifecycleRule"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    deleteStorageLifecycleRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bucketId: string;
+                ruleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rule deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    updateStorageLifecycleRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bucketId: string;
+                /**
+                 * @description The rule's primary key (UUID). Despite the name `ruleId`
+                 *     this is the row id, not the user-provided rule_id string;
+                 *     the string is immutable.
+                 */
+                ruleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StorageLifecycleRuleUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Rule updated. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    setStorageLifecycleRuleStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bucketId: string;
+                ruleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StorageLifecycleRuleStatusRequest"];
+            };
+        };
+        responses: {
+            /** @description Rule status set. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    getStorageBucketObjectLock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bucketId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The object-lock policy. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageObjectLockConfig"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    setStorageBucketObjectLock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bucketId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StorageObjectLockConfig"];
+            };
+        };
+        responses: {
+            /** @description Object-lock policy set. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];

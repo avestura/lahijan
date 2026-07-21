@@ -145,6 +145,15 @@ const (
 	PermS3CredentialsCreate = "s3.credentials.create"
 	PermS3CredentialsRevoke = "s3.credentials.revoke"
 
+	// --- object storage lifecycle / versioning / object lock (WS-29,
+	// ADR-0036). Granular slugs so the audit gate can dispatch the
+	// new sub-tree paths to the right RequirePerm. Granted to
+	// tenant.admin + tenant.owner by default; tenant.viewer is
+	// excluded because every action here is privileged. ---
+	PermS3BucketVersioning = "s3.bucket.versioning"
+	PermS3BucketLifecycle  = "s3.bucket.lifecycle"
+	PermS3BucketObjectLock = "s3.bucket.object_lock"
+
 	// --- billing & metering (WS-17) ---
 	PermBillingBalanceRead        = "billing.balance.read"
 	PermBillingBalanceAdjust      = "billing.balance.adjust" // admin top-up / debit
@@ -273,8 +282,11 @@ var allPermissions = []Permission{
 	// s3 / object storage
 	{Slug: PermS3BucketCreate, Description: "Create an S3 bucket."},
 	{Slug: PermS3BucketDelete, Description: "Delete an S3 bucket."},
+	{Slug: PermS3BucketLifecycle, Description: "Manage per-bucket S3 lifecycle rules."},
+	{Slug: PermS3BucketObjectLock, Description: "Manage per-bucket S3 object-lock policy."},
 	{Slug: PermS3BucketRead, Description: "View S3 buckets."},
 	{Slug: PermS3BucketUpdate, Description: "Update an S3 bucket's policy or lifecycle."},
+	{Slug: PermS3BucketVersioning, Description: "Toggle per-bucket S3 versioning."},
 	{Slug: PermS3CredentialsCreate, Description: "Mint S3 credentials for the user."},
 	{Slug: PermS3CredentialsRevoke, Description: "Revoke S3 credentials."},
 	{Slug: PermS3ObjectDelete, Description: "Delete S3 objects."},

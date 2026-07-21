@@ -72,6 +72,11 @@ type fakeBucket struct {
 	Name      string
 	CreatedAt time.Time
 	Objects   map[string][]byte // key -> body
+	// vs holds the per-bucket versioning + lifecycle + object-lock
+	// state added in WS-29 (server_lifecycle.go). Lazily allocated by
+	// Server.vs(); nil on the original WS-13 surface so existing tests
+	// do not pay the allocation.
+	vs *versioningState
 }
 
 // fakeIdentity is the per-identity in-memory state. Mirrors the

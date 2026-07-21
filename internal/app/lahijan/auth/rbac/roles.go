@@ -139,6 +139,12 @@ var defaultRoles = []RoleDefinition{
 			PermS3ObjectDelete,
 			PermS3CredentialsCreate,
 			PermS3CredentialsRevoke,
+			// s3 lifecycle / versioning / object lock (WS-29, ADR-0036).
+			// Admin = full; member is excluded because changing the policy
+			// is a privileged compliance action.
+			PermS3BucketVersioning,
+			PermS3BucketLifecycle,
+			PermS3BucketObjectLock,
 			// billing
 			PermBillingBalanceRead,
 			PermBillingBalanceAdjust,

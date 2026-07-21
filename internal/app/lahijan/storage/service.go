@@ -45,6 +45,8 @@ import (
 const (
 	ResourceBucket     = audit.ResourceBucket
 	ResourceCredential = audit.ResourceCredential
+	// ResourceLifecycleRule is the WS-29 lifecycle-rule resource type.
+	ResourceLifecycleRule = audit.ResourceLifecycleRule
 
 	AuditBucketCreate     = audit.ActionS3BucketCreate
 	AuditBucketUpdate     = audit.ActionS3BucketUpdate
@@ -53,6 +55,14 @@ const (
 	AuditCredentialMint   = audit.ActionS3CredentialMint
 	AuditCredentialRevoke = audit.ActionS3CredentialRevoke
 	AuditPresign          = audit.ActionS3Presign
+
+	// WS-29 audit actions. Each is gated by the matching rbac.PermS3*
+	// slug at the HTTP boundary; every privileged action emits an audit
+	// row before the side effect and marks the outcome after.
+	AuditBucketVersioningSet = audit.ActionS3BucketVersioningSet
+	AuditBucketLifecycleSet  = audit.ActionS3BucketLifecycleSet
+	AuditBucketObjectLockSet = audit.ActionS3BucketObjectLockSet
+	AuditObjectLifecycleDel  = audit.ActionS3ObjectLifecycleDelete
 )
 
 // DefaultPresignTTL is applied when the caller does not pass one. Mirrors
@@ -99,6 +109,9 @@ type swProvider interface {
 	swCredentialOps
 	swQuotaOps
 	swPresignOps
+	swVersioningOps
+	swLifecycleOps
+	swObjectLockOps
 }
 
 // swBucketOps covers bucket CRUD + health.
@@ -126,6 +139,35 @@ type swQuotaOps interface {
 type swPresignOps interface {
 	PresignGetObject(ctx context.Context, bucket, key string, ttl time.Duration) (*seaweedfs.PresignResult, error)
 	PresignPutObject(ctx context.Context, bucket, key string, ttl time.Duration) (*seaweedfs.PresignResult, error)
+}
+
+// swVersioningOps covers the WS-29 bucket versioning surface.
+type swVersioningOps interface {
+	SetBucketVersioning(ctx context.Context, bucket string, status seaweedfs.VersioningStatus) error
+	GetBucketVersioning(ctx context.Context, bucket string) (seaweedfs.VersioningStatus, error)
+	ListObjectVersions(ctx context.Context, bucket, prefix, keyMarker, versionIDMarker string, maxKeys int32) (*seaweedfs.ObjectVersionsPage, error)
+	RestoreObjectVersion(ctx context.Context, bucket, key, versionID string) error
+}
+
+// swLifecycleOps covers the WS-29 bucket lifecycle surface.
+type swLifecycleOps interface {
+	SetBucketLifecycle(ctx context.Context, bucket string, rules []seaweedfs.LifecycleRule) error
+	GetBucketLifecycle(ctx context.Context, bucket string) ([]seaweedfs.LifecycleRule, error)
+}
+
+// swObjectLockOps covers the WS-29 bucket object-lock surface.
+type swObjectLockOps interface {
+	SetObjectLockConfiguration(ctx context.Context, bucket string, cfg seaweedfs.ObjectLockConfig) error
+	GetObjectLockConfiguration(ctx context.Context, bucket string) (seaweedfs.ObjectLockConfig, error)
+}
+
+// swLifecycleEvalOps covers the per-object delete / abort paths used by
+// the WS-29 lifecycle evaluator worker. Kept separate from the bucket-
+// level ops so unit tests for the worker can mock just the surface they
+// touch.
+type swLifecycleEvalOps interface {
+	DeleteObject(ctx context.Context, bucket, key, versionID string) error
+	AbortMultipartUpload(ctx context.Context, bucket, key, uploadID string) error
 }
 
 // eventBus is the narrow seam the service needs from *eventbus.Bus.

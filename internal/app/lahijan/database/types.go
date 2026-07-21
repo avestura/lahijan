@@ -58,8 +58,11 @@ type (
 	// gen.StorageBucket. The sqlc-generated names already match the
 	// idiomatic-Go form so the aliases are passthrough; they exist so
 	// services never need to import the gen package directly.
-	StorageBucket     = gen.StorageBucket
-	StorageCredential = gen.StorageCredential
+	// WS-29 adds StorageLifecycleRule for the per-bucket lifecycle
+	// surface.
+	StorageBucket        = gen.StorageBucket
+	StorageCredential    = gen.StorageCredential
+	StorageLifecycleRule = gen.StorageLifecycleRule
 
 	// Price is the billing price catalog row alias (WS-17).
 	// LedgerEntry / UsageEvent / Receipt / UserBalance mirror the

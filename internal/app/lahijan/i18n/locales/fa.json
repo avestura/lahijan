@@ -666,6 +666,18 @@
   "audit.action_s3_presign": {
     "other": "نشانی از پیش امضاشدهٔ ذخیره‌ساز آبجکت صادر شد"
   },
+  "audit.action_s3_bucket_versioning_set": {
+    "other": "وضعیت نسخه‌گذاری سطل ذخیره‌ساز آبجکت تغییر کرد"
+  },
+  "audit.action_s3_bucket_lifecycle_set": {
+    "other": "قاعدهٔ چرخهٔ حیات سطل ذخیره‌ساز آبجکت تغییر کرد"
+  },
+  "audit.action_s3_bucket_object_lock_set": {
+    "other": "سیاست قفل آبجکت سطل ذخیره‌ساز آبجکت تغییر کرد"
+  },
+  "audit.action_s3_object_lifecycle_deleted": {
+    "other": "آبجکت به‌دلیل قاعدهٔ چرخهٔ حیات حذف شد"
+  },
 
   "billing.err_disabled": {
     "other": "زیرسامانهٔ صورتحساب روی این کارساز فعال نیست."
