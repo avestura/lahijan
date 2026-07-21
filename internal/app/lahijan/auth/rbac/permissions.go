@@ -112,6 +112,14 @@ const (
 	PermComputeClusterMemberEvacuate = "compute.cluster.member.evacuate"
 	PermComputeInstanceMigrate       = "compute.instance.migrate"
 
+	// --- compute IP pools + floating IPs (WS-30, ADR-0037). The
+	// ip_pool.* slug is operator-only (granted to platform.admin only);
+	// the floating_ip.* slugs are tenant-scoped, granted to tenant.admin
+	// (manage) + tenant.viewer (read). ---
+	PermComputeIPPoolManage    = "compute.ip_pool.manage"
+	PermComputeFloatingIPManage = "compute.floating_ip.manage"
+	PermComputeFloatingIPRead   = "compute.floating_ip.read"
+
 	// --- dns (WS-15) ---
 	PermDNSZoneCreate   = "dns.zone.create"
 	PermDNSZoneRead     = "dns.zone.read"
@@ -240,6 +248,8 @@ var allPermissions = []Permission{
 	{Slug: PermComputeBackupTargetUpdate, Description: "Update an off-host backup target."},
 	{Slug: PermComputeClusterMemberEvacuate, Description: "Evacuate or restore a compute cluster member (admin)."},
 	{Slug: PermComputeClusterMemberList, Description: "List compute cluster members + their status."},
+	{Slug: PermComputeFloatingIPManage, Description: "Allocate / attach / detach / release floating IPs in the tenant."},
+	{Slug: PermComputeFloatingIPRead, Description: "View floating IPs allocated to the tenant."},
 	{Slug: PermComputeImageRead, Description: "List and inspect instance images."},
 	{Slug: PermComputeInstanceConsoleVNC, Description: "Open a graphical (noVNC) console session to a running virtual-machine instance."},
 	{Slug: PermComputeInstanceCreate, Description: "Create an instance."},
@@ -250,6 +260,7 @@ var allPermissions = []Permission{
 	{Slug: PermComputeInstanceStart, Description: "Start an instance."},
 	{Slug: PermComputeInstanceStop, Description: "Stop an instance."},
 	{Slug: PermComputeInstanceUpdate, Description: "Update an instance's config."},
+	{Slug: PermComputeIPPoolManage, Description: "Manage operator-owned IP pools + ranges (platform admin)."},
 	{Slug: PermComputeNetworkCreate, Description: "Create a tenant network."},
 	{Slug: PermComputeNetworkRead, Description: "View tenant networks."},
 	{Slug: PermComputeProfileApply, Description: "Apply a profile to an instance."},

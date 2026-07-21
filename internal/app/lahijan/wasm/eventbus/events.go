@@ -66,6 +66,18 @@ const (
 	ComputeBackupDeleted  = "compute.backup.deleted"
 )
 
+// Compute public-IP / floating-IP events (WS-30, ADR-0037). Emitted by
+// the compute service on every floating-IP state change so plugins can
+// drive PTR-publish workflows, chargeback, geofencing, or notification
+// pipelines. "compute.ip.assigned" fires on allocate + on attach (with
+// metadata.trigger = "allocate" | "attach"); "compute.ip.released"
+// fires on detach + on release (with metadata.trigger = "detach" |
+// "release"). Plugins that want the full lifecycle subscribe to both.
+const (
+	ComputeIPAssigned = "compute.ip.assigned"
+	ComputeIPReleased = "compute.ip.released"
+)
+
 // Storage module events (WS-13, WS-16). Emitted by the storage service
 // on bucket lifecycle + credential lifecycle. Plugins subscribe via
 // "s3.bucket.*" for access auditing or cross-tenant replication, and via
@@ -152,6 +164,7 @@ func AllEvents() []string {
 		ComputeInstanceRestarted, ComputeInstanceDeleted,
 		ComputeSnapshotTaken, ComputeSnapshotPruned,
 		ComputeBackupCreated, ComputeBackupDeleted,
+		ComputeIPAssigned, ComputeIPReleased,
 		S3BucketCreated, S3BucketUpdated, S3BucketDeleted,
 		S3BucketQuotaSet, S3CredentialMinted, S3CredentialRevoked, S3PresignIssued,
 		S3BucketVersioningSet, S3BucketLifecycleSet, S3BucketObjectLockSet,
