@@ -27,6 +27,7 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/database"
 	"github.com/avestura/lahijan/internal/app/lahijan/dns"
 	"github.com/avestura/lahijan/internal/app/lahijan/i18n"
+	"github.com/avestura/lahijan/internal/app/lahijan/registrar"
 	"github.com/avestura/lahijan/internal/app/lahijan/storage"
 	"github.com/avestura/lahijan/internal/app/lahijan/version"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/installer"
@@ -141,6 +142,15 @@ type Server struct {
 	// service (for ledger writes). Nil-appropriate when the Stripe
 	// gateway is disabled; the handlers degrade to 501.
 	paymentsSvc *billing.PaymentsService
+
+	// WS-28: registrar (domain resale) deps. RegistrarSvc is the
+	// entrypoint every /api/v1/dns/domains/* handler talks to; it wraps
+	// the registrar provider (OpenSRS / ResellerClub / ...) + the
+	// dns_domains repository + the WS-17 billing service (for ledger
+	// charges) + the audit emitter + the WASM event bus. Nil-appropriate
+	// when the registrar subsystem is disabled; the handlers degrade to
+	// 501.
+	registrarSvc *registrar.Service
 }
 
 // ServerDeps carries the dependencies NewServer requires. Wire it once from
@@ -219,6 +229,12 @@ type ServerDeps struct {
 	// payment handler talks to. Nil-appropriate when the Stripe gateway
 	// is disabled; the handlers degrade to 501.
 	PaymentsSvc *billing.PaymentsService
+
+	// WS-28: registrar (domain resale) deps. RegistrarSvc is the
+	// entrypoint every /api/v1/dns/domains/* handler talks to.
+	// Nil-appropriate when the registrar subsystem is disabled; the
+	// handlers degrade to 501.
+	RegistrarSvc *registrar.Service
 }
 
 // NewServer builds the API server with the given dependencies.
@@ -251,6 +267,7 @@ func NewServer(deps ServerDeps) *Server {
 		storageSvc:      deps.StorageSvc,
 		billingSvc:      deps.BillingSvc,
 		paymentsSvc:     deps.PaymentsSvc,
+		registrarSvc:    deps.RegistrarSvc,
 	}
 	if s.tracer == nil {
 		s.tracer = Tracer()
@@ -307,6 +324,19 @@ func (s *Server) SetBillingService(svc *billing.Service) {
 func (s *Server) SetPaymentsService(svc *billing.PaymentsService) {
 	s.paymentsSvc = svc
 }
+
+// SetRegistrarService mirrors SetDNSService for the WS-28 registrar
+// module. Used by integration tests that wire a real (fake-server-backed)
+// registrar service after the standard newTestApp path has run.
+// Production code passes RegistrarSvc via ServerDeps at construction.
+func (s *Server) SetRegistrarService(svc *registrar.Service) {
+	s.registrarSvc = svc
+}
+
+// RegistrarService returns the wired registrar service (or nil when the
+// registrar subsystem is disabled). Exported so integration tests can
+// drive the service layer directly.
+func (s *Server) RegistrarService() *registrar.Service { return s.registrarSvc }
 
 // PaymentsService returns the wired payments service (or nil when the
 // Stripe gateway is disabled). Exported so integration tests can drive

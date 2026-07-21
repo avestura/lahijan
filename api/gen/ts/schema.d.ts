@@ -2013,6 +2013,134 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dns/domains/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Search domain availability
+         * @description Asks the registrar whether the domain is available for registration
+         *     + the per-period retail price (with Lahijan's margin applied). The
+         *     search is metered by the registrar; the audit trail records the
+         *     actor.
+         */
+        post: operations["searchDNSDomain"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dns/domains": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List registered domains
+         * @description Returns a paginated list of the domains the tenant has registered,
+         *     renewed, or transferred through Lahijan.
+         */
+        get: operations["listDNSDomains"];
+        put?: never;
+        /**
+         * Register a new domain
+         * @description Places a new registration order with the registrar + charges the
+         *     caller's ledger. The charge is reversed if the registrar rejects
+         *     the order (the ledger is append-only so the reversal is a new
+         *     credit row with source=refund).
+         *
+         *     When `autoProvision` is true Lahijan also creates the matching
+         *     dns_zones row on success. When `autoDNSSEC` is true Lahijan also
+         *     signs the zone (WS-15 EnableDNSSEC) and publishes the DS at the
+         *     parent.
+         */
+        post: operations["registerDNSDomain"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dns/domains/{domainId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                domainId: string;
+            };
+            cookie?: never;
+        };
+        /** Get a registered domain */
+        get: operations["getDNSDomain"];
+        put?: never;
+        post?: never;
+        /**
+         * Remove a domain from the tenant
+         * @description Removes the dns_domains row. Does NOT cancel the registration at
+         *     the registrar — that is an irreversible action the user must take
+         *     explicitly via the registrar's back-office. The audit row records
+         *     "domain removed from tenant view; registration unchanged at the
+         *     registrar".
+         */
+        delete: operations["deleteDNSDomain"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dns/domains/{domainId}/renew": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                domainId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Renew a registered domain
+         * @description Extends an existing registration by the requested period + charges
+         *     the caller's ledger. Idempotent per (tenant, domain, period).
+         */
+        post: operations["renewDNSDomain"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dns/domains/transfer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Transfer a domain from another registrar
+         * @description Initiates an EPP transfer from another registrar + charges the
+         *     caller's ledger. Returns 409 when the domain is locked for
+         *     transfer.
+         */
+        post: operations["transferDNSDomain"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/storage/buckets": {
         parameters: {
             query?: never;
@@ -4564,6 +4692,113 @@ export interface components {
             total: number;
             limit: number;
             offset: number;
+        };
+        DNSDomain: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            tenantId: string;
+            /** @description Canonical domain name with trailing dot. */
+            name: string;
+            /** @enum {string} */
+            status: "available" | "registered" | "pending" | "transferred" | "expired";
+            registrarOrderId?: string;
+            contactProfileId?: string;
+            /**
+             * Format: uuid
+             * @description Optional FK into dns_zones; set when Lahijan auto-provisions the zone.
+             */
+            zoneId?: string | null;
+            /**
+             * Format: int64
+             * @description Frozen price snapshot at registration time; integer cents.
+             */
+            priceCents: number;
+            currency: string;
+            periodYears: number;
+            /** Format: uuid */
+            ledgerEntryId?: string | null;
+            isDnssecEnabled: boolean;
+            isAutoRenew: boolean;
+            /** Format: date-time */
+            registeredAt?: string | null;
+            /** Format: date-time */
+            expiresAt?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        DNSDomainPage: {
+            items: components["schemas"]["DNSDomain"][];
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        DNSDomainSearchRequest: {
+            /** @description Canonical domain name without a trailing dot. */
+            domain: string;
+        };
+        DNSDomainSearchResult: {
+            domain: string;
+            available: boolean;
+            /** @enum {string} */
+            status: "available" | "unavailable";
+            reason?: string;
+            pricing: components["schemas"]["DNSDomainPricing"][];
+        };
+        DNSDomainPricing: {
+            periodYears: number;
+            /** Format: int64 */
+            priceCents: number;
+            currency: string;
+        };
+        DNSDomainRegisterRequest: {
+            /** @description Canonical domain name without a trailing dot. */
+            domain: string;
+            periodYears: number;
+            contact?: components["schemas"]["DNSDomainContact"] | null;
+            /** @default false */
+            autoRenew: boolean;
+            /** @default false */
+            whoisPrivacy: boolean;
+            /**
+             * @description When true Lahijan creates the matching dns_zones row on success.
+             * @default true
+             */
+            autoProvision: boolean;
+            /**
+             * @description When true Lahijan signs the zone + publishes DS at the parent.
+             * @default false
+             */
+            autoDNSSEC: boolean;
+        };
+        DNSDomainRenewRequest: {
+            periodYears: number;
+        };
+        DNSDomainTransferRequest: {
+            /** @description Canonical domain name without a trailing dot. */
+            domain: string;
+            /** @description EPP auth code the losing registrar shared with the registrant. */
+            authCode: string;
+            periodYears: number;
+            contact?: components["schemas"]["DNSDomainContact"] | null;
+        };
+        DNSDomainContact: {
+            ownerFirstname: string;
+            ownerLastname: string;
+            ownerOrganization?: string;
+            /** Format: email */
+            ownerEmail: string;
+            /** @description E.164 format. */
+            ownerPhone: string;
+            address1: string;
+            address2?: string;
+            city: string;
+            state: string;
+            zip: string;
+            /** @description ISO 3166-1 alpha-2. */
+            countryCode: string;
         };
     };
     responses: {
@@ -7966,6 +8201,244 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    searchDNSDomain: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DNSDomainSearchRequest"];
+            };
+        };
+        responses: {
+            /** @description The search result (available + pricing per period). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DNSDomainSearchResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    listDNSDomains: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of items to return (1..200). */
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Number of items to skip for pagination. */
+                offset?: components["parameters"]["PageOffset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of domains. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DNSDomainPage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    registerDNSDomain: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DNSDomainRegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description Domain registered. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DNSDomain"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description Insufficient balance. */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            /** @description Domain already registered. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    getDNSDomain: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                domainId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The domain row. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DNSDomain"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    deleteDNSDomain: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                domainId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Domain row removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    renewDNSDomain: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                domainId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DNSDomainRenewRequest"];
+            };
+        };
+        responses: {
+            /** @description Domain renewed; the updated row. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DNSDomain"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description Insufficient balance. */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    transferDNSDomain: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DNSDomainTransferRequest"];
+            };
+        };
+        responses: {
+            /** @description Transfer initiated. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DNSDomain"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description Insufficient balance. */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            /** @description Domain locked for transfer. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             501: components["responses"]["NotImplemented"];
         };
     };
