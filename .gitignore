@@ -66,6 +66,10 @@ yarn-error.log*
 .env.*.local
 !.env/
 
+# Run-Dev.ps1 auto-generated Incus override (repo root only; the embedded
+# source at internal/app/lahijan/conf/ stays tracked). See scripts/Run-Dev.ps1.
+/.lahijan.conf.default.yaml
+
 # Secrets
 *.pem
 *.key
