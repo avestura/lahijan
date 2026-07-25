@@ -15,6 +15,7 @@ import type { components } from "@api-schema";
 
 import { apiClient } from "@/lib/api/client";
 import { queryKeys } from "@/lib/api/keys";
+import { isFeatureDisabledError } from "@/lib/api-errors";
 import { useToast } from "@/hooks/useToast";
 import { useTranslation } from "react-i18next";
 import type { CreateInstanceValues } from "./schemas";
@@ -38,7 +39,10 @@ export function useComputeInstances(tenantId: string | null) {
   return useQuery({
     queryKey: tenantId ? queryKeys.compute.instances(tenantId) : ["compute", "disabled"],
     enabled: !!tenantId,
-    refetchInterval: 5_000,
+    // Poll every 5s while the list is healthy. Stop polling once we hit
+    // a 501 (feature disabled) — the operator has to flip a config flag
+    // and restart Lahijan, so retrying every 5s just spams the log.
+    refetchInterval: (query) => (isFeatureDisabledError(query.state.error) ? false : 5_000),
     queryFn: async (): Promise<Instance[]> => {
       const { data, error, response } = await apiClient.GET("/api/v1/compute/instances", {});
       if (error || !data) {

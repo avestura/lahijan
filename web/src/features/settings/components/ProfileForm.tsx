@@ -7,7 +7,7 @@
  */
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
@@ -40,7 +40,7 @@ export function ProfileForm() {
   const form = useForm<UpdateProfileValues>({
     resolver: zodResolver(updateProfileSchema),
     defaultValues: {
-      displayName: user?.displayName ?? "",
+      displayName: "",
       locale: "en",
       currentPassword: "",
       newPassword: "",
@@ -48,6 +48,33 @@ export function ProfileForm() {
     },
     mode: "onChange",
   });
+
+  // Re-sync the form whenever the user data lands (the bootstrap query
+  // fires on AppShell mount; this component may render before it
+  // resolves, leaving the form blank). `form.reset()` is the documented
+  // way to push new values into an already-mounted form.
+  useEffect(() => {
+    if (!user) return;
+    form.reset({
+      displayName: user.displayName ?? "",
+      locale: "en",
+      currentPassword: "",
+      newPassword: "",
+      newEmail: "",
+    });
+  }, [user, form]);
+
+  // Sync the locale field with the i18n-side active locale so the dropdown
+  // shows what the user is actually seeing, not a hardcoded "en".
+  const { i18n } = useTranslation();
+  useEffect(() => {
+    const active = (i18n.language ?? "en").split(/[-_]/)[0] ?? "en";
+    if (active === "en" || active === "fa") {
+      if (form.getValues("locale") !== active) {
+        form.setValue("locale", active);
+      }
+    }
+  }, [i18n.language, form]);
 
   const onSubmit = form.handleSubmit((values) => {
     setPwdMismatch(false);

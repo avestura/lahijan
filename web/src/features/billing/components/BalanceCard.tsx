@@ -36,11 +36,17 @@ export function BalanceCard() {
             <p className="font-mono text-3xl font-semibold">
               {formatMoney(query.data.balanceCents, query.data.currency)}
             </p>
-            <CardDescription>
-              {t("billing.user.balance.lastEntry", {
-                at: new Date(query.data.lastEntryAt).toLocaleString(),
-              })}
-            </CardDescription>
+            {/* lastEntryAt is the Go zero time (0001-01-01T00:00:00Z) when the
+             * user has no ledger rows; hide the line rather than render
+             * "Last entry: 1/1/1, 3:25:44 AM". The backend sends the zero
+             * time because the field is required by the OpenAPI schema. */}
+            {new Date(query.data.lastEntryAt).getFullYear() > 1970 && (
+              <CardDescription>
+                {t("billing.user.balance.lastEntry", {
+                  at: new Date(query.data.lastEntryAt).toLocaleString(),
+                })}
+              </CardDescription>
+            )}
             <p className="text-xs text-muted-foreground">
               {t("billing.user.balance.updated", {
                 at: new Date(query.data.updatedAt).toLocaleString(),

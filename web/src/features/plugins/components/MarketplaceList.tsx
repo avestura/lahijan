@@ -27,6 +27,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { LoadingState } from "@/components/layout/LoadingState";
 import { ErrorState } from "@/components/layout/ErrorState";
+import { FeatureDisabledState } from "@/components/layout/FeatureDisabledState";
+import { isFeatureDisabledError } from "@/lib/api-errors";
 import { usePerm } from "@/lib/perm";
 import {
   useAdminMarketplace,
@@ -52,6 +54,14 @@ export function MarketplaceList() {
 
   if (market.isLoading) return <LoadingState rows={3} />;
   if (market.error) {
+    if (isFeatureDisabledError(market.error)) {
+      return (
+        <FeatureDisabledState
+          title={t("common.featureDisabled.title")}
+          description={t("common.featureDisabled.description")}
+        />
+      );
+    }
     return (
       <ErrorState
         message={t("common.error")}

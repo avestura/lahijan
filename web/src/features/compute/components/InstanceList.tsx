@@ -43,6 +43,8 @@ import {
 import { EmptyState } from "@/components/layout/EmptyState";
 import { LoadingState } from "@/components/layout/LoadingState";
 import { ErrorState } from "@/components/layout/ErrorState";
+import { FeatureDisabledState } from "@/components/layout/FeatureDisabledState";
+import { isFeatureDisabledError } from "@/lib/api-errors";
 import { usePerm } from "@/lib/perm";
 import { useTenant } from "@/hooks/useTenant";
 import { useDeleteInstance, useLifecycle, classifyStatus } from "../api";
@@ -80,6 +82,17 @@ export function InstanceList({ instances, isLoading, error, onRetry }: Props) {
     return <LoadingState rows={4} />;
   }
   if (error) {
+    // 501 = backend module disabled (e.g. compute on Windows where Incus
+    // cannot run). Show a friendlier placeholder than the generic error
+    // state — this is an expected condition, not a failure.
+    if (isFeatureDisabledError(error)) {
+      return (
+        <FeatureDisabledState
+          title={t("common.featureDisabled.title")}
+          description={t("common.featureDisabled.description")}
+        />
+      );
+    }
     return (
       <ErrorState message={t("common.error")} retryLabel={t("common.retry")} onRetry={onRetry} />
     );

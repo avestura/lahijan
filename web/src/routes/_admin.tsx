@@ -4,10 +4,12 @@
  * Layered on top of `_auth` (admin pages are also auth-guarded). The
  * beforeLoad checks the user's roles in the session store; if they don't
  * hold `platform.admin`, we redirect to /dashboard with an error message.
+ *
+ * Note: AppShell is rendered by the ROOT route, so this layout is a pure
+ * pass-through (see _auth.tsx for the rationale).
  */
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
-import { AppShell } from "@/components/layout/AppShell";
 import { useSessionStore } from "@/lib/stores/session-store";
 
 const PLATFORM_ADMIN = "platform.admin";
@@ -28,5 +30,5 @@ export const Route = createFileRoute("/_admin")({
 });
 
 function AdminLayout() {
-  return <AppShell />;
+  return <Outlet />;
 }
