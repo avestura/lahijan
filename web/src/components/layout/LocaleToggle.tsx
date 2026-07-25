@@ -25,7 +25,7 @@ export function LocaleToggle() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label={t("locale.label")}>
+        <Button variant="ghost" size="icon" aria-label={t("locale.label")} data-testid="locale-toggle">
           <GlobeIcon className="h-5 w-5" />
         </Button>
       </DropdownMenuTrigger>
@@ -35,6 +35,7 @@ export function LocaleToggle() {
             key={code}
             onClick={() => setLocale(code)}
             data-active={locale === code}
+            data-testid={`locale-option-${code}`}
           >
             {LOCALE_LABELS[code]}
           </DropdownMenuItem>

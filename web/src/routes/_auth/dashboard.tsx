@@ -39,7 +39,7 @@ function DashboardPage() {
       : t("dashboard.ping.error");
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="page-dashboard">
       <h1 className="text-2xl font-semibold">
         {t("dashboard.welcome", {
           name: user?.displayName ?? user?.email ?? "",

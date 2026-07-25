@@ -114,6 +114,15 @@
     "name": "Name",
     "created": "Created",
     "updated": "Updated",
+    "featureDisabled": {
+      "title": "This feature is not enabled",
+      "description": "The operator has not enabled this module in this deployment. Contact your administrator."
+    },
+    "notFound": {
+      "title": "Page not found",
+      "body": "The page you were looking for doesn't exist or may have moved.",
+      "back": "Back to dashboard"
+    },
     "copy": "Copy",
     "copied": "Copied",
     "yes": "Yes",

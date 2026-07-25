@@ -13,7 +13,7 @@ export const Route = createFileRoute("/settings/identities")({
 function SettingsIdentitiesPage() {
   const { t } = useTranslation();
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="page-settings-identities">
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold">{t("settings.identities.title")}</h1>
         <p className="text-sm text-muted-foreground">{t("settings.identities.subtitle")}</p>

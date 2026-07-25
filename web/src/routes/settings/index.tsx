@@ -17,7 +17,7 @@ export const Route = createFileRoute("/settings/")({
 function SettingsProfilePage() {
   const { t } = useTranslation();
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="page-settings-profile">
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold">{t("settings.profile.title")}</h1>
         <p className="text-sm text-muted-foreground">{t("settings.profile.subtitle")}</p>

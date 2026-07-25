@@ -60,14 +60,14 @@ function ComputeListPage() {
   }, [query.data, filter, statusFilter]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="page-compute">
       <header className="flex items-center justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold">{t("compute.title")}</h1>
           <p className="text-sm text-muted-foreground">{t("compute.subtitle")}</p>
         </div>
         {hasPerm && (
-          <Button asChild>
+          <Button asChild data-testid="new-instance-button">
             <Link to="/compute/new">
               <PlusIcon className="h-4 w-4" />
               {t("compute.list.new")}
@@ -83,6 +83,7 @@ function ComputeListPage() {
           placeholder={t("compute.list.filter.placeholder")}
           className="max-w-sm"
           aria-label={t("common.search")}
+          data-testid="compute-filter-input"
         />
         <Select
           value={statusFilter}

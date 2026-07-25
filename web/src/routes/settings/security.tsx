@@ -20,7 +20,7 @@ function SettingsSecurityPage() {
         <h1 className="text-2xl font-semibold">{t("settings.security.title")}</h1>
         <p className="text-sm text-muted-foreground">{t("settings.security.subtitle")}</p>
       </header>
-      <div className="space-y-4">
+    <div className="space-y-4" data-testid="page-settings-security">
         <TOTPCard />
         <RecoveryCodesCard />
         <WebAuthnCard />

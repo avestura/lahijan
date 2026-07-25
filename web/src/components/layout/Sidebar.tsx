@@ -9,7 +9,6 @@
  */
 import {
   BookOpenIcon,
-  BoxesIcon,
   CloudIcon,
   DatabaseIcon,
   DollarSignIcon,
@@ -44,7 +43,10 @@ const PRIMARY_NAV: NavItem[] = [
   { to: "/dns", labelKey: "nav.dns", icon: GlobeWrapper },
   { to: "/storage", labelKey: "nav.storage", icon: DatabaseIcon },
   { to: "/billing", labelKey: "nav.billing", icon: DollarSignIcon },
-  { to: "/plugins", labelKey: "nav.plugins", icon: PlugIcon },
+  // `/plugins` (user-facing installed plugins view) is hidden until the
+  // route exists — currently links to a 404. Admin-side plugin management
+  // is at /admin/plugins; marketplace browsing is at /admin/marketplace.
+  // { to: "/plugins", labelKey: "nav.plugins", icon: PlugIcon },
   { to: "/audit", labelKey: "nav.audit", icon: ScrollTextIcon },
   { to: "/settings", labelKey: "nav.settings", icon: SettingsIcon },
 ];
@@ -59,7 +61,11 @@ const SETTINGS_NAV: NavItem[] = [
 
 const ADMIN_NAV: NavItem[] = [
   { to: "/admin/billing", labelKey: "nav.admin.billing", icon: WalletIcon },
-  { to: "/admin/jobs", labelKey: "nav.admin.jobs", icon: BoxesIcon },
+  // `/admin/jobs` has no SPA route; River's built-in UI is mounted at
+  // `/admin/jobs/ui` when jobs are enabled (conf.jobs.enabled=true).
+  // Hide the nav entry in deployments where jobs are disabled to avoid
+  // a 404. Re-enable when the SPA grows its own jobs dashboard.
+  // { to: "/admin/jobs", labelKey: "nav.admin.jobs", icon: BoxesIcon },
   { to: "/admin/plugins", labelKey: "nav.admin.plugins", icon: PlugIcon },
   { to: "/admin/marketplace", labelKey: "nav.admin.marketplace", icon: BookOpenIcon },
 ];
@@ -92,7 +98,10 @@ export function Sidebar() {
   const isAdmin = !!user && roles.includes(PLATFORM_ADMIN);
 
   return (
-    <aside className="flex h-full w-60 shrink-0 flex-col border-e border-sidebar-border bg-sidebar text-sidebar-foreground">
+    <aside
+      data-testid="sidebar"
+      className="flex h-full w-60 shrink-0 flex-col border-e border-sidebar-border bg-sidebar text-sidebar-foreground"
+    >
       <div className="flex h-14 items-center gap-2 px-4 font-semibold">
         <span
           aria-hidden="true"
@@ -132,9 +141,13 @@ export function Sidebar() {
 function NavLink({ item }: { item: NavItem }) {
   const { t } = useTranslation();
   const Icon = item.icon;
+  // Stable, i18n-safe selector for the e2e suite: nav-<path-segments>.
+  // e.g. /settings/security -> nav-settings-security, /dashboard -> nav-dashboard.
+  const testId = `nav-${item.to.split("/").filter(Boolean).join("-")}`;
   return (
     <Link
       to={item.to}
+      data-testid={testId}
       className={cn(
         "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium",
         "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-fg",

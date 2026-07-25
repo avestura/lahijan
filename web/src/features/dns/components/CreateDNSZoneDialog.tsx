@@ -70,7 +70,7 @@ export function CreateDNSZoneDialog({ open, onOpenChange, tenantId }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent data-testid="create-zone-dialog">
         <DialogHeader>
           <DialogTitle>{t("dns.create.title")}</DialogTitle>
           <DialogDescription>{t("dns.create.subtitle")}</DialogDescription>
@@ -82,6 +82,7 @@ export function CreateDNSZoneDialog({ open, onOpenChange, tenantId }: Props) {
               id="dns-zone-name"
               placeholder={t("dns.create.name.placeholder")}
               aria-describedby="dns-zone-name-hint"
+              data-testid="create-zone-name"
               {...form.register("name")}
             />
             <p id="dns-zone-name-hint" className="text-xs text-muted-foreground">
@@ -135,10 +136,19 @@ export function CreateDNSZoneDialog({ open, onOpenChange, tenantId }: Props) {
             <p className="text-xs text-muted-foreground">{t("dns.create.template.hint")}</p>
           </div>
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => onOpenChange(false)}
+              data-testid="create-zone-cancel"
+            >
               {t("common.cancel")}
             </Button>
-            <Button type="submit" disabled={create.isPending || !form.formState.isValid}>
+            <Button
+              type="submit"
+              disabled={create.isPending || !form.formState.isValid}
+              data-testid="create-zone-submit"
+            >
               {create.isPending ? t("dns.create.submitting") : t("dns.create.submit")}
             </Button>
           </DialogFooter>

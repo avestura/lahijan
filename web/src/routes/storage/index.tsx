@@ -45,14 +45,14 @@ function StorageListPage() {
   }, [query.data, filter]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="page-storage">
       <header className="flex items-center justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold">{t("storage.title")}</h1>
           <p className="text-sm text-muted-foreground">{t("storage.subtitle")}</p>
         </div>
         {hasPerm && (
-          <Button onClick={() => setCreateOpen(true)}>
+          <Button onClick={() => setCreateOpen(true)} data-testid="new-bucket-button">
             <PlusIcon className="h-4 w-4" />
             {t("storage.list.new")}
           </Button>
@@ -65,6 +65,7 @@ function StorageListPage() {
         placeholder={t("storage.list.filter.placeholder")}
         className="max-w-sm"
         aria-label={t("common.search")}
+        data-testid="storage-filter-input"
       />
 
       <StorageBucketList

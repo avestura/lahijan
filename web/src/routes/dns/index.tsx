@@ -44,14 +44,14 @@ function DNSListPage() {
   }, [query.data, filter]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="page-dns">
       <header className="flex items-center justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold">{t("dns.title")}</h1>
           <p className="text-sm text-muted-foreground">{t("dns.subtitle")}</p>
         </div>
         {hasPerm && (
-          <Button onClick={() => setCreateOpen(true)}>
+          <Button onClick={() => setCreateOpen(true)} data-testid="new-zone-button">
             <PlusIcon className="h-4 w-4" />
             {t("dns.list.new")}
           </Button>
@@ -64,6 +64,7 @@ function DNSListPage() {
         placeholder={t("dns.list.filter.placeholder")}
         className="max-w-sm"
         aria-label={t("common.search")}
+        data-testid="dns-filter-input"
       />
 
       <DNSZoneList

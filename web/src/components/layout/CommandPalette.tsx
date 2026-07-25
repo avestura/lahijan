@@ -16,12 +16,10 @@
  */
 import { Command } from "cmdk";
 import {
-  BoxesIcon,
   CloudIcon,
   DatabaseIcon,
   DollarSignIcon,
   LayoutDashboardIcon,
-  PlugIcon,
   ScrollTextIcon,
   SearchIcon,
   SettingsIcon,
@@ -69,7 +67,10 @@ const DESTINATIONS: Destination[] = [
     icon: DollarSignIcon,
     keywords: "ledger receipts",
   },
-  { id: "plugins", labelKey: "nav.plugins", to: "/plugins", icon: PlugIcon },
+  // `/plugins` (user-facing) and `/admin/jobs` have no SPA routes yet;
+  // commented out to avoid surfacing 404s in the command palette. See
+  // Sidebar.tsx for the same omission + the rationale.
+  // { id: "plugins", labelKey: "nav.plugins", to: "/plugins", icon: PlugIcon },
   { id: "audit", labelKey: "nav.audit", to: "/audit", icon: ScrollTextIcon },
   { id: "settings", labelKey: "nav.settings", to: "/settings", icon: SettingsIcon },
   {
@@ -84,7 +85,7 @@ const DESTINATIONS: Destination[] = [
     to: "/settings/tokens",
     icon: SettingsIcon,
   },
-  { id: "admin.jobs", labelKey: "nav.admin.jobs", to: "/admin/jobs", icon: BoxesIcon },
+  // { id: "admin.jobs", labelKey: "nav.admin.jobs", to: "/admin/jobs", icon: BoxesIcon },
 ];
 
 // Wrap lucide's GlobeIcon so we can swap it for a project-local icon later
@@ -134,6 +135,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             <Command.Input
               autoFocus
               placeholder={t("commandPalette.placeholder")}
+              data-testid="command-palette-input"
               className="flex h-11 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
             />
           </div>
@@ -149,6 +151,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                     key={d.id}
                     value={`${t(d.labelKey)} ${d.keywords ?? ""}`}
                     onSelect={() => go(d.to)}
+                    data-testid={`command-palette-item-${d.id}`}
                   >
                     <Icon className="me-2 h-4 w-4 text-muted-foreground" />
                     <span className="flex-1">{t(d.labelKey)}</span>

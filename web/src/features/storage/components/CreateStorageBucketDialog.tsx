@@ -50,7 +50,7 @@ export function CreateStorageBucketDialog({ open, onOpenChange, tenantId }: Prop
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent data-testid="create-bucket-dialog">
         <DialogHeader>
           <DialogTitle>{t("storage.create.title")}</DialogTitle>
           <DialogDescription>{t("storage.create.subtitle")}</DialogDescription>
@@ -62,6 +62,7 @@ export function CreateStorageBucketDialog({ open, onOpenChange, tenantId }: Prop
               id="bucket-slug"
               placeholder={t("storage.create.slug.placeholder")}
               aria-describedby="bucket-slug-hint"
+              data-testid="create-bucket-slug"
               {...form.register("slug")}
             />
             <p id="bucket-slug-hint" className="text-xs text-muted-foreground">
@@ -108,10 +109,15 @@ export function CreateStorageBucketDialog({ open, onOpenChange, tenantId }: Prop
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => onOpenChange(false)}
+              data-testid="create-bucket-cancel"
+            >
               {t("common.cancel")}
             </Button>
-            <Button type="submit" disabled={create.isPending}>
+            <Button type="submit" disabled={create.isPending} data-testid="create-bucket-submit">
               {create.isPending ? t("storage.create.submitting") : t("storage.create.submit")}
             </Button>
           </DialogFooter>

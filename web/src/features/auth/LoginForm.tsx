@@ -56,7 +56,7 @@ export function LoginForm() {
   } = form;
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4" noValidate>
+    <form onSubmit={onSubmit} className="space-y-4" noValidate data-testid="login-form">
       <div className="space-y-2">
         <Label htmlFor="email">{t("auth.login.email.label")}</Label>
         <Input
@@ -65,6 +65,7 @@ export function LoginForm() {
           autoComplete="email"
           placeholder={t("auth.login.email.placeholder")}
           aria-invalid={!!errors.email}
+          data-testid="login-email"
           {...register("email")}
         />
         {errors.email && (
@@ -84,6 +85,7 @@ export function LoginForm() {
           autoComplete="current-password"
           placeholder={t("auth.login.password.placeholder")}
           aria-invalid={!!errors.password}
+          data-testid="login-password"
           {...register("password")}
         />
         {errors.password && (
@@ -96,12 +98,12 @@ export function LoginForm() {
       </div>
 
       {submitError && (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" data-testid="login-error" className="text-sm text-destructive">
           {submitError}
         </p>
       )}
 
-      <Button type="submit" className="w-full" disabled={isSubmitting}>
+      <Button type="submit" className="w-full" disabled={isSubmitting} data-testid="login-submit">
         {isSubmitting ? t("auth.login.submitting") : t("auth.login.submit")}
       </Button>
     </form>

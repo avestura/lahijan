@@ -143,7 +143,7 @@ export function CreateInstanceWizard() {
         ))}
       </ol>
 
-      <form onSubmit={onSubmit} className="space-y-4" noValidate>
+      <form onSubmit={onSubmit} className="space-y-4" noValidate data-testid="create-instance-form">
         {step === "image" && (
           <Card>
             <CardContent className="space-y-4 p-6">
@@ -160,7 +160,7 @@ export function CreateInstanceWizard() {
                     value={form.watch("imageAlias")}
                     onValueChange={(v) => form.setValue("imageAlias", v, { shouldValidate: true })}
                   >
-                    <SelectTrigger id="imageAlias">
+                    <SelectTrigger id="imageAlias" data-testid="create-instance-image">
                       <SelectValue placeholder={t("compute.create.image.label")} />
                     </SelectTrigger>
                     <SelectContent>
@@ -191,6 +191,7 @@ export function CreateInstanceWizard() {
                   <Input
                     id="name"
                     placeholder={t("compute.create.name.placeholder")}
+                    data-testid="create-instance-name"
                     {...form.register("name")}
                   />
                   <p className="text-xs text-muted-foreground">{t("compute.create.name.hint")}</p>
@@ -229,6 +230,7 @@ export function CreateInstanceWizard() {
                     type="number"
                     min={1}
                     max={64}
+                    data-testid="create-instance-cpu"
                     {...form.register("cpu", { valueAsNumber: true })}
                   />
                   <p className="text-xs text-muted-foreground">{t("compute.create.cpu.hint")}</p>
@@ -239,6 +241,7 @@ export function CreateInstanceWizard() {
                     id="memory"
                     type="number"
                     min={64}
+                    data-testid="create-instance-memory"
                     {...form.register("memoryMiB", { valueAsNumber: true })}
                   />
                   <p className="text-xs text-muted-foreground">{t("compute.create.memory.hint")}</p>
@@ -249,6 +252,7 @@ export function CreateInstanceWizard() {
                     id="disk"
                     type="number"
                     min={1}
+                    data-testid="create-instance-disk"
                     {...form.register("diskGiB", { valueAsNumber: true })}
                   />
                   <p className="text-xs text-muted-foreground">{t("compute.create.disk.hint")}</p>
@@ -340,6 +344,7 @@ export function CreateInstanceWizard() {
             variant="ghost"
             onClick={prev}
             disabled={stepIndex === 0 || create.isPending}
+            data-testid="create-instance-previous"
           >
             {t("common.previous")}
           </Button>
@@ -347,11 +352,12 @@ export function CreateInstanceWizard() {
             <Button
               type="submit"
               disabled={create.isPending || Object.keys(form.formState.errors).length > 0}
+              data-testid="create-instance-submit"
             >
               {create.isPending ? t("compute.create.submitting") : t("compute.create.submit")}
             </Button>
           ) : (
-            <Button type="button" onClick={next} disabled={create.isPending}>
+            <Button type="button" onClick={next} disabled={create.isPending} data-testid="create-instance-next">
               {t("common.next")}
             </Button>
           )}

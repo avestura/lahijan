@@ -62,7 +62,10 @@ export function Header() {
 
   return (
     <>
-      <header className="flex h-14 items-center justify-between gap-4 border-b border-border bg-background px-4">
+      <header
+        data-testid="app-header"
+        className="flex h-14 items-center justify-between gap-4 border-b border-border bg-background px-4"
+      >
         <div className="flex flex-1 items-center gap-2">
           <Button
             variant="outline"
@@ -70,6 +73,7 @@ export function Header() {
             className="text-muted-foreground"
             onClick={() => setPaletteOpen(true)}
             aria-label={t("commandPalette.label")}
+            data-testid="command-palette-trigger"
           >
             <SearchIcon className="h-4 w-4" />
             <span className="hidden md:inline">{t("commandPalette.placeholder")}</span>
@@ -88,7 +92,13 @@ export function Header() {
           <ThemeToggle />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-2" aria-label={t("auth.logout")}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-2"
+                aria-label={t("auth.logout")}
+                data-testid="user-menu-trigger"
+              >
                 <Avatar className="h-7 w-7">
                   <AvatarFallback>{initials}</AvatarFallback>
                 </Avatar>
@@ -120,6 +130,7 @@ export function Header() {
               <DropdownMenuItem
                 onClick={onSignOut}
                 className="text-destructive focus:text-destructive"
+                data-testid="user-menu-logout"
               >
                 <LogOutIcon className="me-2 h-4 w-4" />
                 {t("auth.logout")}

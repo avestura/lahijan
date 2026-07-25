@@ -26,7 +26,10 @@ export const Route = createFileRoute("/login")({
 function LoginRoute() {
   const { t } = useTranslation();
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+    <div
+      className="flex min-h-screen items-center justify-center bg-background p-4"
+      data-testid="login-page"
+    >
       <Card className="w-full max-w-md">
         <CardContent className="space-y-6 p-8">
           <div className="space-y-2 text-center">

@@ -19,7 +19,7 @@ export const Route = createFileRoute("/settings/sessions")({
 function SettingsSessionsPage() {
   const { t } = useTranslation();
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="page-settings-sessions">
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold">{t("settings.sessions.title")}</h1>
         <p className="text-sm text-muted-foreground">{t("settings.sessions.subtitle")}</p>
