@@ -11,6 +11,7 @@ package hostfuncs
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -395,4 +396,66 @@ func TestNetwork_HttpRequest_DeniesWithoutGrant(t *testing.T) {
 		emitHTTPRequestModule("GET", "https://example.test/"), plugin.ID)
 	require.Len(t, out, 1)
 	assert.Equal(t, StatusDenied, int32(out[0]))
+}
+
+// TestNetwork_HttpRequest_ReturnsFullResponse verifies the 12-param
+// response-buffer protocol (ADR-0038): the host writes a 4-byte LE uint32
+// length prefix + data into each response buffer.
+func TestNetwork_HttpRequest_ReturnsFullResponse(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	pool := testutil.Pool()
+	tenant := testutil.NewTenant(ctx, t, pool)
+	user := testutil.NewUser(ctx, t, pool, true)
+	plugin := testutil.NewPlugin(ctx, t, pool, &tenant.ID, "net-resp")
+	require.NoError(t, testutil.Repos().Plugins.GrantPermission(ctx, plugin.ID, user.ID,
+		permission.CapNetworkOutbound))
+
+	repos := testutil.Repos()
+	doer := &fakeHTTPDoer{resp: OutboundResponse{
+		StatusCode: 201,
+		Headers:    map[string]string{"Content-Type": "application/json", "X-Trace": "abc"},
+		Body:       []byte(`{"ok":true}`),
+	}}
+	rt := buildRuntime(t, Deps{
+		Enforcer:   permission.NewDBEnforcer(repos.Plugins),
+		Repos:      repos,
+		HTTPClient: doer,
+	})
+
+	wasmBytes := emitHTTPRequestWithResponseModule("POST", "https://example.test/hook")
+	hash, err := rt.Compile(ctx, wasmBytes,
+		&manifest.Manifest{Name: "net-resp", Version: "1.0.0"})
+	require.NoError(t, err)
+	inst, err := rt.Instantiate(ctx, hash, plugin.ID)
+	require.NoError(t, err)
+	defer func() { _ = inst.Close(ctx) }()
+
+	out, err := inst.Call(ctx, "run")
+	require.NoError(t, err)
+	require.Len(t, out, 1)
+	assert.Equal(t, int32(201), int32(out[0]), "should return HTTP 201")
+
+	// Verify response header buffer: [LE uint32 len][header JSON]
+	respHdrBufOff := uint32(4096)
+	hdrLenBytes, err := inst.ReadMemory(respHdrBufOff, 4)
+	require.NoError(t, err)
+	hdrJSONLen := binary.LittleEndian.Uint32(hdrLenBytes)
+	require.Greater(t, hdrJSONLen, uint32(0))
+	hdrJSON, err := inst.ReadMemory(respHdrBufOff+4, hdrJSONLen)
+	require.NoError(t, err)
+	var hdrs map[string]string
+	require.NoError(t, json.Unmarshal(hdrJSON, &hdrs))
+	assert.Equal(t, "application/json", hdrs["Content-Type"])
+	assert.Equal(t, "abc", hdrs["X-Trace"])
+
+	// Verify response body buffer: [LE uint32 len][body bytes]
+	respBodyBufOff := uint32(8192)
+	bodyLenBytes, err := inst.ReadMemory(respBodyBufOff, 4)
+	require.NoError(t, err)
+	bodyLen := binary.LittleEndian.Uint32(bodyLenBytes)
+	require.Equal(t, uint32(len(`{"ok":true}`)), bodyLen)
+	bodyBytes, err := inst.ReadMemory(respBodyBufOff+4, bodyLen)
+	require.NoError(t, err)
+	assert.Equal(t, `{"ok":true}`, string(bodyBytes))
 }

@@ -31,6 +31,7 @@ import (
 
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/manifest"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/permission"
+	"github.com/avestura/lahijan/internal/app/lahijan/wasm/wasiimporter"
 )
 
 // WasmPageBytes is the size of one WASM memory page (defined by the spec).
@@ -69,9 +70,21 @@ type Config struct {
 	// HostFunctions is invoked once per Runtime to register host imports the
 	// plugin can call. WS-10a passes nil; WS-10b passes the real registry
 	// (network.outbound, kv.*, events.*, ...). Every host function the
-	// registry installs MUST route its permission check through the
+	// registrar installs MUST route its permission check through the
 	// permission.Enforcer the Runtime was built with.
 	HostFunctions HostFunctionsRegistrar
+
+	// WASIEnabled, when true, registers the wasi_snapshot_preview1 host
+	// module on the runtime during New (WS-10e / ADR-0039). This makes WASI
+	// imports available for plugins that declare runtime: wasi in their
+	// manifest. Plain-WASM plugins are unaffected — they don't import from
+	// wasi_snapshot_preview1, so the registered functions are never called.
+	WASIEnabled bool
+
+	// WASIFsRoot is the operator-configured sandbox root for WASI plugin
+	// filesystems. Each WASI plugin's preopens are under
+	// <WASIFsRoot>/<plugin-slug>/. Required when WASIEnabled is true.
+	WASIFsRoot string
 }
 
 // HostFunctionsRegistrar is the seam WS-10b will implement to register host
@@ -153,6 +166,16 @@ func New(ctx context.Context, enforcer permission.Enforcer, cfg Config) (*Runtim
 		if err := cfg.HostFunctions(ctx, rt, enforcer, logger); err != nil {
 			_ = rt.Close(ctx)
 			return nil, fmt.Errorf("wasm: register host functions: %w", err)
+		}
+	}
+
+	// Register the WASI Preview 1 host module when WASI mode is enabled.
+	// This makes wasi_snapshot_preview1 imports available for plugins that
+	// declare runtime: wasi. Plain-WASM plugins are unaffected.
+	if cfg.WASIEnabled {
+		if err := wasiimporter.EnsureWASI(ctx, rt); err != nil {
+			_ = rt.Close(ctx)
+			return nil, fmt.Errorf("wasm: register WASI: %w", err)
 		}
 	}
 	return r, nil
@@ -278,7 +301,7 @@ func (r *Runtime) Instantiate(ctx context.Context, hash string, pluginID uuid.UU
 		return nil, ErrUnknownModule
 	}
 
-	mod, err := r.rt.InstantiateModule(ctx, c.module, wazero.NewModuleConfig())
+	mod, err := r.rt.InstantiateModule(ctx, c.module, r.buildModuleConfig(ctx, c, pluginID))
 	if err != nil {
 		return nil, fmt.Errorf("wasm: instantiate %s: %w", hash, err)
 	}
@@ -287,7 +310,54 @@ func (r *Runtime) Instantiate(ctx context.Context, hash string, pluginID uuid.UU
 		compiled: c,
 		rt:       r,
 		pluginID: pluginID,
-	}, nil
+	}	, nil
+}
+
+// buildModuleConfig returns the wazero.ModuleConfig for instantiating a
+// compiled plugin. For plain-WASM plugins this is the default config. For
+// WASI plugins (manifest.Runtime == "wasi" and WASIEnabled), it builds a
+// per-plugin config with filesystem preopens and env vars derived from the
+// plugin's granted slugs.
+func (r *Runtime) buildModuleConfig(
+	ctx context.Context,
+	c *compiledPlugin,
+	pluginID uuid.UUID,
+) wazero.ModuleConfig {
+	if !c.manifest.IsWasi() || !r.cfg.WASIEnabled {
+		return wazero.NewModuleConfig()
+	}
+
+	grants, err := r.enforcer.ListGrants(ctx, pluginID)
+	if err != nil {
+		r.logger.Warn("wasm: failed to list grants for WASI config; using default",
+			"plugin", pluginID, "error", err)
+		return wazero.NewModuleConfig()
+	}
+
+	builder := wasiimporter.NewBuilder(r.logger)
+
+	var preopens []wasiimporter.PreopenSpec
+	var envNames []string
+	if c.manifest.Wasi != nil {
+		for _, p := range c.manifest.Wasi.Preopens {
+			preopens = append(preopens, wasiimporter.PreopenSpec{
+				GuestPath:  p.GuestPath,
+				HostSubdir: p.HostSubdir,
+				Mode:       p.Mode,
+			})
+		}
+		envNames = c.manifest.Wasi.Env
+	}
+
+	cfg, err := builder.Build(
+		c.manifest.Name, grants, preopens, envNames, nil, r.cfg.WASIFsRoot,
+	)
+	if err != nil {
+		r.logger.Warn("wasm: failed to build WASI config; using default",
+			"plugin", pluginID, "error", err)
+		return wazero.NewModuleConfig()
+	}
+	return cfg
 }
 
 // Instance is a single instantiated module. One of these exists per call;
@@ -372,6 +442,27 @@ func WithPluginID(ctx context.Context, id uuid.UUID) context.Context {
 // actually exist.
 func (i *Instance) HasExport(name string) bool {
 	return i.module.ExportedFunction(name) != nil
+}
+
+// ReadMemory reads length bytes from the module's linear memory at offset
+// ptr. Returns a copy so the caller can hold the slice past the instance's
+// Close. Used by tests to verify host-function writes into plugin memory
+// (e.g. the http_request response-buffer protocol).
+func (i *Instance) ReadMemory(ptr, length uint32) ([]byte, error) {
+	if length == 0 {
+		return []byte{}, nil
+	}
+	mem := i.module.Memory()
+	if mem == nil {
+		return nil, errors.New("wasm: module has no memory")
+	}
+	out, ok := mem.Read(ptr, length)
+	if !ok {
+		return nil, fmt.Errorf("wasm: memory read oob ptr=%d len=%d", ptr, length)
+	}
+	cp := make([]byte, length)
+	copy(cp, out)
+	return cp, nil
 }
 
 // Manifest returns the manifest the module was compiled with.

@@ -89,6 +89,62 @@ const (
 	// schema. The qualifier is the plugin's own name (so a plugin cannot
 	// read another plugin's config).
 	CapConfigRead = "config.read"
+
+	// WASI (WS-10e / ADR-0039): Preview 1 capabilities for plugins
+	// compiled to wasm32-wasi. The filtered WASI importer reads these
+	// grants to configure wazero's FSConfig + env vars per plugin.
+
+	// CapWasifSPreopen gates filesystem preopens. The qualifier is the
+	// guest path with an optional :ro / :rw mode suffix
+	// (e.g. "wasi.fs.preopen:/data:rw"). The host mounts
+	// <fs_root>/<plugin-slug>/<host_subdir> at the guest path.
+	CapWasifSPreopen = "wasi.fs.preopen"
+
+	// CapWasiEnv gates environment variable visibility. The qualifier is
+	// the env var name (e.g. "wasi.env:API_ENDPOINT"). The value is
+	// injected by the admin via the plugin config endpoint; the plugin
+	// never sees the host's actual env.
+	CapWasiEnv = "wasi.env"
+
+	// CapWasiClock gates clock_time_get / clock_res_get.
+	CapWasiClock = "wasi.clock"
+
+	// CapWasiRandom gates random_get. Low-risk; usually default-granted.
+	CapWasiRandom = "wasi.random"
+
+	// CapWasiExit gates proc_exit.
+	CapWasiExit = "wasi.exit"
+
+	// CapWasiWildcard is the god-mode escape hatch for WASI plugins.
+	// When granted, the runtime registers the full
+	// wasi_snapshot_preview1 surface with no filtering. The admin UI
+	// shows a loud warning. This does NOT grant Lahijan host-function
+	// permissions (kv, events, etc.) — those still need explicit grants.
+	CapWasiWildcard = "*"
+
+	// Compute instance operations (WS-10f). Plugins that manage
+	// infrastructure declare these; the host function delegates to the
+	// compute service which enforces RBAC + tenant scoping + billing.
+	CapComputeInstanceCreate  = "compute.instance.create"
+	CapComputeInstanceRead    = "compute.instance.read"
+	CapComputeInstanceUpdate  = "compute.instance.update"
+	CapComputeInstanceDelete  = "compute.instance.delete"
+	CapComputeInstanceControl = "compute.instance.control"
+
+	// DNS zone operations (WS-10f).
+	CapDNSZoneCreate = "dns.zone.create"
+	CapDNSZoneRead   = "dns.zone.read"
+	CapDNSZoneDelete = "dns.zone.delete"
+
+	// DNS record operations (WS-10f).
+	CapDNSRecordCreate = "dns.record.create"
+	CapDNSRecordRead   = "dns.record.read"
+	CapDNSRecordDelete = "dns.record.delete"
+
+	// Storage bucket operations (WS-10f).
+	CapStorageBucketCreate = "storage.bucket.create"
+	CapStorageBucketRead   = "storage.bucket.read"
+	CapStorageBucketDelete = "storage.bucket.delete"
 )
 
 // allCapabilities is the single source of truth for what a plugin can
@@ -105,6 +161,25 @@ var allCapabilities = []string{
 	CapJobSchedule,
 	CapAPIHandlerRegister,
 	CapConfigRead,
+	CapWasifSPreopen,
+	CapWasiEnv,
+	CapWasiClock,
+	CapWasiRandom,
+	CapWasiExit,
+	CapComputeInstanceCreate,
+	CapComputeInstanceRead,
+	CapComputeInstanceUpdate,
+	CapComputeInstanceDelete,
+	CapComputeInstanceControl,
+	CapDNSZoneCreate,
+	CapDNSZoneRead,
+	CapDNSZoneDelete,
+	CapDNSRecordCreate,
+	CapDNSRecordRead,
+	CapDNSRecordDelete,
+	CapStorageBucketCreate,
+	CapStorageBucketRead,
+	CapStorageBucketDelete,
 }
 
 // AllCapabilities returns a copy of the catalog. Callers must not mutate
@@ -119,7 +194,14 @@ func AllCapabilities() []string {
 // before ":") is in the catalog. Used by the manifest validator to reject
 // typos at install time. Qualifiers (the part after ":") are not checked
 // here because their semantics are host-function-specific.
+//
+// The "*" wildcard (CapWasiWildcard) is always recognised — it is the
+// WASI god-mode escape hatch (ADR-0039) and bypasses the normal
+// scope.action format check.
 func IsKnownCapability(slug string) bool {
+	if slug == CapWasiWildcard {
+		return true
+	}
 	prefix := strings.SplitN(slug, ":", 2)[0]
 	for _, c := range allCapabilities {
 		if c == prefix {
@@ -132,7 +214,14 @@ func IsKnownCapability(slug string) bool {
 // Validate checks that a slug is syntactically valid (scope.action[:qual])
 // and that the scope.action prefix is in the catalog. Returns nil on success
 // or one of ErrUnknownPermission / a wrapping error.
+//
+// The "*" wildcard (CapWasiWildcard) is always valid — it is the WASI
+// god-mode escape hatch (ADR-0039) and does not follow the scope.action
+// format.
 func Validate(slug string) error {
+	if slug == CapWasiWildcard {
+		return nil
+	}
 	if slug == "" {
 		return fmt.Errorf("permission: empty slug: %w", ErrUnknownPermission)
 	}
@@ -225,6 +314,11 @@ type Enforcer interface {
 	// returns (false, error); callers MUST fail closed by treating the
 	// error as "deny" and trapping the plugin.
 	Allowed(ctx context.Context, pluginID uuid.UUID, slug string) (bool, error)
+
+	// ListGrants returns the full set of permission slugs the plugin holds.
+	// Used by the WASI importer to derive the filesystem + env configuration
+	// from granted slugs.
+	ListGrants(ctx context.Context, pluginID uuid.UUID) ([]string, error)
 }
 
 // DBEnforcer reads grants from the plugin_permissions table. Construct one
@@ -254,7 +348,18 @@ func (e *DBEnforcer) Allowed(ctx context.Context, pluginID uuid.UUID, slug strin
 	return Allowed(strs, slug), nil
 }
 
-// MapEnforcer is the in-memory enforcer used in tests + the no-DB dev mode.
+// ListGrants implements Enforcer by listing every grant the plugin holds.
+func (e *DBEnforcer) ListGrants(ctx context.Context, pluginID uuid.UUID) ([]string, error) {
+	grants, err := e.repo.ListPermissions(ctx, pluginID)
+	if err != nil {
+		return nil, fmt.Errorf("permission: list grants for %s: %w", pluginID, err)
+	}
+	strs := make([]string, len(grants))
+	for i, g := range grants {
+		strs[i] = g.Permission
+	}
+	return strs, nil
+}
 // The map is keyed by plugin id; the value is the set of granted slugs.
 // Safe for concurrent use.
 type MapEnforcer struct {
@@ -306,4 +411,11 @@ func (e *MapEnforcer) Allowed(_ context.Context, pluginID uuid.UUID, slug string
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	return Allowed(e.set[pluginID], slug), nil
+}
+
+// ListGrants implements Enforcer by returning a copy of the plugin's grant set.
+func (e *MapEnforcer) ListGrants(_ context.Context, pluginID uuid.UUID) ([]string, error) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return append([]string(nil), e.set[pluginID]...), nil
 }

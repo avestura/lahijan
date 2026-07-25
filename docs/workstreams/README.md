@@ -54,6 +54,8 @@ The ws-implementer subagent (`.opencode/agent/ws-implementer.md`) and the
 | [WS-10a](./WS-10a-wasm-runtime-permissions.md) | WASM Runtime + Permission System | done | WS-05, WS-08 |
 | [WS-10b](./WS-10b-wasm-host-functions-event-bus.md) | WASM Host Functions + Event Bus | done | WS-10a |
 | [WS-10c](./WS-10c-wasm-sample-plugins-marketplace.md) | WASM Sample Plugins + Marketplace Scaffolding | done | WS-10b |
+| [WS-10d](./WS-10d-plugin-sdk-go.md) | Plugin SDK (Go) + Host Network Response Fix | in-progress | WS-10b, WS-10c |
+| [WS-10e](./WS-10e-wasi-runtime-mode.md) | WASI Plugin Runtime Mode | in-progress | WS-10a, WS-10c |
 
 ## Phase 3 — Infrastructure Providers
 
@@ -119,7 +121,8 @@ Phase 1 (Security):   WS-06 ─┬─ WS-07a, WS-07b, WS-07c
                               └─ WS-08
 
 Phase 2 (Platform):   WS-09 ── (jobs used by WS-17, WS-25)
-                      WS-10a ── WS-10b ── WS-10c
+                      WS-10a ── WS-10b ── WS-10c ─┬─ WS-10d (Go SDK)
+                                                   └─ WS-10e (WASI mode)
 
 Phase 3 (Providers):  WS-11, WS-12, WS-13 (independent of each other)
 

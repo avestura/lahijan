@@ -69,6 +69,39 @@ type Manifest struct {
 	ConfigSchema *map[string]any `yaml:"config_schema" json:"config_schema,omitempty"`
 
 	Entrypoints []string `yaml:"entrypoints" json:"entrypoints,omitempty"`
+
+	// Runtime selects the WASM runtime mode. "none" (default / empty)
+	// = plain wasm32-unknown-unknown (ADR-0023). "wasi" = WASI Preview 1
+	// (ADR-0039). When "wasi", the Wasi block below configures the
+	// filtered importer.
+	Runtime string      `yaml:"runtime" json:"runtime,omitempty"`
+	Wasi    *WasiConfig `yaml:"wasi"    json:"wasi,omitempty"`
+}
+
+// WasiConfig declares the WASI capabilities a plugin requests. Each entry
+// maps to a permission slug the admin must approve before the plugin can
+// use that capability.
+type WasiConfig struct {
+	// Preopens lists directories to mount under the plugin's sandbox.
+	Preopens []WasiPreopen `yaml:"preopens" json:"preopens,omitempty"`
+	// Env lists environment variable names whose values the admin must
+	// inject via the plugin config endpoint.
+	Env []string `yaml:"env" json:"env,omitempty"`
+	// Clock enables clock_time_get / clock_res_get.
+	Clock bool `yaml:"clock" json:"clock,omitempty"`
+	// Random enables random_get. Usually default-granted (low risk).
+	Random bool `yaml:"random" json:"random,omitempty"`
+}
+
+// WasiPreopen describes a single directory mount.
+type WasiPreopen struct {
+	// GuestPath is the path the plugin sees (e.g. "/data").
+	GuestPath string `yaml:"guestPath" json:"guestPath"`
+	// HostSubdir is the subdirectory under <fs_root>/<plugin-slug>/
+	// that backs the guest path (e.g. "data").
+	HostSubdir string `yaml:"hostSubdir" json:"hostSubdir"`
+	// Mode is "ro" (read-only, default) or "rw" (read-write).
+	Mode string `yaml:"mode" json:"mode"`
 }
 
 // Validate enforces the manifest's structural invariants:
@@ -99,6 +132,9 @@ func (m *Manifest) Validate() error {
 			errs = append(errs, fmt.Errorf("manifest: entrypoints[%d] is empty", i))
 		}
 	}
+	if err := m.validateRuntime(); err != nil {
+		errs = append(errs, err)
+	}
 	if len(errs) == 1 {
 		return errs[0]
 	}
@@ -112,6 +148,51 @@ func (m *Manifest) Validate() error {
 		return errors.New("manifest: multiple errors:\n  - " + strings.Join(msgs, "\n  - "))
 	}
 	return nil
+}
+
+// validateRuntime checks the Runtime + Wasi fields. Runtime must be empty,
+// "none", or "wasi". When "wasi", the Wasi block must be present and each
+// preopen must have a valid guest path + mode.
+func (m *Manifest) validateRuntime() error {
+	switch m.Runtime {
+	case "", "none":
+		return nil
+	case "wasi":
+		// ok; validate the wasi block below
+	default:
+		return fmt.Errorf("manifest: runtime %q is not recognised (use \"none\" or \"wasi\")", m.Runtime)
+	}
+	if m.Wasi == nil {
+		return nil // wasi block is optional; a WASI plugin with no wasi: block just gets the bare WASI surface
+	}
+	for i, p := range m.Wasi.Preopens {
+		if p.GuestPath == "" {
+			return fmt.Errorf("manifest: wasi.preopens[%d].guestPath is empty", i)
+		}
+		if !strings.HasPrefix(p.GuestPath, "/") {
+			return fmt.Errorf("manifest: wasi.preopens[%d].guestPath %q must start with '/'", i, p.GuestPath)
+		}
+		if strings.Contains(p.GuestPath, "..") {
+			return fmt.Errorf("manifest: wasi.preopens[%d].guestPath %q must not contain '..'", i, p.GuestPath)
+		}
+		if p.HostSubdir == "" {
+			return fmt.Errorf("manifest: wasi.preopens[%d].hostSubdir is empty", i)
+		}
+		if strings.Contains(p.HostSubdir, "..") {
+			return fmt.Errorf("manifest: wasi.preopens[%d].hostSubdir %q must not contain '..'", i, p.HostSubdir)
+		}
+		switch p.Mode {
+		case "", "ro", "rw":
+		default:
+			return fmt.Errorf("manifest: wasi.preopens[%d].mode %q must be \"ro\" or \"rw\"", i, p.Mode)
+		}
+	}
+	return nil
+}
+
+// IsWasi reports whether the manifest selects the WASI runtime mode.
+func (m *Manifest) IsWasi() bool {
+	return m.Runtime == "wasi"
 }
 
 // Parse decodes YAML bytes into a Manifest and runs Validate. Callers

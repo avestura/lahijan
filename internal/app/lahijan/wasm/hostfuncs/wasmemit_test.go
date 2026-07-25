@@ -287,16 +287,17 @@ func emitConfigGetModule(key string) []byte {
 }
 
 // emitHTTPRequestModule builds a WASM module that calls
-// lahijan_network.http_request with method + url only (no headers, no body).
-// Sufficient for the network permission-gate test.
+// lahijan_network.http_request with the 12-param ABI (ADR-0038).
+// Passes 0,0,0,0 for the response buffer params (backward-compatible:
+// status code only). Sufficient for the network permission-gate test.
 func emitHTTPRequestModule(method, url string) []byte {
 	const methodOff, urlOff, headersOff, bodyOff = 0, 64, 1024, 2048
 	const memPages = 1
 
 	typeSec := section(0x01, []byte{
 		0x02,
-		// type 0: (i32 i32 i32 i32 i32 i32 i32 i32) -> i32 -- http_request
-		0x60, 0x08, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x01, 0x7f,
+		// type 0: (i32×12) -> i32 -- http_request (12-param ABI, ADR-0038)
+		0x60, 0x0c, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x01, 0x7f,
 		0x60, 0x00, 0x01, 0x7f, // type 1: () -> i32 -- run
 	})
 	importBody := []byte{0x01}
@@ -322,6 +323,82 @@ func emitHTTPRequestModule(method, url string) []byte {
 	body = append(body, encodeI32Const(0)...) // no headers
 	body = append(body, encodeI32Const(bodyOff)...)
 	body = append(body, encodeI32Const(0)...) // no body
+	body = append(body, encodeI32Const(0)...) // respHdrBufPtr = 0
+	body = append(body, encodeI32Const(0)...) // respHdrBufCap = 0
+	body = append(body, encodeI32Const(0)...) // respBodyBufPtr = 0
+	body = append(body, encodeI32Const(0)...) // respBodyBufCap = 0
+	body = append(body, 0x10, 0x00)
+	body = append(body, 0x0b)
+	fnBody := append(encodeLEB128(uint32(len(body))), body...)
+	codeSec := section(0x0a, append([]byte{0x01}, fnBody...))
+
+	dataBody := []byte{0x02}
+	dataBody = append(dataBody, 0x00)
+	dataBody = append(dataBody, encodeI32Const(methodOff)...)
+	dataBody = append(dataBody, 0x0b)
+	dataBody = append(dataBody, encodeLEB128(uint32(len(method)))...)
+	dataBody = append(dataBody, []byte(method)...)
+	dataBody = append(dataBody, 0x00)
+	dataBody = append(dataBody, encodeI32Const(urlOff)...)
+	dataBody = append(dataBody, 0x0b)
+	dataBody = append(dataBody, encodeLEB128(uint32(len(url)))...)
+	dataBody = append(dataBody, []byte(url)...)
+	dataSec := section(0x0b, dataBody)
+
+	out := append([]byte{}, wasmMagic...)
+	out = append(out, typeSec...)
+	out = append(out, importSec...)
+	out = append(out, funcSec...)
+	out = append(out, memSec...)
+	out = append(out, exportSec...)
+	out = append(out, codeSec...)
+	out = append(out, dataSec...)
+	return out
+}
+
+// emitHTTPRequestWithResponseModule builds a WASM module that calls
+// lahijan_network.http_request with actual response buffers allocated in
+// linear memory. Used by the response-body round-trip integration test.
+// The module has 2 pages (128 KiB) of memory; response header buffer at
+// offset 4096 (cap 4096), response body buffer at offset 8192 (cap 65536).
+func emitHTTPRequestWithResponseModule(method, url string) []byte {
+	const methodOff, urlOff, headersOff, bodyOff = 0, 64, 1024, 2048
+	const respHdrBufOff, respHdrBufCap = 4096, 4096
+	const respBodyBufOff, respBodyBufCap = 8192, 65536
+	const memPages = 2 // 128 KiB
+
+	typeSec := section(0x01, []byte{
+		0x02,
+		0x60, 0x0c, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x01, 0x7f,
+		0x60, 0x00, 0x01, 0x7f,
+	})
+	importBody := []byte{0x01}
+	importBody = append(importBody, encodeString("lahijan_network")...)
+	importBody = append(importBody, encodeString("http_request")...)
+	importBody = append(importBody, 0x00, 0x00)
+	importSec := section(0x02, importBody)
+	funcSec := section(0x03, []byte{0x01, 0x01})
+	memSec := section(0x05, []byte{0x01, 0x01, byte(memPages), byte(memPages)})
+	exportBody := []byte{0x02}
+	exportBody = append(exportBody, encodeString("memory")...)
+	exportBody = append(exportBody, 0x02, 0x00)
+	exportBody = append(exportBody, encodeString("run")...)
+	exportBody = append(exportBody, 0x00, 0x01)
+	exportSec := section(0x07, exportBody)
+
+	body := []byte{0x00}
+	body = append(body, encodeI32Const(methodOff)...)
+	body = append(body, encodeI32Const(uint32(len(method)))...)
+	body = append(body, encodeI32Const(urlOff)...)
+	body = append(body, encodeI32Const(uint32(len(url)))...)
+	body = append(body, encodeI32Const(headersOff)...)
+	body = append(body, encodeI32Const(0)...)
+	body = append(body, encodeI32Const(bodyOff)...)
+	body = append(body, encodeI32Const(0)...)
+	body = append(body, encodeI32Const(respHdrBufOff)...)
+	body = append(body, encodeI32Const(respHdrBufCap)...)
+	body = append(body, encodeI32Const(respBodyBufOff)...)
+	body = append(body, encodeI32Const(respBodyBufCap)...)
 	body = append(body, 0x10, 0x00)
 	body = append(body, 0x0b)
 	fnBody := append(encodeLEB128(uint32(len(body))), body...)

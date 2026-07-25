@@ -88,6 +88,10 @@ func (errEnforcer) Allowed(_ context.Context, _ uuid.UUID, _ string) (bool, erro
 	return false, errSentinel
 }
 
+func (errEnforcer) ListGrants(_ context.Context, _ uuid.UUID) ([]string, error) {
+	return nil, errSentinel
+}
+
 var errSentinel = assertSentinel{}
 
 type assertSentinel struct{}

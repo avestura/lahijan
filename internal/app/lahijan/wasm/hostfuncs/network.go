@@ -3,24 +3,31 @@
 // function (no direct socket access per ADR-0023). Every call enforces
 // the network.outbound permission.
 //
-// ABI (ADR-0024):
+// ABI (ADR-0038 — extended from ADR-0024's original 8-param shape):
 //
 //	(import "lahijan_network" "http_request"
-//	  (func (param i32 i32 i32 i32 i32 i32 i32 i32) (result i32)))
+//	  (func (param i32 i32 i32 i32 i32 i32 i32 i32 i32 i32 i32 i32) (result i32)))
 //
 // http_request(method_ptr, method_len, url_ptr, url_len,
 //
-//	headers_ptr, headers_len, body_ptr, body_len) -> status
+//	req_headers_ptr, req_headers_len, req_body_ptr, req_body_len,
+//	resp_hdr_buf_ptr, resp_hdr_buf_cap,
+//	resp_body_buf_ptr, resp_body_buf_cap) -> http_status_or_error
 //
-// The result is the HTTP status code on success (1xx-5xx), or one of
-// the negative StatusXxx codes on host-side failure. Headers + body of
-// the response are NOT returned through the WASM stack (the stack is
-// one i32); instead the host writes them into the plugin's linear
-// memory at well-known offsets the plugin declared via a previous
-// lahijan_network::set_response_buffers call. This keeps the ABI
-// trivially simple at the cost of one extra round-trip per request.
+// The result is the HTTP status code on success (100–599), or a negative
+// StatusXxx code on host-side failure. When the caller provides response
+// buffers (caps > 0), the host writes a 4-byte LE uint32 length prefix
+// followed by the data into each buffer:
 //
-// set_response_buffers(header_ptr, header_cap, body_ptr, body_cap) -> status
+//   - resp_hdr_buf: [LE uint32 header_json_len][header_json bytes]
+//     (header_json is a JSON-encoded map[string]string)
+//   - resp_body_buf: [LE uint32 body_len][body bytes]
+//
+// If either buffer is too small, the host returns StatusBufferTooSmall (-7)
+// and writes nothing; the caller grows both buffers and retries. When both
+// caps are 0 (the backward-compatible path), the host returns only the
+// HTTP status code and writes no response data — this matches the original
+// 8-param behaviour so raw callers that don't need the body still work.
 //
 // For MVP the host function does NOT honour a per-plugin URL allowlist
 // (WS-10b "Open questions" item 1 — defaults to glob); a process-wide
@@ -31,6 +38,7 @@ package hostfuncs
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -76,13 +84,20 @@ func (r *registrar) buildNetworkModule(ctx context.Context, rt wazero.Runtime) e
 		headersLen := api.DecodeU32(stack[5])
 		bodyPtr := api.DecodeU32(stack[6])
 		bodyLen := api.DecodeU32(stack[7])
+		respHdrBufPtr := api.DecodeU32(stack[8])
+		respHdrBufCap := api.DecodeU32(stack[9])
+		respBodyBufPtr := api.DecodeU32(stack[10])
+		respBodyBufCap := api.DecodeU32(stack[11])
 		stack[0] = api.EncodeI32(r.httpRequest(ctx, m,
 			methodPtr, methodLen, urlPtr, urlLen,
-			headersPtr, headersLen, bodyPtr, bodyLen))
+			headersPtr, headersLen, bodyPtr, bodyLen,
+			respHdrBufPtr, respHdrBufCap, respBodyBufPtr, respBodyBufCap))
 	})
 	mod.NewFunctionBuilder().
 		WithGoModuleFunction(httpRequest,
 			[]api.ValueType{
+				api.ValueTypeI32, api.ValueTypeI32,
+				api.ValueTypeI32, api.ValueTypeI32,
 				api.ValueTypeI32, api.ValueTypeI32,
 				api.ValueTypeI32, api.ValueTypeI32,
 				api.ValueTypeI32, api.ValueTypeI32,
@@ -102,7 +117,8 @@ func (r *registrar) httpRequest(
 	ctx context.Context,
 	m api.Module,
 	methodPtr, methodLen, urlPtr, urlLen,
-	headersPtr, headersLen, bodyPtr, bodyLen uint32,
+	headersPtr, headersLen, bodyPtr, bodyLen,
+	respHdrBufPtr, respHdrBufCap, respBodyBufPtr, respBodyBufCap uint32,
 ) int32 {
 	pid, code := r.gate(ctx, networkModuleName, "http_request", permission.CapNetworkOutbound)
 	if code != StatusSuccess {
@@ -145,14 +161,11 @@ func (r *registrar) httpRequest(
 		return r.end(ctx, networkModuleName, "http_request", pid, permission.CapNetworkOutbound, StatusInvalidMemory)
 	}
 
-	// Apply a per-call timeout so a slow upstream cannot hold the plugin
-	// call open forever. The runtime's per-call exec timeout still
-	// applies on top.
-	callCtx, cancel := context.WithTimeout(ctx, DefaultOutboundTimeoutFn())
-	defer cancel()
-	// Use callCtx for the upstream request so the timeout propagates;
-	// the plugin's outbound call never exceeds the cap.
-	_ = callCtx // TODO(WS-10c) pass callCtx into httpReq context once response-buffer slots land
+	// The outbound HTTP client (defaultHTTPClient or deps.HTTPClient)
+	// carries its own Timeout (DefaultOutboundTimeout). The runtime's
+	// per-call ExecTimeout is the outer defence. A dedicated per-call
+	// context will be wired when the HTTPDoer interface gains context
+	// support (future enhancement).
 
 	resp, err := client.Do(OutboundRequest{
 		Method:  strings.ToUpper(string(methodBytes)),
@@ -169,12 +182,54 @@ func (r *registrar) httpRequest(
 	if len(resp.Body) > MaxHTTPBodyLen {
 		resp.Body = resp.Body[:MaxHTTPBodyLen]
 	}
-	// TODO(WS-10c): write resp.Headers + resp.Body into the plugin's
-	// memory via the response-buffer slots the plugin declared. For
-	// MVP the host returns only the HTTP status code; the response
-	// body is observable via OTel + audit (so plugin authors can
-	// debug). The full body-return path lands with the sample plugins.
-	_ = resp
+
+	// Backward-compatible path: when the caller provides no response
+	// buffers (both caps are 0), return the HTTP status code only and
+	// write no response data. This matches the original 8-param
+	// behaviour so raw callers that don't need the body still work.
+	if respHdrBufCap == 0 && respBodyBufCap == 0 {
+		return r.end(ctx, networkModuleName, "http_request", pid, permission.CapNetworkOutbound, int32(resp.StatusCode))
+	}
+
+	// Marshal response headers to JSON for the response header buffer.
+	var hdrJSON []byte
+	if len(resp.Headers) > 0 {
+		hdrJSON, _ = json.Marshal(resp.Headers)
+	}
+
+	// Each buffer needs a 4-byte LE uint32 length prefix + data.
+	const lenPrefixSize = 4
+	reqHdrBufSize := lenPrefixSize + len(hdrJSON)
+	reqBodyBufSize := lenPrefixSize + len(resp.Body)
+
+	// If either buffer is too small, signal BufferTooSmall. The SDK
+	// grows both buffers and retries automatically.
+	if int(respHdrBufCap) < reqHdrBufSize || int(respBodyBufCap) < reqBodyBufSize {
+		return r.end(ctx, networkModuleName, "http_request", pid, permission.CapNetworkOutbound, StatusBufferTooSmall)
+	}
+
+	// Write header buffer: [LE uint32 len][header JSON bytes].
+	var lenBuf [lenPrefixSize]byte
+	binary.LittleEndian.PutUint32(lenBuf[:], uint32(len(hdrJSON)))
+	if err := writeMemory(m, respHdrBufPtr, lenBuf[:]); err != nil {
+		return r.end(ctx, networkModuleName, "http_request", pid, permission.CapNetworkOutbound, StatusInvalidMemory)
+	}
+	if len(hdrJSON) > 0 {
+		if err := writeMemory(m, respHdrBufPtr+uint32(lenPrefixSize), hdrJSON); err != nil {
+			return r.end(ctx, networkModuleName, "http_request", pid, permission.CapNetworkOutbound, StatusInvalidMemory)
+		}
+	}
+
+	// Write body buffer: [LE uint32 len][body bytes].
+	binary.LittleEndian.PutUint32(lenBuf[:], uint32(len(resp.Body)))
+	if err := writeMemory(m, respBodyBufPtr, lenBuf[:]); err != nil {
+		return r.end(ctx, networkModuleName, "http_request", pid, permission.CapNetworkOutbound, StatusInvalidMemory)
+	}
+	if len(resp.Body) > 0 {
+		if err := writeMemory(m, respBodyBufPtr+uint32(lenPrefixSize), resp.Body); err != nil {
+			return r.end(ctx, networkModuleName, "http_request", pid, permission.CapNetworkOutbound, StatusInvalidMemory)
+		}
+	}
 
 	return r.end(ctx, networkModuleName, "http_request", pid, permission.CapNetworkOutbound, int32(resp.StatusCode))
 }

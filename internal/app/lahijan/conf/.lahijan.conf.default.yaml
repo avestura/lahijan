@@ -375,6 +375,16 @@ wasm:
     # watches the file's mtime and re-reads on change; the HTTP loader only
     # re-fetches on TTL expiry.
     cacheTtlSeconds: 60
+  # WASI plugin runtime mode (WS-10e / ADR-0039). When a plugin declares
+  # runtime: wasi in its manifest, the runtime registers
+  # wasi_snapshot_preview1 and configures the filesystem sandbox. Each
+  # WASI plugin's files live under <fsRoot>/<plugin-slug>/. The directory
+  # is created on first use if it does not exist.
+  wasi:
+    # Filesystem sandbox root. Every WASI plugin's preopened directories
+    # are under <fsRoot>/<plugin-slug>/<hostSubdir>. A plugin cannot reach
+    # outside its own <plugin-slug>/ subdir.
+    fsRoot: "/var/lib/lahijan/wasi-fs"
 
 # Infrastructure providers (WS-11..13). Each driver is wired ONLY when its
 # top-level `enabled` flag is true; otherwise program.Start skips building the

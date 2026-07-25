@@ -142,6 +142,17 @@ The current catalog:
 | `job.schedule` | `lahijan_jobs.schedule`. |
 | `api.handler.register:<path>` | `lahijan_api.register_handler` for `<path>` (or `:*` for any). |
 | `config.read:<plugin-name>` | `lahijan_config.get` for the plugin's own config. |
+| `compute.instance.create` | `lahijan_compute.instance_create`. |
+| `compute.instance.read` | `lahijan_compute.instance_get` + `instance_list`. |
+| `compute.instance.control` | `lahijan_compute.instance_set_state` (start/stop/restart). |
+| `compute.instance.delete` | `lahijan_compute.instance_delete`. |
+| `dns.zone.create` / `.read` / `.delete` | `lahijan_dns.zone_*`. |
+| `dns.record.create` / `.read` / `.delete` | `lahijan_dns.record_*`. |
+| `storage.bucket.create` / `.read` / `.delete` | `lahijan_storage.bucket_*`. |
+| `wasi.fs.preopen:<path>:<ro\|rw>` | WASI filesystem preopen (WS-10e). |
+| `wasi.env:<VAR>` | WASI environment variable (WS-10e). |
+| `wasi.clock` / `wasi.random` / `wasi.exit` | WASI clock / randomness / exit (WS-10e). |
+| `*` | WASI god-mode: full `wasi_snapshot_preview1` surface (WS-10e). |
 
 Wildcard rules:
 
@@ -199,15 +210,30 @@ Outbound HTTP. The host applies a process-wide URL allowlist
 (`conf.wasm.network_timeout_ms`). Per-grant allowlists are a Phase 7
 candidate.
 
-```go
-//go:wasm-import lahijan_network http_request func(
-//   methodPtr, methodLen uint32,    // "GET", "POST", ...
-//   urlPtr,    urlLen    uint32,    // absolute URL
-//   headersPtr, headersLen uint32,  // "K1: V1\r\nK2: V2\r\n"
-//   bodyPtr,   bodyLen   uint32,
-//   respBufPtr, respBufCap uint32,  // plugin-allocated buffer for the response body
-//) int32                              // returns the HTTP status code, or a negative code on error
+The 12-param ABI (ADR-0038) returns the full response (status code +
+headers + body) via two caller-supplied buffers. The SDK handles buffer
+sizing and retry automatically; raw authors must loop on
+`StatusBufferTooSmall`.
+
 ```
+http_request(method_ptr, method_len,
+             url_ptr, url_len,
+             req_headers_ptr, req_headers_len,
+             req_body_ptr, req_body_len,
+             resp_hdr_buf_ptr, resp_hdr_buf_cap,
+             resp_body_buf_ptr, resp_body_buf_cap) -> http_status_or_error
+```
+
+Each response buffer is written as a 4-byte LE uint32 length prefix
+followed by the data:
+- `resp_hdr_buf`: `[LE uint32 json_len][headers JSON map]`
+- `resp_body_buf`: `[LE uint32 body_len][body bytes]`
+
+When both response buffer caps are 0 (the backward-compatible path),
+the host returns only the HTTP status code and writes no response data.
+
+Return value: HTTP status code (100–599) on success, or a negative
+`StatusXxx` code on failure.
 
 ### `lahijan_jobs`
 
@@ -271,6 +297,47 @@ sees the plaintext).
 The canonical constants live in
 [`internal/app/lahijan/wasm/hostfuncs/codes.go`](../../internal/app/lahijan/wasm/hostfuncs/codes.go).
 
+### `lahijan_compute` (WS-10f)
+
+Manage compute instances (containers + VMs). Every call delegates to the
+compute service, which enforces tenant scoping, billing, and audit.
+
+Each function takes `(args_ptr, args_len, buf_ptr, buf_cap)` — JSON args
+in, JSON result out. Returns bytes-written (>0) or a negative code.
+
+| Function | Args (JSON) | Result (JSON) | Permission |
+|----------|-------------|---------------|------------|
+| `instance_create` | `{"name","type","image_alias","profiles","config"}` | instance object | `compute.instance.create` |
+| `instance_get` | `{"id":"<uuid>"}` | instance object | `compute.instance.read` |
+| `instance_list` | `{"limit":50,"offset":0}` | `[instance,...]` | `compute.instance.read` |
+| `instance_set_state` | `{"id","action":"start\|stop\|restart\|freeze\|unfreeze","force":false,"timeout_secs":0}` | instance object | `compute.instance.control` |
+| `instance_delete` | `{"id":"<uuid>"}` | `{"deleted":true,"id":"..."}` | `compute.instance.delete` |
+
+### `lahijan_dns` (WS-10f)
+
+Manage DNS zones + records.
+
+| Function | Args (JSON) | Result (JSON) | Permission |
+|----------|-------------|---------------|------------|
+| `zone_create` | `{"name","description","kind"}` | zone object | `dns.zone.create` |
+| `zone_get` | `{"id"}` | zone object | `dns.zone.read` |
+| `zone_list` | `{"limit","offset"}` | `[zone,...]` | `dns.zone.read` |
+| `zone_delete` | `{"id"}` | `{"deleted":true}` | `dns.zone.delete` |
+| `record_create` | `{"zone_id","name","type","content","ttl"}` | record object | `dns.record.create` |
+| `record_list` | `{"zone_id","limit","offset"}` | `[record,...]` | `dns.record.read` |
+| `record_delete` | `{"zone_id","record_id"}` | `{"deleted":true}` | `dns.record.delete` |
+
+### `lahijan_storage` (WS-10f)
+
+Manage S3 buckets.
+
+| Function | Args (JSON) | Result (JSON) | Permission |
+|----------|-------------|---------------|------------|
+| `bucket_create` | `{"slug","label","description","quota_bytes","quota_objects"}` | bucket object | `storage.bucket.create` |
+| `bucket_get` | `{"id"}` | bucket object | `storage.bucket.read` |
+| `bucket_list` | `{"limit","offset"}` | `[bucket,...]` | `storage.bucket.read` |
+| `bucket_delete` | `{"id"}` | `{"deleted":true}` | `storage.bucket.delete` |
+
 ## Build process
 
 The only supported build path today is TinyGo. Install `tinygo >= 0.32`
@@ -294,6 +361,97 @@ make clean
 it imports from `wasi_snapshot_preview1` or `wasi_unstable`. This is
 the cheapest way to catch a stray `fmt.Println` (which would pull in
 WASI's `fd_write`) before the Lahijan runtime rejects instantiation.
+
+## Using the Go SDK (recommended)
+
+The Go SDK (`github.com/avestura/lahijan/sdk-go`) wraps every host
+function behind idiomatic Go APIs. You write `kv.Set("k", v)` instead
+of 15 lines of `unsafe.Pointer` juggling and status-code switches. The
+SDK auto-retries on `BufferTooSmall`, translates status codes to typed
+errors, and compiles under TinyGo to plain `wasm32-unknown-unknown`
+with zero WASI imports.
+
+### Quick start
+
+```sh
+cp -r examples/plugins/_template my-plugin
+cd my-plugin
+# Edit go.mod, lahijan.manifest.yaml, main.go
+make build
+```
+
+### Before / after
+
+The `slack-notifier` sample went from 136 LOC (raw imports) to ~45 LOC
+(SDK). Compare:
+
+**Before (raw imports):**
+```go
+//go:wasm-import lahijan_config get func(keyPtr, keyLen, bufPtr, bufCap uint32) int32
+//go:wasm-import lahijan_network http_request func(methodPtr, methodLen, urlPtr, urlLen, headersPtr, headersLen, bodyPtr, bodyLen, respBufPtr, respBufCap uint32) int32
+
+func on_event(payloadPtr, payloadLen uint32) {
+    payload := readMem(payloadPtr, payloadLen)
+    var urlBuf [512]byte
+    urlLen := configGet([]byte("webhook_url"), urlBuf[:])
+    if urlLen <= 0 { return }
+    webhookURL := string(urlBuf[:urlLen])
+    httpPostJSON(webhookURL, renderSlackMessage(payload))
+}
+// + 70 lines of readMem, ptrOf, configGet, httpPostJSON helpers...
+```
+
+**After (SDK):**
+```go
+import (
+    "github.com/avestura/lahijan/sdk-go/config"
+    "github.com/avestura/lahijan/sdk-go/mem"
+    "github.com/avestura/lahijan/sdk-go/network"
+)
+
+func on_event(payloadPtr, payloadLen uint32) {
+    payload := mem.Read(payloadPtr, payloadLen)
+    webhookURL, err := config.GetString("webhook_url")
+    if err != nil { return }
+    _, _ = network.PostJSON(webhookURL, renderSlackMessage(payload))
+}
+```
+
+### SDK packages
+
+| Package | Functions |
+|---------|-----------|
+| `sdk-go/kv` | `Get(key) ([]byte, error)`, `Set(key, val, ttlMs)`, `Delete(key)` |
+| `sdk-go/config` | `Get(key) ([]byte, error)`, `GetString(key) (string, error)` |
+| `sdk-go/events` | `Emit(topic, payload)`, `Subscribe(pattern, handler)`, `Unsubscribe(...)` |
+| `sdk-go/network` | `Do(req) (Response, error)`, `Get(url)`, `Post(url, body)`, `PostJSON(url, body)` |
+| `sdk-go/jobs` | `Schedule(exportName, args, runAtMs)` |
+| `sdk-go/api` | `RegisterHandler(method, path, handler)`, `UnregisterHandler(...)` |
+| `sdk-go/mem` | `Read(ptr, len) []byte`, `Ptr(b) uint32`, `Len(b) uint32` |
+| `sdk-go/status` | `Code` type, sentinel errors (`ErrPermissionDenied`, ...), `FromCode(int32)` |
+
+### Error handling
+
+Every SDK function returns a Go `error`. Status codes from the host are
+translated to typed, `errors.Is`-able sentinels:
+
+```go
+val, err := kv.Get("key")
+switch {
+case errors.Is(err, status.ErrNotFound):
+    // key doesn't exist
+case errors.Is(err, status.ErrPermissionDenied):
+    // kv.read not granted
+case err != nil:
+    // other host error
+}
+```
+
+### For non-Go authors
+
+If you are writing a plugin in Rust, AssemblyScript, or Zig, you cannot
+use this SDK. See the "Host ABI porting guide" appendix below for the
+raw `//go:wasm-import` signatures and the `(ptr, len)` convention.
 
 ## Install flow
 

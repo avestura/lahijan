@@ -75,6 +75,18 @@ type Deps struct {
 	// path-match). A plugin's per-grant allowlist (Phase 7) will
 	// override this; for MVP the process-wide list is the only filter.
 	AllowedURLGlobs []string
+
+	// Compute is the compute service for the lahijan_compute host module
+	// (WS-10f). When nil, every compute.* call returns StatusUnavailable.
+	Compute ComputeOps
+
+	// DNS is the DNS service for the lahijan_dns host module (WS-10f).
+	// When nil, every dns.* call returns StatusUnavailable.
+	DNS DNSOps
+
+	// Storage is the storage service for the lahijan_storage host module
+	// (WS-10f). When nil, every storage.* call returns StatusUnavailable.
+	Storage StorageOps
 }
 
 // HTTPDoer is the minimal HTTP client surface the network host function
@@ -156,6 +168,15 @@ func (r *registrar) register(
 	}
 	if err := r.buildNetworkModule(ctx, rt); err != nil {
 		return fmt.Errorf("hostfuncs: network module: %w", err)
+	}
+	if err := r.buildComputeModule(ctx, rt); err != nil {
+		return fmt.Errorf("hostfuncs: compute module: %w", err)
+	}
+	if err := r.buildDNSModule(ctx, rt); err != nil {
+		return fmt.Errorf("hostfuncs: dns module: %w", err)
+	}
+	if err := r.buildStorageModule(ctx, rt); err != nil {
+		return fmt.Errorf("hostfuncs: storage module: %w", err)
 	}
 	return nil
 }

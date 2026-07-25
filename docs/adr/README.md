@@ -44,6 +44,9 @@ Accepted; corrections land as new ADRs that supersede prior ones.
 | [0034](./0034-payment-gateway-stripe-design.md) | Payment Gateway (Stripe) design — thin HTTP client, ledger-layered, webhook-first | Accepted | 2026-07-21 |
 | [0035](./0035-dns-recursor-dnsdist-registrar-design.md) | DNS Recursor + dnsdist + Registrar Resale design — PowerDNS recursor + dnsdist in front + thin internal RegistrarProvider | Accepted | 2026-07-21 |
 | [0036](./0036-s3-lifecycle-versioning-object-lock-design.md) | S3 Lifecycle / Versioning / Object Lock design — Postgres source-of-truth, SDK push + River evaluator, bucket-level policy (WS-29) | Accepted | 2026-07-21 |
+| [0037](./0037-public-ip-floating-ips-design.md) | Public IP Assignment & Floating IPs design | Accepted | 2026-07-21 |
+| [0038](./0038-plugin-sdk-go-design.md) | Plugin SDK (Go) design — sdk-go/ module, inline response-buffer ABI, typed errors | Accepted | 2026-07-25 |
+| [0039](./0039-wasi-runtime-mode.md) | WASI plugin runtime mode — filtered importer, dedicated WASI slugs, `*` escape hatch | Accepted | 2026-07-25 |
 
 ## How to write a new ADR
 
