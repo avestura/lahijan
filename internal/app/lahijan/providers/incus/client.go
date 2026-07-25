@@ -353,7 +353,15 @@ func (p *Provider) buildRequest(ctx context.Context, method, path string, body a
 		}
 		reader = bytes.NewReader(buf)
 	}
-	fullURL := p.baseURL + apiVersion + "/" + strings.TrimLeft(path, "/")
+	fullURL := p.baseURL + apiVersion
+	// Only append the path separator + path when there IS a sub-path. A bare
+	// "GET /1.0" is what Ping sends (path=""); constructing "/1.0/" instead
+	// makes real Incus return 404 (its router treats the trailing-slash root
+	// as unknown). The in-process fake doesn't enforce this, so the bug only
+	// shows against a real daemon.
+	if path != "" {
+		fullURL += "/" + strings.TrimLeft(path, "/")
+	}
 	// Validate the URL — belt-and-braces against malformed config.
 	if _, err := url.Parse(fullURL); err != nil {
 		return nil, fmt.Errorf("incus: invalid url: %w", err)

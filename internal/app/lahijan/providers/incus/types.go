@@ -467,6 +467,13 @@ type serverInfo struct {
 	ServerClustered bool              `json:"server_clustered"`
 	ServerName      string            `json:"server_name"`
 	ServerPID       int               `json:"server_pid"`
-	ServerVersion   string            `json:"server_version"`
-	Environment     map[string]string `json:"environment,omitempty"`
+	ServerVersion   string         `json:"server_version"`
+	// Environment is the daemon's runtime environment (architectures, driver,
+	// kernel, ...). Real Incus returns MIXED value types here — `architectures`
+	// is a []string while `driver`/`kernel` are strings — so the value must be
+	// `any`, not `string`, or Ping fails to decode the /1.0 response. The fake
+	// only ever returns string values so the mismatch wasn't caught. The
+	// driver doesn't read any environment field today; it's captured for the
+	// future admin debug page.
+	Environment map[string]any `json:"environment,omitempty"`
 }
