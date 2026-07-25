@@ -1,20 +1,16 @@
 {
-  "_comment": "SeaweedFS S3 config (WS-13). Dev-only default with the admin identity baked in. The credentials MUST match LAHIJAN_PROVIDERS_SEAWEEDFS_ADMIN_ACCESS_KEY / _SECRET_KEY in the Lahijan app env so the driver can authenticate. Per-user IAM identities Lahijan mints at runtime are written via the Filer metadata API to /etc/seaweedfs/identities/ — the S3 server watches that path and reloads them live. For non-dev deployments, override this file via a secret mount with high-entropy credentials.",
+  "_comment": "SeaweedFS S3 config (WS-13). Dev-only default with the admin identity baked in. The credentials MUST match LAHIJAN_PROVIDERS_SEAWEEDFS_ADMIN_ACCESS_KEY / _SECRET_KEY in the Lahijan app env so the driver can authenticate. Per-user IAM identities Lahijan mints at runtime are written via the Filer metadata API to /etc/seaweedfs/identities/ - the S3 server watches that path and reloads them live. For non-dev deployments, override this file via a secret mount with high-entropy credentials.",
   "identities": [
     {
       "name": "lahijan_admin",
-      "credentials": {
-        "access_key": "lahijan_dev_admin_key",
-        "secret_key": "lahijan_dev_admin_secret"
-      },
+      "credentials": [
+        {
+          "accessKey": "lahijan_dev_admin_key",
+          "secretKey": "lahijan_dev_admin_secret"
+        }
+      ],
       "actions": ["Admin", "Read", "Write", "List", "Tagging"],
-      "is_admin": true
+      "isAdmin": true
     }
-  ],
-  "accounts": {
-    "lahijan_dev_admin_key": {
-      "credentials": null,
-      "account_id": "lahijan_admin"
-    }
-  }
+  ]
 }
