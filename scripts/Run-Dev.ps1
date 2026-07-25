@@ -1,13 +1,15 @@
 # Lahijan - Windows dev stack launcher.
 #
 # Brings up the full Lahijan dev environment on a Windows host running
-# Docker Desktop. Windows cannot run a real Incus daemon (it needs a Linux
-# kernel), but the Incus *driver* is enabled so the compute module wires up
-# and the dashboard's Instances page renders + lists from the DB. The startup
-# Ping against the absent Unix socket is a non-fatal warning; actual instance
-# create/start calls require a daemon reachable via WSL2 or a remote node
-# (providers.incus.remoteURL). The WASM marketplace is also enabled against
-# the in-repo sample index at examples/plugins/marketplace.
+# Docker Desktop. Real Incus IS supported on Windows via a WSL2 distro
+# (run scripts/Setup-Incus.ps1 first; see docs/howto/run-incus-on-windows.md).
+# Incus cannot run inside Docker (Docker Desktop's VM blocks AF_VSOCK), but
+# it runs fine in a WSL2 distro and the Lahijan driver reaches it over
+# HTTPS+mTLS. This script auto-detects the WSL2 Incus distro + the client
+# cert produced by Setup-Incus.ps1 and wires providers.incus.remoteURL;
+# when absent it falls back to driver-only mode (the dashboard renders but
+# instance create/start needs a daemon). The WASM marketplace is enabled
+# against the in-repo sample index at examples/plugins/marketplace.
 #
 # By default this script also launches:
 #   - The dashboard SPA at      http://localhost:5173  (web/)
@@ -69,6 +71,11 @@
 #   .\scripts\Run-Dev.ps1 -NoBuild         # reuse dist\lahijan.exe
 #   .\scripts\Run-Dev.ps1 -Logs            # tail container logs after launch
 #
+# Incus (real daemon on Windows via WSL2):
+#   .\scripts\Run-Dev.ps1                  # auto-wires if Setup-Incus.ps1 ran
+#   .\scripts\Run-Dev.ps1 -NoIncusRemote   # force driver-only (no daemon)
+#   .\scripts\Run-Dev.ps1 -IncusRemoteURL https://192.168.1.10:8443
+#
 # Requires: Docker Desktop, Go 1.23+, Node 20+, npm on PATH.
 
 [CmdletBinding()]
@@ -85,7 +92,14 @@ param(
     [int]$BackendPort  = 8080,   # matches web/vite.config.ts proxy target
     [int]$FrontendPort = 5173,
     [int]$WebsitePort  = 4173,   # website/vite.config.ts hardcodes 4173
-    [int]$DocsPort     = 3000
+    [int]$DocsPort     = 3000,
+    # Real Incus on Windows via WSL2 (run scripts/Setup-Incus.ps1 first).
+    # When the distro + cert are detected, the backend is launched with
+    # --providers.incus.remoteURL + mTLS so compute create/start/exec work.
+    [switch]$NoIncusRemote,
+    [string]$IncusDistro    = "Incus",            # WSL2 distro from Setup-Incus.ps1
+    [string]$IncusRemoteURL = "https://localhost:8443",
+    [string]$IncusCertDir   = "E:\WSL\incus-certs" # client cert from Setup-Incus.ps1
 )
 
 $ErrorActionPreference = "Stop"
@@ -515,6 +529,54 @@ $stderrLog = Join-Path $RepoRoot "dist\lahijan.stderr.log"
 
 # Viper quirk: env vars don't override embedded YAML defaults, so we pass
 # everything via CLI flags (which DO win). See header comment #6.
+
+# ----------------------------------------------------------------------------
+# 9.5 Detect the real Incus daemon (WSL2 distro from Setup-Incus.ps1)
+# ----------------------------------------------------------------------------
+# If the WSL2 'Incus' distro + client cert are present, append the remote
+# driver flags so the backend talks to a real daemon over HTTPS+mTLS. The
+# cert PEM is passed inline (the conf reads PEM strings, not file paths).
+# Otherwise fall back to driver-only mode (dashboard renders, no instance
+# ops) and point the operator at Setup-Incus.ps1.
+$incusExtraArgs = @()
+$incusMode = "driver-only (no daemon; run scripts\Setup-Incus.ps1 to enable)"
+
+if (-not $NoIncusRemote) {
+    # wsl --list emits UTF-16LE on Windows; strip the embedded NULs.
+    $distros = ((wsl --list --quiet 2>$null) -replace "`0","" -split "`n" |
+        ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" })
+    $certFile = Join-Path $IncusCertDir "lahijan-client.crt"
+    $keyFile  = Join-Path $IncusCertDir "lahijan-client.key"
+
+    if ($distros -contains $IncusDistro -and (Test-Path $certFile) -and (Test-Path $keyFile)) {
+        # Read PEM bodies; trailing whitespace breaks tls.X509KeyPair, so trim.
+        $certPem = (Get-Content $certFile -Raw).Trim()
+        $keyPem  = (Get-Content $keyFile -Raw).Trim()
+        $incusExtraArgs = @(
+            "--providers.incus.remoteURL=$IncusRemoteURL",
+            "--providers.incus.tls.clientCert=$certPem",
+            "--providers.incus.tls.clientKey=$keyPem",
+            "--providers.incus.tls.insecureSkipVerify"   # dev: Incus server cert is self-signed
+        )
+        $incusMode = "remote daemon ($IncusRemoteURL) via WSL2 '$IncusDistro'"
+        Write-Ok "Real Incus detected (WSL2 '$IncusDistro' + $IncusCertDir) -> wiring remote driver"
+
+        # Windows -> WSL2 localhost:8443 needs [experimental] hostAddressLoopback=true
+        # in .wslconfig (mirrored networking). Warn if it's missing.
+        $wslConfig = Join-Path $env:USERPROFILE ".wslconfig"
+        if ((Test-Path $wslConfig) -and -not ((Get-Content $wslConfig -Raw) -match "(?mi)hostAddressLoopback\s*=\s*true")) {
+            Write-Warn ".wslconfig is missing [experimental] hostAddressLoopback=true; Windows -> $IncusRemoteURL may be refused."
+            Write-Warn "  fix: add the line under [experimental], then 'wsl --shutdown'."
+        }
+    } elseif ($distros -contains $IncusDistro) {
+        Write-Warn "WSL2 '$IncusDistro' exists but client cert missing at $IncusCertDir."
+        Write-Warn "  re-run: .\scripts\Setup-Incus.ps1  (or pass -IncusCertDir <dir>)"
+    } else {
+        Write-Warn "No WSL2 Incus distro '$IncusDistro'; compute is driver-only."
+        Write-Warn "  run .\scripts\Setup-Incus.ps1 to bring up a real Incus on Windows."
+    }
+}
+
 $lahijanArgs = @(
     "--debug",
     "--http.server.cors.enabled",
@@ -533,15 +595,16 @@ $lahijanArgs = @(
     "--providers.seaweedfs.filerURL=http://localhost:8888",
     "--providers.seaweedfs.adminAccessKey=lahijan_dev_admin_key",
     "--providers.seaweedfs.adminSecretKey=lahijan_dev_admin_secret",
-    # Incus driver: wires the compute module so the Instances page renders.
-    # No daemon runs on Windows; startup Ping fails as a non-fatal warning.
-    # Instance create/start needs a real daemon (WSL2 or providers.incus.remoteURL).
+    # Incus driver is always enabled (so the compute module + Instances page
+    # wire up). When the WSL2 daemon + cert are detected above, $incusExtraArgs
+    # adds remoteURL + mTLS so create/start/exec hit a real daemon; otherwise
+    # the startup Ping against the absent unix socket is a non-fatal warning.
     "--providers.incus.enabled",
     "--providers.incus.events.enabled=false",
     # WASM subsystem: enables the plugin runtime + the admin marketplace API
     # (index at examples/plugins/marketplace/plugins-marketplace.yaml).
     "--wasm.enabled"
-)
+) + $incusExtraArgs
 
 Write-Step "Launching Lahijan backend on http://127.0.0.1:$BackendPort"
 $backendProc = Start-Process -FilePath $Binary -ArgumentList $lahijanArgs `
@@ -656,9 +719,14 @@ Write-Host "    Postgres     : localhost:5432  (lahijan / lahijan)"
 Write-Host "    PowerDNS API : localhost:8081  (key: lahijan-dev-pdns-key)"
 Write-Host "    SeaweedFS S3 : localhost:8333  (lahijan_dev_admin_key / lahijan_dev_admin_secret)"
 Write-Host ""
-Write-Host "  Compute + Marketplace (no daemon on Windows)" -ForegroundColor Cyan
-Write-Host "    Incus driver : enabled (UI renders; instance ops need a Linux/WSL2 daemon)"
+Write-Host "  Compute + Marketplace" -ForegroundColor Cyan
+Write-Host "    Incus driver : $incusMode"
 Write-Host "    Marketplace  : enabled (samples at examples/plugins/marketplace)"
+if ($incusExtraArgs.Count -eq 0) {
+    Write-Host "    Enable Incus : .\scripts\Setup-Incus.ps1  (then re-run Run-Dev.ps1)" -ForegroundColor DarkGray
+} else {
+    Write-Host "    Incus howto  : docs\howto\run-incus-on-windows.md" -ForegroundColor DarkGray
+}
 Write-Host ""
 Write-Host "  Stop" -ForegroundColor Cyan
 Write-Host "    To stop everything:  .\scripts\Stop-Dev.ps1"
