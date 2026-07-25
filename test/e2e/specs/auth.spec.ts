@@ -1,18 +1,24 @@
 /**
  * WS-22 e2e spec — auth journey.
  *
- * Covers: register → (email verification skipped via
- * LAHIJAN_AUTH_EMAILVERIFICATIONREQUIRED=false in the e2e env) → login.
+ * Covers the critical-path auth flows that run on every e2e invocation
+ * (no LAHIJAN_E2E_RUN_* flag needed — these only exercise the auth
+ * subsystem + the dashboard shell, no provider fakes required):
  *
- * The register-then-login round-trip is the smallest user journey that
- * exercises the full stack (browser → dashboard → API → DB → auth
- * subsystem → cookie session). If this spec passes, the harness wiring
- * (sandbox stack, fakes, app, dashboard preview) is sound; the other
- * specs build on top.
+ *   - register (API) → login (UI) → session cookie issued
+ *   - wrong password → localized error, stays on /login
+ *   - logged-in user visiting /login → redirected to /dashboard
+ *   - logout → session cleared, bounced to /login
+ *   - anonymous root `/` → redirected to /login
+ *
+ * If this spec passes, the harness wiring (sandbox stack, fakes, app,
+ * dashboard preview) is sound; the other specs build on top.
  */
 import { test, expect } from "@playwright/test";
 import {
     loginViaUI,
+    logoutViaUI,
+    registerAndLogin,
     registerUser,
     STRONG_PASSWORD,
     uniqueEmail,
@@ -46,17 +52,53 @@ test.describe("auth journey", () => {
         await registerUser(request, email);
 
         await page.goto("/login");
-        await page.locator('input[name="email"]').fill(email);
-        await page
-            .locator('input[name="password"]')
-            .fill("DefinitelyWrong!456");
-        await page.locator('button[type="submit"]').click();
+        await page.getByTestId("login-email").fill(email);
+        await page.getByTestId("login-password").fill("DefinitelyWrong!456");
+        await page.getByTestId("login-submit").click();
 
         // The form's role="alert" error paragraph is the WS-06 + WS-18
         // contract for surfacing credential failures.
-        const alert = page.locator('[role="alert"]');
-        await expect(alert).toBeVisible({ timeout: 10_000 });
+        await expect(page.getByTestId("login-error")).toBeVisible({
+            timeout: 10_000,
+        });
         // URL must NOT have changed (still on /login).
+        await expect(page).toHaveURL(/\/login/);
+    });
+
+    test("a logged-in user visiting /login is redirected to /dashboard", async ({
+        page,
+        request,
+    }) => {
+        await registerAndLogin(page, request, "redir");
+
+        // The login route's beforeLoad redirects authenticated users away.
+        await page.goto("/login");
+        await page.waitForURL("**/dashboard", { timeout: 15_000 });
+        await expect(page).toHaveURL(/\/dashboard/);
+    });
+
+    test("logout clears the session and returns to /login", async ({
+        page,
+        request,
+    }) => {
+        await registerAndLogin(page, request, "logout");
+
+        await logoutViaUI(page);
+        await expect(page).toHaveURL(/\/login/);
+
+        // The session cookie must be gone (or emptied) after logout.
+        const cookies = await page.context().cookies();
+        const session = cookies.find((c) => c.name === "lahijan_session");
+        expect(session?.value ?? "", "session cookie cleared on logout").toBe(
+            "",
+        );
+    });
+
+    test("anonymous root `/` redirects to /login", async ({ page }) => {
+        // No login, no cookie. The root index route's beforeLoad bounces
+        // unauthenticated users to /login before paint.
+        await page.goto("/");
+        await page.waitForURL("**/login", { timeout: 15_000 });
         await expect(page).toHaveURL(/\/login/);
     });
 });

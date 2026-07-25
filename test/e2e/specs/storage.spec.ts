@@ -1,56 +1,70 @@
 /**
  * WS-22 e2e spec — object storage journey.
  *
- * Covers: create bucket → mint credentials → upload via aws-cli (in test
- * container).
+ * Covers the primary UI journey: open the "New bucket" dialog → fill
+ * the slug → submit → the bucket appears in the list. Then mints S3
+ * credentials via the API and deletes the bucket for cleanup.
  *
- * Status: scaffolded. The SeaweedFS container from docker-compose.test.yml
- * serves the S3 data plane; the Lahijan app talks to the Filer HTTP API
- * for control. The aws-cli upload portion runs against the published
- * SEAWEEDFS_S3_PORT (default 8334 in the test stack). The spec drives
- * the Lahijan API for the control plane; the data-plane upload is a
- * follow-up that needs an aws-cli container sidecar (tracked in the
- * WS-22 resolution notes).
+ * Gated behind LAHIJAN_E2E_RUN_STORAGE: needs the SeaweedFS container
+ * from the test compose. Enable in the full `make test-e2e` stack.
  */
 import { test, expect } from "@playwright/test";
-import {
-    API_BASE_URL,
-    loginViaUI,
-    registerUser,
-    STRONG_PASSWORD,
-    uniqueEmail,
-} from "./helpers";
+import { API_BASE_URL, navigateViaSidebar, registerAndLogin } from "./helpers";
 
 test.describe("storage journey", () => {
-    test("create bucket + mint credentials via the API (aws-cli upload is a follow-up)", async ({
+    test("create a bucket via the dialog, mint creds, clean up", async ({
         page,
         request,
     }) => {
         test.skip(
             !process.env.LAHIJAN_E2E_RUN_STORAGE,
-            "storage spec needs the SeaweedFS container; gated behind LAHIJAN_E2E_RUN_STORAGE=1",
+            "storage spec needs the SeaweedFS container; " +
+                "gated behind LAHIJAN_E2E_RUN_STORAGE=1",
         );
 
-        const email = uniqueEmail("s3");
-        await registerUser(request, email);
-        await loginViaUI(page, email, STRONG_PASSWORD);
+        await registerAndLogin(page, request, "s3");
+        await navigateViaSidebar(page, "nav-storage", "storage");
+        await expect(page.getByTestId("page-storage")).toBeVisible();
 
-        const createBucket = await request.post(
+        // Open the create dialog + fill the slug.
+        await page.getByTestId("new-bucket-button").click();
+        await expect(page.getByTestId("create-bucket-dialog")).toBeVisible();
+
+        const slug = `e2e-${Date.now()}`;
+        await page.getByTestId("create-bucket-slug").fill(slug);
+        await page.getByTestId("create-bucket-submit").click();
+
+        // The dialog closes + the list refreshes; the slug shows up.
+        await expect(page.getByTestId("create-bucket-dialog")).toBeHidden({
+            timeout: 15_000,
+        });
+        await expect(page.getByTestId("page-storage")).toContainText(slug);
+
+        // Look up the created bucket via the API, mint a credential, delete.
+        const bucketsResp = await request.get(
             `${API_BASE_URL}/api/v1/storage/buckets`,
-            {
-                data: { slug: `e2e-${Date.now()}` },
-            },
         );
-        expect(createBucket.status()).toBe(201);
-        const bucket = await createBucket.json();
+        expect(bucketsResp.status()).toBe(200);
+        const buckets = (await bucketsResp.json()) as Array<{
+            id: string;
+            slug: string;
+        }>;
+        const bucket = buckets.find((b) => b.slug === slug);
+        expect(bucket, "created bucket is listable via the API").toBeTruthy();
+        const bucketId = bucket?.id ?? "";
 
         const mintCreds = await request.post(
-            `${API_BASE_URL}/api/v1/storage/buckets/${bucket.id}/credentials`,
+            `${API_BASE_URL}/api/v1/storage/buckets/${bucketId}/credentials`,
             { data: { label: "e2e" } },
         );
         expect(mintCreds.status()).toBe(201);
         const creds = await mintCreds.json();
         expect(creds.access_key_id).toBeTruthy();
         expect(creds.secret_access_key).toBeTruthy();
+
+        const del = await request.delete(
+            `${API_BASE_URL}/api/v1/storage/buckets/${bucketId}`,
+        );
+        expect(del.status()).toBe(204);
     });
 });

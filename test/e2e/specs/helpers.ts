@@ -7,9 +7,12 @@
  * Playwright workers config is 1 anyway).
  *
  * Selectors use `data-testid` exclusively per the testing skill: text
- * breaks under i18n (the suite runs both en + fa).
+ * breaks under i18n (the suite runs both en + fa). The matching
+ * `data-testid` coverage on the dashboard ships with the WS-22b
+ * follow-up.
  */
 import { expect, type Page, type APIRequestContext } from "@playwright/test";
+
 /**
  * The API base URL — the Lahijan Go backend. The dashboard proxies /api
  * to this in dev + preview, but the helpers below hit it directly so we
@@ -20,6 +23,10 @@ export const API_BASE_URL =
 
 /** Strong password matching the WS-06 password rules. */
 export const STRONG_PASSWORD = "VeryStrong123!xyz";
+
+/** The dashboard base URL — the Vite preview server. */
+export const WEB_BASE_URL =
+    process.env.LAHIJAN_E2E_BASE_URL ?? "http://127.0.0.1:4173";
 
 /**
  * Unique email generator. Uses a per-run prefix so parallel CI runs
@@ -84,11 +91,8 @@ export async function waitForApp(page: Page): Promise<void> {
  * green even if the API contract changes shape (the UI is the
  * source-of-truth for the user experience).
  *
- * Selectors use `name=` attributes (react-hook-form sets these from the
- * zod schema field names) which are i18n-stable. The dashboard doesn't
- * yet ship `data-testid` attributes (a WS-22 follow-up); the testing
- * skill's recommendation is `data-testid` but `name=` is the
- * next-best i18n-stable alternative.
+ * Selectors target the `data-testid` attributes added in WS-22b, which
+ * are i18n-stable across the en + fa runs.
  */
 export async function loginViaUI(
     page: Page,
@@ -96,11 +100,87 @@ export async function loginViaUI(
     password: string,
 ): Promise<void> {
     await page.goto("/login");
-    await page.locator('input[name="email"]').fill(email);
-    await page.locator('input[name="password"]').fill(password);
-    await page.locator('button[type="submit"]').click();
+    await page.getByTestId("login-email").fill(email);
+    await page.getByTestId("login-password").fill(password);
+    await page.getByTestId("login-submit").click();
     // The dashboard's post-login destination is /dashboard. Wait for the
     // URL change as the success signal (the header email render depends
     // on a TanStack Query load that races with the navigation).
     await page.waitForURL("**/dashboard", { timeout: 15_000 });
+}
+
+/**
+ * Register a fresh user via the API and immediately log in through the
+ * dashboard UI. The combination most specs want as a starting point.
+ */
+export async function registerAndLogin(
+    page: Page,
+    request: APIRequestContext,
+    prefix = "user",
+): Promise<{ email: string; password: string }> {
+    const email = uniqueEmail(prefix);
+    const creds = await registerUser(request, email);
+    await loginViaUI(page, creds.email, creds.password);
+    return creds;
+}
+
+/**
+ * Sign out through the header user menu. Waits for the redirect back to
+ * /login as the success signal.
+ */
+export async function logoutViaUI(page: Page): Promise<void> {
+    await page.getByTestId("user-menu-trigger").click();
+    await page.getByTestId("user-menu-logout").click();
+    await page.waitForURL("**/login", { timeout: 15_000 });
+}
+
+/**
+ * Click a sidebar nav entry by its `nav-*` data-testid and wait for the
+ * resulting URL to settle. `navTestId` is the full testid, e.g.
+ * `nav-compute` or `nav-settings-security`.
+ */
+export async function navigateViaSidebar(
+    page: Page,
+    navTestId: string,
+    expectedUrlPart: string,
+): Promise<void> {
+    await page.getByTestId(navTestId).click();
+    await page.waitForURL(`**/${expectedUrlPart}**`, { timeout: 15_000 });
+}
+
+/** Open the global Command+K palette via its header trigger. */
+export async function openCommandPalette(page: Page): Promise<void> {
+    await page.getByTestId("command-palette-trigger").click();
+    await expect(page.getByTestId("command-palette-input")).toBeVisible();
+}
+
+/**
+ * Flip the UI locale through the header toggle. Asserts the `<html dir>`
+ * flips so the caller gets an RTL/LTR signal for free.
+ */
+export async function setLocaleViaUI(
+    page: Page,
+    code: "en" | "fa",
+): Promise<void> {
+    await page.getByTestId("locale-toggle").click();
+    await page.getByTestId(`locale-option-${code}`).click();
+    await expect(page.locator("html")).toHaveAttribute(
+        "dir",
+        code === "fa" ? "rtl" : "ltr",
+    );
+}
+
+/** Pick a theme through the header toggle. */
+export async function setThemeViaUI(
+    page: Page,
+    theme: "light" | "dark" | "system",
+): Promise<void> {
+    await page.getByTestId("theme-toggle").click();
+    await page.getByTestId(`theme-option-${theme}`).click();
+}
+
+/** Reset the locale + theme to deterministic defaults for a spec. */
+export async function resetPrefs(page: Page): Promise<void> {
+    await setLocaleViaUI(page, "en").catch(() => undefined);
+    await setThemeViaUI(page, "light").catch(() => undefined);
 }

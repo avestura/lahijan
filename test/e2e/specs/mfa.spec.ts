@@ -1,34 +1,43 @@
 /**
  * WS-22 e2e spec — MFA journey.
  *
- * Covers: enroll TOTP → log in with MFA.
+ * Covers: the security page renders + enrolling TOTP via the API
+ * surfaces a secret + QR URL.
  *
- * Status: scaffolded. The TOTP enrollment + verify API endpoints shipped
- * with WS-07c. The dashboard's /settings/security page wires the QR
- * scan (WS-20). Driving the MFA challenge in the login flow needs the
- * post-202 challenge UI which lands with the WS-20 MFA follow-up
- * (documented in the WS-20 resolution notes).
+ * Status: the full "scan QR → type 6-digit code → confirm" loop needs a
+ * TOTP code computed from the returned secret (a TOTP lib the e2e deps
+ * don't ship). That loop is tracked as a follow-up in the WS-22e admin
+ * + security e2e workstream. This spec still exercises the backend
+ * pipeline + the security page every CI run once enabled.
  *
- * The spec below drives the API directly so the backend pipeline is
- * exercised even before the UI catches up.
+ * Gated behind LAHIJAN_E2E_RUN_MFA. Enable in the full `make test-e2e`
+ * stack.
  */
 import { test, expect } from "@playwright/test";
-import { API_BASE_URL, registerUser, uniqueEmail } from "./helpers";
+import { API_BASE_URL, navigateViaSidebar, registerAndLogin } from "./helpers";
 
 test.describe("mfa journey", () => {
-    test("enroll TOTP via the API (login-flow challenge UI is a follow-up)", async ({
+    test("the security page renders and TOTP enrollment returns a secret", async ({
+        page,
         request,
     }) => {
         test.skip(
             !process.env.LAHIJAN_E2E_RUN_MFA,
-            "mfa spec needs the post-202 login challenge UI; gated behind LAHIJAN_E2E_RUN_MFA=1",
+            "mfa spec needs the TOTP endpoints; gated behind LAHIJAN_E2E_RUN_MFA=1",
         );
 
-        const email = uniqueEmail("mfa");
-        await registerUser(request, email);
+        await registerAndLogin(page, request, "mfa");
 
-        // The session cookie from registerUser is automatically carried
-        // forward by Playwright's APIRequestContext.
+        // The security page mounts the TOTP / WebAuthn / recovery cards.
+        await navigateViaSidebar(
+            page,
+            "nav-settings-security",
+            "settings/security",
+        );
+        await expect(page.getByTestId("page-settings-security")).toBeVisible();
+
+        // Enroll via the API; the session cookie from login is carried
+        // forward automatically by Playwright's APIRequestContext.
         const enroll = await request.post(
             `${API_BASE_URL}/api/v1/me/mfa/totp/enroll`,
         );

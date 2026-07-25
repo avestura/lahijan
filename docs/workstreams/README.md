@@ -86,6 +86,7 @@ The ws-implementer subagent (`.opencode/agent/ws-implementer.md`) and the
 | WS | Title | Status | Depends on |
 |----|-------|--------|------------|
 | [WS-22](./WS-22-sandbox-integration-test-harness.md) | Sandbox / Integration Test Harness | done | WS-14, WS-15, WS-16 |
+| [WS-22e](./WS-22e-admin-security-e2e-flows.md) | Admin + Security E2E Flows | pending | WS-22, WS-08, WS-10c, WS-17 |
 | [WS-23](./WS-23-production-deployment-ops.md) | Production Deployment & Ops | done | WS-22 |
 
 ## Phase 7 — Deferred Backlog
