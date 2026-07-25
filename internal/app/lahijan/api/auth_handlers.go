@@ -57,7 +57,7 @@ func (s *Server) Register(c *fiber.Ctx) error {
 	if err != nil {
 		return SendInternal(c, i18n.T(c.UserContext(), "auth.err_internal", nil))
 	}
-	return c.Status(fiber.StatusCreated).JSON(apigen.AuthResponse{User: toUserDTO(user)})
+	return c.Status(fiber.StatusCreated).JSON(apigen.AuthResponse{User: s.toUserDTO(c.UserContext(), user)})
 }
 
 // Login handles POST /api/v1/auth/login.
@@ -118,7 +118,7 @@ func (s *Server) Login(c *fiber.Ctx) error {
 		if err != nil {
 			return SendInternal(c, i18n.T(c.UserContext(), "auth.err_internal", nil))
 		}
-		return c.JSON(apigen.AuthResponse{User: toUserDTO(fetched)})
+		return c.JSON(apigen.AuthResponse{User: s.toUserDTO(c.UserContext(), fetched)})
 	}
 
 	// Legacy path: MFA service not wired (dev). Behaves exactly as WS-06.
@@ -136,7 +136,7 @@ func (s *Server) Login(c *fiber.Ctx) error {
 	if err != nil {
 		return SendInternal(c, i18n.T(c.UserContext(), "auth.err_internal", nil))
 	}
-	return c.JSON(apigen.AuthResponse{User: toUserDTO(user)})
+	return c.JSON(apigen.AuthResponse{User: s.toUserDTO(c.UserContext(), user)})
 }
 
 // Logout handles POST /api/v1/auth/logout.
@@ -181,7 +181,7 @@ func (s *Server) Refresh(c *fiber.Ctx) error {
 	if err != nil {
 		return SendInternal(c, i18n.T(c.UserContext(), "auth.err_internal", nil))
 	}
-	return c.JSON(apigen.AuthResponse{User: toUserDTO(user)})
+	return c.JSON(apigen.AuthResponse{User: s.toUserDTO(c.UserContext(), user)})
 }
 
 // VerifyEmail handles POST /api/v1/auth/verify-email.
@@ -242,7 +242,7 @@ func (s *Server) GetCurrentUser(c *fiber.Ctx) error {
 	if err != nil {
 		return SendNotFound(c, i18n.T(c.UserContext(), "auth.err_not_found", nil))
 	}
-	return c.JSON(toUserDTO(user))
+	return c.JSON(s.toUserDTO(c.UserContext(), user))
 }
 
 // UpdateCurrentUser handles PATCH /api/v1/auth/me. It applies display name /
@@ -286,7 +286,7 @@ func (s *Server) UpdateCurrentUser(c *fiber.Ctx) error {
 	if err != nil {
 		return SendInternal(c, i18n.T(c.UserContext(), "auth.err_internal", nil))
 	}
-	return c.JSON(toUserDTO(user))
+	return c.JSON(s.toUserDTO(c.UserContext(), user))
 }
 
 // changePassword verifies the current password, strength-validates the new one,

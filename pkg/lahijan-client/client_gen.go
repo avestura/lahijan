@@ -2488,8 +2488,12 @@ type User struct {
 	// Id Unique user id.
 	Id openapi_types.UUID `json:"id"`
 
-	// Memberships Tenant memberships held by this user.
-	Memberships *[]Membership `json:"memberships,omitempty"`
+	// Memberships Tenant memberships held by this user. Always populated by the
+	// backend (possibly empty when the user belongs to no tenants yet).
+	// The dashboard's session store auto-selects the first membership
+	// for the X-Tenant-Id header, so omitting this field breaks every
+	// privileged API call. Required.
+	Memberships []Membership `json:"memberships"`
 }
 
 // WebAuthnBeginRegistrationResponse defines model for WebAuthnBeginRegistrationResponse.

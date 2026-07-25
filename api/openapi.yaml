@@ -5301,7 +5301,7 @@ components:
 
     User:
       type: object
-      required: [id, email]
+      required: [id, email, memberships]
       additionalProperties: false
       properties:
         id:
@@ -5318,7 +5318,12 @@ components:
           nullable: true
         memberships:
           type: array
-          description: Tenant memberships held by this user.
+          description: |
+            Tenant memberships held by this user. Always populated by the
+            backend (possibly empty when the user belongs to no tenants yet).
+            The dashboard's session store auto-selects the first membership
+            for the X-Tenant-Id header, so omitting this field breaks every
+            privileged API call. Required.
           items:
             $ref: "#/components/schemas/Membership"
 

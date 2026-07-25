@@ -323,7 +323,7 @@ func (s *Server) ChallengeMFA(c *fiber.Ctx) error {
 	if err != nil {
 		return SendInternal(c, i18n.T(c.UserContext(), "auth.err_internal", nil))
 	}
-	return c.JSON(apigen.AuthResponse{User: toUserDTO(user)})
+	return c.JSON(apigen.AuthResponse{User: s.toUserDTO(c.UserContext(), user)})
 }
 
 // mapMFAError translates an MFA service-layer sentinel into a localised

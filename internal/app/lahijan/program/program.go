@@ -542,6 +542,8 @@ func Start() error {
 		EmailSvc:       authDeps.emailSvc,
 		Signer:         authDeps.signer,
 		Cookies:        authDeps.cookies,
+		Memberships:    authDeps.repos.Memberships,
+		RBAC:           authDeps.repos.RBAC,
 		Audit:          authDeps.repos.AuditLog,
 		AuditEmitter:   authDeps.audit,
 		IDPSvc:         idpDeps.svc,

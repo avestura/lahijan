@@ -3420,8 +3420,14 @@ export interface components {
             email: string;
             /** @description Optional human-friendly display name. */
             displayName?: string | null;
-            /** @description Tenant memberships held by this user. */
-            memberships?: components["schemas"]["Membership"][];
+            /**
+             * @description Tenant memberships held by this user. Always populated by the
+             *     backend (possibly empty when the user belongs to no tenants yet).
+             *     The dashboard's session store auto-selects the first membership
+             *     for the X-Tenant-Id header, so omitting this field breaks every
+             *     privileged API call. Required.
+             */
+            memberships: components["schemas"]["Membership"][];
         };
         Membership: {
             /** Format: uuid */

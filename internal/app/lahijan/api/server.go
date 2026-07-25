@@ -7,6 +7,7 @@
 package api
 
 import (
+	"context"
 	"time"
 
 	"github.com/avestura/lahijan/api/gen/go"
@@ -56,6 +57,15 @@ type Server struct {
 	emailSvc   *email.Service
 	signer     *secrets.Signer
 	cookies    CookieConfig
+
+	// memberships + rbac are needed by toUserDTO to populate the
+	// User.Memberships field every auth response carries. The dashboard's
+	// session store auto-selects memberships[0] for the X-Tenant-Id header,
+	// so omitting this field breaks every privileged API call. Both are
+	// nil-appropriate in router smoke tests (toUserDTO degrades to an
+	// empty memberships slice); production always wires them.
+	memberships *database.MembershipsRepository
+	rbac        *database.RBACRepository
 
 	// WS-08: audit query API deps.
 	audit        *database.AuditLogRepository
@@ -165,6 +175,12 @@ type ServerDeps struct {
 	Signer     *secrets.Signer
 	Cookies    CookieConfig
 
+	// Memberships + RBAC are required for the User.Memberships field every
+	// auth response carries. Nil-appropriate only in router smoke tests
+	// (toUserDTO degrades to an empty slice); production always wires them.
+	Memberships *database.MembershipsRepository
+	RBAC        *database.RBACRepository
+
 	// WS-08: the audit query API reads from AuditLogRepository and records
 	// export events via Emitter. Both are required for the audit endpoints
 	// to function; pass nil only in tests that don't exercise those routes.
@@ -248,6 +264,8 @@ func NewServer(deps ServerDeps) *Server {
 		emailSvc:        deps.EmailSvc,
 		signer:          deps.Signer,
 		cookies:         deps.Cookies,
+		memberships:     deps.Memberships,
+		rbac:            deps.RBAC,
 		audit:           deps.Audit,
 		auditEmitter:    deps.AuditEmitter,
 		idpSvc:          deps.IDPSvc,
@@ -398,12 +416,55 @@ func (s *Server) requireUser(c *fiber.Ctx) (uuid.UUID, bool) {
 	return uid, true
 }
 
-// toUserDTO converts a database user row to the OpenAPI User schema.
-func toUserDTO(u database.User) apigen.User {
+// toUserDTO converts a database user row to the OpenAPI User schema,
+// including the user's tenant memberships. The memberships are fetched
+// cross-tenant via MembershipsRepository.ListForUser (intentionally not
+// tenant-scoped) so this is safe to call mid-authentication before any
+// tenant has been selected.
+//
+// The dashboard's session store auto-selects memberships[0] as the
+// X-Tenant-Id header, so omitting this field breaks every privileged
+// API call (returns 400 tenant_scope_required).
+//
+// Degrades gracefully: when the memberships repo is unset (router smoke
+// tests) or the lookup errors, returns the user with an empty (non-nil)
+// memberships slice so the response stays valid against the OpenAPI schema.
+func (s *Server) toUserDTO(ctx context.Context, u database.User) apigen.User {
 	out := apigen.User{
 		Id:          u.ID,
 		Email:       openapi_types.Email(u.Email),
 		DisplayName: u.DisplayName,
+		Memberships: []apigen.Membership{},
 	}
+	if s == nil || s.memberships == nil {
+		return out
+	}
+	rows, err := s.memberships.ListForUser(ctx, u.ID)
+	if err != nil || len(rows) == 0 {
+		return out
+	}
+	// Resolve role slugs in one batch (one SELECT * FROM roles round-trip).
+	// Falls back to empty slug strings when the RBAC repo is nil or a role
+	// row is missing; the dashboard only needs tenantId to function.
+	slugByID := make(map[uuid.UUID]string, len(rows))
+	if s.rbac != nil {
+		if roles, err := s.rbac.ListRoles(ctx); err == nil {
+			for _, r := range roles {
+				slugByID[r.ID] = r.Slug
+			}
+		}
+	}
+	list := make([]apigen.Membership, 0, len(rows))
+	for _, m := range rows {
+		roleSlug := ""
+		if m.RoleID != nil {
+			roleSlug = slugByID[*m.RoleID]
+		}
+		list = append(list, apigen.Membership{
+			TenantId: openapi_types.UUID(m.TenantID),
+			Role:     roleSlug,
+		})
+	}
+	out.Memberships = list
 	return out
 }
