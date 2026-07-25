@@ -22,4 +22,20 @@ psql -v ON_ERROR_STOP=1 \
      --dbname "${PDNS_DB_NAME:-pdns}" \
      --file /powerdns/schema.pgsql.sql
 
+# The schema is applied above by the POSTGRES_USER (superuser), so every
+# table + sequence it creates is owned by the superuser — NOT by the
+# PDNS_DB_USER that the pdns daemon connects as. Postgres then hides
+# those tables from PDNS_DB_USER ("relation does not exist") because the
+# role has no privileges on them. 01-init.sh already transferred the
+# public SCHEMA ownership to PDNS_DB_USER (so it has USAGE), but table
+# privileges are separate from schema ownership. Grant them explicitly
+# so the daemon can read/write its tables on a fresh boot.
+echo "Granting table+sequence privileges to '${PDNS_DB_USER:-pdns}'..."
+psql -v ON_ERROR_STOP=1 \
+     --username "$POSTGRES_USER" \
+     --dbname "${PDNS_DB_NAME:-pdns}" <<-EOSQL
+    GRANT ALL PRIVILEGES ON ALL TABLES    IN SCHEMA public TO "${PDNS_DB_USER:-pdns}";
+    GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO "${PDNS_DB_USER:-pdns}";
+EOSQL
+
 echo "PowerDNS schema applied."

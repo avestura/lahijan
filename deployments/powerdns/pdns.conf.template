@@ -38,14 +38,15 @@ webserver-address=0.0.0.0
 webserver-port=8081
 # In prod restrict this to the Lahijan process's source IP.
 webserver-allow-from=0.0.0.0/0,::/0
-webserver-loglevel=9
+# PDNS 4.9 takes a named level (none|normal|detailed), not a numeric 0-9.
+webserver-loglevel=normal
 
 # --- Authoritative DNS listener ---
 local-address=0.0.0.0,::
 local-port=53
 
-# --- SOA-EDIT-API policy (Lahijan sets per-zone override at create time) ---
-default-soa-edit-api=DEFAULT
+# --- SOA-EDIT-API is per-zone (set via the API at zone-create time); the
+#     global `default-soa-edit-api` setting was removed in PDNS 4.9. ---
 
 # --- Disable PDNS' own dnsupdate (RFC 2136); Lahijan is the only writer ---
 dnsupdate=no

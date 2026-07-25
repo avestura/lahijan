@@ -147,12 +147,15 @@ services:
       - "${PDNS_DNS_PORT:-5300}:53/udp"
       - "${PDNS_DNS_PORT:-5300}:53/tcp"
     volumes:
-      # The PDNS daemon reads its config from env vars (PDNS_*) when run
-      # under the official docker image. For non-compose deployments the
-      # pdns.conf.template next to this file is the reference config —
-      # render it with envsubst to produce a pdns.conf the bare-metal
-      # binary can read.
-      - ./powerdns/pdns.conf.template:/etc/powerdns/pdns.conf.template:ro
+      # The pdns-auth-49 image does NOT translate arbitrary PDNS_* env vars
+      # into pdns.conf (only PDNS_AUTH_API_KEY is honoured, and that only
+      # for the API fragment). The mounted pdns.dev.conf is therefore the
+      # single source of truth for the dev stack — it carries the gpgsql
+      # backend, the HTTP API, and the webserver settings with fixed dev
+      # values. The PDNS_* env vars below are kept for operator visibility
+      # but are functionally ignored by the image. For non-compose
+      # deployments render pdns.conf.template with envsubst instead.
+      - ./powerdns/pdns.dev.conf:/etc/powerdns/pdns.conf:ro
     healthcheck:
       # PDNS does not ship a healthcheck binary; use the HTTP API as the
       # liveness probe. The api endpoint returns 401 without a key but the
@@ -292,25 +295,20 @@ services:
       postgres:
         condition: service_healthy
     command:
-      - "mini"
+      # NOTE: `weed mini` was removed in SeaweedFS 3.61+. `weed server` with
+      # -s3 + -filer covers the same single-process topology for dev.
+      - "server"
       # Bind on the compose service name so siblings + the host can reach.
       - "-ip=seaweedfs"
       # Turn on the S3 subsystem with the mounted config; the S3 admin
       # identity lives in /etc/seaweedfs/s3.json.
       - "-s3"
       - "-s3.config=/etc/seaweedfs/s3.json"
-      # Filer listens on 8888 + stores metadata in the shared Postgres
-      # `seaweed` database (ADR-0007).
+      # Filer listens on 8888. NOTE: `weed server` does NOT accept
+      # -filer.postgres.* flags (those are only valid on `weed filer`). For
+      # dev we let the Filer use its default LevelDB store; the prod split
+      # uses a separate `weed filer` container with a templated filer.toml.
       - "-filer=true"
-      # Postgres-backed Filer store. SeaweedFS reads PG_* / WEED_*
-      # env vars; we pass the connection via -filer.postgres.* flags
-      # below so the same env shape works in dev + prod.
-      - "-filer.postgres"
-      - "-filer.postgres.hostname=postgres"
-      - "-filer.postgres.port=5432"
-      - "-filer.postgres.database=${SEAWEED_DATABASE_NAME:-seaweed}"
-      - "-filer.postgres.username=${SEAWEED_DATABASE_USER:-seaweed}"
-      - "-filer.postgres.password=${SEAWEED_DATABASE_PASSWORD:-seaweed}"
       # Pinned ports (master 9333, volume 8080, filer 8888, s3 8333).
       - "-master.port=9333"
       - "-volume.port=8080"
@@ -345,7 +343,7 @@ services:
     healthcheck:
       # The SeaweedFS image ships wget (alpine-based); probe the Filer
       # root status endpoint.
-      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://localhost:8888/ || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://seaweedfs:8888/ || exit 1"]
       interval: 10s
       timeout: 3s
       retries: 12
