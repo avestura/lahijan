@@ -86,6 +86,41 @@ make lint test   # always before pushing
 - Every new external API the backend talks to lands as a `providers/*` driver,
   never inline in a service.
 
+## DTO serializers (`to*DTO` functions)
+
+Every `to*DTO` function (e.g. `toUserDTO`, `toPATDTO`, `toInstanceDTO`)
+converts a database row to an OpenAPI response type. These functions are
+the **only** place response shape is controlled — if a field is omitted
+here, the client never sees it.
+
+**Hard rules for serializers:**
+
+1. **Populate every field marked `required` in the OpenAPI schema.** If
+   the schema says `required: [id, email, memberships]`, the serializer
+   MUST set all three. An omitted required field is a bug even though Go
+   won't complain (the zero value serializes).
+
+2. **Cross-entity fields (like `User.memberships`) need a repo fetch.**
+   When the DTO includes data from another table (memberships for a user,
+   permissions for a role, records for a zone), the serializer must fetch
+   it — do NOT leave it empty and hope the client doesn't need it. The
+   client almost always does.
+
+3. **Make the serializer a method on `*Server`** (not a free function) so
+   it can call `s.<repo>.List...()` for cross-entity data. Free functions
+   can't reach repos.
+
+4. **Degrade gracefully on repo errors.** If the cross-entity fetch fails,
+   return the DTO with an empty slice (not a 500) — partial data is
+   better than no data for read paths like `/auth/me`.
+
+The classic failure mode: a serializer omits a field, the spec marks it
+`optional`, the frontend code handles `undefined`... until someone writes
+code that assumes the field is populated (e.g. `user.memberships[0]` for
+tenant auto-selection). The dashboard then breaks silently. Prevent this
+by making client-critical fields **required** in the spec and populating
+them in every serializer.
+
 ## Database layer (WS-03)
 
 ```
