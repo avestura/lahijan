@@ -23,6 +23,8 @@ import {
   ScrollTextIcon,
   SearchIcon,
   SettingsIcon,
+  ShieldIcon,
+  SparklesIcon,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "@tanstack/react-router";
@@ -72,16 +74,42 @@ const DESTINATIONS: Destination[] = [
   // Sidebar.tsx for the same omission + the rationale.
   // { id: "plugins", labelKey: "nav.plugins", to: "/plugins", icon: PlugIcon },
   { id: "audit", labelKey: "nav.audit", to: "/audit", icon: ScrollTextIcon },
-  { id: "settings", labelKey: "nav.settings", to: "/settings", icon: SettingsIcon },
+  {
+    id: "agent",
+    labelKey: "nav.agent",
+    to: "/agent",
+    icon: SparklesIcon,
+    keywords: "chat assistant ai",
+  },
+  {
+    id: "settings.agents",
+    labelKey: "nav.settingsSub.agents",
+    to: "/settings/agents",
+    icon: SparklesIcon,
+    keywords: "agent provider api key model",
+  },
+  {
+    id: "admin.agent",
+    labelKey: "nav.admin.agent",
+    to: "/admin/agent",
+    icon: ShieldIcon,
+    keywords: "agent policy limits denylist",
+  },
+  {
+    id: "settings.profile",
+    labelKey: "nav.settingsSub.profile",
+    to: "/settings/profile",
+    icon: SettingsIcon,
+  },
   {
     id: "settings.security",
-    labelKey: "nav.settings.security",
+    labelKey: "nav.settingsSub.security",
     to: "/settings/security",
     icon: SettingsIcon,
   },
   {
     id: "settings.tokens",
-    labelKey: "nav.settings.tokens",
+    labelKey: "nav.settingsSub.tokens",
     to: "/settings/tokens",
     icon: SettingsIcon,
   },
@@ -152,8 +180,9 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                     value={`${t(d.labelKey)} ${d.keywords ?? ""}`}
                     onSelect={() => go(d.to)}
                     data-testid={`command-palette-item-${d.id}`}
+                    className="flex items-center gap-2"
                   >
-                    <Icon className="me-2 h-4 w-4 text-muted-foreground" />
+                    <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
                     <span className="flex-1">{t(d.labelKey)}</span>
                   </Command.Item>
                 );

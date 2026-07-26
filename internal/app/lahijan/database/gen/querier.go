@@ -28,6 +28,10 @@ type Querier interface {
 	ConsumeRecoveryCode(ctx context.Context, arg ConsumeRecoveryCodeParams) error
 	//: tenant-scoped.
 	CountActiveBillingPlans(ctx context.Context, tenantID uuid.UUID) (int64, error)
+	CountAgentConversations(ctx context.Context, arg CountAgentConversationsParams) (int64, error)
+	// Rate-limit window counter: how many user-role messages the caller has
+	// sent in the current window. Used by the policy enforcement path.
+	CountAgentMessagesSince(ctx context.Context, arg CountAgentMessagesSinceParams) (int64, error)
 	//: tenant-scoped
 	CountAuditLogForTenant(ctx context.Context, tenantID *uuid.UUID) (int64, error)
 	//: tenant-scoped; same filters as ListAuditLogForTenantFiltered, for pagination.
@@ -109,6 +113,15 @@ type Querier interface {
 	CountUsageEventsForUser(ctx context.Context, arg CountUsageEventsForUserParams) (int64, error)
 	CountUsers(ctx context.Context) (int64, error)
 	CountWebauthnCredentialsForUser(ctx context.Context, userID uuid.UUID) (int64, error)
+	// Agent chat module (WS-31). Conversations, messages, tool calls, provider
+	// configs, and the per-tenant policy. Every query is scoped by the tenant id
+	// pulled from the request context by the repository wrapper (WithTenant),
+	// and most are additionally scoped by user_id (chat history is personal).
+	// Callers never pass tenant_id directly.
+	CreateAgentConversation(ctx context.Context, arg CreateAgentConversationParams) (AgentConversation, error)
+	CreateAgentMessage(ctx context.Context, arg CreateAgentMessageParams) (AgentMessage, error)
+	CreateAgentProviderConfig(ctx context.Context, arg CreateAgentProviderConfigParams) (AgentProviderConfig, error)
+	CreateAgentToolCall(ctx context.Context, arg CreateAgentToolCallParams) (AgentToolCall, error)
 	// Audit log: append-only. tenant_id is nullable for system-level events.
 	// The audit_log_block_mutation trigger (migration 0005) rejects UPDATE/DELETE,
 	// so this query file intentionally exposes only INSERT and SELECT.
@@ -390,6 +403,8 @@ type Querier interface {
 	//: tenant-scoped; soft-delete. The row stays for audit history; the
 	//: Stripe PaymentMethod itself is detached at the gateway layer.
 	DeactivateBillingPaymentMethod(ctx context.Context, arg DeactivateBillingPaymentMethodParams) error
+	DeleteAgentConversation(ctx context.Context, arg DeleteAgentConversationParams) error
+	DeleteAgentProviderConfig(ctx context.Context, arg DeleteAgentProviderConfigParams) error
 	//: tenant-scoped; used by the zone-delete path so the FK cascade is
 	//: explicit even before the zone row goes away.
 	DeleteAllDNSRecordsInZone(ctx context.Context, arg DeleteAllDNSRecordsInZoneParams) error
@@ -464,6 +479,12 @@ type Querier interface {
 	//: plugin before swapping it for the new one. Ordered by created_at DESC
 	//: so the newest prior version comes first.
 	FindPluginsByNameGlobal(ctx context.Context, name string) ([]Plugin, error)
+	GetAgentConversationByID(ctx context.Context, arg GetAgentConversationByIDParams) (AgentConversation, error)
+	// Returns the tenant's policy row, or no rows when none has been set (the
+	// service treats that as the permissive default).
+	GetAgentPolicy(ctx context.Context, tenantID uuid.UUID) (AgentPolicy, error)
+	GetAgentProviderConfig(ctx context.Context, arg GetAgentProviderConfigParams) (AgentProviderConfig, error)
+	GetAgentToolCallByID(ctx context.Context, arg GetAgentToolCallByIDParams) (AgentToolCall, error)
 	GetAuditLog(ctx context.Context, id uuid.UUID) (AuditLog, error)
 	//: tenant-scoped; single-row read for the GET /audit/{id} handler. Returns the
 	//: row if it belongs to the tenant in ctx, OR is a system-level event (NULL
@@ -721,6 +742,10 @@ type Querier interface {
 	//: tenant-scoped; used by the metering rollup to find users with
 	//: an overage discount.
 	ListActiveBillingSubscriptions(ctx context.Context, tenantID uuid.UUID) ([]BillingSubscription, error)
+	ListAgentConversations(ctx context.Context, arg ListAgentConversationsParams) ([]AgentConversation, error)
+	ListAgentMessages(ctx context.Context, arg ListAgentMessagesParams) ([]AgentMessage, error)
+	ListAgentProviderConfigs(ctx context.Context, arg ListAgentProviderConfigsParams) ([]AgentProviderConfig, error)
+	ListAgentToolCallsForMessage(ctx context.Context, arg ListAgentToolCallsForMessageParams) ([]AgentToolCall, error)
 	//: tenant-scoped
 	// Returns the addresses (INET column projected to TEXT) of every
 	// non-deleted allocation in the tenant. Used by the allocation logic
@@ -944,6 +969,15 @@ type Querier interface {
 	// separately by the storage service via the provider's RevokeCredentials
 	// so the access key stops signing requests immediately.
 	RevokeStorageCredential(ctx context.Context, arg RevokeStorageCredentialParams) error
+	SetAgentConversationStatus(ctx context.Context, arg SetAgentConversationStatusParams) error
+	SetAgentConversationTitle(ctx context.Context, arg SetAgentConversationTitleParams) error
+	// Finalizes a streamed assistant message with the concatenated tokens.
+	SetAgentMessageContent(ctx context.Context, arg SetAgentMessageContentParams) error
+	// Records the executor's result + flips status to executed (or failed when
+	// the caller updates the row itself first).
+	SetAgentToolCallResult(ctx context.Context, arg SetAgentToolCallResultParams) error
+	// Transitions a tool call to approved / rejected (HITL) without a result.
+	SetAgentToolCallStatus(ctx context.Context, arg SetAgentToolCallStatusParams) error
 	//: tenant-scoped; records the Stripe Product + Price ids after the
 	//: admin pushes the plan to Stripe.
 	SetBillingPlanStripeIDs(ctx context.Context, arg SetBillingPlanStripeIDsParams) error
@@ -1122,6 +1156,7 @@ type Querier interface {
 	//: the total qty consumed in the [from, to] window. The rollup job then
 	//: joins this with prices to compute the charge.
 	SumUsageEventsForUserInPeriod(ctx context.Context, arg SumUsageEventsForUserInPeriodParams) ([]SumUsageEventsForUserInPeriodRow, error)
+	TouchAgentConversation(ctx context.Context, arg TouchAgentConversationParams) error
 	TouchPersonalAccessToken(ctx context.Context, tokenHash string) error
 	TouchSession(ctx context.Context, id uuid.UUID) error
 	//: tenant-scoped
@@ -1184,6 +1219,8 @@ type Querier interface {
 	// Bumps the sign counter on every successful assertion; the RP rejects any
 	// future assertion whose count is not strictly greater.
 	UpdateWebauthnSignCount(ctx context.Context, arg UpdateWebauthnSignCountParams) error
+	// Idempotent upsert: exactly one policy row per tenant (unique on tenant_id).
+	UpsertAgentPolicy(ctx context.Context, arg UpsertAgentPolicyParams) (AgentPolicy, error)
 	//: tenant-scoped; sets the fingerprint on an existing row (the bootstrap
 	//: path seeds rows with fingerprint='' and the provider resolves them
 	//: lazily on first use).

@@ -501,6 +501,31 @@ func AuditGate(policy middleware.PolicyResolver) apigen.MiddlewareFunc {
 			return middleware.RequirePerm(policy, rbac.PermBillingPromoCodeManage)(c)
 		case isBillingAdminWebhookEventsPath(path) && method == "GET":
 			return middleware.RequirePerm(policy, rbac.PermBillingWebhookRead)(c)
+
+		// WS-31: agent chat endpoints. Every /api/v1/agent/* path is gated;
+		// the slug maps to the rbac.PermAgent* registry. Conversations +
+		// messages + tool-call confirm are the chat surface (member+);
+		// providers are BYOK self-service (member+); policy PUT is
+		// admin-only (agent.policy.manage), policy GET is readable by anyone
+		// who can read chat (so members see the limits that affect them).
+		case isAgentToolCallConfirmPath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermAgentToolConfirm)(c)
+		case isAgentConversationMessagesPath(path) && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermAgentMessageSend)(c)
+		case path == "/api/v1/agent/conversations" && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermAgentConversationCreate)(c)
+		case path == "/api/v1/agent/conversations" && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermAgentConversationRead)(c)
+		case isAgentConversationItemPath(path) && method == "DELETE":
+			return middleware.RequirePerm(policy, rbac.PermAgentConversationDelete)(c)
+		case isAgentConversationItemPath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermAgentConversationRead)(c)
+		case isAgentProviderPath(path) && (method == "POST" || method == "GET" || method == "DELETE"):
+			return middleware.RequirePerm(policy, rbac.PermAgentProviderManage)(c)
+		case isAgentPolicyPath(path) && method == "PUT":
+			return middleware.RequirePerm(policy, rbac.PermAgentPolicyManage)(c)
+		case isAgentPolicyPath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermAgentConversationRead)(c)
 		}
 		return c.Next()
 	}
@@ -1121,4 +1146,52 @@ func isBillingAdminWebhookEventsPath(path string) bool {
 
 func isBillingWebhookPath(path string) bool {
 	return path == "/api/v1/webhooks/stripe"
+}
+
+// -------------------------------------------------------------------------
+// WS-31 agent chat path helpers.
+//
+// The agent surface has four roots:
+//   * /api/v1/agent/conversations*          (collection + item + messages)
+//   * /api/v1/agent/tool-calls/{id}/confirm (HITL)
+//   * /api/v1/agent/providers*              (BYOK self-service)
+//   * /api/v1/agent/policy                  (per-tenant policy)
+//
+// Each helper matches a specific subtree so the audit gate dispatches to the
+// right RequirePerm slug.
+// -------------------------------------------------------------------------
+
+// isAgentToolCallConfirmPath reports whether path is the HITL confirm
+// endpoint (POST /api/v1/agent/tool-calls/{id}/confirm).
+func isAgentToolCallConfirmPath(path string) bool {
+	return strings.HasPrefix(path, "/api/v1/agent/tool-calls/") && strings.HasSuffix(path, "/confirm")
+}
+
+// isAgentConversationMessagesPath reports whether path is the send-message
+// endpoint (POST /api/v1/agent/conversations/{id}/messages).
+func isAgentConversationMessagesPath(path string) bool {
+	return strings.HasPrefix(path, "/api/v1/agent/conversations/") && strings.HasSuffix(path, "/messages")
+}
+
+// isAgentConversationItemPath reports whether path targets a specific
+// conversation (GET detail / DELETE), excluding the messages sub-path.
+func isAgentConversationItemPath(path string) bool {
+	if !strings.HasPrefix(path, "/api/v1/agent/conversations/") {
+		return false
+	}
+	return !isAgentConversationMessagesPath(path)
+}
+
+// isAgentProviderPath reports whether path targets the BYOK provider
+// collection or a specific provider config.
+func isAgentProviderPath(path string) bool {
+	if path == "/api/v1/agent/providers" {
+		return true
+	}
+	return strings.HasPrefix(path, "/api/v1/agent/providers/")
+}
+
+// isAgentPolicyPath reports whether path is the tenant policy endpoint.
+func isAgentPolicyPath(path string) bool {
+	return path == "/api/v1/agent/policy"
 }

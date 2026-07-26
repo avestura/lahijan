@@ -2,7 +2,7 @@
 
 - **Status:** Proposed | Accepted | Deprecated | Superseded by ADR-MMMM
 - **Date:** YYYY-MM-DD
-- **Deciders:** <names or "maintainers">
+- **Deciders:** `names or "maintainers"`
 - **Supersedes:** ADR-XXXX (if applicable)
 - **Superseded by:** ADR-XXXX (if applicable)
 

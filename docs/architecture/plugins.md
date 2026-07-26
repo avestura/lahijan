@@ -341,7 +341,7 @@ Manage S3 buckets.
 ## Build process
 
 The only supported build path today is TinyGo. Install `tinygo >= 0.32`
-from <https://tinygo.org/getting-started/install/>, then:
+from https://tinygo.org/getting-started/install/, then:
 
 ```sh
 cd my-plugin

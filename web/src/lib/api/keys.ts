@@ -30,8 +30,7 @@ export const queryKeys = {
     // backup targets / backups.
     snapshots: (tenantId: string, instanceId: string) =>
       ["compute", tenantId, "instances", "detail", instanceId, "snapshots"] as const,
-    snapshotPolicies: (tenantId: string) =>
-      ["compute", tenantId, "snapshot-policies"] as const,
+    snapshotPolicies: (tenantId: string) => ["compute", tenantId, "snapshot-policies"] as const,
     backupTargets: (tenantId: string) => ["compute", tenantId, "backup-targets"] as const,
     backups: (tenantId: string) => ["compute", tenantId, "backups"] as const,
   },
@@ -50,6 +49,8 @@ export const queryKeys = {
       ["storage", tenantId, "buckets", bucketId, "credentials"] as const,
     usage: (tenantId: string, bucketId: string) =>
       ["storage", tenantId, "buckets", bucketId, "usage"] as const,
+    versions: (tenantId: string, bucketId: string, prefix: string) =>
+      ["storage", tenantId, "buckets", bucketId, "versions", prefix] as const,
   },
   billing: {
     balance: () => ["billing", "balance"] as const,
@@ -66,6 +67,13 @@ export const queryKeys = {
     detail: (id: string) => ["plugins", "detail", id] as const,
     marketplace: () => ["plugins", "marketplace"] as const,
     marketplaceEntry: (name: string) => ["plugins", "marketplace", name] as const,
+  },
+  agent: {
+    conversations: (tenantId: string) => ["agent", tenantId, "conversations"] as const,
+    conversation: (tenantId: string, id: string) =>
+      ["agent", tenantId, "conversations", "detail", id] as const,
+    providers: (tenantId: string) => ["agent", tenantId, "providers"] as const,
+    policy: (tenantId: string) => ["agent", tenantId, "policy"] as const,
   },
   my: {
     tokens: () => ["me", "tokens"] as const,

@@ -67,7 +67,7 @@ subsequent UI WS just plugs in routes.
 - Login flow that works against WS-06 endpoints
 - ESLint blocking hardcoded English
 - `npm run test` (Vitest) green
-- `npm run build` succeeds and produces a bundle <500 KiB gzipped (sans fonts)
+- `npm run build` succeeds and produces a bundle under 500 KiB gzipped (sans fonts)
 
 ## Definition of Done
 

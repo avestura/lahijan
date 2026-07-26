@@ -36,6 +36,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useTenant } from "@/hooks/useTenant";
 import { useComputeImages, useComputeProfiles, useCreateInstance } from "../api";
 import { createInstanceSchema, type CreateInstanceValues } from "../schemas";
+import { ImageAliasField } from "./ImageAliasField";
 
 type Step = "image" | "size" | "review";
 
@@ -147,37 +148,13 @@ export function CreateInstanceWizard() {
         {step === "image" && (
           <Card>
             <CardContent className="space-y-4 p-6">
-              <div className="space-y-2">
-                <Label htmlFor="imageAlias">{t("compute.create.image.label")}</Label>
-                {images.isLoading ? (
-                  <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
-                ) : images.error ? (
-                  <p className="text-sm text-destructive">{t("common.error")}</p>
-                ) : (images.data ?? []).length === 0 ? (
-                  <p className="text-sm text-muted-foreground">{t("compute.create.image.empty")}</p>
-                ) : (
-                  <Select
-                    value={form.watch("imageAlias")}
-                    onValueChange={(v) => form.setValue("imageAlias", v, { shouldValidate: true })}
-                  >
-                    <SelectTrigger id="imageAlias" data-testid="create-instance-image">
-                      <SelectValue placeholder={t("compute.create.image.label")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(images.data ?? []).map((img) => (
-                        <SelectItem key={img.id} value={img.alias}>
-                          {img.alias}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-                {form.formState.errors.imageAlias && (
-                  <p className="text-xs text-destructive">
-                    {form.formState.errors.imageAlias.message}
-                  </p>
-                )}
-              </div>
+              <ImageAliasField
+                value={form.watch("imageAlias")}
+                onChange={(alias) => form.setValue("imageAlias", alias, { shouldValidate: true })}
+                catalog={images.data ?? []}
+                catalogLoading={images.isLoading}
+                error={form.formState.errors.imageAlias?.message}
+              />
             </CardContent>
           </Card>
         )}

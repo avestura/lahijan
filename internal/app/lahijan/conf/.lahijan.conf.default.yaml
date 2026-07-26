@@ -661,3 +661,17 @@ billing:
     apiVersion: ""
     # per-call timeout for Stripe API calls. 30s is a generous cap.
     requestTimeoutSeconds: 30
+
+# WS-31: AI agent chat (OpenCode-powered). Opt-in: when agent.enabled is
+# false (the default), program.Start skips building the agent service and
+# every /api/v1/agent/* endpoint degrades to 501 "feature disabled". The
+# conversation/message/tool-call tables still migrate; only the runtime is
+# gated.
+agent:
+  # toggles the agent chat subsystem. When false the service is not built
+  # and the handlers return 501. Sourced from env LAHIJAN_AGENT_ENABLED.
+  enabled: true
+  # default conversation title when the caller does not pass one.
+  defaultConversationTitle: "New conversation"
+  # max bytes for a single user prompt. 64 KiB is generous for text.
+  maxMessageBytes: 65536

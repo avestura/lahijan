@@ -35,3 +35,22 @@ export function httpStatusFromError(err: unknown): number | "network" | null {
 export function isFeatureDisabledError(err: unknown): boolean {
   return httpStatusFromError(err) === 501;
 }
+
+/**
+ * Extracts the human-readable message from a backend error envelope
+ * `{ error: { code, message, details } }` as returned by the generated API
+ * client (`apiClient.POST`/`PATCH`/`DELETE` -> the `error` field). Falls
+ * back to `fallback` when the body is absent or shaped differently (e.g. a
+ * network error with no body), so mutation `onError` handlers always have
+ * something to toast.
+ */
+export function apiErrorMessage(error: unknown, fallback: string): string {
+  if (error && typeof error === "object" && "error" in error) {
+    const inner = (error as { error?: unknown }).error;
+    if (inner && typeof inner === "object" && "message" in inner) {
+      const msg = (inner as { message?: unknown }).message;
+      if (typeof msg === "string" && msg.trim().length > 0) return msg;
+    }
+  }
+  return fallback;
+}

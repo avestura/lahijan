@@ -72,6 +72,10 @@
       "title": "PAYG billing",
       "body": "Top up user balances and meter usage per minute. A ledger you can reconcile, not a black box."
     },
+    "agent": {
+      "title": "Built-in AI agent",
+      "body": "A natural-language assistant that runs your cloud for you — list instances, inspect zones and buckets, and act on your behalf, scoped to exactly what you're allowed to do."
+    },
     "learnMore": "Learn more"
   },
   "howItWorks": {

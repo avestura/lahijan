@@ -117,6 +117,79 @@ export function useComputeProfiles(tenantId: string | null) {
   });
 }
 
+/** Uploadable image fields (mirrors ComputeImageUploadRequest minus aliases). */
+export interface UploadImageValues {
+  alias: string;
+  fingerprint: string;
+  type?: "container" | "virtual-machine";
+  architecture?: string;
+  sizeBytes?: number;
+  description?: string;
+  properties?: Record<string, string>;
+}
+
+/**
+ * useUploadComputeImage — POST /api/v1/compute/images. Records a custom
+ * image row in the tenant's catalog; the operator still needs the bytes
+ * in the Incus image store (or an alias Incus can resolve on demand).
+ */
+export function useUploadComputeImage(tenantId: string | null) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const { t } = useTranslation();
+
+  return useMutation({
+    mutationFn: async (values: UploadImageValues): Promise<ComputeImage> => {
+      const body: components["schemas"]["ComputeImageUploadRequest"] = {
+        alias: values.alias,
+        fingerprint: values.fingerprint,
+        type: values.type ?? "container",
+      };
+      if (values.architecture) body.architecture = values.architecture;
+      if (values.sizeBytes) body.sizeBytes = values.sizeBytes;
+      if (values.description) body.description = values.description;
+      if (values.properties) body.properties = values.properties;
+      const { data, error, response } = await apiClient.POST("/api/v1/compute/images", {
+        body,
+      });
+      if (error || !data) {
+        throw new Error(`compute.image.upload: ${response?.status ?? "network"}`);
+      }
+      return data;
+    },
+    onSuccess: () => {
+      if (tenantId) {
+        void qc.invalidateQueries({ queryKey: queryKeys.compute.images(tenantId) });
+      }
+      toast({ title: t("compute.images.mutations.uploadSuccess"), variant: "success" });
+    },
+  });
+}
+
+/** useDeleteComputeImage — DELETE /api/v1/compute/images/{imageId}. */
+export function useDeleteComputeImage(tenantId: string | null) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const { t } = useTranslation();
+
+  return useMutation({
+    mutationFn: async ({ imageId }: { imageId: string }) => {
+      const { error, response } = await apiClient.DELETE("/api/v1/compute/images/{imageId}", {
+        params: { path: { imageId } },
+      });
+      if (error) {
+        throw new Error(`compute.image.delete: ${response?.status ?? "network"}`);
+      }
+    },
+    onSuccess: () => {
+      if (tenantId) {
+        void qc.invalidateQueries({ queryKey: queryKeys.compute.images(tenantId) });
+      }
+      toast({ title: t("compute.images.mutations.deleteSuccess"), variant: "success" });
+    },
+  });
+}
+
 /**
  * buildCreateBody — translate the wizard form values into the API's
  * ComputeInstanceCreateRequest shape.

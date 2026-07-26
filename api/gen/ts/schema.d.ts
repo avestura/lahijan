@@ -3363,6 +3363,150 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/agent/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the caller's agent conversations */
+        get: operations["listAgentConversations"];
+        put?: never;
+        /** Start a new agent conversation */
+        post: operations["createAgentConversation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agent/conversations/{conversationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a conversation with its message + tool-call history */
+        get: operations["getAgentConversation"];
+        put?: never;
+        post?: never;
+        /** Delete a conversation and its full history */
+        delete: operations["deleteAgentConversation"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agent/conversations/{conversationId}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a message and stream the agent reply (SSE)
+         * @description Appends the user's message, runs one agent turn, and streams events
+         *     back as Server-Sent Events (Content-Type: text/event-stream). Each
+         *     event is `data: <json>\n\n` where the JSON object has a `type` of:
+         *
+         *       - `text`        — assistant token delta (has `text`)
+         *       - `tool_call`   — agent wants to call a tool (has `tool`, `args`;
+         *                         destructive tools carry `tool_call_id` and do NOT
+         *                         execute until confirmed)
+         *       - `tool_result` — a tool finished, inline or after confirmation
+         *                         (has `tool`, `tool_call_id`, `result`)
+         *       - `done`        — turn finished successfully
+         *       - `error`       — recoverable error during the turn (has `error`)
+         *
+         *     Destructive tool calls are parked as `pending`; the client POSTs
+         *     /api/v1/agent/tool-calls/{toolCallId}/confirm to approve or decline.
+         */
+        post: operations["sendAgentMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agent/tool-calls/{toolCallId}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve or decline a pending (destructive) tool call */
+        post: operations["confirmAgentToolCall"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agent/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the caller's BYOK model-provider configs */
+        get: operations["listAgentProviders"];
+        put?: never;
+        /** Add a BYOK model-provider config */
+        post: operations["createAgentProvider"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agent/providers/{providerId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a BYOK provider config */
+        delete: operations["deleteAgentProvider"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agent/policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the tenant's agent policy
+         * @description Returns the per-tenant agent policy. When no policy has been set the
+         *     permissive default is returned (BYOK allowed, no caps, no denylist).
+         */
+        get: operations["getAgentPolicy"];
+        /** Create or replace the tenant's agent policy */
+        put: operations["updateAgentPolicy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -5485,6 +5629,109 @@ export interface components {
             /** @description ISO 3166-1 alpha-2. */
             countryCode: string;
         };
+        AgentConversation: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            /** @enum {string} */
+            status: "active" | "archived";
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        CreateAgentConversationRequest: {
+            /** @description Optional title; defaults to "New conversation". */
+            title?: string;
+        };
+        AgentConversationList: {
+            items: components["schemas"]["AgentConversation"][];
+            total: number;
+        };
+        /** @enum {string} */
+        AgentMessageRole: "user" | "assistant" | "tool";
+        AgentMessage: {
+            /** Format: uuid */
+            id: string;
+            role: components["schemas"]["AgentMessageRole"];
+            content: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        /** @enum {string} */
+        AgentToolCallStatus: "pending" | "approved" | "rejected" | "executed" | "failed";
+        AgentToolCall: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            messageId: string;
+            tool: string;
+            args: {
+                [key: string]: unknown;
+            };
+            result: {
+                [key: string]: unknown;
+            };
+            requiresConfirmation: boolean;
+            status: components["schemas"]["AgentToolCallStatus"];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        AgentConversationDetail: {
+            conversation: components["schemas"]["AgentConversation"];
+            messages: components["schemas"]["AgentMessage"][];
+            toolCalls: components["schemas"]["AgentToolCall"][];
+        };
+        SendAgentMessageRequest: {
+            /** @description The user's prompt for this turn. */
+            message: string;
+        };
+        ConfirmAgentToolCallRequest: {
+            /** @description true to execute */
+            approved: boolean;
+        };
+        AgentProviderConfig: {
+            /** Format: uuid */
+            id: string;
+            /** @description e.g. openai, anthropic, google. */
+            provider: string;
+            model: string;
+            /** @description Optional provider base URL override. */
+            baseUrl: string;
+            enabled: boolean;
+            /** @description A key is stored (never returned). */
+            hasKey: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        AgentProviderConfigRequest: {
+            provider: string;
+            model?: string;
+            baseUrl?: string;
+            /**
+             * Format: password
+             * @description Encrypted at rest (AES-256-GCM).
+             */
+            apiKey: string;
+        };
+        AgentPolicy: {
+            /** @description Glob allowlist of allowed models (e.g. "gpt-4o*"). Empty = all allowed. */
+            allowModels: string[];
+            /** @description When true, user BYOK is disabled; only operator-provided models are usable. */
+            forceAdminModels: boolean;
+            /** @description Max user messages per sliding window. 0 = unlimited. */
+            maxMessagesPerWindow: number;
+            /** @description Sliding-window size in seconds (default 60). */
+            windowSeconds: number;
+            /** @description Total credit cap. 0 = unlimited. Enforced once token metering ships. */
+            spendCapCredits: number;
+            /** @description Tool names the agent may not call in this tenant. */
+            denyTools: string[];
+        };
     };
     responses: {
         /** @description The request was malformed. */
@@ -5617,6 +5864,12 @@ export interface components {
         PageOffset: number;
         /** @description Output format for the export. Defaults to csv. */
         ExportFormat: "csv" | "json";
+        /** @description The agent conversation id. */
+        ConversationId: string;
+        /** @description The agent tool-call id. */
+        ToolCallId: string;
+        /** @description The agent provider-config id. */
+        ProviderId: string;
     };
     requestBodies: never;
     headers: {
@@ -11245,6 +11498,296 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+        };
+    };
+    listAgentConversations: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of items to return (1..200). */
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Number of items to skip for pagination. */
+                offset?: components["parameters"]["PageOffset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of the caller's conversations, newest first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentConversationList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    createAgentConversation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CreateAgentConversationRequest"];
+            };
+        };
+        responses: {
+            /** @description Conversation created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentConversation"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    getAgentConversation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The agent conversation id. */
+                conversationId: components["parameters"]["ConversationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Conversation detail with ordered messages and tool calls. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentConversationDetail"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    deleteAgentConversation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The agent conversation id. */
+                conversationId: components["parameters"]["ConversationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Conversation deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    sendAgentMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The agent conversation id. */
+                conversationId: components["parameters"]["ConversationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendAgentMessageRequest"];
+            };
+        };
+        responses: {
+            /** @description A stream of agent turn events. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            /** @description Rate or spend cap reached. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    confirmAgentToolCall: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The agent tool-call id. */
+                toolCallId: components["parameters"]["ToolCallId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmAgentToolCallRequest"];
+            };
+        };
+        responses: {
+            /** @description The resolved tool call. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentToolCall"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listAgentProviders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Provider configs (API keys never returned). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentProviderConfig"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    createAgentProvider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentProviderConfigRequest"];
+            };
+        };
+        responses: {
+            /** @description Provider config added (key redacted). */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentProviderConfig"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    deleteAgentProvider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The agent provider-config id. */
+                providerId: components["parameters"]["ProviderId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Provider config deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getAgentPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The tenant agent policy. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentPolicy"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    updateAgentPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentPolicy"];
+            };
+        };
+        responses: {
+            /** @description The updated policy. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentPolicy"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
 }

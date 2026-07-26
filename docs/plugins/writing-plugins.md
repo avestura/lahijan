@@ -11,7 +11,7 @@ languages).
 
 ## Prerequisites
 
-- **TinyGo** >= 0.32 (for Go plugins): <https://tinygo.org/getting-started/install/>
+- **TinyGo** >= 0.32 (for Go plugins): https://tinygo.org/getting-started/install/
 - **Lahijan SDK** (for Go plugins): `github.com/avestura/lahijan/sdk-go`
 - For WASI plugins in other languages: Rust (`wasm32-wasi` target), Zig,
   or any language with WASI Preview 1 support.

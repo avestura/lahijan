@@ -109,7 +109,7 @@ export function Header() {
               <DropdownMenuLabel>{t("nav.settingsSub.label")}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link to="/settings">
+                <Link to="/settings/profile">
                   <UserIcon className="me-2 h-4 w-4" />
                   {t("nav.settingsSub.profile")}
                 </Link>

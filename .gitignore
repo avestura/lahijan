@@ -87,3 +87,6 @@ $RECYCLE.BIN/
 # opencode runtime (skills deps)
 .opencode/node_modules/
 .opencode/package-lock.json
+
+# Playwright MCP tooling artifacts (console captures, screenshots, snapshots)
+.playwright-mcp/

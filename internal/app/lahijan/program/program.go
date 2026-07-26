@@ -478,6 +478,17 @@ func Start() error {
 		))
 	}
 
+	// WS-31: build the AI agent chat service (internal/app/lahijan/agent/*).
+	// Returns nil when conf.agent.enabled is false; the api handlers degrade
+	// to 501 in that case. Built with a StubHarness + StubToolExecutor today;
+	// the real OpenCode harness + the MCP tool bridge land in follow-on
+	// sub-streams. Reuses the auth crypto envelope for BYOK key encryption.
+	var agentCrypto *secrets.Crypto
+	if c, cryptoErr := buildCrypto(); cryptoErr == nil {
+		agentCrypto = c
+	}
+	agentSvc := buildAgentService(authDeps.repos, authDeps.audit, agentCrypto, slog.Default())
+
 	// Seed the RBAC catalog (permissions + default roles + grants). Idempotent
 	// so it is safe to run on every bootstrap. Fail-fast on error: without the
 	// seed, every privileged route returns 403.
@@ -563,6 +574,7 @@ func Start() error {
 		BillingSvc:     billingSvc,
 		PaymentsSvc:    paymentsSvc,
 		RegistrarSvc:   registrarSvc,
+		AgentSvc:       agentSvc,
 	}), policy)
 
 	// WS-09: mount River's built-in web UI (admin-only). The UI ships its

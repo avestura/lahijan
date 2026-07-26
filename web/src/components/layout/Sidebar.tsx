@@ -18,8 +18,8 @@ import {
   MonitorIcon,
   PlugIcon,
   ScrollTextIcon,
-  SettingsIcon,
   ShieldIcon,
+  SparklesIcon,
   UserIcon,
   WalletIcon,
 } from "lucide-react";
@@ -43,20 +43,27 @@ const PRIMARY_NAV: NavItem[] = [
   { to: "/dns", labelKey: "nav.dns", icon: GlobeWrapper },
   { to: "/storage", labelKey: "nav.storage", icon: DatabaseIcon },
   { to: "/billing", labelKey: "nav.billing", icon: DollarSignIcon },
+  // WS-31: AI agent chat — natural-language control of Lahijan.
+  { to: "/agent", labelKey: "nav.agent", icon: SparklesIcon },
   // `/plugins` (user-facing installed plugins view) is hidden until the
   // route exists — currently links to a 404. Admin-side plugin management
   // is at /admin/plugins; marketplace browsing is at /admin/marketplace.
   // { to: "/plugins", labelKey: "nav.plugins", icon: PlugIcon },
   { to: "/audit", labelKey: "nav.audit", icon: ScrollTextIcon },
-  { to: "/settings", labelKey: "nav.settings", icon: SettingsIcon },
+  // NOTE: a top-level "Settings" entry is intentionally NOT present —
+  // the SETTINGS_NAV section below already groups the settings pages,
+  // and a duplicate entry here would make every sub-page highlight two
+  // nav items at once.
 ];
 
 const SETTINGS_NAV: NavItem[] = [
-  { to: "/settings", labelKey: "nav.settingsSub.profile", icon: UserIcon },
+  { to: "/settings/profile", labelKey: "nav.settingsSub.profile", icon: UserIcon },
   { to: "/settings/security", labelKey: "nav.settingsSub.security", icon: ShieldIcon },
   { to: "/settings/tokens", labelKey: "nav.settingsSub.tokens", icon: KeyIcon },
   { to: "/settings/identities", labelKey: "nav.settingsSub.identities", icon: LinkIcon },
   { to: "/settings/sessions", labelKey: "nav.settingsSub.sessions", icon: MonitorIcon },
+  // WS-31: BYOK model-provider config for the agent chat.
+  { to: "/settings/agents", labelKey: "nav.settingsSub.agents", icon: SparklesIcon },
 ];
 
 const ADMIN_NAV: NavItem[] = [
@@ -68,6 +75,8 @@ const ADMIN_NAV: NavItem[] = [
   // { to: "/admin/jobs", labelKey: "nav.admin.jobs", icon: BoxesIcon },
   { to: "/admin/plugins", labelKey: "nav.admin.plugins", icon: PlugIcon },
   { to: "/admin/marketplace", labelKey: "nav.admin.marketplace", icon: BookOpenIcon },
+  // WS-31: tenant agent policy (allowlist / caps / denylist).
+  { to: "/admin/agent", labelKey: "nav.admin.agent", icon: ShieldIcon },
 ];
 
 // Wrap lucide's GlobeIcon so we can swap it for a project-local icon later

@@ -94,7 +94,7 @@ needs the post-202 challenge UI + a TOTP code generator".
 - [ ] mfa spec covers the full enroll → verify → disable loop
 - [ ] settings spec covers PAT create → reveal → revoke
 - [ ] every new flow has ≥1 happy + ≥1 failure assertion
-- [ ] `make test-e2e` runs all of them green in the CI budget (<15 min)
+- [ ] `make test-e2e` runs all of them green in the CI budget (under 15 min)
 - [ ] no new flakies (per ADR-0029 flaky-rate policy)
 - [ ] `docs/workstreams/WS-22e-*.md` Status updated; README index row added
 

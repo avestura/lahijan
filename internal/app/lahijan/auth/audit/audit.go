@@ -95,6 +95,22 @@ const (
 	ActionPluginDisable = "plugins.disable"
 	ActionPluginDelete  = "plugins.delete"
 
+	// Agent chat actions (WS-31). Emitted by the agent service on every
+	// state-changing privileged action: conversation lifecycle, message
+	// send (the agent loop run), tool execution + HITL confirmation, and
+	// provider/policy config changes. Each row carries the conversation_id
+	// (or tool call id) + the actor in metadata; actor_type is "user" with
+	// metadata.via_agent = true so the audit query API can distinguish
+	// agent-driven actions from manual UI ones.
+	ActionAgentConversationCreate = "agent.conversation.create"
+	ActionAgentConversationDelete = "agent.conversation.delete"
+	ActionAgentMessageSend        = "agent.message.send"
+	ActionAgentToolExecute        = "agent.tool.execute"
+	ActionAgentToolConfirm        = "agent.tool.confirm"
+	ActionAgentProviderSave       = "agent.provider.save"
+	ActionAgentProviderDelete     = "agent.provider.delete"
+	ActionAgentPolicyUpdate       = "agent.policy.update"
+
 	// Object storage module actions (WS-16). Emitted by the storage service
 	// on every state-changing privileged action across buckets +
 	// credentials + quotas + presign. Each row carries the bucket_id (or

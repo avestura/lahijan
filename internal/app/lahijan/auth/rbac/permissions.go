@@ -193,6 +193,21 @@ const (
 	PermPluginsUninstall         = "plugins.uninstall"
 	PermPluginsPermissionApprove = "plugins.permission.approve"
 
+	// --- agent chat (WS-31). The agent is an authorized actor that
+	// inherits the calling user's RBAC context, so the conversation /
+	// message / tool-call surface needs its own slugs (independent of
+	// the module tools the agent drives). policy.manage is the only
+	// privileged one — it lets a tenant admin set the per-tenant agent
+	// limits (allowlist / rate / spend / force-admin-models / denylist);
+	// members can chat + manage their own BYOK providers but not policy. ---
+	PermAgentConversationCreate = "agent.conversation.create"
+	PermAgentConversationRead   = "agent.conversation.read"
+	PermAgentConversationDelete = "agent.conversation.delete"
+	PermAgentMessageSend        = "agent.message.send"
+	PermAgentToolConfirm        = "agent.tool.confirm"
+	PermAgentProviderManage     = "agent.provider.manage"
+	PermAgentPolicyManage       = "agent.policy.manage"
+
 	// --- platform-level (superuser only) ---
 	PermPlatformUserList     = "platform.user.list"
 	PermPlatformTenantCreate = "platform.tenant.create"
@@ -325,6 +340,15 @@ var allPermissions = []Permission{
 	{Slug: PermPluginsPermissionApprove, Description: "Approve a plugin's requested permissions."},
 	{Slug: PermPluginsRead, Description: "View installed plugins."},
 	{Slug: PermPluginsUninstall, Description: "Uninstall a plugin."},
+
+	// agent (WS-31)
+	{Slug: PermAgentConversationCreate, Description: "Create an agent chat conversation."},
+	{Slug: PermAgentConversationDelete, Description: "Delete an agent chat conversation."},
+	{Slug: PermAgentConversationRead, Description: "View agent chat conversations and history."},
+	{Slug: PermAgentMessageSend, Description: "Send a message to the agent (runs the agent loop)."},
+	{Slug: PermAgentPolicyManage, Description: "Manage the tenant's agent policy (allowlist, limits, denylist)."},
+	{Slug: PermAgentProviderManage, Description: "Manage the user's own agent model-provider keys (BYOK)."},
+	{Slug: PermAgentToolConfirm, Description: "Approve or decline a pending agent tool call (HITL)."},
 
 	// platform
 	{Slug: PermPlatformJobsCancel, Description: "Cancel any queued or running job (platform admin)."},

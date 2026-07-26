@@ -44,6 +44,28 @@ const (
 	AdminPluginStatusPending  AdminPluginStatus = "pending"
 )
 
+// Defines values for AgentConversationStatus.
+const (
+	AgentConversationStatusActive   AgentConversationStatus = "active"
+	AgentConversationStatusArchived AgentConversationStatus = "archived"
+)
+
+// Defines values for AgentMessageRole.
+const (
+	AgentMessageRoleAssistant AgentMessageRole = "assistant"
+	AgentMessageRoleTool      AgentMessageRole = "tool"
+	AgentMessageRoleUser      AgentMessageRole = "user"
+)
+
+// Defines values for AgentToolCallStatus.
+const (
+	AgentToolCallStatusApproved AgentToolCallStatus = "approved"
+	AgentToolCallStatusExecuted AgentToolCallStatus = "executed"
+	AgentToolCallStatusFailed   AgentToolCallStatus = "failed"
+	AgentToolCallStatusPending  AgentToolCallStatus = "pending"
+	AgentToolCallStatusRejected AgentToolCallStatus = "rejected"
+)
+
 // Defines values for AuditEventActorType.
 const (
 	AuditEventActorTypePlugin AuditEventActorType = "plugin"
@@ -576,6 +598,105 @@ type AdminPluginUpgradeResult struct {
 	// PreservedGrants Grants carried forward from the prior version.
 	PreservedGrants []string `json:"preservedGrants"`
 }
+
+// AgentConversation defines model for AgentConversation.
+type AgentConversation struct {
+	CreatedAt time.Time               `json:"createdAt"`
+	Id        openapi_types.UUID      `json:"id"`
+	Status    AgentConversationStatus `json:"status"`
+	Title     string                  `json:"title"`
+	UpdatedAt time.Time               `json:"updatedAt"`
+}
+
+// AgentConversationStatus defines model for AgentConversation.Status.
+type AgentConversationStatus string
+
+// AgentConversationDetail defines model for AgentConversationDetail.
+type AgentConversationDetail struct {
+	Conversation AgentConversation `json:"conversation"`
+	Messages     []AgentMessage    `json:"messages"`
+	ToolCalls    []AgentToolCall   `json:"toolCalls"`
+}
+
+// AgentConversationList defines model for AgentConversationList.
+type AgentConversationList struct {
+	Items []AgentConversation `json:"items"`
+	Total int                 `json:"total"`
+}
+
+// AgentMessage defines model for AgentMessage.
+type AgentMessage struct {
+	Content   string             `json:"content"`
+	CreatedAt time.Time          `json:"createdAt"`
+	Id        openapi_types.UUID `json:"id"`
+	Role      AgentMessageRole   `json:"role"`
+}
+
+// AgentMessageRole defines model for AgentMessageRole.
+type AgentMessageRole string
+
+// AgentPolicy defines model for AgentPolicy.
+type AgentPolicy struct {
+	// AllowModels Glob allowlist of allowed models (e.g. "gpt-4o*"). Empty = all allowed.
+	AllowModels []string `json:"allowModels"`
+
+	// DenyTools Tool names the agent may not call in this tenant.
+	DenyTools []string `json:"denyTools"`
+
+	// ForceAdminModels When true, user BYOK is disabled; only operator-provided models are usable.
+	ForceAdminModels bool `json:"forceAdminModels"`
+
+	// MaxMessagesPerWindow Max user messages per sliding window. 0 = unlimited.
+	MaxMessagesPerWindow int `json:"maxMessagesPerWindow"`
+
+	// SpendCapCredits Total credit cap. 0 = unlimited. Enforced once token metering ships.
+	SpendCapCredits int `json:"spendCapCredits"`
+
+	// WindowSeconds Sliding-window size in seconds (default 60).
+	WindowSeconds int `json:"windowSeconds"`
+}
+
+// AgentProviderConfig defines model for AgentProviderConfig.
+type AgentProviderConfig struct {
+	// BaseUrl Optional provider base URL override.
+	BaseUrl   string    `json:"baseUrl"`
+	CreatedAt time.Time `json:"createdAt"`
+	Enabled   bool      `json:"enabled"`
+
+	// HasKey A key is stored (never returned).
+	HasKey bool               `json:"hasKey"`
+	Id     openapi_types.UUID `json:"id"`
+	Model  string             `json:"model"`
+
+	// Provider e.g. openai, anthropic, google.
+	Provider  string    `json:"provider"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// AgentProviderConfigRequest defines model for AgentProviderConfigRequest.
+type AgentProviderConfigRequest struct {
+	// ApiKey Encrypted at rest (AES-256-GCM).
+	ApiKey   string  `json:"apiKey"`
+	BaseUrl  *string `json:"baseUrl,omitempty"`
+	Model    *string `json:"model,omitempty"`
+	Provider string  `json:"provider"`
+}
+
+// AgentToolCall defines model for AgentToolCall.
+type AgentToolCall struct {
+	Args                 map[string]interface{} `json:"args"`
+	CreatedAt            time.Time              `json:"createdAt"`
+	Id                   openapi_types.UUID     `json:"id"`
+	MessageId            openapi_types.UUID     `json:"messageId"`
+	RequiresConfirmation bool                   `json:"requiresConfirmation"`
+	Result               map[string]interface{} `json:"result"`
+	Status               AgentToolCallStatus    `json:"status"`
+	Tool                 string                 `json:"tool"`
+	UpdatedAt            time.Time              `json:"updatedAt"`
+}
+
+// AgentToolCallStatus defines model for AgentToolCallStatus.
+type AgentToolCallStatus string
 
 // ApplyDNSTemplateRequest defines model for ApplyDNSTemplateRequest.
 type ApplyDNSTemplateRequest struct {
@@ -1630,6 +1751,18 @@ type ComputeStorageVolumePage struct {
 	Total  int                    `json:"total"`
 }
 
+// ConfirmAgentToolCallRequest defines model for ConfirmAgentToolCallRequest.
+type ConfirmAgentToolCallRequest struct {
+	// Approved true to execute
+	Approved bool `json:"approved"`
+}
+
+// CreateAgentConversationRequest defines model for CreateAgentConversationRequest.
+type CreateAgentConversationRequest struct {
+	// Title Optional title; defaults to "New conversation".
+	Title *string `json:"title,omitempty"`
+}
+
 // CreatePersonalAccessTokenRequest defines model for CreatePersonalAccessTokenRequest.
 type CreatePersonalAccessTokenRequest struct {
 	ExpiresAt *time.Time `json:"expiresAt"`
@@ -2095,6 +2228,12 @@ type RegisterRequest struct {
 	Password string `json:"password"`
 }
 
+// SendAgentMessageRequest defines model for SendAgentMessageRequest.
+type SendAgentMessageRequest struct {
+	// Message The user's prompt for this turn.
+	Message string `json:"message"`
+}
+
 // StorageBucket defines model for StorageBucket.
 type StorageBucket struct {
 	// BytesUsed Cached total object size in bytes; refreshed by the metering job.
@@ -2549,6 +2688,9 @@ type WebAuthnLoginFinishRequest struct {
 	Session  string      `json:"session"`
 }
 
+// ConversationId defines model for ConversationId.
+type ConversationId = openapi_types.UUID
+
 // ExportFormat defines model for ExportFormat.
 type ExportFormat string
 
@@ -2557,6 +2699,12 @@ type PageLimit = int
 
 // PageOffset defines model for PageOffset.
 type PageOffset = int
+
+// ProviderId defines model for ProviderId.
+type ProviderId = openapi_types.UUID
+
+// ToolCallId defines model for ToolCallId.
+type ToolCallId = openapi_types.UUID
 
 // BadRequest defines model for BadRequest.
 type BadRequest = Error
@@ -2663,6 +2811,15 @@ type SetAdminPluginPermissionParamsAction string
 
 // ListAdminUserLedgerParams defines parameters for ListAdminUserLedger.
 type ListAdminUserLedgerParams struct {
+	// Limit Maximum number of items to return (1..200).
+	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of items to skip for pagination.
+	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// ListAgentConversationsParams defines parameters for ListAgentConversations.
+type ListAgentConversationsParams struct {
 	// Limit Maximum number of items to return (1..200).
 	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
 
@@ -2996,6 +3153,21 @@ type RefundAdminUserJSONRequestBody = BillingRefundRequest
 
 // TopupAdminUserJSONRequestBody defines body for TopupAdminUser for application/json ContentType.
 type TopupAdminUserJSONRequestBody = BillingTopupRequest
+
+// CreateAgentConversationJSONRequestBody defines body for CreateAgentConversation for application/json ContentType.
+type CreateAgentConversationJSONRequestBody = CreateAgentConversationRequest
+
+// SendAgentMessageJSONRequestBody defines body for SendAgentMessage for application/json ContentType.
+type SendAgentMessageJSONRequestBody = SendAgentMessageRequest
+
+// UpdateAgentPolicyJSONRequestBody defines body for UpdateAgentPolicy for application/json ContentType.
+type UpdateAgentPolicyJSONRequestBody = AgentPolicy
+
+// CreateAgentProviderJSONRequestBody defines body for CreateAgentProvider for application/json ContentType.
+type CreateAgentProviderJSONRequestBody = AgentProviderConfigRequest
+
+// ConfirmAgentToolCallJSONRequestBody defines body for ConfirmAgentToolCall for application/json ContentType.
+type ConfirmAgentToolCallJSONRequestBody = ConfirmAgentToolCallRequest
 
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
@@ -3390,6 +3562,49 @@ type ClientInterface interface {
 	TopupAdminUserWithBody(ctx context.Context, userId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	TopupAdminUser(ctx context.Context, userId openapi_types.UUID, body TopupAdminUserJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListAgentConversations request
+	ListAgentConversations(ctx context.Context, params *ListAgentConversationsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateAgentConversationWithBody request with any body
+	CreateAgentConversationWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateAgentConversation(ctx context.Context, body CreateAgentConversationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteAgentConversation request
+	DeleteAgentConversation(ctx context.Context, conversationId ConversationId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAgentConversation request
+	GetAgentConversation(ctx context.Context, conversationId ConversationId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SendAgentMessageWithBody request with any body
+	SendAgentMessageWithBody(ctx context.Context, conversationId ConversationId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	SendAgentMessage(ctx context.Context, conversationId ConversationId, body SendAgentMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAgentPolicy request
+	GetAgentPolicy(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateAgentPolicyWithBody request with any body
+	UpdateAgentPolicyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateAgentPolicy(ctx context.Context, body UpdateAgentPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListAgentProviders request
+	ListAgentProviders(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateAgentProviderWithBody request with any body
+	CreateAgentProviderWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateAgentProvider(ctx context.Context, body CreateAgentProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteAgentProvider request
+	DeleteAgentProvider(ctx context.Context, providerId ProviderId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConfirmAgentToolCallWithBody request with any body
+	ConfirmAgentToolCallWithBody(ctx context.Context, toolCallId ToolCallId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	ConfirmAgentToolCall(ctx context.Context, toolCallId ToolCallId, body ConfirmAgentToolCallJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListAudit request
 	ListAudit(ctx context.Context, params *ListAuditParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -4551,6 +4766,198 @@ func (c *Client) TopupAdminUserWithBody(ctx context.Context, userId openapi_type
 
 func (c *Client) TopupAdminUser(ctx context.Context, userId openapi_types.UUID, body TopupAdminUserJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewTopupAdminUserRequest(c.Server, userId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListAgentConversations(ctx context.Context, params *ListAgentConversationsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAgentConversationsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateAgentConversationWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateAgentConversationRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateAgentConversation(ctx context.Context, body CreateAgentConversationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateAgentConversationRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteAgentConversation(ctx context.Context, conversationId ConversationId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteAgentConversationRequest(c.Server, conversationId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetAgentConversation(ctx context.Context, conversationId ConversationId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAgentConversationRequest(c.Server, conversationId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) SendAgentMessageWithBody(ctx context.Context, conversationId ConversationId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSendAgentMessageRequestWithBody(c.Server, conversationId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) SendAgentMessage(ctx context.Context, conversationId ConversationId, body SendAgentMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSendAgentMessageRequest(c.Server, conversationId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetAgentPolicy(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAgentPolicyRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateAgentPolicyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateAgentPolicyRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateAgentPolicy(ctx context.Context, body UpdateAgentPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateAgentPolicyRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListAgentProviders(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAgentProvidersRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateAgentProviderWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateAgentProviderRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateAgentProvider(ctx context.Context, body CreateAgentProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateAgentProviderRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteAgentProvider(ctx context.Context, providerId ProviderId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteAgentProviderRequest(c.Server, providerId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ConfirmAgentToolCallWithBody(ctx context.Context, toolCallId ToolCallId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfirmAgentToolCallRequestWithBody(c.Server, toolCallId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ConfirmAgentToolCall(ctx context.Context, toolCallId ToolCallId, body ConfirmAgentToolCallJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfirmAgentToolCallRequest(c.Server, toolCallId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -8871,6 +9278,441 @@ func NewTopupAdminUserRequestWithBody(server string, userId openapi_types.UUID, 
 	}
 
 	operationPath := fmt.Sprintf("/api/v1/admin/users/%s/topup", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListAgentConversationsRequest generates requests for ListAgentConversations
+func NewListAgentConversationsRequest(server string, params *ListAgentConversationsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/agent/conversations")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateAgentConversationRequest calls the generic CreateAgentConversation builder with application/json body
+func NewCreateAgentConversationRequest(server string, body CreateAgentConversationJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateAgentConversationRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateAgentConversationRequestWithBody generates requests for CreateAgentConversation with any type of body
+func NewCreateAgentConversationRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/agent/conversations")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteAgentConversationRequest generates requests for DeleteAgentConversation
+func NewDeleteAgentConversationRequest(server string, conversationId ConversationId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "conversationId", runtime.ParamLocationPath, conversationId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/agent/conversations/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetAgentConversationRequest generates requests for GetAgentConversation
+func NewGetAgentConversationRequest(server string, conversationId ConversationId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "conversationId", runtime.ParamLocationPath, conversationId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/agent/conversations/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSendAgentMessageRequest calls the generic SendAgentMessage builder with application/json body
+func NewSendAgentMessageRequest(server string, conversationId ConversationId, body SendAgentMessageJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSendAgentMessageRequestWithBody(server, conversationId, "application/json", bodyReader)
+}
+
+// NewSendAgentMessageRequestWithBody generates requests for SendAgentMessage with any type of body
+func NewSendAgentMessageRequestWithBody(server string, conversationId ConversationId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "conversationId", runtime.ParamLocationPath, conversationId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/agent/conversations/%s/messages", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetAgentPolicyRequest generates requests for GetAgentPolicy
+func NewGetAgentPolicyRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/agent/policy")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateAgentPolicyRequest calls the generic UpdateAgentPolicy builder with application/json body
+func NewUpdateAgentPolicyRequest(server string, body UpdateAgentPolicyJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateAgentPolicyRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewUpdateAgentPolicyRequestWithBody generates requests for UpdateAgentPolicy with any type of body
+func NewUpdateAgentPolicyRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/agent/policy")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListAgentProvidersRequest generates requests for ListAgentProviders
+func NewListAgentProvidersRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/agent/providers")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateAgentProviderRequest calls the generic CreateAgentProvider builder with application/json body
+func NewCreateAgentProviderRequest(server string, body CreateAgentProviderJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateAgentProviderRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateAgentProviderRequestWithBody generates requests for CreateAgentProvider with any type of body
+func NewCreateAgentProviderRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/agent/providers")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteAgentProviderRequest generates requests for DeleteAgentProvider
+func NewDeleteAgentProviderRequest(server string, providerId ProviderId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "providerId", runtime.ParamLocationPath, providerId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/agent/providers/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewConfirmAgentToolCallRequest calls the generic ConfirmAgentToolCall builder with application/json body
+func NewConfirmAgentToolCallRequest(server string, toolCallId ToolCallId, body ConfirmAgentToolCallJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewConfirmAgentToolCallRequestWithBody(server, toolCallId, "application/json", bodyReader)
+}
+
+// NewConfirmAgentToolCallRequestWithBody generates requests for ConfirmAgentToolCall with any type of body
+func NewConfirmAgentToolCallRequestWithBody(server string, toolCallId ToolCallId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "toolCallId", runtime.ParamLocationPath, toolCallId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/agent/tool-calls/%s/confirm", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -16130,6 +16972,49 @@ type ClientWithResponsesInterface interface {
 
 	TopupAdminUserWithResponse(ctx context.Context, userId openapi_types.UUID, body TopupAdminUserJSONRequestBody, reqEditors ...RequestEditorFn) (*TopupAdminUserResponse, error)
 
+	// ListAgentConversationsWithResponse request
+	ListAgentConversationsWithResponse(ctx context.Context, params *ListAgentConversationsParams, reqEditors ...RequestEditorFn) (*ListAgentConversationsResponse, error)
+
+	// CreateAgentConversationWithBodyWithResponse request with any body
+	CreateAgentConversationWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateAgentConversationResponse, error)
+
+	CreateAgentConversationWithResponse(ctx context.Context, body CreateAgentConversationJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateAgentConversationResponse, error)
+
+	// DeleteAgentConversationWithResponse request
+	DeleteAgentConversationWithResponse(ctx context.Context, conversationId ConversationId, reqEditors ...RequestEditorFn) (*DeleteAgentConversationResponse, error)
+
+	// GetAgentConversationWithResponse request
+	GetAgentConversationWithResponse(ctx context.Context, conversationId ConversationId, reqEditors ...RequestEditorFn) (*GetAgentConversationResponse, error)
+
+	// SendAgentMessageWithBodyWithResponse request with any body
+	SendAgentMessageWithBodyWithResponse(ctx context.Context, conversationId ConversationId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SendAgentMessageResponse, error)
+
+	SendAgentMessageWithResponse(ctx context.Context, conversationId ConversationId, body SendAgentMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*SendAgentMessageResponse, error)
+
+	// GetAgentPolicyWithResponse request
+	GetAgentPolicyWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetAgentPolicyResponse, error)
+
+	// UpdateAgentPolicyWithBodyWithResponse request with any body
+	UpdateAgentPolicyWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateAgentPolicyResponse, error)
+
+	UpdateAgentPolicyWithResponse(ctx context.Context, body UpdateAgentPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateAgentPolicyResponse, error)
+
+	// ListAgentProvidersWithResponse request
+	ListAgentProvidersWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListAgentProvidersResponse, error)
+
+	// CreateAgentProviderWithBodyWithResponse request with any body
+	CreateAgentProviderWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateAgentProviderResponse, error)
+
+	CreateAgentProviderWithResponse(ctx context.Context, body CreateAgentProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateAgentProviderResponse, error)
+
+	// DeleteAgentProviderWithResponse request
+	DeleteAgentProviderWithResponse(ctx context.Context, providerId ProviderId, reqEditors ...RequestEditorFn) (*DeleteAgentProviderResponse, error)
+
+	// ConfirmAgentToolCallWithBodyWithResponse request with any body
+	ConfirmAgentToolCallWithBodyWithResponse(ctx context.Context, toolCallId ToolCallId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfirmAgentToolCallResponse, error)
+
+	ConfirmAgentToolCallWithResponse(ctx context.Context, toolCallId ToolCallId, body ConfirmAgentToolCallJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfirmAgentToolCallResponse, error)
+
 	// ListAuditWithResponse request
 	ListAuditWithResponse(ctx context.Context, params *ListAuditParams, reqEditors ...RequestEditorFn) (*ListAuditResponse, error)
 
@@ -17734,6 +18619,271 @@ func (r TopupAdminUserResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r TopupAdminUserResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListAgentConversationsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AgentConversationList
+	JSON401      *Unauthorized
+}
+
+// Status returns HTTPResponse.Status
+func (r ListAgentConversationsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListAgentConversationsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateAgentConversationResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *AgentConversation
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateAgentConversationResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateAgentConversationResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteAgentConversationResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *Unauthorized
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteAgentConversationResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteAgentConversationResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetAgentConversationResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AgentConversationDetail
+	JSON401      *Unauthorized
+	JSON404      *NotFound
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAgentConversationResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAgentConversationResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type SendAgentMessageResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *Unauthorized
+	JSON404      *NotFound
+	JSON429      *Error
+	JSON501      *NotImplemented
+}
+
+// Status returns HTTPResponse.Status
+func (r SendAgentMessageResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SendAgentMessageResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetAgentPolicyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AgentPolicy
+	JSON401      *Unauthorized
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAgentPolicyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAgentPolicyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpdateAgentPolicyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AgentPolicy
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateAgentPolicyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateAgentPolicyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListAgentProvidersResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]AgentProviderConfig
+	JSON401      *Unauthorized
+}
+
+// Status returns HTTPResponse.Status
+func (r ListAgentProvidersResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListAgentProvidersResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateAgentProviderResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *AgentProviderConfig
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON409      *Conflict
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateAgentProviderResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateAgentProviderResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteAgentProviderResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *Unauthorized
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteAgentProviderResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteAgentProviderResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ConfirmAgentToolCallResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AgentToolCall
+	JSON401      *Unauthorized
+	JSON404      *NotFound
+	JSON409      *Conflict
+}
+
+// Status returns HTTPResponse.Status
+func (r ConfirmAgentToolCallResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ConfirmAgentToolCallResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -22002,6 +23152,145 @@ func (c *ClientWithResponses) TopupAdminUserWithResponse(ctx context.Context, us
 	return ParseTopupAdminUserResponse(rsp)
 }
 
+// ListAgentConversationsWithResponse request returning *ListAgentConversationsResponse
+func (c *ClientWithResponses) ListAgentConversationsWithResponse(ctx context.Context, params *ListAgentConversationsParams, reqEditors ...RequestEditorFn) (*ListAgentConversationsResponse, error) {
+	rsp, err := c.ListAgentConversations(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListAgentConversationsResponse(rsp)
+}
+
+// CreateAgentConversationWithBodyWithResponse request with arbitrary body returning *CreateAgentConversationResponse
+func (c *ClientWithResponses) CreateAgentConversationWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateAgentConversationResponse, error) {
+	rsp, err := c.CreateAgentConversationWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateAgentConversationResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateAgentConversationWithResponse(ctx context.Context, body CreateAgentConversationJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateAgentConversationResponse, error) {
+	rsp, err := c.CreateAgentConversation(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateAgentConversationResponse(rsp)
+}
+
+// DeleteAgentConversationWithResponse request returning *DeleteAgentConversationResponse
+func (c *ClientWithResponses) DeleteAgentConversationWithResponse(ctx context.Context, conversationId ConversationId, reqEditors ...RequestEditorFn) (*DeleteAgentConversationResponse, error) {
+	rsp, err := c.DeleteAgentConversation(ctx, conversationId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteAgentConversationResponse(rsp)
+}
+
+// GetAgentConversationWithResponse request returning *GetAgentConversationResponse
+func (c *ClientWithResponses) GetAgentConversationWithResponse(ctx context.Context, conversationId ConversationId, reqEditors ...RequestEditorFn) (*GetAgentConversationResponse, error) {
+	rsp, err := c.GetAgentConversation(ctx, conversationId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAgentConversationResponse(rsp)
+}
+
+// SendAgentMessageWithBodyWithResponse request with arbitrary body returning *SendAgentMessageResponse
+func (c *ClientWithResponses) SendAgentMessageWithBodyWithResponse(ctx context.Context, conversationId ConversationId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SendAgentMessageResponse, error) {
+	rsp, err := c.SendAgentMessageWithBody(ctx, conversationId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSendAgentMessageResponse(rsp)
+}
+
+func (c *ClientWithResponses) SendAgentMessageWithResponse(ctx context.Context, conversationId ConversationId, body SendAgentMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*SendAgentMessageResponse, error) {
+	rsp, err := c.SendAgentMessage(ctx, conversationId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSendAgentMessageResponse(rsp)
+}
+
+// GetAgentPolicyWithResponse request returning *GetAgentPolicyResponse
+func (c *ClientWithResponses) GetAgentPolicyWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetAgentPolicyResponse, error) {
+	rsp, err := c.GetAgentPolicy(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAgentPolicyResponse(rsp)
+}
+
+// UpdateAgentPolicyWithBodyWithResponse request with arbitrary body returning *UpdateAgentPolicyResponse
+func (c *ClientWithResponses) UpdateAgentPolicyWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateAgentPolicyResponse, error) {
+	rsp, err := c.UpdateAgentPolicyWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateAgentPolicyResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpdateAgentPolicyWithResponse(ctx context.Context, body UpdateAgentPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateAgentPolicyResponse, error) {
+	rsp, err := c.UpdateAgentPolicy(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateAgentPolicyResponse(rsp)
+}
+
+// ListAgentProvidersWithResponse request returning *ListAgentProvidersResponse
+func (c *ClientWithResponses) ListAgentProvidersWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListAgentProvidersResponse, error) {
+	rsp, err := c.ListAgentProviders(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListAgentProvidersResponse(rsp)
+}
+
+// CreateAgentProviderWithBodyWithResponse request with arbitrary body returning *CreateAgentProviderResponse
+func (c *ClientWithResponses) CreateAgentProviderWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateAgentProviderResponse, error) {
+	rsp, err := c.CreateAgentProviderWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateAgentProviderResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateAgentProviderWithResponse(ctx context.Context, body CreateAgentProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateAgentProviderResponse, error) {
+	rsp, err := c.CreateAgentProvider(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateAgentProviderResponse(rsp)
+}
+
+// DeleteAgentProviderWithResponse request returning *DeleteAgentProviderResponse
+func (c *ClientWithResponses) DeleteAgentProviderWithResponse(ctx context.Context, providerId ProviderId, reqEditors ...RequestEditorFn) (*DeleteAgentProviderResponse, error) {
+	rsp, err := c.DeleteAgentProvider(ctx, providerId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteAgentProviderResponse(rsp)
+}
+
+// ConfirmAgentToolCallWithBodyWithResponse request with arbitrary body returning *ConfirmAgentToolCallResponse
+func (c *ClientWithResponses) ConfirmAgentToolCallWithBodyWithResponse(ctx context.Context, toolCallId ToolCallId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfirmAgentToolCallResponse, error) {
+	rsp, err := c.ConfirmAgentToolCallWithBody(ctx, toolCallId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConfirmAgentToolCallResponse(rsp)
+}
+
+func (c *ClientWithResponses) ConfirmAgentToolCallWithResponse(ctx context.Context, toolCallId ToolCallId, body ConfirmAgentToolCallJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfirmAgentToolCallResponse, error) {
+	rsp, err := c.ConfirmAgentToolCall(ctx, toolCallId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConfirmAgentToolCallResponse(rsp)
+}
+
 // ListAuditWithResponse request returning *ListAuditResponse
 func (c *ClientWithResponses) ListAuditWithResponse(ctx context.Context, params *ListAuditParams, reqEditors ...RequestEditorFn) (*ListAuditResponse, error) {
 	rsp, err := c.ListAudit(ctx, params, reqEditors...)
@@ -25937,6 +27226,453 @@ func ParseTopupAdminUserResponse(rsp *http.Response) (*TopupAdminUserResponse, e
 			return nil, err
 		}
 		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListAgentConversationsResponse parses an HTTP response from a ListAgentConversationsWithResponse call
+func ParseListAgentConversationsResponse(rsp *http.Response) (*ListAgentConversationsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListAgentConversationsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AgentConversationList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateAgentConversationResponse parses an HTTP response from a CreateAgentConversationWithResponse call
+func ParseCreateAgentConversationResponse(rsp *http.Response) (*CreateAgentConversationResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateAgentConversationResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest AgentConversation
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteAgentConversationResponse parses an HTTP response from a DeleteAgentConversationWithResponse call
+func ParseDeleteAgentConversationResponse(rsp *http.Response) (*DeleteAgentConversationResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteAgentConversationResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetAgentConversationResponse parses an HTTP response from a GetAgentConversationWithResponse call
+func ParseGetAgentConversationResponse(rsp *http.Response) (*GetAgentConversationResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAgentConversationResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AgentConversationDetail
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSendAgentMessageResponse parses an HTTP response from a SendAgentMessageWithResponse call
+func ParseSendAgentMessageResponse(rsp *http.Response) (*SendAgentMessageResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SendAgentMessageResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 501:
+		var dest NotImplemented
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetAgentPolicyResponse parses an HTTP response from a GetAgentPolicyWithResponse call
+func ParseGetAgentPolicyResponse(rsp *http.Response) (*GetAgentPolicyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAgentPolicyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AgentPolicy
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateAgentPolicyResponse parses an HTTP response from a UpdateAgentPolicyWithResponse call
+func ParseUpdateAgentPolicyResponse(rsp *http.Response) (*UpdateAgentPolicyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateAgentPolicyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AgentPolicy
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListAgentProvidersResponse parses an HTTP response from a ListAgentProvidersWithResponse call
+func ParseListAgentProvidersResponse(rsp *http.Response) (*ListAgentProvidersResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListAgentProvidersResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []AgentProviderConfig
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateAgentProviderResponse parses an HTTP response from a CreateAgentProviderWithResponse call
+func ParseCreateAgentProviderResponse(rsp *http.Response) (*CreateAgentProviderResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateAgentProviderResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest AgentProviderConfig
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Conflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteAgentProviderResponse parses an HTTP response from a DeleteAgentProviderWithResponse call
+func ParseDeleteAgentProviderResponse(rsp *http.Response) (*DeleteAgentProviderResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteAgentProviderResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseConfirmAgentToolCallResponse parses an HTTP response from a ConfirmAgentToolCallWithResponse call
+func ParseConfirmAgentToolCallResponse(rsp *http.Response) (*ConfirmAgentToolCallResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ConfirmAgentToolCallResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AgentToolCall
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Conflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
 
 	}
 

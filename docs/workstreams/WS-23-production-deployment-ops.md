@@ -224,7 +224,7 @@ All resolved by this WS, defaults adopted as proposed in ADR-0030:
   requires running the script there; this WS was implemented on a
   Windows host where Incus cannot run. The follow-up is to run
   `scripts/install.sh` on a fresh Ubuntu 24.04 VM with Docker + Incus
-  pre-installed and confirm the <1h budget.
+  pre-installed and confirm it completes within 1 hour.
 
 - **"TLS works end-to-end"** — partial. Caddy's auto-Letsencrypt is
   wired; the end-to-end cert-issuance path requires a public DNS +
@@ -246,7 +246,7 @@ All resolved by this WS, defaults adopted as proposed in ADR-0030:
 
 1. **WS-23b — End-to-end prod install validation.** Boot a fresh Ubuntu
    24.04 VM with Docker + Incus pre-installed; run `scripts/install.sh`;
-   assert the <1h budget; capture the wall-clock breakdown; document
+   assert it stays within the 1-hour budget; capture the wall-clock breakdown; document
    the failure modes the script catches and any it misses.
 2. **WS-23c — Cross-version upgrade integration test.** Boot N-1,
    create sample data (tenant + user + bucket + DNS zone), upgrade to

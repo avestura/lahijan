@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/avestura/lahijan/api/gen/go"
+	"github.com/avestura/lahijan/internal/app/lahijan/agent"
 	"github.com/avestura/lahijan/internal/app/lahijan/api/middleware"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/audit"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/email"
@@ -161,6 +162,15 @@ type Server struct {
 	// when the registrar subsystem is disabled; the handlers degrade to
 	// 501.
 	registrarSvc *registrar.Service
+
+	// WS-31: AI agent chat deps. agentSvc is the entrypoint every
+	// /api/v1/agent/* handler talks to; it wraps the conversation/message/
+	// tool-call repository + the audit emitter + the AES-GCM crypto envelope
+	// for BYOK keys + the Harness (OpenCode harness; stub here) + the
+	// ToolExecutor (MCP bridge; stub here). Nil-appropriate when the agent
+	// subsystem is disabled (conf.agent.enabled=false); the handlers degrade
+	// to a 501 "feature disabled" envelope.
+	agentSvc *agent.Service
 }
 
 // ServerDeps carries the dependencies NewServer requires. Wire it once from
@@ -251,6 +261,11 @@ type ServerDeps struct {
 	// Nil-appropriate when the registrar subsystem is disabled; the
 	// handlers degrade to 501.
 	RegistrarSvc *registrar.Service
+
+	// WS-31: agent chat deps. AgentSvc is the entrypoint every
+	// /api/v1/agent/* handler talks to. Nil-appropriate when the agent
+	// subsystem is disabled; the handlers degrade to 501.
+	AgentSvc *agent.Service
 }
 
 // NewServer builds the API server with the given dependencies.
@@ -286,6 +301,7 @@ func NewServer(deps ServerDeps) *Server {
 		billingSvc:      deps.BillingSvc,
 		paymentsSvc:     deps.PaymentsSvc,
 		registrarSvc:    deps.RegistrarSvc,
+		agentSvc:        deps.AgentSvc,
 	}
 	if s.tracer == nil {
 		s.tracer = Tracer()
@@ -350,6 +366,16 @@ func (s *Server) SetPaymentsService(svc *billing.PaymentsService) {
 func (s *Server) SetRegistrarService(svc *registrar.Service) {
 	s.registrarSvc = svc
 }
+
+// SetAgentService mirrors SetRegistrarService for the WS-31 agent chat
+// module. Used by integration tests; production passes AgentSvc via
+// ServerDeps at construction.
+func (s *Server) SetAgentService(svc *agent.Service) { s.agentSvc = svc }
+
+// AgentService returns the wired agent service (or nil when the agent
+// subsystem is disabled). Exported so integration tests can drive the
+// service layer directly.
+func (s *Server) AgentService() *agent.Service { return s.agentSvc }
 
 // RegistrarService returns the wired registrar service (or nil when the
 // registrar subsystem is disabled). Exported so integration tests can
@@ -461,7 +487,7 @@ func (s *Server) toUserDTO(ctx context.Context, u database.User) apigen.User {
 			roleSlug = slugByID[*m.RoleID]
 		}
 		list = append(list, apigen.Membership{
-			TenantId: openapi_types.UUID(m.TenantID),
+			TenantId: m.TenantID,
 			Role:     roleSlug,
 		})
 	}

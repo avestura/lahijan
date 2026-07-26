@@ -54,6 +54,7 @@ sql:
       - "queries/billing_payments.sql"
       - "queries/compute_ip_pools.sql"
       - "queries/compute_floating_ips.sql"
+      - "queries/agent.sql"
     schema:
       - "migrations/*.up.sql"
     gen:

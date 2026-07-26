@@ -769,5 +769,30 @@
   },
   "audit.action_billing_webhook_applied": {
     "other": "Webhook استرایپ اعمال شد"
-  }
+  },
+
+  "audit.action_agent_conversation_create": { "other": "گفت‌وگوی دستیار ساخته شد" },
+  "audit.action_agent_conversation_delete": { "other": "گفت‌وگوی دستیار حذف شد" },
+  "audit.action_agent_message_send": { "other": "پیام به دستیار ارسال شد" },
+  "audit.action_agent_tool_execute": { "other": "ابزار دستیار اجرا شد" },
+  "audit.action_agent_tool_confirm": { "other": "فراخوانی ابزار دستیار تأیید شد" },
+  "audit.action_agent_provider_save": { "other": "کلید تأمین‌کنندهٔ دستیار ذخیره شد" },
+  "audit.action_agent_provider_delete": { "other": "کلید تأمین‌کنندهٔ دستیار حذف شد" },
+  "audit.action_agent_policy_update": { "other": "سیاست دستیار به‌روزرسانی شد" },
+
+  "agent.err_disabled": { "other": "زیرسامانهٔ دستیار روی این کارساز فعال نیست." },
+  "agent.err_not_found": { "other": "گفت‌وگو یا پیام دستیار یافت نشد." },
+  "agent.err_unauthorized": { "other": "این گفت‌وگوی دستیار متعلق به شما نیست." },
+  "agent.err_provider_exists": { "other": "تأمین‌کننده‌ای با این نام برای کاربر شما از پیش وجود دارد." },
+  "agent.err_crypto_required": { "other": "رمزنگاری کارساز پیکربندی نشده؛ کلید تأمین‌کننده قابل ذخیره نیست." },
+  "agent.err_rate_limited": { "other": "محدودیت نرخ دستیار رسید. کمی بعد تلاش کنید." },
+  "agent.err_spend_cap": { "other": "سقف هزینهٔ دستیار رسید. موجودی را شارژ کنید یا با مدیر تماس بگیرید." },
+  "agent.err_force_admin_models": { "other": "کلیدهای تأمین‌کنندهٔ کاربر توسط سیاست غیرفعال شده است." },
+  "agent.err_tool_denied": { "other": "این ابزار دستیار توسط سیاست غیرفعال شده است." },
+  "agent.err_not_pending": { "other": "این فراخوانی ابزار در انتظار تأیید نیست." },
+  "agent.err_bad_request": { "other": "درخواست دستیار نادرست بود." },
+  "agent.err_archived": { "other": "این گفت‌وگو بایگانی شده و فقط‌خواندنی است." },
+  "agent.err_model_not_allowed": { "other": "مدل انتخاب‌شده توسط سیاست مجاز نیست." },
+  "agent.err_message_too_large": { "other": "پیام از بیشینهٔ طول مجاز فراتر است." },
+  "agent.err_tool_not_found": { "other": "دستیار ابزار ناشناخته‌ای را فراخوانی کرد." }
 }

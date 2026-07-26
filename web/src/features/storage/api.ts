@@ -277,8 +277,94 @@ export function useRevokeStorageCredential(tenantId: string | null, bucketId: st
 }
 
 // ---------------------------------------------------------------------------
-// Presign
+// Object browsing (version listing) + direct data-plane helpers
 // ---------------------------------------------------------------------------
+
+type StorageObjectVersion = components["schemas"]["StorageObjectVersion"];
+type StorageObjectVersionsPage = components["schemas"]["StorageObjectVersionsPage"];
+
+/**
+ * useStorageObjectVersions — live page of object versions in a bucket.
+ *
+ * Backed by GET /buckets/{id}/versions, which proxies to SeaweedFS on every
+ * call (object sets change between PUTs, so the catalog is intentionally
+ * never cached on the Lahijan side).
+ */
+export function useStorageObjectVersions(
+  tenantId: string | null,
+  bucketId: string | undefined,
+  prefix?: string,
+) {
+  return useQuery({
+    queryKey:
+      tenantId && bucketId
+        ? queryKeys.storage.versions(tenantId, bucketId, prefix ?? "")
+        : ["storage", "disabled"],
+    enabled: !!tenantId && !!bucketId,
+    staleTime: 15_000,
+    queryFn: async (): Promise<StorageObjectVersionsPage> => {
+      const { data, error, response } = await apiClient.GET(
+        "/api/v1/storage/buckets/{bucketId}/versions",
+        {
+          params: {
+            path: { bucketId: bucketId! },
+            query: { maxKeys: 200, ...(prefix ? { prefix } : {}) },
+          },
+        },
+      );
+      if (error || !data) {
+        throw new Error(`storage.versions.list: ${response?.status ?? "network"}`);
+      }
+      return data;
+    },
+  });
+}
+
+export type { StorageObjectVersion };
+
+/**
+ * uploadObjectViaPresign — generates a PUT presigned URL for `key`, then
+ * PUTs the file body directly to SeaweedFS from the browser. Per ADR-0011
+ * the bytes never flow through Lahijan; this helper just glues the two
+ * network hops (presign, then PUT) into one awaitable call for the UI.
+ *
+ * Reports progress via the optional `onProgress` callback (0–100).
+ */
+export async function uploadObjectViaPresign(params: {
+  bucketId: string;
+  key: string;
+  file: Blob;
+  expiresInSeconds?: number;
+  onProgress?: (percent: number) => void;
+}): Promise<void> {
+  const { bucketId, key, file, expiresInSeconds, onProgress } = params;
+  const { data, error, response } = await apiClient.POST(
+    "/api/v1/storage/buckets/{bucketId}/presign",
+    {
+      params: { path: { bucketId } },
+      body: { method: "PUT", key, expiresInSeconds: expiresInSeconds ?? 3600 },
+    },
+  );
+  if (error || !data) {
+    throw new Error(`storage.object.upload.presign: ${response?.status ?? "network"}`);
+  }
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", data.url);
+    xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+    xhr.upload.onprogress = (ev) => {
+      if (ev.lengthComputable && onProgress) {
+        onProgress(Math.round((ev.loaded / ev.total) * 100));
+      }
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve();
+      else reject(new Error(`storage.object.upload.put: HTTP ${xhr.status}`));
+    };
+    xhr.onerror = () => reject(new Error("storage.object.upload.put: network error"));
+    xhr.send(file);
+  });
+}
 
 /** usePresignStorageObject — POST /buckets/{id}/presign. */
 export function usePresignStorageObject(bucketId: string | undefined) {

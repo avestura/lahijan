@@ -49,6 +49,7 @@ import { useCreateDNSRecord, useDeleteDNSRecord, useDNSRecords, useUpdateDNSReco
 import {
   createRecordSchema,
   updateRecordSchema,
+  canonicalizeRecordName,
   RECORD_TYPES,
   type CreateRecordValues,
   type DNSRecordType,
@@ -60,11 +61,12 @@ type DNSRecord = components["schemas"]["DNSRecord"];
 interface Props {
   tenantId: string | null;
   zoneId: string | undefined;
+  zoneName: string;
   nameFilter: string;
   typeFilter: DNSRecordType | "all";
 }
 
-export function DNSRecordList({ tenantId, zoneId, nameFilter, typeFilter }: Props) {
+export function DNSRecordList({ tenantId, zoneId, zoneName, nameFilter, typeFilter }: Props) {
   const { t } = useTranslation();
   const query = useDNSRecords(tenantId, zoneId);
   const destroy = useDeleteDNSRecord(tenantId, zoneId);
@@ -103,17 +105,35 @@ export function DNSRecordList({ tenantId, zoneId, nameFilter, typeFilter }: Prop
     );
   }
   if ((query.data ?? []).length === 0) {
+    // The create + edit dialogs are mounted here too — otherwise the
+    // EmptyState's "New record" button flips `createOpen` on a dialog
+    // that doesn't exist (the early return hid it), and nothing opens.
     return (
-      <EmptyState
-        icon={FileTextIcon}
-        title={t("dns.records.empty.title")}
-        description={t("dns.records.empty.body")}
-        action={
-          canCreate ? (
-            <Button onClick={() => setCreateOpen(true)}>{t("dns.records.new")}</Button>
-          ) : null
-        }
-      />
+      <>
+        <EmptyState
+          icon={FileTextIcon}
+          title={t("dns.records.empty.title")}
+          description={t("dns.records.empty.body")}
+          action={
+            canCreate ? (
+              <Button onClick={() => setCreateOpen(true)}>{t("dns.records.new")}</Button>
+            ) : null
+          }
+        />
+        <CreateDNSRecordDialog
+          open={createOpen}
+          onOpenChange={setCreateOpen}
+          tenantId={tenantId}
+          zoneId={zoneId}
+          zoneName={zoneName}
+        />
+        <EditDNSRecordDialog
+          record={editing}
+          onClose={() => setEditing(null)}
+          tenantId={tenantId}
+          zoneId={zoneId}
+        />
+      </>
     );
   }
 
@@ -231,6 +251,7 @@ export function DNSRecordList({ tenantId, zoneId, nameFilter, typeFilter }: Prop
         onOpenChange={setCreateOpen}
         tenantId={tenantId}
         zoneId={zoneId}
+        zoneName={zoneName}
       />
       <EditDNSRecordDialog
         record={editing}
@@ -251,9 +272,10 @@ interface CreateProps {
   onOpenChange: (open: boolean) => void;
   tenantId: string | null;
   zoneId: string | undefined;
+  zoneName: string;
 }
 
-function CreateDNSRecordDialog({ open, onOpenChange, tenantId, zoneId }: CreateProps) {
+function CreateDNSRecordDialog({ open, onOpenChange, tenantId, zoneId, zoneName }: CreateProps) {
   const { t } = useTranslation();
   const create = useCreateDNSRecord(tenantId, zoneId);
 
@@ -270,7 +292,17 @@ function CreateDNSRecordDialog({ open, onOpenChange, tenantId, zoneId }: CreateP
   });
 
   const onSubmit = form.handleSubmit(async (values) => {
-    await create.mutateAsync(values);
+    // The backend validator (dns/records.go) requires an absolute, lowercase
+    // FQDN ending in a dot and belonging to the zone. The form lets the user
+    // type a relative label ("www") or "@" for the apex; canonicalize before
+    // sending so a plain "www" doesn't bounce as a 400.
+    try {
+      await create.mutateAsync({ ...values, name: canonicalizeRecordName(values.name, zoneName) });
+    } catch {
+      // The mutation's onError already toasted the backend message; keep the
+      // dialog open so the user can correct the input.
+      return;
+    }
     onOpenChange(false);
     form.reset({ name: "", type: "A", content: "", ttl: 3600, disabled: false });
   });
@@ -285,7 +317,7 @@ function CreateDNSRecordDialog({ open, onOpenChange, tenantId, zoneId }: CreateP
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="dns-rec-name">{t("dns.records.create.name.label")}</Label>
-            <Input id="dns-rec-name" {...form.register("name")} />
+            <Input id="dns-rec-name" placeholder={`www  ·  @  ·  www.${zoneName}`} {...form.register("name")} />
             {form.formState.errors.name && (
               <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
             )}
@@ -384,7 +416,13 @@ function EditDNSRecordDialog({ record, onClose, tenantId, zoneId }: EditProps) {
 
   const onSubmit = form.handleSubmit(async (values) => {
     if (!record) return;
-    await update.mutateAsync({ recordId: record.id, values });
+    try {
+      await update.mutateAsync({ recordId: record.id, values });
+    } catch {
+      // The mutation's onError already toasted the backend message; keep the
+      // dialog open so the user can correct the input.
+      return;
+    }
     onClose();
   });
 

@@ -330,5 +330,30 @@
   "audit.action_billing_promo_code_revoke": { "other": "Promo code revoked" },
   "audit.action_billing_promo_code_redeem": { "other": "Promo code redeemed" },
   "audit.action_billing_webhook_received": { "other": "Stripe webhook received" },
-  "audit.action_billing_webhook_applied": { "other": "Stripe webhook applied" }
+  "audit.action_billing_webhook_applied": { "other": "Stripe webhook applied" },
+
+  "audit.action_agent_conversation_create": { "other": "Agent conversation created" },
+  "audit.action_agent_conversation_delete": { "other": "Agent conversation deleted" },
+  "audit.action_agent_message_send": { "other": "Agent message sent" },
+  "audit.action_agent_tool_execute": { "other": "Agent tool executed" },
+  "audit.action_agent_tool_confirm": { "other": "Agent tool call confirmed" },
+  "audit.action_agent_provider_save": { "other": "Agent provider key saved" },
+  "audit.action_agent_provider_delete": { "other": "Agent provider key deleted" },
+  "audit.action_agent_policy_update": { "other": "Agent policy updated" },
+
+  "agent.err_disabled": { "other": "The agent chat subsystem is disabled on this server." },
+  "agent.err_not_found": { "other": "Agent conversation or message was not found." },
+  "agent.err_unauthorized": { "other": "You do not own this agent conversation." },
+  "agent.err_provider_exists": { "other": "A provider with this name already exists for your user." },
+  "agent.err_crypto_required": { "other": "Server encryption is not configured; cannot store provider keys." },
+  "agent.err_rate_limited": { "other": "Agent rate limit reached. Try again shortly." },
+  "agent.err_spend_cap": { "other": "Agent spend cap reached. Top up your balance or contact your admin." },
+  "agent.err_force_admin_models": { "other": "User-supplied provider keys are disabled by policy." },
+  "agent.err_tool_denied": { "other": "This agent tool is disabled by policy." },
+  "agent.err_not_pending": { "other": "This tool call is not awaiting confirmation." },
+  "agent.err_bad_request": { "other": "The agent request was malformed." },
+  "agent.err_archived": { "other": "This conversation is archived and read-only." },
+  "agent.err_model_not_allowed": { "other": "The selected model is not allowed by policy." },
+  "agent.err_message_too_large": { "other": "The message exceeds the maximum allowed length." },
+  "agent.err_tool_not_found": { "other": "The agent called an unknown tool." }
 }

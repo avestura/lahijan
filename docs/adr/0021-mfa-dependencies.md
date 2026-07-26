@@ -108,7 +108,7 @@ stays replaceable if a future ADR supersedes this one.
   (synthetic authenticator in tests)" is exercised without an external
   browser.
 - **Negative:** adds ~3 transitive modules (CBOR + COSE stack). Bumps
-  the module graph and binary size slightly (<1 MB).
+  the module graph and binary size slightly (under 1 MB).
 - **Negative:** the WebAuthn relying-party requires persistent state
   between the `Begin*` and `Finish*` calls (the challenge + the user's
   listed credentials). That state lives in a short-lived DB row

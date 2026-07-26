@@ -82,6 +82,7 @@ The ws-implementer subagent (`.opencode/agent/ws-implementer.md`) and the
 | [WS-19](./WS-19-marketing-website.md) | Marketing Website | done | WS-18 |
 | [WS-20](./WS-20-dashboard-shell-compute-ui.md) | Dashboard Shell + Compute UI | done | WS-18, WS-14 |
 | [WS-21](./WS-21-module-uis.md) | DNS/S3/Billing/Plugins/Audit UIs | done | WS-18, WS-15, WS-16, WS-17 |
+| [WS-31](./WS-31-agent-chat.md) | AI Agent Chat (OpenCode-powered) | in-progress | WS-05, WS-08, WS-14, WS-15, WS-16, WS-17, WS-18, WS-20 |
 
 ## Phase 6 — Quality & Release
 
@@ -133,7 +134,8 @@ Phase 4 (Modules):    WS-14 (needs WS-11+WS-08+WS-09)
 
 Phase 5 (Frontend):   WS-18 ─┬─ WS-19
                                ├─ WS-20 (needs WS-14)
-                               └─ WS-21 (needs WS-15, WS-16, WS-17)
+                               ├─ WS-21 (needs WS-15, WS-16, WS-17)
+                               └─ WS-31 (agent chat; cross-cutting, needs WS-05/08/14/15/16/17/20)
 
 Phase 6 (Quality):    WS-22 (needs WS-14, WS-15, WS-16) ── WS-23
 

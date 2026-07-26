@@ -11,6 +11,7 @@
     "billing": "صورتحساب",
     "plugins": "افزونه‌ها",
     "audit": "رویدادهای حسابرسی",
+    "agent": "دستیار",
     "settings": "تنظیمات",
     "settingsSub": {
       "label": "تنظیمات",
@@ -18,14 +19,16 @@
       "security": "امنیت",
       "tokens": "توکن‌های دسترسی",
       "identities": "هویت‌ها",
-      "sessions": "نشست‌ها"
+      "sessions": "نشست‌ها",
+      "agents": "ارائه‌دهندهٔ هوش"
     },
     "admin": {
       "label": "مدیریت",
       "billing": "صورتحساب",
       "jobs": "کارها",
       "plugins": "افزونه‌ها",
-      "marketplace": "فروشگاه"
+      "marketplace": "فروشگاه",
+      "agent": "سیاست دستیار"
     }
   },
   "theme": {
@@ -84,10 +87,24 @@
   },
   "dashboard": {
     "welcome": "خوش آمدید، {{name}}",
+    "subtitle": "نگاهی به منابع، هزینه‌ها و فعالیت‌های اخیر مستأجر شما.",
     "ping": {
       "loading": "در حال بررسی سرور…",
       "success": "سرور در {{ts}} پاسخ داد",
       "error": "ارتباط با سرور برقرار نشد."
+    },
+    "overview": {
+      "instances": "نمونه‌ها",
+      "zones": "مناطق DNS",
+      "buckets": "سطل‌ها",
+      "balance": "موجودی"
+    },
+    "charts": {
+      "instances": "نمونه‌ها بر اساس وضعیت",
+      "storage": "استفادهٔ ذخیره‌سازی بر اساس سطل",
+      "balance": "موجودی و دفتر اخیر",
+      "activity": "فعالیت‌های اخیر",
+      "viewAll": "مشاهدهٔ همه"
     },
     "emptyState": {
       "title": "هنوز چیزی اینجا نیست",
@@ -225,7 +242,11 @@
       },
       "image": {
         "label": "تصویر",
-        "empty": "تصویری در دسترس نیست."
+        "empty": "تصویری در دسترس نیست.",
+        "placeholder": "ubuntu/24.04",
+        "hint": "هر نام مستعاری که Incus می‌تواند حل کند را وارد کنید، یا کاتالوگ راه دور را مرور کنید.",
+        "browse": "مرور",
+        "custom": "نام مستعار سفارشی"
       },
       "profile": {
         "label": "نمایه",
@@ -271,6 +292,65 @@
       "profiles": "نمایه‌ها",
       "description": "توضیحات",
       "noDescription": "توضیحاتی ارائه نشده است."
+    },
+    "images": {
+      "title": "تصویرها",
+      "subtitle": "کاتالوگ تصویرهای مستأجر. Incus نام‌های مستعار راه‌دور را در صورت نیاز دانلود می‌کند.",
+      "new": "افزودن تصویر",
+      "browse": "مرور تصویرهای راه‌دور",
+      "source": {
+        "featured": "ویژه",
+        "custom": "سفارشی"
+      },
+      "columns": {
+        "alias": "نام مستعار",
+        "source": "منبع",
+        "type": "نوع",
+        "arch": "معماری",
+        "fingerprint": "اثر انگشت"
+      },
+      "empty": {
+        "title": "تصویری در کاتالوگ نیست",
+        "body": "یک تصویر اضافه کنید، یا یکی از مرورگر راه‌دور انتخاب کنید."
+      },
+      "add": {
+        "title": "افزودن تصویر",
+        "subtitle": "یک تصویر سفارشی در کاتالوگ مستأگر ثبت می‌کند. بایت‌ها باید از قبل در مخزن تصویر Incus باشند، یا نام مستعار یکی باشد که Incus می‌تواند در هنگام ساخت حل کند.",
+        "alias": {
+          "label": "نام مستعار",
+          "hint": "مثلاً ubuntu/24.04 — همان قالبی که `incus launch` می‌پذیرد.",
+          "placeholder": "ubuntu/24.04"
+        },
+        "fingerprint": {
+          "label": "اثر انگشت",
+          "placeholder": "sha256:…"
+        },
+        "type": { "label": "نوع" },
+        "arch": { "label": "معماری", "placeholder": "amd64" },
+        "description": { "label": "توضیحات" },
+        "submit": "افزودن",
+        "browseForFingerprint": "برای پر کردن نام مستعار، کاتالوگ راه‌دور را مرور کنید"
+      },
+      "browser": {
+        "title": "تصویرهای راه‌دور",
+        "subtitle": "کاتالوگ عمومی simplestreams از images.linuxcontainers.org.",
+        "search": "جست‌وجوی نام مستعار، سیستم‌عامل، نسخه…",
+        "os": "سیستم‌عامل",
+        "arch": "معماری",
+        "allOS": "همهٔ سیستم‌عامل‌ها",
+        "allArch": "همهٔ معماری‌ها",
+        "count": "نمایش {{shown}} از {{total}}",
+        "loadMore": "بیشتر",
+        "use": "انتخاب",
+        "pick": "انتخاب {{alias}}",
+        "noResults": "تصویری با فیلترهای شما هم‌خوانی ندارد.",
+        "error": "بارگذاری کاتالوگ راه‌دور ناموفق بود.",
+        "errorHint": "مرورگر ممکن است در برخی استقرارها به‌دلیل CORS مسدود شود. همچنان می‌توانید نام مستعار را به‌صورت دستی در جادوگر وارد کنید."
+      },
+      "mutations": {
+        "uploadSuccess": "تصویر افزوده شد.",
+        "deleteSuccess": "تصویر حذف شد."
+      }
     },
     "console": {
       "title": "کنسول",
@@ -741,7 +821,16 @@
       "recordCreateSuccess": "رکورد افزوده شد.",
       "recordUpdateSuccess": "رکورد به‌روزرسانی شد.",
       "recordDeleteSuccess": "رکورد حذف شد.",
-      "templateApplySuccess": "قالب اعمال شد."
+      "templateApplySuccess": "قالب اعمال شد.",
+      "zoneCreateError": "ایجاد زون ناموفق بود.",
+      "zoneDeleteError": "حذف زون ناموفق بود.",
+      "zoneUpdateError": "به‌روزرسانی زون ناموفق بود.",
+      "dnssecEnableError": "فعال‌سازی DNSSEC ناموفق بود.",
+      "dnssecDisableError": "غیرفعال‌سازی DNSSEC ناموفق بود.",
+      "recordCreateError": "افزودن رکورد ناموفق بود.",
+      "recordUpdateError": "به‌روزرسانی رکورد ناموفق بود.",
+      "recordDeleteError": "حذف رکورد ناموفق بود.",
+      "templateApplyError": "اعمال قالب ناموفق بود."
     }
   },
   "storage": {
@@ -790,7 +879,9 @@
     "detail": {
       "notFound": "باکت یافت نشد.",
       "tabs": {
+        "objects": "اشیاء",
         "overview": "نمای کلی",
+        "connection": "اتصال",
         "credentials": "اعتبارنامه‌ها",
         "presign": "آدرس‌های پیش‌امضا",
         "quota": "سهمیه",
@@ -814,6 +905,29 @@
       "quotaObjects": "سهمیهٔ تعداد",
       "unlimited": "نامحدود",
       "bar": "{{used}} از {{quota}}"
+    },
+    "objects": {
+      "title": "اشیاء",
+      "upload": "بارگذاری",
+      "download": "دانلود",
+      "prefixPlaceholder": "فیلتر بر اساس پیشوند…",
+      "uploadSuccess": "{{key}} بارگذاری شد.",
+      "uploadError": "بارگذاری ناموفق بود. ممکن است نقطهٔ پایانی S3 از مرورگر شما در دسترس نباشد.",
+      "downloadError": "تولید آدرس دانلود ناموفق بود.",
+      "listError": "فهرست اشیاء ناموفق بود.",
+      "empty": {
+        "title": "شیئی نیست",
+        "body": "برای پر کردن این باکت، فایلی بارگذاری کنید یا از طریق کلاینت S3 بنویسید."
+      }
+    },
+    "connection": {
+      "title": "اتصال به این باکت",
+      "endpoint": "نقطهٔ پایانی S3",
+      "reveal": "نمایش نقطهٔ پایان",
+      "endpointError": "تعیین نقطهٔ پایانی S3 ناموفق بود.",
+      "hint": "از تب اعتبارنامه‌ها یک اعتبارنامه بسازید، سپس هر کلاینت سازگار با S3 را به نقطهٔ پایانی بالا هدایت کنید. Lahijan بایت‌های اشیاء را واسازی نمی‌کند.",
+      "s3cmd": "s3cmd",
+      "awsCli": "aws CLI / boto3"
     },
     "credentials": {
       "title": "اعتبارنامه‌ها",
@@ -1167,6 +1281,57 @@
       "deleteSuccess": "افزونه حذف شد.",
       "grantSuccess": "دسترسی اعطا شد.",
       "revokeSuccess": "دسترسی ابطال شد."
+    }
+  },
+  "agent": {
+    "disabled": "دستیار گفت‌وگو روی این کارساز فعال نیست.",
+    "conversations": "گفت‌وگوها",
+    "newConversation": "گفت‌وگوی جدید",
+    "noConversations": "هنوز گفت‌وگویی وجود ندارد. یکی آغاز کنید.",
+    "untitled": "گفت‌وگوی جدید",
+    "deleteConversation": "حذف گفت‌وگو",
+    "selectConversation": "برای گفت‌وگو با دستیار لاهیجان، یک گفت‌وگو انتخاب یا آغاز کنید.",
+    "composerPlaceholder": "از دستیار بخواهید هر کاری که در لاهیجان می‌توانید انجام دهد…",
+    "composerLabel": "پیام",
+    "noSendPermission": "شما اجازهٔ ارسال پیام به دستیار را ندارید.",
+    "thinking": "در حال تفکر…",
+    "confirmTitle": "تأیید عمل",
+    "confirmBody": "دستیار می‌خواهد «{{tool}}» را اجرا کند که ممکن است تغییری ایجاد کند. برای اجرا تأیید کنید یا رد کنید.",
+    "approve": "تأیید",
+    "decline": "رد",
+    "settings": {
+      "title": "دستیار — ارائه‌دهندهٔ مدل",
+      "subtitle": "کلید ارائه‌دهندهٔ مدل خود را وارد کنید. کلید در محل رمزگذاری می‌شود و هرگز سرور را ترک نمی‌کند.",
+      "addTitle": "افزودن ارائه‌دهنده",
+      "addDescription": "یک ارائه‌دهندهを選ید، کلید API خود را وارد کنید، و در صورت نیاز مدل و نشانی پایه را تنظیم کنید.",
+      "provider": "ارائه‌دهنده",
+      "model": "مدل",
+      "modelPlaceholder": "مثلاً gpt-4o-mini (پیش‌فرض gpt-4o-mini)",
+      "baseUrl": "نشانی پایه (اختیاری)",
+      "baseUrlPlaceholder": "برای پیش‌فرض ارائه‌دهنده خالی بگذارید",
+      "apiKey": "کلید API",
+      "apiKeyPlaceholder": "sk-…",
+      "save": "افزودن ارائه‌دهنده",
+      "configuredTitle": "ارائه‌دهنده‌های پیکربندی‌شده",
+      "noneConfigured": "هنوز ارائه‌دهنده‌ای پیکربندی نشده. یکی بالا اضافه کنید تا دستیار فعال شود.",
+      "keySet": "کلید ذخیره شد",
+      "delete": "حذف ارائه‌دهنده"
+    },
+    "policy": {
+      "title": "سیاست دستیار",
+      "subtitle": "محدودیت‌هایی که روی هر نوبت دستیار در این مستأجر اعمال می‌شود.",
+      "limitsTitle": "محدودیت‌ها",
+      "limitsDescription": "۰ یعنی نامحدود. فهرست ابزارهای ممنوع، آن ابزارها را از دستیار پنهان می‌کند.",
+      "allowModels": "مدل‌های مجاز",
+      "allowModelsPlaceholder": "gpt-4o*, claude-3-opus",
+      "allowModelsHint": "الگوهای جدا شده با ویرگول. خالی یعنی هر مدل پیکربندی‌شده توسط کاربر مجاز است.",
+      "maxMessages": "بیشینهٔ پیام در هر پنجره",
+      "windowSeconds": "ثانیهٔ پنجره",
+      "spendCap": "سقف هزینه (اعتبار)",
+      "denyTools": "ابزارهای ممنوع",
+      "denyToolsPlaceholder": "sample.destructive, compute.instance.delete",
+      "forceAdmin": "اجبار مدل‌های مدیر (غیرفعال کردن کلیدهای کاربر)",
+      "save": "ذخیرهٔ سیاست"
     }
   }
 }

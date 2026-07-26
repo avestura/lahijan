@@ -87,6 +87,12 @@ type Repos struct {
 	BillingSubscriptions  *BillingSubscriptionsRepository
 	BillingPromoCodes     *BillingPromoCodesRepository
 	BillingWebhookEvents  *BillingWebhookEventsRepository
+
+	// WS-31: AI agent chat. One repository covering the five agent_chat
+	// tables (conversations, messages, tool_calls, provider_configs,
+	// policy); they share the (tenant_id, user_id) scoping seam. See
+	// agent_repo.go.
+	Agent *AgentRepository
 }
 
 // NewRepos builds the aggregate repository from a pool or transaction. The
@@ -141,5 +147,6 @@ func NewRepos(db DBTX) *Repos {
 		BillingSubscriptions:    NewBillingSubscriptionsRepository(q),
 		BillingPromoCodes:       NewBillingPromoCodesRepository(q),
 		BillingWebhookEvents:    NewBillingWebhookEventsRepository(q),
+		Agent:                   NewAgentRepository(q),
 	}
 }

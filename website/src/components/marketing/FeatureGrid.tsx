@@ -1,10 +1,10 @@
 /**
- * FeatureGrid — the six-pillar feature block used on the landing page and
- * mirrored on /features.
+ * FeatureGrid — the feature block used on the landing page and mirrored on
+ * /features.
  *
  * Renders a feature card per pillar (compute, dns, storage, plugins, rbac,
- * billing). Each card is a semantic button-link to the matching anchored
- * section on /features (or, on /features itself, plain text cards).
+ * billing, agent). Each card is a semantic button-link to the matching
+ * anchored section on /features (or, on /features itself, plain text cards).
  *
  * Icons come from lucide-react; the icon for each pillar is mapped in
  * FEATURE_DEFS below. Per pillar 1 (Transparent infrastructure) the cards
@@ -12,6 +12,7 @@
  * names.
  */
 import {
+  BotIcon,
   CpuIcon,
   DatabaseIcon,
   KeyRoundIcon,
@@ -26,7 +27,7 @@ import { Section } from "@/components/marketing/Section";
 import { SectionHeading } from "@/components/marketing/SectionHeading";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-type FeatureKey = "compute" | "dns" | "storage" | "plugins" | "rbac" | "billing";
+type FeatureKey = "compute" | "dns" | "storage" | "plugins" | "rbac" | "billing" | "agent";
 
 interface FeatureDef {
   key: FeatureKey;
@@ -38,6 +39,7 @@ const FEATURE_DEFS: readonly FeatureDef[] = [
   { key: "compute", icon: CpuIcon, anchor: "#compute" },
   { key: "dns", icon: NetworkIcon, anchor: "#dns" },
   { key: "storage", icon: DatabaseIcon, anchor: "#storage" },
+  { key: "agent", icon: BotIcon, anchor: "#agent" },
   { key: "plugins", icon: PuzzleIcon, anchor: "#plugins" },
   { key: "rbac", icon: KeyRoundIcon, anchor: "#rbac" },
   { key: "billing", icon: WalletIcon, anchor: "#billing" },

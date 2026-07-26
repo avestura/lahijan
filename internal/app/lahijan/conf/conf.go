@@ -1067,3 +1067,22 @@ func GetBillingStripeAPIVersion() string {
 func GetBillingStripeRequestTimeoutSeconds() int {
 	return viper.GetInt("billing.stripe.requestTimeoutSeconds")
 }
+
+// --- WS-31: agent chat ---
+
+// GetAgentEnabled reports whether the agent chat subsystem is enabled. When
+// false program.Start skips building the service and the handlers return 501.
+func GetAgentEnabled() bool {
+	return viper.GetBool("agent.enabled")
+}
+
+// GetAgentDefaultConversationTitle is applied when the caller does not pass a
+// title at conversation-create time.
+func GetAgentDefaultConversationTitle() string {
+	return viper.GetString("agent.defaultConversationTitle")
+}
+
+// GetAgentMaxMessageBytes caps a single user prompt. Defaults to 64 KiB.
+func GetAgentMaxMessageBytes() int {
+	return viper.GetInt("agent.maxMessageBytes")
+}

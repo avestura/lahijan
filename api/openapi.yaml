@@ -48,6 +48,8 @@ tags:
     description: Compute instances, images, profiles, networks, and storage volumes.
   - name: billing
     description: Billing & metering (balance, ledger, usage, receipts, price catalog).
+  - name: agent
+    description: AI agent chat (conversations, streamed messages, HITL tool calls, BYOK providers, policy).
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -5140,6 +5142,218 @@ paths:
               schema: { $ref: "#/components/schemas/Error" }
 
   # -------------------------------------------------------------------------
+  # Agent chat (WS-31). Natural-language control of Lahijan via an AI agent
+  # that inherits the calling user's RBAC context. Conversations are personal
+  # (per user, per tenant); destructive tool calls require in-UI confirmation
+  # (human-in-the-loop); users bring their own model-provider keys (BYOK);
+  # tenant admins set the per-tenant agent policy.
+  # -------------------------------------------------------------------------
+  /api/v1/agent/conversations:
+    get:
+      tags: [agent]
+      operationId: listAgentConversations
+      summary: List the caller's agent conversations
+      parameters:
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+      responses:
+        "200":
+          description: A page of the caller's conversations, newest first.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentConversationList" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [agent]
+      operationId: createAgentConversation
+      summary: Start a new agent conversation
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateAgentConversationRequest" }
+      responses:
+        "201":
+          description: Conversation created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentConversation" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/agent/conversations/{conversationId}:
+    get:
+      tags: [agent]
+      operationId: getAgentConversation
+      summary: Get a conversation with its message + tool-call history
+      parameters:
+        - $ref: "#/components/parameters/ConversationId"
+      responses:
+        "200":
+          description: Conversation detail with ordered messages and tool calls.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentConversationDetail" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+    delete:
+      tags: [agent]
+      operationId: deleteAgentConversation
+      summary: Delete a conversation and its full history
+      parameters:
+        - $ref: "#/components/parameters/ConversationId"
+      responses:
+        "204": { description: Conversation deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/agent/conversations/{conversationId}/messages:
+    post:
+      tags: [agent]
+      operationId: sendAgentMessage
+      summary: Send a message and stream the agent reply (SSE)
+      description: |
+        Appends the user's message, runs one agent turn, and streams events
+        back as Server-Sent Events (Content-Type: text/event-stream). Each
+        event is `data: <json>\n\n` where the JSON object has a `type` of:
+
+          - `text`        — assistant token delta (has `text`)
+          - `tool_call`   — agent wants to call a tool (has `tool`, `args`;
+                            destructive tools carry `tool_call_id` and do NOT
+                            execute until confirmed)
+          - `tool_result` — a tool finished, inline or after confirmation
+                            (has `tool`, `tool_call_id`, `result`)
+          - `done`        — turn finished successfully
+          - `error`       — recoverable error during the turn (has `error`)
+
+        Destructive tool calls are parked as `pending`; the client POSTs
+        /api/v1/agent/tool-calls/{toolCallId}/confirm to approve or decline.
+      parameters:
+        - $ref: "#/components/parameters/ConversationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SendAgentMessageRequest" }
+      responses:
+        "200":
+          description: A stream of agent turn events.
+          content:
+            text/event-stream:
+              schema: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429":
+          description: Rate or spend cap reached.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /api/v1/agent/tool-calls/{toolCallId}/confirm:
+    post:
+      tags: [agent]
+      operationId: confirmAgentToolCall
+      summary: Approve or decline a pending (destructive) tool call
+      parameters:
+        - $ref: "#/components/parameters/ToolCallId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConfirmAgentToolCallRequest" }
+      responses:
+        "200":
+          description: The resolved tool call.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentToolCall" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/agent/providers:
+    get:
+      tags: [agent]
+      operationId: listAgentProviders
+      summary: List the caller's BYOK model-provider configs
+      responses:
+        "200":
+          description: Provider configs (API keys never returned).
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AgentProviderConfig" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [agent]
+      operationId: createAgentProvider
+      summary: Add a BYOK model-provider config
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AgentProviderConfigRequest" }
+      responses:
+        "201":
+          description: Provider config added (key redacted).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentProviderConfig" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/agent/providers/{providerId}:
+    delete:
+      tags: [agent]
+      operationId: deleteAgentProvider
+      summary: Remove a BYOK provider config
+      parameters:
+        - $ref: "#/components/parameters/ProviderId"
+      responses:
+        "204": { description: Provider config deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/agent/policy:
+    get:
+      tags: [agent]
+      operationId: getAgentPolicy
+      summary: Get the tenant's agent policy
+      description: |
+        Returns the per-tenant agent policy. When no policy has been set the
+        permissive default is returned (BYOK allowed, no caps, no denylist).
+      responses:
+        "200":
+          description: The tenant agent policy.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentPolicy" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    put:
+      tags: [agent]
+      operationId: updateAgentPolicy
+      summary: Create or replace the tenant's agent policy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AgentPolicy" }
+      responses:
+        "200":
+          description: The updated policy.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentPolicy" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  # -------------------------------------------------------------------------
   # Components
   # -------------------------------------------------------------------------
 components:
@@ -5171,6 +5385,24 @@ components:
       in: query
       description: Output format for the export. Defaults to csv.
       schema: { type: string, enum: [csv, json], default: csv }
+    ConversationId:
+      name: conversationId
+      in: path
+      required: true
+      description: The agent conversation id.
+      schema: { type: string, format: uuid }
+    ToolCallId:
+      name: toolCallId
+      in: path
+      required: true
+      description: The agent tool-call id.
+      schema: { type: string, format: uuid }
+    ProviderId:
+      name: providerId
+      in: path
+      required: true
+      description: The agent provider-config id.
+      schema: { type: string, format: uuid }
 
   # Standard error responses reused across the API.
   responses:
@@ -8402,3 +8634,128 @@ components:
         state:             { type: string }
         zip:               { type: string }
         countryCode:       { type: string, description: ISO 3166-1 alpha-2. }
+
+    # ---------------------------------------------------------------------
+    # Agent chat schemas (WS-31)
+    # ---------------------------------------------------------------------
+
+    AgentConversation:
+      type: object
+      required: [id, title, status, createdAt, updatedAt]
+      properties:
+        id:        { type: string, format: uuid }
+        title:     { type: string }
+        status:    { type: string, enum: [active, archived] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    CreateAgentConversationRequest:
+      type: object
+      properties:
+        title: { type: string, description: Optional title; defaults to "New conversation". }
+
+    AgentConversationList:
+      type: object
+      required: [items, total]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/AgentConversation" } }
+        total: { type: integer, int64: true }
+
+    AgentMessageRole:
+      type: string
+      enum: [user, assistant, tool]
+
+    AgentMessage:
+      type: object
+      required: [id, role, content, createdAt]
+      properties:
+        id:        { type: string, format: uuid }
+        role:      { $ref: "#/components/schemas/AgentMessageRole" }
+        content:   { type: string }
+        createdAt: { type: string, format: date-time }
+
+    AgentToolCallStatus:
+      type: string
+      enum: [pending, approved, rejected, executed, failed]
+
+    AgentToolCall:
+      type: object
+      required: [id, messageId, tool, args, result, requiresConfirmation, status, createdAt, updatedAt]
+      properties:
+        id:                   { type: string, format: uuid }
+        messageId:            { type: string, format: uuid }
+        tool:                 { type: string }
+        args:                 { type: object, additionalProperties: true }
+        result:               { type: object, additionalProperties: true }
+        requiresConfirmation: { type: boolean }
+        status:               { $ref: "#/components/schemas/AgentToolCallStatus" }
+        createdAt:            { type: string, format: date-time }
+        updatedAt:            { type: string, format: date-time }
+
+    AgentConversationDetail:
+      type: object
+      required: [conversation, messages, toolCalls]
+      properties:
+        conversation: { $ref: "#/components/schemas/AgentConversation" }
+        messages:     { type: array, items: { $ref: "#/components/schemas/AgentMessage" } }
+        toolCalls:    { type: array, items: { $ref: "#/components/schemas/AgentToolCall" } }
+
+    SendAgentMessageRequest:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string, description: The user's prompt for this turn. }
+
+    ConfirmAgentToolCallRequest:
+      type: object
+      required: [approved]
+      properties:
+        approved: { type: boolean, description: true to execute, false to reject. }
+
+    AgentProviderConfig:
+      type: object
+      required: [id, provider, model, baseUrl, enabled, hasKey, createdAt, updatedAt]
+      properties:
+        id:        { type: string, format: uuid }
+        provider:  { type: string, description: "e.g. openai, anthropic, google." }
+        model:     { type: string }
+        baseUrl:   { type: string, description: Optional provider base URL override. }
+        enabled:   { type: boolean }
+        hasKey:    { type: boolean, description: A key is stored (never returned). }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    AgentProviderConfigRequest:
+      type: object
+      required: [provider, apiKey]
+      properties:
+        provider: { type: string }
+        model:    { type: string }
+        baseUrl:  { type: string }
+        apiKey:   { type: string, format: password, description: Encrypted at rest (AES-256-GCM). }
+
+    AgentPolicy:
+      type: object
+      required: [allowModels, forceAdminModels, maxMessagesPerWindow, windowSeconds, spendCapCredits, denyTools]
+      properties:
+        allowModels:
+          type: array
+          items: { type: string }
+          description: Glob allowlist of allowed models (e.g. "gpt-4o*"). Empty = all allowed.
+        forceAdminModels:
+          type: boolean
+          description: When true, user BYOK is disabled; only operator-provided models are usable.
+        maxMessagesPerWindow:
+          type: integer
+          description: Max user messages per sliding window. 0 = unlimited.
+        windowSeconds:
+          type: integer
+          description: Sliding-window size in seconds (default 60).
+        spendCapCredits:
+          type: integer
+          int64: true
+          description: Total credit cap. 0 = unlimited. Enforced once token metering ships.
+        denyTools:
+          type: array
+          items: { type: string }
+          description: Tool names the agent may not call in this tenant.

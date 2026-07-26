@@ -131,7 +131,7 @@ receipts), Plugins (admin: list, install, grant, enable/disable), Audit
       in sync.
 - [x] `npm run build` succeeds for the dashboard
       — initial entry chunk ~132 KB gzipped (still well under
-      the WS-18 DoD bar of <500 KB). Module routes are code-
+      the WS-18 DoD bar of under 500 KB). Module routes are code-
       split (e.g. _zoneId ~4 KB, _bucketId ~4 KB, marketplace
       ~1.7 KB).
 - [x] CI builds + lints + tests
@@ -190,7 +190,7 @@ receipts), Plugins (admin: list, install, grant, enable/disable), Audit
   modules' shared dependencies (more form schemas, more components
   using the existing primitives). Each module's routes are code-split
   so the initial paint doesn't pay for module UI code the user hasn't
-  navigated to. Still well under the WS-18 DoD bar of <500 KB.
+  navigated to. Still well below the WS-18 DoD bar of 500 KB.
 - **Chart library:** per the open question default, no chart library was
   added. The UsagePanel renders a CSS bar list (no axes, no tooltips)
   — sufficient for the MVP "by resource type, last 7/30 days" view. The

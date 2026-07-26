@@ -13,6 +13,7 @@ import type { components } from "@api-schema";
 
 import { apiClient } from "@/lib/api/client";
 import { queryKeys } from "@/lib/api/keys";
+import { apiErrorMessage } from "@/lib/api-errors";
 import { useToast } from "@/hooks/useToast";
 import { useTranslation } from "react-i18next";
 import type { CreateRecordValues, CreateZoneValues, UpdateRecordValues } from "./schemas";
@@ -70,7 +71,7 @@ export function useCreateDNSZone(tenantId: string | null) {
     mutationFn: async (
       values: CreateZoneValues,
     ): Promise<{ zone: DNSZone; applyTemplateId?: string }> => {
-      const { data, error, response } = await apiClient.POST("/api/v1/dns/zones", {
+      const { data, error } = await apiClient.POST("/api/v1/dns/zones", {
         body: {
           name: values.name,
           description: values.description,
@@ -78,7 +79,7 @@ export function useCreateDNSZone(tenantId: string | null) {
         },
       });
       if (error || !data) {
-        throw new Error(`dns.zone.create: ${response?.status ?? "network"}`);
+        throw new Error(apiErrorMessage(error, t("dns.mutations.zoneCreateError")));
       }
       return { zone: data, applyTemplateId: values.templateId };
     },
@@ -104,6 +105,9 @@ export function useCreateDNSZone(tenantId: string | null) {
       }
       toast({ title: t("dns.mutations.zoneCreateSuccess"), variant: "success" });
     },
+    onError: (err) => {
+      toast({ title: err.message, variant: "destructive" });
+    },
   });
 }
 
@@ -115,12 +119,12 @@ export function useUpdateDNSZone(tenantId: string | null, zoneId: string | undef
 
   return useMutation({
     mutationFn: async (values: { description?: string; kind?: "Native" | "Master" | "Slave" }) => {
-      const { data, error, response } = await apiClient.PATCH("/api/v1/dns/zones/{zoneId}", {
+      const { data, error } = await apiClient.PATCH("/api/v1/dns/zones/{zoneId}", {
         params: { path: { zoneId: zoneId! } },
         body: values,
       });
       if (error || !data) {
-        throw new Error(`dns.zone.update: ${response?.status ?? "network"}`);
+        throw new Error(apiErrorMessage(error, t("dns.mutations.zoneUpdateError")));
       }
       return data;
     },
@@ -129,6 +133,9 @@ export function useUpdateDNSZone(tenantId: string | null, zoneId: string | undef
         void qc.invalidateQueries({ queryKey: queryKeys.dns.zone(tenantId, zoneId) });
       }
       toast({ title: t("dns.mutations.zoneUpdateSuccess"), variant: "success" });
+    },
+    onError: (err) => {
+      toast({ title: err.message, variant: "destructive" });
     },
   });
 }
@@ -141,11 +148,11 @@ export function useDeleteDNSZone(tenantId: string | null) {
 
   return useMutation({
     mutationFn: async ({ zoneId }: { zoneId: string }) => {
-      const { error, response } = await apiClient.DELETE("/api/v1/dns/zones/{zoneId}", {
+      const { error } = await apiClient.DELETE("/api/v1/dns/zones/{zoneId}", {
         params: { path: { zoneId } },
       });
       if (error) {
-        throw new Error(`dns.zone.delete: ${response?.status ?? "network"}`);
+        throw new Error(apiErrorMessage(error, t("dns.mutations.zoneDeleteError")));
       }
     },
     onSuccess: () => {
@@ -153,6 +160,9 @@ export function useDeleteDNSZone(tenantId: string | null) {
         void qc.invalidateQueries({ queryKey: queryKeys.dns.zones(tenantId) });
       }
       toast({ title: t("dns.mutations.zoneDeleteSuccess"), variant: "success" });
+    },
+    onError: (err) => {
+      toast({ title: err.message, variant: "destructive" });
     },
   });
 }
@@ -165,12 +175,21 @@ export function useSetDNSSEC(tenantId: string | null, zoneId: string | undefined
 
   return useMutation({
     mutationFn: async ({ action }: { action: "enable" | "disable" }) => {
-      const { error, response } = await apiClient.POST(
+      const { error } = await apiClient.POST(
         "/api/v1/dns/zones/{zoneId}/dnssec/{action}",
         { params: { path: { zoneId: zoneId!, action } } },
       );
       if (error) {
-        throw new Error(`dns.zone.dnssec.${action}: ${response?.status ?? "network"}`);
+        throw new Error(
+          apiErrorMessage(
+            error,
+            t(
+              action === "enable"
+                ? "dns.mutations.dnssecEnableError"
+                : "dns.mutations.dnssecDisableError",
+            ),
+          ),
+        );
       }
     },
     onSuccess: (_d, vars) => {
@@ -184,6 +203,9 @@ export function useSetDNSSEC(tenantId: string | null, zoneId: string | undefined
             : t("dns.mutations.dnssecDisableSuccess"),
         variant: "success",
       });
+    },
+    onError: (err) => {
+      toast({ title: err.message, variant: "destructive" });
     },
   });
 }
@@ -222,7 +244,7 @@ export function useCreateDNSRecord(tenantId: string | null, zoneId: string | und
 
   return useMutation({
     mutationFn: async (values: CreateRecordValues): Promise<DNSRecord> => {
-      const { data, error, response } = await apiClient.POST("/api/v1/dns/zones/{zoneId}/records", {
+      const { data, error } = await apiClient.POST("/api/v1/dns/zones/{zoneId}/records", {
         params: { path: { zoneId: zoneId! } },
         body: {
           name: values.name,
@@ -233,7 +255,7 @@ export function useCreateDNSRecord(tenantId: string | null, zoneId: string | und
         },
       });
       if (error || !data) {
-        throw new Error(`dns.record.create: ${response?.status ?? "network"}`);
+        throw new Error(apiErrorMessage(error, t("dns.mutations.recordCreateError")));
       }
       return data;
     },
@@ -242,6 +264,9 @@ export function useCreateDNSRecord(tenantId: string | null, zoneId: string | und
         void qc.invalidateQueries({ queryKey: queryKeys.dns.records(tenantId, zoneId) });
       }
       toast({ title: t("dns.mutations.recordCreateSuccess"), variant: "success" });
+    },
+    onError: (err) => {
+      toast({ title: err.message, variant: "destructive" });
     },
   });
 }
@@ -260,7 +285,7 @@ export function useUpdateDNSRecord(tenantId: string | null, zoneId: string | und
       recordId: string;
       values: UpdateRecordValues;
     }): Promise<DNSRecord> => {
-      const { data, error, response } = await apiClient.PATCH(
+      const { data, error } = await apiClient.PATCH(
         "/api/v1/dns/zones/{zoneId}/records/{recordId}",
         {
           params: { path: { zoneId: zoneId!, recordId } },
@@ -272,7 +297,7 @@ export function useUpdateDNSRecord(tenantId: string | null, zoneId: string | und
         },
       );
       if (error || !data) {
-        throw new Error(`dns.record.update: ${response?.status ?? "network"}`);
+        throw new Error(apiErrorMessage(error, t("dns.mutations.recordUpdateError")));
       }
       return data;
     },
@@ -281,6 +306,9 @@ export function useUpdateDNSRecord(tenantId: string | null, zoneId: string | und
         void qc.invalidateQueries({ queryKey: queryKeys.dns.records(tenantId, zoneId) });
       }
       toast({ title: t("dns.mutations.recordUpdateSuccess"), variant: "success" });
+    },
+    onError: (err) => {
+      toast({ title: err.message, variant: "destructive" });
     },
   });
 }
@@ -293,12 +321,12 @@ export function useDeleteDNSRecord(tenantId: string | null, zoneId: string | und
 
   return useMutation({
     mutationFn: async ({ recordId }: { recordId: string }) => {
-      const { error, response } = await apiClient.DELETE(
+      const { error } = await apiClient.DELETE(
         "/api/v1/dns/zones/{zoneId}/records/{recordId}",
         { params: { path: { zoneId: zoneId!, recordId } } },
       );
       if (error) {
-        throw new Error(`dns.record.delete: ${response?.status ?? "network"}`);
+        throw new Error(apiErrorMessage(error, t("dns.mutations.recordDeleteError")));
       }
     },
     onSuccess: () => {
@@ -306,6 +334,9 @@ export function useDeleteDNSRecord(tenantId: string | null, zoneId: string | und
         void qc.invalidateQueries({ queryKey: queryKeys.dns.records(tenantId, zoneId) });
       }
       toast({ title: t("dns.mutations.recordDeleteSuccess"), variant: "success" });
+    },
+    onError: (err) => {
+      toast({ title: err.message, variant: "destructive" });
     },
   });
 }
@@ -337,7 +368,7 @@ export function useApplyDNSTemplate(tenantId: string | null, zoneId: string | un
 
   return useMutation({
     mutationFn: async ({ templateId }: { templateId: string }): Promise<ApplyDNSTemplateResult> => {
-      const { data, error, response } = await apiClient.POST(
+      const { data, error } = await apiClient.POST(
         "/api/v1/dns/zones/{zoneId}/apply-template",
         {
           params: { path: { zoneId: zoneId! } },
@@ -345,7 +376,7 @@ export function useApplyDNSTemplate(tenantId: string | null, zoneId: string | un
         },
       );
       if (error || !data) {
-        throw new Error(`dns.template.apply: ${response?.status ?? "network"}`);
+        throw new Error(apiErrorMessage(error, t("dns.mutations.templateApplyError")));
       }
       return data;
     },
@@ -358,6 +389,9 @@ export function useApplyDNSTemplate(tenantId: string | null, zoneId: string | un
         description: t("dns.templates.applied", { count: result.applied }),
         variant: "success",
       });
+    },
+    onError: (err) => {
+      toast({ title: err.message, variant: "destructive" });
     },
   });
 }

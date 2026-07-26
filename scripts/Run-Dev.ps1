@@ -98,7 +98,11 @@ param(
     # --providers.incus.remoteURL + mTLS so compute create/start/exec work.
     [switch]$NoIncusRemote,
     [string]$IncusDistro    = "Incus",            # WSL2 distro from Setup-Incus.ps1
-    [string]$IncusRemoteURL = "https://localhost:8443",
+    # IPv4 literal, not "localhost": the Go dialer resolves "localhost" to IPv6
+    # [::1] first, but the WSL2 mirrored loopback only forwards IPv4 127.0.0.1
+    # to the daemon (Incus binds 0.0.0.0:8443). Forcing 127.0.0.1 skips the
+    # dead IPv6 path. insecureSkipVerify=true so the cert CN mismatch is fine.
+    [string]$IncusRemoteURL = "https://127.0.0.1:8443",
     [string]$IncusCertDir   = "E:\WSL\incus-certs" # client cert from Setup-Incus.ps1
 )
 
@@ -633,7 +637,11 @@ $lahijanArgs = @(
     "--providers.incus.events.enabled=false",
     # WASM subsystem: enables the plugin runtime + the admin marketplace API
     # (index at examples/plugins/marketplace/plugins-marketplace.yaml).
-    "--wasm.enabled"
+    "--wasm.enabled",
+    # WS-31: AI agent chat. Enabled in dev so the /agent page + the LLM
+    # harness are live without an extra flag. Users add their own model
+    # provider key under Settings -> AI Provider.
+    "--agent.enabled"
 )
 
 Write-Step "Launching Lahijan backend on http://127.0.0.1:$BackendPort"

@@ -11,6 +11,7 @@
     "billing": "Billing",
     "plugins": "Plugins",
     "audit": "Audit Log",
+    "agent": "Agent",
     "settings": "Settings",
     "settingsSub": {
       "label": "Settings",
@@ -18,14 +19,16 @@
       "security": "Security",
       "tokens": "Access Tokens",
       "identities": "Identities",
-      "sessions": "Sessions"
+      "sessions": "Sessions",
+      "agents": "AI Provider"
     },
     "admin": {
       "label": "Administration",
       "billing": "Billing",
       "jobs": "Jobs",
       "plugins": "Plugins",
-      "marketplace": "Marketplace"
+      "marketplace": "Marketplace",
+      "agent": "Agent Policy"
     }
   },
   "theme": {
@@ -84,10 +87,24 @@
   },
   "dashboard": {
     "welcome": "Welcome, {{name}}",
+    "subtitle": "A snapshot of your tenant's resources, spending, and recent activity.",
     "ping": {
       "loading": "Pinging the server…",
       "success": "Server reached at {{ts}}",
       "error": "Could not reach the server."
+    },
+    "overview": {
+      "instances": "Instances",
+      "zones": "DNS zones",
+      "buckets": "Buckets",
+      "balance": "Balance"
+    },
+    "charts": {
+      "instances": "Instances by status",
+      "storage": "Storage usage by bucket",
+      "balance": "Balance & recent ledger",
+      "activity": "Recent activity",
+      "viewAll": "View all"
     },
     "emptyState": {
       "title": "Nothing here yet",
@@ -225,7 +242,11 @@
       },
       "image": {
         "label": "Image",
-        "empty": "No images available."
+        "empty": "No images available.",
+        "placeholder": "ubuntu/24.04",
+        "hint": "Type any alias Incus can resolve, or browse the remote catalog.",
+        "browse": "Browse",
+        "custom": "Custom alias"
       },
       "profile": {
         "label": "Profile",
@@ -271,6 +292,65 @@
       "profiles": "Profiles",
       "description": "Description",
       "noDescription": "No description provided."
+    },
+    "images": {
+      "title": "Images",
+      "subtitle": "The tenant's image catalog. Incus downloads remote aliases on demand.",
+      "new": "Add image",
+      "browse": "Browse remote images",
+      "source": {
+        "featured": "featured",
+        "custom": "custom"
+      },
+      "columns": {
+        "alias": "Alias",
+        "source": "Source",
+        "type": "Type",
+        "arch": "Arch",
+        "fingerprint": "Fingerprint"
+      },
+      "empty": {
+        "title": "No images in the catalog",
+        "body": "Add an image, or pick one from the remote browser."
+      },
+      "add": {
+        "title": "Add image",
+        "subtitle": "Records a custom image in the tenant's catalog. The bytes must already be in the Incus image store, or the alias must be one Incus can resolve on demand.",
+        "alias": {
+          "label": "Alias",
+          "hint": "e.g. ubuntu/24.04 — the same form `incus launch` accepts.",
+          "placeholder": "ubuntu/24.04"
+        },
+        "fingerprint": {
+          "label": "Fingerprint",
+          "placeholder": "sha256:…"
+        },
+        "type": { "label": "Type" },
+        "arch": { "label": "Architecture", "placeholder": "amd64" },
+        "description": { "label": "Description" },
+        "submit": "Add",
+        "browseForFingerprint": "Browse the remote catalog to fill the alias"
+      },
+      "browser": {
+        "title": "Remote images",
+        "subtitle": "Public simplestreams catalog from images.linuxcontainers.org.",
+        "search": "Search alias, OS, release…",
+        "os": "Operating system",
+        "arch": "Architecture",
+        "allOS": "All OSes",
+        "allArch": "All arches",
+        "count": "Showing {{shown}} of {{total}}",
+        "loadMore": "Show more",
+        "use": "Use",
+        "pick": "Use {{alias}}",
+        "noResults": "No images match your filters.",
+        "error": "Could not load the remote catalog.",
+        "errorHint": "The browser may be blocked by CORS in some deployments. You can still type an alias manually in the wizard."
+      },
+      "mutations": {
+        "uploadSuccess": "Image added.",
+        "deleteSuccess": "Image removed."
+      }
     },
     "console": {
       "title": "Console",
@@ -741,7 +821,16 @@
       "recordCreateSuccess": "Record added.",
       "recordUpdateSuccess": "Record updated.",
       "recordDeleteSuccess": "Record deleted.",
-      "templateApplySuccess": "Template applied."
+      "templateApplySuccess": "Template applied.",
+      "zoneCreateError": "Could not create the zone.",
+      "zoneDeleteError": "Could not delete the zone.",
+      "zoneUpdateError": "Could not update the zone.",
+      "dnssecEnableError": "Could not enable DNSSEC.",
+      "dnssecDisableError": "Could not disable DNSSEC.",
+      "recordCreateError": "Could not add the record.",
+      "recordUpdateError": "Could not update the record.",
+      "recordDeleteError": "Could not delete the record.",
+      "templateApplyError": "Could not apply the template."
     }
   },
   "storage": {
@@ -790,7 +879,9 @@
     "detail": {
       "notFound": "Bucket not found.",
       "tabs": {
+        "objects": "Objects",
         "overview": "Overview",
+        "connection": "Connection",
         "credentials": "Credentials",
         "presign": "Pre-signed URLs",
         "quota": "Quota",
@@ -814,6 +905,29 @@
       "quotaObjects": "Object quota",
       "unlimited": "Unlimited",
       "bar": "{{used}} of {{quota}}"
+    },
+    "objects": {
+      "title": "Objects",
+      "upload": "Upload",
+      "download": "Download",
+      "prefixPlaceholder": "Filter by prefix…",
+      "uploadSuccess": "Uploaded {{key}}.",
+      "uploadError": "Upload failed. The S3 endpoint may not be reachable from your browser.",
+      "downloadError": "Could not generate a download URL.",
+      "listError": "Could not list objects.",
+      "empty": {
+        "title": "No objects",
+        "body": "Upload a file or write via an S3 client to populate this bucket."
+      }
+    },
+    "connection": {
+      "title": "Connect to this bucket",
+      "endpoint": "S3 endpoint",
+      "reveal": "Reveal endpoint",
+      "endpointError": "Could not determine the S3 endpoint.",
+      "hint": "Mint a credential on the Credentials tab, then point any S3-compatible client at the endpoint above. Lahijan does not proxy object bytes.",
+      "s3cmd": "s3cmd",
+      "awsCli": "aws CLI / boto3"
     },
     "credentials": {
       "title": "Credentials",
@@ -1164,6 +1278,57 @@
       "deleteSuccess": "Plugin deleted.",
       "grantSuccess": "Permission granted.",
       "revokeSuccess": "Permission revoked."
+    }
+  },
+  "agent": {
+    "disabled": "The agent chat assistant is not enabled on this server.",
+    "conversations": "Conversations",
+    "newConversation": "New conversation",
+    "noConversations": "No conversations yet. Start a new one.",
+    "untitled": "New conversation",
+    "deleteConversation": "Delete conversation",
+    "selectConversation": "Select or start a conversation to chat with the Lahijan agent.",
+    "composerPlaceholder": "Ask the agent to do anything you can do in Lahijan\u2026",
+    "composerLabel": "Message",
+    "noSendPermission": "You don't have permission to send agent messages.",
+    "thinking": "Thinking\u2026",
+    "confirmTitle": "Confirm action",
+    "confirmBody": "The agent wants to run \u201c{{tool}}\u201d, which can make changes. Approve to run it now, or decline.",
+    "approve": "Approve",
+    "decline": "Decline",
+    "settings": {
+      "title": "Agent — Model Provider",
+      "subtitle": "Bring your own model-provider key. The key is encrypted at rest and never leaves the server.",
+      "addTitle": "Add a provider",
+      "addDescription": "Pick a provider, paste your API key, and optionally set the model + base URL.",
+      "provider": "Provider",
+      "model": "Model",
+      "modelPlaceholder": "e.g. gpt-4o-mini (defaults to gpt-4o-mini)",
+      "baseUrl": "Base URL (optional)",
+      "baseUrlPlaceholder": "Leave blank for the provider default",
+      "apiKey": "API key",
+      "apiKeyPlaceholder": "sk-…",
+      "save": "Add provider",
+      "configuredTitle": "Configured providers",
+      "noneConfigured": "No provider configured yet. Add one above to enable the agent.",
+      "keySet": "key saved",
+      "delete": "Delete provider"
+    },
+    "policy": {
+      "title": "Agent Policy",
+      "subtitle": "Limits that apply to every agent turn in this tenant.",
+      "limitsTitle": "Limits",
+      "limitsDescription": "0 means unlimited. The tool denylist hides tools from the agent entirely.",
+      "allowModels": "Allowed models",
+      "allowModelsPlaceholder": "gpt-4o*, claude-3-opus",
+      "allowModelsHint": "Comma-separated globs. Empty allows every model the user configures.",
+      "maxMessages": "Max messages per window",
+      "windowSeconds": "Window seconds",
+      "spendCap": "Spend cap (credits)",
+      "denyTools": "Denied tools",
+      "denyToolsPlaceholder": "sample.destructive, compute.instance.delete",
+      "forceAdmin": "Force admin-provided models (disable user keys)",
+      "save": "Save policy"
     }
   }
 }

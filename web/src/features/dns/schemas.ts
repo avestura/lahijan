@@ -67,6 +67,28 @@ export const createRecordSchema = z.object({
 export type CreateRecordValues = z.infer<typeof createRecordSchema>;
 
 /**
+ * canonicalizeRecordName converts whatever the user typed in the "New record"
+ * form into the absolute (trailing-dot) lowercase FQDN the backend validator
+ * requires (dns/records.go: validateRecordName rejects names without a dot).
+ *
+ *   "" | "@"            -> "<zone>."            (zone apex)
+ *   "www"               -> "www.<zone>."         (relative name)
+ *   "www.example.com"   -> "www.example.com."    (FQDN missing the dot)
+ *   "www.example.com."  -> "www.example.com."    (already canonical)
+ *
+ * The zone name is the canonical form from DNSZone.name (e.g. "example.com.").
+ */
+export function canonicalizeRecordName(input: string, zoneName: string): string {
+  const zone = `${zoneName.trim().toLowerCase().replace(/\.+$/, "")}.`;
+  const raw = input.trim().toLowerCase();
+  if (raw === "" || raw === "@") return zone;
+  if (raw.endsWith(".")) return raw;
+  const zoneNoDot = zone.replace(/\.$/, "");
+  if (raw === zoneNoDot || raw.endsWith(`.${zoneNoDot}`)) return `${raw}.`;
+  return `${raw}.${zone}`;
+}
+
+/**
  * updateRecordSchema mirrors DNSRecordUpdateRequest (name + type are
  * immutable — the form disables them).
  */

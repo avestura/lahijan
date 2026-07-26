@@ -157,7 +157,7 @@ wsl -d Incus -u root -- bash -c "REMOTE_URL=https://localhost:8443 CLIENT_CERT=/
 | `Failed to check dnsmasq version` at `incus admin init` | `apt install dnsmasq-base` |
 | `No root device could be found` at launch | `incus profile device add default root disk path=/ pool=default` |
 | `Network "incusbr0" unavailable` | mirrored networking; remove `eth0` from the profile or switch to NAT |
-| `image couldn't be found` in <1s | wrong alias — use `images:ubuntu/24.04` (not `images:alpine/3.20` / `images:busybox`) |
+| `image couldn't be found` in under 1s | wrong alias — use `images:ubuntu/24.04` (not `images:alpine/3.20` / `images:busybox`) |
 | Image download stalls ~0 B/s | NAT mode + localhost proxy → switch to `networkingMode=mirrored` |
 | Ping → 404 on `/1.0/` | (already fixed in `client.go`) — don't reintroduce the trailing-slash URL builder |
 | `wsl: Failed to start the systemd user session for 'root'` | harmless (user-session warning, not the system daemon) |

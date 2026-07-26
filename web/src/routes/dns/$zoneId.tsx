@@ -99,6 +99,7 @@ function DNSZoneDetailPage() {
             <DNSRecordList
               tenantId={tenantId}
               zoneId={zoneId}
+              zoneName={zone.name}
               nameFilter={nameFilter}
               typeFilter={typeFilter}
             />

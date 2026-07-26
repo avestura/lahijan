@@ -66,14 +66,19 @@ function ComputeListPage() {
           <h1 className="text-2xl font-semibold">{t("compute.title")}</h1>
           <p className="text-sm text-muted-foreground">{t("compute.subtitle")}</p>
         </div>
-        {hasPerm && (
-          <Button asChild data-testid="new-instance-button">
-            <Link to="/compute/new">
-              <PlusIcon className="h-4 w-4" />
-              {t("compute.list.new")}
-            </Link>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/compute/images">{t("compute.images.title")}</Link>
           </Button>
-        )}
+          {hasPerm && (
+            <Button asChild data-testid="new-instance-button">
+              <Link to="/compute/new">
+                <PlusIcon className="h-4 w-4" />
+                {t("compute.list.new")}
+              </Link>
+            </Button>
+          )}
+        </div>
       </header>
 
       <div className="flex flex-wrap items-center gap-2">

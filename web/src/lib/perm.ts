@@ -68,6 +68,14 @@ const ROLE_IMPLICATIONS: Record<string, Set<string>> = {
     "audit.read",
     // Plugins (read only).
     "plugins.read",
+    // Agent chat (WS-31). Matches the backend member grants: full chat
+    // surface + own BYOK providers, but NOT tenant policy (admin-only).
+    "agent.conversation.create",
+    "agent.conversation.read",
+    "agent.conversation.delete",
+    "agent.message.send",
+    "agent.tool.confirm",
+    "agent.provider.manage",
   ]) as Set<string>,
   viewer: new Set<unknown>([
     "compute.read",
@@ -81,6 +89,8 @@ const ROLE_IMPLICATIONS: Record<string, Set<string>> = {
     "billing.price_catalog.read",
     "audit.read",
     "plugins.read",
+    // Agent chat (WS-31): viewer can read history only.
+    "agent.conversation.read",
   ]) as Set<string>,
 };
 

@@ -1,18 +1,21 @@
 /**
  * `/dashboard` — landing page for authenticated users.
  *
- * Calls /api/v1/ping via TanStack Query to prove the API pipeline is wired
- * end to end (typed client + i18n + design tokens). Lists the welcome
- * banner + a small "ping" card that the e2e suite in WS-22 will lean on.
+ * Composes a resource overview row + four widgets (instance status donut,
+ * storage usage bars, billing balance + recent ledger, recent audit
+ * activity). Each widget fires its own queries and degrades gracefully
+ * when the backing module is disabled (501) so the dashboard never goes
+ * blank.
  */
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
-import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
-import { apiClient } from "@/lib/api/client";
-import { queryKeys } from "@/lib/api/keys";
 import { useSessionStore } from "@/lib/stores/session-store";
+import { ResourceOverviewCards } from "@/features/dashboard/components/ResourceOverviewCards";
+import { InstanceStatusChart } from "@/features/dashboard/components/InstanceStatusChart";
+import { StorageUsageChart } from "@/features/dashboard/components/StorageUsageChart";
+import { BillingBalanceCard } from "@/features/dashboard/components/BillingBalanceCard";
+import { RecentActivityCard } from "@/features/dashboard/components/RecentActivityCard";
 
 export const Route = createFileRoute("/_auth/dashboard")({
   component: DashboardPage,
@@ -22,36 +25,25 @@ function DashboardPage() {
   const { t } = useTranslation();
   const user = useSessionStore((s) => s.user);
 
-  const ping = useQuery({
-    queryKey: queryKeys.ping(),
-    queryFn: async () => {
-      const { data, error } = await apiClient.GET("/api/v1/ping");
-      if (error || !data) throw new Error("ping failed");
-      return data;
-    },
-    staleTime: 30_000,
-  });
-
-  const pingBody = ping.data
-    ? t("dashboard.ping.success", { ts: String(ping.data.pong ?? "") })
-    : ping.isLoading
-      ? t("dashboard.ping.loading")
-      : t("dashboard.ping.error");
-
   return (
     <div className="space-y-6" data-testid="page-dashboard">
-      <h1 className="text-2xl font-semibold">
-        {t("dashboard.welcome", {
-          name: user?.displayName ?? user?.email ?? "",
-        })}
-      </h1>
+      <header className="space-y-1">
+        <h1 className="text-2xl font-semibold">
+          {t("dashboard.welcome", {
+            name: user?.displayName ?? user?.email ?? "",
+          })}
+        </h1>
+        <p className="text-sm text-muted-foreground">{t("dashboard.subtitle")}</p>
+      </header>
 
-      <Card className="max-w-md">
-        <CardContent className="space-y-2 p-6">
-          <CardTitle>{t("nav.dashboard")}</CardTitle>
-          <CardDescription>{pingBody}</CardDescription>
-        </CardContent>
-      </Card>
+      <ResourceOverviewCards />
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <InstanceStatusChart />
+        <StorageUsageChart />
+        <BillingBalanceCard />
+        <RecentActivityCard />
+      </div>
     </div>
   );
 }

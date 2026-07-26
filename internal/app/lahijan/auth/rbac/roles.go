@@ -172,6 +172,15 @@ var defaultRoles = []RoleDefinition{
 			PermPluginsInstall,
 			PermPluginsUninstall,
 			PermPluginsPermissionApprove,
+			// agent chat (WS-31). Admin = full chat surface + tenant
+			// policy control + own BYOK providers.
+			PermAgentConversationCreate,
+			PermAgentConversationRead,
+			PermAgentConversationDelete,
+			PermAgentMessageSend,
+			PermAgentToolConfirm,
+			PermAgentProviderManage,
+			PermAgentPolicyManage,
 		},
 		IsSystem: true,
 	},
@@ -253,6 +262,14 @@ var defaultRoles = []RoleDefinition{
 			PermBillingPlanRead,
 			// plugins (read-only)
 			PermPluginsRead,
+			// agent chat (WS-31). Member = full chat surface + own
+			// BYOK providers; CANNOT set the tenant agent policy.
+			PermAgentConversationCreate,
+			PermAgentConversationRead,
+			PermAgentConversationDelete,
+			PermAgentMessageSend,
+			PermAgentToolConfirm,
+			PermAgentProviderManage,
 		},
 		IsSystem: true,
 	},
@@ -297,6 +314,9 @@ var defaultRoles = []RoleDefinition{
 			PermBillingPlanRead,
 			// plugins reads
 			PermPluginsRead,
+			// agent chat (WS-31). Viewer = read-only: can browse
+			// conversation history but not send or configure keys.
+			PermAgentConversationRead,
 		},
 		IsSystem: true,
 	},

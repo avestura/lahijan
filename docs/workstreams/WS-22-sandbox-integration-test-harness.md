@@ -69,11 +69,11 @@ Playwright against the dashboard, and tears it down cleanly.
 
 ## Definition of Done
 
-- [x] `make test` (unit) runs in <30s
+- [x] `make test` (unit) runs in under 30s
       — measured ~5.5s on a warm cache (1.4s for `./internal/...` only).
       Tested with `go test -timeout 120s ./...` on Windows + Ubuntu CI.
 - [~] `make test-integration` brings up Postgres + fakes, runs all
-      integration tests in <5 minutes
+      integration tests in under 5 minutes
       — the target exists (`go test -tags=integration -timeout 300s ./...`)
       and runs cleanly against every package except `internal/app/lahijan/billing`,
       where `TestRollup_JoinsUsageWithPrice` is a pre-existing failure
@@ -82,7 +82,7 @@ Playwright against the dashboard, and tears it down cleanly.
       gets a different number). The harness wiring is complete; the
       billing test needs a separate bugfix WS to go green.
 - [~] `make test-e2e` brings up the full stack (with fakes), runs Playwright,
-      in <15 minutes
+      in under 15 minutes
       — `scripts/run-e2e.sh` orchestrates: bring up test compose → start
       the in-process Incus + PowerDNS fakes (`test/e2e/harness/main.go`,
       `//go:build e2e`) → build + run the Lahijan app → build + preview
@@ -93,7 +93,7 @@ Playwright against the dashboard, and tears it down cleanly.
       scaffolded behind `LAHIJAN_E2E_RUN_*` feature flags pending
       dashboard `data-testid` coverage (the testing skill's preferred
       selector). The runner script's wall-time budget is 20 minutes
-      (CI timeout-minutes=20); the WS-22 DoD target is <15 min, leaving
+      (CI timeout-minutes=20); the WS-22 DoD target is under 15 min, leaving
       5 min of setup headroom.
 - [x] every primary user journey has at least one e2e spec
       — all 7 journeys listed in the WS doc scope have a spec file

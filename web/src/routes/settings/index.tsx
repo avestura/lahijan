@@ -1,28 +1,17 @@
 /**
- * /settings — profile sub-page.
+ * /settings — redirects to /settings/profile.
  *
- * The settings area is split into 5 pages (profile / security / tokens
- * / identities / sessions), all linked from the Sidebar's Settings
- * subsection. The default `/settings` route renders the profile form.
+ * Profile used to live at the bare /settings index, which made every
+ * /settings/* sub-page substring-match the "Profile" nav entry. The
+ * index is now a pure redirect to the profile sub-path.
  */
-import { createFileRoute } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
-
-import { ProfileForm } from "@/features/settings/components/ProfileForm";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/settings/")({
-  component: SettingsProfilePage,
+  beforeLoad: () => {
+    // TanStack Router resolves a beforeLoad by catching the thrown
+    // redirect; the throw is mandatory (a plain return is ignored).
+    // eslint-disable-next-line @typescript-eslint/only-throw-error
+    throw redirect({ to: "/settings/profile" });
+  },
 });
-
-function SettingsProfilePage() {
-  const { t } = useTranslation();
-  return (
-    <div className="space-y-4" data-testid="page-settings-profile">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold">{t("settings.profile.title")}</h1>
-        <p className="text-sm text-muted-foreground">{t("settings.profile.subtitle")}</p>
-      </header>
-      <ProfileForm />
-    </div>
-  );
-}

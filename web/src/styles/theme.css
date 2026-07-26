@@ -49,6 +49,13 @@
   --color-ring: var(--pri-blue-600);
   --color-border: var(--pri-neutral-200);
 
+  /* Chart palette (5 steps). Consumed by recharts widgets on the dashboard. */
+  --color-chart-1: var(--pri-blue-500);
+  --color-chart-2: var(--pri-teal-500);
+  --color-chart-3: var(--pri-amber-500);
+  --color-chart-4: var(--pri-red-500);
+  --color-chart-5: var(--pri-neutral-500);
+
   /* ---------- 3. COMPONENT tokens ---------- */
   /* Sidebar. */
   --color-sidebar: var(--pri-neutral-000);
@@ -85,6 +92,13 @@
   --color-input: var(--pri-neutral-700);
   --color-ring: var(--pri-blue-400);
   --color-border: var(--pri-neutral-800);
+
+  /* Chart palette (dark). Brightened so donut/bar slices stay legible. */
+  --color-chart-1: var(--pri-blue-400);
+  --color-chart-2: var(--pri-teal-400);
+  --color-chart-3: var(--pri-amber-400);
+  --color-chart-4: var(--pri-red-400);
+  --color-chart-5: var(--pri-neutral-400);
 
   /* Sidebar component tokens (dark). */
   --color-sidebar: var(--pri-neutral-900);

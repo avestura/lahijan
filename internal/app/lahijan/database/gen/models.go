@@ -63,6 +63,71 @@ func (ns NullRiverJobState) Value() (driver.Value, error) {
 	return string(ns.RiverJobState), nil
 }
 
+// Per-user agent chat conversations (WS-31).
+type AgentConversation struct {
+	ID        uuid.UUID `json:"id"`
+	TenantID  uuid.UUID `json:"tenant_id"`
+	UserID    uuid.UUID `json:"user_id"`
+	Title     string    `json:"title"`
+	Status    string    `json:"status"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// Agent chat messages: user prompts, assistant replies, tool results (WS-31).
+type AgentMessage struct {
+	ID             uuid.UUID `json:"id"`
+	ConversationID uuid.UUID `json:"conversation_id"`
+	TenantID       uuid.UUID `json:"tenant_id"`
+	UserID         uuid.UUID `json:"user_id"`
+	Role           string    `json:"role"`
+	Content        string    `json:"content"`
+	CreatedAt      time.Time `json:"created_at"`
+}
+
+// Per-tenant agent policy: allowlist, rate, spend cap, force-admin-models, tool denylist (WS-31).
+type AgentPolicy struct {
+	ID                   uuid.UUID `json:"id"`
+	TenantID             uuid.UUID `json:"tenant_id"`
+	AllowModels          []string  `json:"allow_models"`
+	ForceAdminModels     bool      `json:"force_admin_models"`
+	MaxMessagesPerWindow int32     `json:"max_messages_per_window"`
+	WindowSeconds        int32     `json:"window_seconds"`
+	SpendCapCredits      int64     `json:"spend_cap_credits"`
+	DenyTools            []string  `json:"deny_tools"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
+}
+
+// Per-user BYOK model-provider keys; api_key_encrypted is AES-256-GCM ciphertext (WS-31).
+type AgentProviderConfig struct {
+	ID              uuid.UUID `json:"id"`
+	TenantID        uuid.UUID `json:"tenant_id"`
+	UserID          uuid.UUID `json:"user_id"`
+	Provider        string    `json:"provider"`
+	Model           string    `json:"model"`
+	BaseUrl         string    `json:"base_url"`
+	ApiKeyEncrypted []byte    `json:"api_key_encrypted"`
+	Enabled         bool      `json:"enabled"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+}
+
+// Per-message agent tool invocations + HITL confirmation state (WS-31).
+type AgentToolCall struct {
+	ID                   uuid.UUID       `json:"id"`
+	MessageID            uuid.UUID       `json:"message_id"`
+	TenantID             uuid.UUID       `json:"tenant_id"`
+	UserID               uuid.UUID       `json:"user_id"`
+	ToolName             string          `json:"tool_name"`
+	Args                 json.RawMessage `json:"args"`
+	Result               json.RawMessage `json:"result"`
+	RequiresConfirmation bool            `json:"requires_confirmation"`
+	Status               string          `json:"status"`
+	CreatedAt            time.Time       `json:"created_at"`
+	UpdatedAt            time.Time       `json:"updated_at"`
+}
+
 // Append-only audit trail; UPDATE and DELETE are rejected by trigger.
 type AuditLog struct {
 	ID uuid.UUID `json:"id"`

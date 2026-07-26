@@ -18,6 +18,8 @@ import { StorageUsageCard } from "@/features/storage/components/StorageUsageCard
 import { StorageCredentialsCard } from "@/features/storage/components/StorageCredentialsCard";
 import { StoragePresignCard } from "@/features/storage/components/StoragePresignCard";
 import { StorageQuotaCard } from "@/features/storage/components/StorageQuotaCard";
+import { StorageObjectsCard } from "@/features/storage/components/StorageObjectsCard";
+import { StorageConnectionCard } from "@/features/storage/components/StorageConnectionCard";
 import { formatBytes } from "@/features/storage/format";
 
 export const Route = createFileRoute("/storage/$bucketId")({
@@ -31,7 +33,7 @@ function useBucketId(): string {
   return params.bucketId;
 }
 
-const DETAIL_TABS = ["overview", "credentials", "presign", "quota"] as const;
+const DETAIL_TABS = ["objects", "overview", "connection", "credentials", "presign", "quota"] as const;
 type DetailTab = (typeof DETAIL_TABS)[number];
 
 function StorageBucketDetailPage() {
@@ -56,6 +58,8 @@ function StorageBucketDetailPage() {
 
   const renderTab = (tab: DetailTab) => {
     switch (tab) {
+      case "objects":
+        return <StorageObjectsCard bucketId={bucketId} />;
       case "overview":
         return (
           <div className="space-y-4">
@@ -88,6 +92,8 @@ function StorageBucketDetailPage() {
             </Card>
           </div>
         );
+      case "connection":
+        return <StorageConnectionCard bucket={bucket} />;
       case "credentials":
         return <StorageCredentialsCard tenantId={tenantId} bucketId={bucketId} />;
       case "presign":
