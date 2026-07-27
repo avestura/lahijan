@@ -1,15 +1,15 @@
 // Package agent: module_tools.go is the production ToolExecutor that lets the
-// agent read live data from the compute / DNS / storage modules. It maps a
-// small set of READ-ONLY tool names to the existing repositories, enforces the
-// tenant scoping that lives at the repository seam (the context the harness
-// passes to Execute carries the tenant id), and projects each row to a small
-// JSON payload so the model never sees internal columns (tenant_id, config
-// blobs, soft-delete markers, ...).
+// agent read live data from the compute / DNS / storage / billing / audit
+// modules. It maps a small set of READ-ONLY tool names to the existing
+// repositories, enforces the tenant scoping that lives at the repository seam
+// (the context the harness passes to Execute carries the tenant id), and
+// projects each row to a small JSON payload so the model never sees internal
+// columns (tenant_id, config blobs, soft-delete markers, ...).
 //
 // This bridge is intentionally read-only: every tool reports Destructive()
 // false, so the LLMHarness executes them inline and loops to produce an
 // answer grounded in real data. Destructive module actions (create / delete /
-// modify) will land as a follow-on (WS-31b) and will reuse the existing
+// modify) will land as a follow-on and will reuse the existing
 // human-in-the-loop confirm flow.
 package agent
 
@@ -22,13 +22,15 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/database/gen"
 )
 
-// ModuleToolBridge exposes the read-only list tools over the compute, DNS, and
-// storage repositories. The repos enforce tenant scoping from the context, so
-// the bridge never handles a tenant id directly.
+// ModuleToolBridge exposes the read-only list tools over the compute, DNS,
+// storage, billing, and audit repositories. The repos enforce tenant scoping
+// from the context, so the bridge never handles a tenant id directly.
 type ModuleToolBridge struct {
 	zones     *database.DNSZonesRepository
 	instances *database.ComputeInstancesRepository
 	buckets   *database.StorageBucketsRepository
+	usage     *database.BillingUsageRepository
+	auditLog  *database.AuditLogRepository
 }
 
 var _ ToolExecutor = ModuleToolBridge{}
@@ -41,6 +43,8 @@ func NewModuleToolBridge(repos *database.Repos) ModuleToolBridge {
 		zones:     repos.DNSZones,
 		instances: repos.ComputeInstances,
 		buckets:   repos.StorageBuckets,
+		usage:     repos.BillingUsage,
+		auditLog:  repos.AuditLog,
 	}
 }
 
@@ -50,6 +54,8 @@ const (
 	toolDNSListZones       = "dns.list_zones"
 	toolComputeListInsts   = "compute.list_instances"
 	toolStorageListBuckets = "storage.list_buckets"
+	toolBillingListUsage   = "billing.list_usage"
+	toolAuditListEvents    = "audit.list_events"
 )
 
 // listLimit bounds how many rows a single tool call returns, so a tenant with
@@ -83,6 +89,21 @@ func (b ModuleToolBridge) Execute(ctx context.Context, tool string, args json.Ra
 			return nil, fmt.Errorf("storage.list_buckets: %w", err)
 		}
 		return marshalRows(rows, projectBucket)
+	case toolBillingListUsage:
+		rows, err := b.usage.ListForUser(
+			ctx, actorUserIDFromContext(ctx),
+			database.UsageListFilter{}, limit, 0,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("billing.list_usage: %w", err)
+		}
+		return marshalRows(rows, projectUsage)
+	case toolAuditListEvents:
+		rows, err := b.auditLog.ListForTenant(ctx, limit, 0)
+		if err != nil {
+			return nil, fmt.Errorf("audit.list_events: %w", err)
+		}
+		return marshalRows(rows, projectAudit)
 	default:
 		return nil, ErrToolNotFound
 	}
@@ -122,6 +143,16 @@ var moduleToolDescriptors = []ToolDescriptor{
 	{
 		Name:        toolStorageListBuckets,
 		Description: "List the caller's object-storage buckets (name, label, quota, usage, versioning). Read-only.",
+		Parameters:  listParamsSchema(),
+	},
+	{
+		Name:        toolBillingListUsage,
+		Description: "List the caller's recent metering/usage events (resource, quantity, unit, time). Read-only.",
+		Parameters:  listParamsSchema(),
+	},
+	{
+		Name:        toolAuditListEvents,
+		Description: "List recent audit events in the tenant (action, actor, resource, status, time). Read-only.",
 		Parameters:  listParamsSchema(),
 	},
 }
@@ -209,4 +240,33 @@ func projectBucket(b gen.StorageBucket) map[string]any {
 		"versioning":          b.VersioningStatus,
 		"object_lock_enabled": b.ObjectLockEnabled,
 	}
+}
+
+func projectUsage(u gen.UsageEvent) map[string]any {
+	return map[string]any{
+		"id":            u.ID,
+		"resource_type": u.ResourceType,
+		"qty":           u.Qty,
+		"unit":          u.Unit,
+		"started_at":    u.StartedAt,
+		"ended_at":      u.EndedAt,
+	}
+}
+
+func projectAudit(a gen.AuditLog) map[string]any {
+	out := map[string]any{
+		"id":            a.ID,
+		"action":        a.Action,
+		"resource_type": a.ResourceType,
+		"actor_type":    a.ActorType,
+		"status":        a.Status,
+		"created_at":    a.CreatedAt,
+	}
+	if a.ActorUserID != nil {
+		out["actor_user_id"] = *a.ActorUserID
+	}
+	if a.ResourceID != nil {
+		out["resource_id"] = *a.ResourceID
+	}
+	return out
 }

@@ -682,3 +682,8 @@ agent:
   defaultConversationTitle: "New conversation"
   # max bytes for a single user prompt. 64 KiB is generous for text.
   maxMessageBytes: 65536
+  billing:
+    # price (ledger cents) per 1000 model tokens for ADMIN-PROVIDED turns.
+    # BYOK turns are never charged. Placeholder pending the WS-17 price
+    # catalog; sourced from env LAHIJAN_AGENT_BILLING_CENTSPER1KTOKENS.
+    centsPer1kTokens: 2

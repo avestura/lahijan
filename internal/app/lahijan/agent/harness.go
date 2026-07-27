@@ -112,6 +112,20 @@ type Event struct {
 	ToolCallID string          `json:"tool_call_id,omitempty"`
 	Result     json.RawMessage `json:"result,omitempty"`
 	Error      string          `json:"error,omitempty"`
+	// Usage carries the model's token accounting for a turn (EventDone only,
+	// and only when the provider reports usage). The service meters it into
+	// usage_events + the ledger when the model is admin-provided; BYOK usage
+	// is unmetered. Nil when the provider did not report usage.
+	Usage *TurnUsage `json:"usage,omitempty"`
+}
+
+// TurnUsage is the token accounting for one agent turn. The harness sums
+// across every model round (the read-only tool loop may issue several) and
+// reports the total on the terminal EventDone.
+type TurnUsage struct {
+	PromptTokens     int `json:"prompt_tokens"`
+	CompletionTokens int `json:"completion_tokens"`
+	TotalTokens      int `json:"total_tokens"`
 }
 
 // StubHarness is the default Harness used until the OpenCode SDK wiring

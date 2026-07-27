@@ -18,7 +18,9 @@ import (
 
 	"github.com/avestura/lahijan/internal/app/lahijan/agent"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/audit"
+	"github.com/avestura/lahijan/internal/app/lahijan/auth/rbac"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/secrets"
+	"github.com/avestura/lahijan/internal/app/lahijan/billing"
 	"github.com/avestura/lahijan/internal/app/lahijan/conf"
 	"github.com/avestura/lahijan/internal/app/lahijan/database"
 )
@@ -31,23 +33,37 @@ func buildAgentService(
 	repos *database.Repos,
 	emitter audit.Emitter,
 	crypto *secrets.Crypto,
+	billingSvc *billing.Service,
 	log *slog.Logger,
 ) *agent.Service {
 	if !conf.GetAgentEnabled() {
 		log.Debug("agent subsystem is disabled; skipping agent service build")
 		return nil
 	}
-	// The read-only module tool bridge exposes dns.list_zones /
-	// compute.list_instances / storage.list_buckets over the shared repos.
-	// It is wired both as the service's ToolExecutor (so the descriptor list
-	// the policy filters is the real catalog) and into the harness (so the
-	// LLMHarness runs the read-only tool loop and feeds results back to the
-	// model for a grounded, natural-language answer).
-	tools := agent.NewModuleToolBridge(repos)
+	// The read-only module tool bridge exposes one tool per in-scope module
+	// (dns/compute/storage/billing-usage/audit) over the shared repos. It is
+	// wrapped by the EnforcingExecutor so every call is permission-gated via
+	// rbac.Require and emits an audit row before + after (pillar 2 + 7). The
+	// enforcer is wired both as the service's ToolExecutor (so the descriptor
+	// list the policy filters is the real catalog) and into the harness (so
+	// the LLMHarness runs the read-only tool loop and feeds results back to
+	// the model for a grounded, natural-language answer).
+	bridge := agent.NewModuleToolBridge(repos)
+	policy := rbac.NewEvaluator(repos.Memberships)
+	tools := agent.NewEnforcingExecutor(bridge, policy, emitter)
+	// Token metering (WS-31c): admin-provided turns record a usage_event +
+	// debit the ledger; the spend-cap pre-check reads the balance. BYOK turns
+	// never reach the meter. nil billingSvc => metering disabled.
+	var meter agent.Meter
+	if billingSvc != nil {
+		meter = newAgentMeter(billingSvc, repos.BillingUsage, conf.GetAgentBillingCentsPer1kTokens())
+	}
 	svc := agent.New(agent.Deps{
 		Repos:  repos,
 		Audit:  emitter,
 		Crypto: crypto,
+		Policy: policy,
+		Meter:  meter,
 		// The real model-backed harness. It talks to any OpenAI-compatible
 		// /chat/completions endpoint using the user's BYOK provider config
 		// (OpenAI / OpenRouter / Groq / Ollama / ...). The OpenCode daemon
@@ -61,6 +77,7 @@ func buildAgentService(
 			MaxMessageBytes:          conf.GetAgentMaxMessageBytes(),
 		},
 	})
-	log.Info("agent chat subsystem enabled", "harness", "llm", "tools", "module-bridge")
+	log.Info("agent chat subsystem enabled",
+		"harness", "llm", "tools", "enforcing-bridge", "meter", meter != nil)
 	return svc
 }

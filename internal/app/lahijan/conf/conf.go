@@ -1086,3 +1086,12 @@ func GetAgentDefaultConversationTitle() string {
 func GetAgentMaxMessageBytes() int {
 	return viper.GetInt("agent.maxMessageBytes")
 }
+
+// GetAgentBillingCentsPer1kTokens is the price (in ledger cents) applied to
+// every 1000 model tokens consumed by an ADMIN-PROVIDED agent turn. BYOK turns
+// are never charged. The default of 2 (i.e. $0.02 / 1k tokens) is a
+// placeholder pending integration with the WS-17 price catalog; operators
+// tune it via env LAHIJAN_AGENT_BILLING_CENTSPER1KTOKENS.
+func GetAgentBillingCentsPer1kTokens() int64 {
+	return viper.GetInt64("agent.billing.centsPer1kTokens")
+}

@@ -48,6 +48,9 @@ Accepted; corrections land as new ADRs that supersede prior ones.
 | [0038](./0038-plugin-sdk-go-design.md) | Plugin SDK (Go) design — sdk-go/ module, inline response-buffer ABI, typed errors | Accepted | 2026-07-25 |
 | [0039](./0039-wasi-runtime-mode.md) | WASI plugin runtime mode — filtered importer, dedicated WASI slugs, `*` escape hatch | Accepted | 2026-07-25 |
 | [0040](./0040-incus-in-container-topology.md) | Incus-in-container topology — privileged `incus` service via `ghcr.io/cmspam/incus-docker` (supersedes the Incus-placement dimension of ADR-0005) | Accepted | 2026-07-26 |
+| [0041](./0041-agent-model-integration-openai-compatible.md) | Agent model integration — OpenAI-compatible client for v1 (interim; OpenCode daemon remains the seam target) | Accepted | 2026-07-27 |
+| [0042](./0042-agent-tool-bridge-rbac-audit-actor.md) | Agent tool bridge — RBAC + audit decorator + `actor_type="user"` with `via_agent` flag | Accepted | 2026-07-27 |
+| [0043](./0043-agent-provider-limits-metering.md) | Agent provider config, admin limits, and token metering — synchronous `PostCharge` for admin models, BYOK unmetered | Accepted | 2026-07-27 |
 
 ## How to write a new ADR
 

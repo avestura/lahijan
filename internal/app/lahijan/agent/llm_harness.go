@@ -144,18 +144,28 @@ func (h *LLMHarness) stream(ctx context.Context, req RunRequest, out chan<- Even
 	// Bound the tool-calling loop so a model that keeps requesting tools can
 	// never pin the turn open forever.
 	const maxRounds = 6
+	var total TurnUsage // summed across every round for metering
+	addUsage := func(u *TurnUsage) {
+		if u == nil {
+			return
+		}
+		total.PromptTokens += u.PromptTokens
+		total.CompletionTokens += u.CompletionTokens
+		total.TotalTokens += u.TotalTokens
+	}
 	for round := 0; round < maxRounds; round++ {
 		body, err := buildChatBody(model, messages, toolSpecs)
 		if err != nil {
 			return err
 		}
-		toolCalls, err := h.callModel(ctx, url, req.Provider.APIKey, body, out)
+		toolCalls, u, err := h.callModel(ctx, url, req.Provider.APIKey, body, out)
 		if err != nil {
 			return err
 		}
+		addUsage(u)
 		if len(toolCalls) == 0 {
 			// Plain-text completion (or the stream ended without a tool call).
-			out <- Event{Type: EventDone}
+			out <- Event{Type: EventDone, Usage: usageOrNil(&total)}
 			return nil
 		}
 
@@ -195,13 +205,23 @@ func (h *LLMHarness) stream(ctx context.Context, req RunRequest, out chan<- Even
 			out <- Event{Type: EventToolCall, Tool: toolName, Args: args, ToolCallID: tc.ID}
 		}
 		if stop {
-			out <- Event{Type: EventDone}
+			out <- Event{Type: EventDone, Usage: usageOrNil(&total)}
 			return nil
 		}
 	}
 	// Round budget exhausted without a final text answer; stop cleanly.
-	out <- Event{Type: EventDone}
+	out <- Event{Type: EventDone, Usage: usageOrNil(&total)}
 	return nil
+}
+
+// usageOrNil returns nil when no tokens were ever reported (so the service
+// skips metering for providers that do not honor stream_options.include_usage)
+// and a pointer to total otherwise.
+func usageOrNil(total *TurnUsage) *TurnUsage {
+	if total == nil || (total.PromptTokens == 0 && total.CompletionTokens == 0 && total.TotalTokens == 0) {
+		return nil
+	}
+	return total
 }
 
 // streamedToolCall accumulates one tool call across SSE deltas. OpenAI
@@ -216,16 +236,18 @@ type streamedToolCall struct {
 // callModel performs ONE streaming chat-completions request. It emits an
 // EventText for every content delta (tokens stream live to the client) and
 // returns the accumulated tool calls (empty when the model produced a
-// plain-text answer). A non-nil error means the call never streamed.
+// plain-text answer) plus the provider-reported token usage (nil when the
+// provider did not honor stream_options.include_usage). A non-nil error means
+// the call never streamed.
 func (h *LLMHarness) callModel(
 	ctx context.Context,
 	url, apiKey string,
 	body []byte,
 	out chan<- Event,
-) ([]chatToolCall, error) {
+) ([]chatToolCall, *TurnUsage, error) {
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
-		return nil, fmt.Errorf("build request: %w", err)
+		return nil, nil, fmt.Errorf("build request: %w", err)
 	}
 	httpReq.Header.Set("content-type", "application/json")
 	httpReq.Header.Set("accept", "text/event-stream")
@@ -233,35 +255,37 @@ func (h *LLMHarness) callModel(
 
 	resp, err := h.httpClient.Do(httpReq)
 	if err != nil {
-		return nil, fmt.Errorf("call model: %w", err)
+		return nil, nil, fmt.Errorf("call model: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("model returned %s: %s", resp.Status, truncate(readErrorBody(resp.Body), 300))
+		return nil, nil, fmt.Errorf("model returned %s: %s", resp.Status, truncate(readErrorBody(resp.Body), 300))
 	}
 
 	// SSE: each frame is `data: <json>\n\n`; the terminal sentinel is
 	// `data: [DONE]`. Parse incrementally so tokens surface live and tool
-	// call fragments accumulate in order.
+	// call fragments accumulate in order. The usage frame arrives with an
+	// empty choices array just before [DONE].
 	acc := make(map[int]*streamedToolCall)
+	var usage *TurnUsage
 	reader := bufio.NewReaderSize(resp.Body, 4096)
 	for {
 		if err := ctx.Err(); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		line, readErr := reader.ReadBytes('\n')
 		if len(line) > 0 {
-			done, _ := parseSSELine(line, out, acc)
+			done, _ := parseSSELine(line, out, acc, &usage)
 			if done {
-				return materializeToolCalls(acc), nil
+				return materializeToolCalls(acc), usage, nil
 			}
 		}
 		if readErr != nil {
 			if errors.Is(readErr, io.EOF) {
 				// Stream ended without an explicit [DONE]; treat as done.
-				return materializeToolCalls(acc), nil
+				return materializeToolCalls(acc), usage, nil
 			}
-			return nil, fmt.Errorf("read stream: %w", readErr)
+			return nil, nil, fmt.Errorf("read stream: %w", readErr)
 		}
 	}
 }
@@ -270,8 +294,14 @@ func (h *LLMHarness) callModel(
 // EventText and folds tool-call fragments into acc. Returns done=true on the
 // [DONE] sentinel. chunk-level errors are forwarded as EventError (the
 // service ends the turn on the first one); malformed lines are ignored so the
-// stream self-heals on the next frame.
-func parseSSELine(line []byte, out chan<- Event, acc map[int]*streamedToolCall) (bool, error) {
+// stream self-heals on the next frame. The provider-reported usage (when
+// present) is written through usage so the caller can meter the turn.
+func parseSSELine(
+	line []byte,
+	out chan<- Event,
+	acc map[int]*streamedToolCall,
+	usage **TurnUsage,
+) (bool, error) {
 	trim := strings.TrimSpace(string(line))
 	if trim == "" || strings.HasPrefix(trim, ":") {
 		return false, nil // keep-alive or blank separator
@@ -293,6 +323,12 @@ func parseSSELine(line []byte, out chan<- Event, acc map[int]*streamedToolCall) 
 	if chunk.Error != nil && chunk.Error.Message != "" {
 		out <- Event{Type: EventError, Error: chunk.Error.Message}
 		return false, nil
+	}
+	// Capture usage wherever it appears; OpenAI sends it in a terminal frame
+	// with empty choices, but some providers attach it to the last content
+	// chunk. Either way the last non-nil value wins.
+	if chunk.Usage != nil && usage != nil {
+		*usage = chunk.Usage
 	}
 	if len(chunk.Choices) == 0 {
 		return false, nil
@@ -365,6 +401,9 @@ type chatChunk struct {
 			} `json:"tool_calls,omitempty"`
 		} `json:"delta"`
 	} `json:"choices"`
+	// Usage is emitted in a terminal frame (empty choices) when
+	// stream_options.include_usage is honored by the provider.
+	Usage *TurnUsage `json:"usage,omitempty"`
 	Error *struct {
 		Message string `json:"message,omitempty"`
 		Type    string `json:"type,omitempty"`
@@ -456,11 +495,15 @@ func buildToolSpecs(tools []ToolDescriptor) []toolSpec {
 
 // buildChatBody assembles the OpenAI-compatible streaming request body for one
 // model round. Tools + tool_choice are included only when tools are advertised.
+// stream_options.include_usage asks the provider to emit a final frame with
+// token accounting so admin-provided turns can be metered (WS-31c); providers
+// that ignore it simply produce a nil Usage and the turn is unmetered.
 func buildChatBody(model string, messages []chatRequestMessage, tools []toolSpec) ([]byte, error) {
 	body := map[string]any{
-		"model":    model,
-		"messages": messages,
-		"stream":   true,
+		"model":          model,
+		"messages":       messages,
+		"stream":         true,
+		"stream_options": map[string]any{"include_usage": true},
 	}
 	if len(tools) > 0 {
 		body["tools"] = tools

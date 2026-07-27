@@ -21,6 +21,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/audit"
+	"github.com/avestura/lahijan/internal/app/lahijan/auth/rbac"
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/secrets"
 	"github.com/avestura/lahijan/internal/app/lahijan/database"
 	"github.com/avestura/lahijan/internal/app/lahijan/database/gen"
@@ -59,6 +60,8 @@ type Service struct {
 	repo    repository
 	audit   audit.Emitter
 	crypto  *secrets.Crypto
+	policy  rbac.PolicyEvaluator
+	meter   Meter
 	harness Harness
 	tools   ToolExecutor
 	config  Config
@@ -67,14 +70,38 @@ type Service struct {
 // Deps bundles the agent-service dependencies. crypto, harness, and tools
 // are nil-appropriate: crypto nil => BYOK key save surfaces ErrCryptoRequired;
 // harness nil => a paused harness (turns produce no model output); tools nil
-// => the agent has no tools to call.
+// => the agent has no tools to call. Policy wires the per-tool RBAC evaluator
+// used by the EnforcingExecutor; nil => the executor denies every tool.
+// Meter wires the billing adapter that debits admin-provided model turns
+// (WS-31c); nil => admin turns are unmetered + the spend cap is not enforced.
 type Deps struct {
 	Repos   *database.Repos
 	Audit   audit.Emitter
 	Crypto  *secrets.Crypto
+	Policy  rbac.PolicyEvaluator
+	Meter   Meter
 	Harness Harness
 	Tools   ToolExecutor
 	Config  Config
+}
+
+// Meter is the billing seam for admin-provided model turns. BYOK turns never
+// reach it. The production adapter wraps billing.Service (program package);
+// tests substitute a fake.
+type Meter interface {
+	// BalanceCents returns the user's current balance (credits minus charges)
+	// in the same cents unit as the ledger, within the tenant in ctx.
+	BalanceCents(ctx context.Context, userID uuid.UUID) (int64, error)
+	// ChargeAgentTokens records a usage_event (resource_type "agent_token")
+	// and debits the ledger for one admin-provided turn. Idempotent on the
+	// reference (a repeat call with the same reference is a no-op). The
+	// adapter derives the charge amount from the conf rate.
+	ChargeAgentTokens(
+		ctx context.Context,
+		tenantID, userID uuid.UUID,
+		usage TurnUsage,
+		reference string,
+	) error
 }
 
 // New builds the agent service. The harness defaults to a paused no-op when
@@ -84,6 +111,8 @@ func New(deps Deps) *Service {
 		repo:    deps.Repos.Agent,
 		audit:   deps.Audit,
 		crypto:  deps.Crypto,
+		policy:  deps.Policy,
+		meter:   deps.Meter,
 		harness: deps.Harness,
 		tools:   deps.Tools,
 		config:  deps.Config,
@@ -340,6 +369,11 @@ func (s *Service) StreamMessage(
 		return err
 	}
 
+	// Spend cap (WS-31c): admin-provided models debit the user's balance.
+	if spendErr := s.enforceSpendCap(ctx, userID, provider, policy); spendErr != nil {
+		return spendErr
+	}
+
 	// Open an audit row up front; finalize via the deferred MarkOutcome so
 	// both success and failure paths are recorded.
 	auditID := s.emit(ctx, audit.ActionAgentMessageSend, ResourceMessage, conversationID, userID,
@@ -369,6 +403,10 @@ func (s *Service) StreamMessage(
 	_ = s.repo.TouchConversation(ctx, userID, conversationID)
 
 	tools := s.toolsFor(policy)
+	// Carry the calling user's id in the context so the EnforcingExecutor
+	// can run per-tool rbac.Require and the billing tool can scope user
+	// reads. The tenant id already travels via database.WithTenant.
+	runCtx := WithActorUserID(ctx, userID)
 	req := RunRequest{
 		ConversationID: conversationID,
 		TenantID:       conv.TenantID,
@@ -378,14 +416,14 @@ func (s *Service) StreamMessage(
 		Provider:       provider,
 		Tools:          tools,
 	}
-	events, err := s.harness.Run(ctx, req)
+	events, err := s.harness.Run(runCtx, req)
 	if err != nil {
 		finalStatus = audit.StatusFailure
 		return fmt.Errorf("agent.message.send: harness: %w", err)
 	}
 
 	var content strings.Builder
-	loopErr := s.consumeEvents(ctx, userID, assistant.ID, policy, events, &content, emit)
+	loopErr := s.consumeEvents(runCtx, userID, assistant.ID, conversationID, provider, policy, events, &content, emit)
 
 	// Finalize the assistant message with whatever text accumulated.
 	if err := s.repo.SetMessageContent(ctx, assistant.ID, content.String()); err != nil {
@@ -402,11 +440,14 @@ func (s *Service) StreamMessage(
 }
 
 // consumeEvents drains the harness event channel, persists tool-call side
-// effects, and forwards every event to emit. Returns an error if the harness
-// reported one or emit failed (which aborts the turn).
+// effects, meters admin-provided turns, and forwards every event to emit.
+// Returns an error if the harness reported one or emit failed (which aborts
+// the turn).
 func (s *Service) consumeEvents(
 	ctx context.Context,
 	userID, assistantMessageID uuid.UUID,
+	conversationID uuid.UUID,
+	provider ResolvedProvider,
 	policy Policy,
 	events <-chan Event,
 	content *strings.Builder,
@@ -426,6 +467,7 @@ func (s *Service) consumeEvents(
 			}
 			_ = handled
 		case EventDone:
+			s.meterTurn(ctx, userID, conversationID, assistantMessageID, provider, ev.Usage)
 			return emit(ev)
 		case EventError:
 			_ = emit(ev)
@@ -436,6 +478,53 @@ func (s *Service) consumeEvents(
 	}
 	// Channel closed without an explicit Done — treat as done.
 	return emit(Event{Type: EventDone})
+}
+
+// meterTurn records usage + debits the ledger for an admin-provided model
+// turn. BYOK turns and turns with no reported usage are unmetered. Failures
+// are best-effort: the turn already succeeded, the charge is idempotent on
+// its reference, and the WS-17 metering rollup reconciles the cache; a
+// metering error must never roll back a successful answer.
+func (s *Service) meterTurn(
+	ctx context.Context,
+	userID, conversationID, messageID uuid.UUID,
+	provider ResolvedProvider,
+	usage *TurnUsage,
+) {
+	if !provider.AdminProvided || s.meter == nil || usage == nil {
+		return
+	}
+	// Stable per-message idempotency key so a retried/duplicated turn cannot
+	// double-charge.
+	reference := fmt.Sprintf("agent:conv:%s:msg:%s", conversationID, messageID)
+	tenantID, err := database.TenantFromContext(ctx)
+	if err != nil {
+		return
+	}
+	_ = s.meter.ChargeAgentTokens(ctx, tenantID, userID, *usage, reference)
+}
+
+// enforceSpendCap refuses an admin-provided turn when the user has no credit
+// left to spend. BYOK turns bypass it (they never debit the ledger). A zero or
+// absent SpendCapCredits means uncapped; the balance check still runs so a
+// user with a negative balance cannot run up further charges.
+func (s *Service) enforceSpendCap(
+	ctx context.Context,
+	userID uuid.UUID,
+	provider ResolvedProvider,
+	policy Policy,
+) error {
+	if !provider.AdminProvided || s.meter == nil {
+		return nil
+	}
+	balance, err := s.meter.BalanceCents(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("agent.message.send: spend cap check: %w", err)
+	}
+	if policy.SpendCapCredits > 0 && balance <= 0 {
+		return ErrSpendCap
+	}
+	return nil
 }
 
 // handleToolCall persists the tool-call row and either executes it inline
@@ -543,7 +632,9 @@ func (s *Service) ConfirmToolCall(
 	}
 
 	_ = s.repo.SetToolCallStatus(ctx, userID, toolCallID, database.AgentToolCallStatusApproved)
-	result, execErr := s.execTool(ctx, row.ToolName, row.Args)
+	// Carry the actor so the EnforcingExecutor can run rbac.Require + audit
+	// exactly as it does on the read-only path.
+	result, execErr := s.execTool(WithActorUserID(ctx, userID), row.ToolName, row.Args)
 	status := database.AgentToolCallStatusExecuted
 	if execErr != nil {
 		status = database.AgentToolCallStatusFailed

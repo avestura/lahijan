@@ -286,17 +286,53 @@ providers, without waiting for the OpenCode daemon (WS-31a). Green: `go build`,
 - **`agent/llm_harness_test.go`** — covers tool advertisement, the read-only
   loop, destructive HITL surfacing, the no-provider path, and `parseLimit`.
 
-> **Architectural divergence to record in an ADR.** This slice talks to the
+> **Architectural divergence recorded in ADR-0041.** This slice talks to the
 > model over a plain OpenAI-compatible `/chat/completions` client instead of
 > the shared OpenCode daemon the brief specifies. It satisfies the same
 > `agent.Harness` seam, so the daemon path (WS-31a) remains a clean future
-> swap; the decision to ship the OpenAI-client path for v1 should be captured
-> in the "Agent / OpenCode integration architecture" ADR.
+> swap; the decision is captured in ADR-0041.
+
+### Implementation progress (third slice — WS-31b + WS-31c, branch `feat/ws-31b-tool-bridge`)
+
+Closes the read-only tool-bridge + admin-limits/metering gaps. Green: `go
+build`, `golangci-lint`, `go test`.
+
+**WS-31b — tool bridge + RBAC/audit (ADR-0042):**
+- `ModuleToolBridge` now exposes **one tool per in-scope module** — added
+  `billing.list_usage` + `audit.list_events` alongside compute/DNS/storage.
+- `EnforcingExecutor` decorates the bridge: every call runs `rbac.Require`
+  against the calling user's permissions and emits an audit row before +
+  after (`audit.ActionAgentToolExecute`, `metadata.via_agent = true`). The
+  actor is `actor_type = "user"` (no schema change); `WithActorUserID`
+  threads the identity through the turn.
+- Wired as both `Deps.Tools` and the harness executor, so the read-only
+  loop, the inline path, and the HITL confirm path are gated identically.
+
+**WS-31c — metering + spend cap + admin limits (ADR-0043):**
+- Token usage captured from the stream (`stream_options.include_usage`) and
+  carried on `EventDone.Usage`.
+- `agent.Meter` seam + `program/agent_meter.go` adapter: an admin-provided
+  turn records a `usage_events` row (`agent_token`) and debits the ledger
+  via the canonical `billing.Service.PostCharge` (idempotent on
+  `agent:conv:<id>:msg:<id>`). BYOK turns are unmetered.
+- Spend cap enforced pre-send (`enforceSpendCap`): a tenant with
+  `SpendCapCredits > 0` and balance `<= 0` is refused (`ErrSpendCap`).
+- Interim price knob `agent.billing.centsPer1kTokens` (default 2).
+- **ADRs 0041 / 0042 / 0043 written** + indexed.
+
+**Still deferred (the remaining DoD items):**
+- Destructive module tools (create/delete via the domain services) — the
+  HITL infra + the enforcer already cover the path; the tools themselves
+  need service wiring + fakes.
+- Admin-shared (platform-level) providers + the `force_admin_models` real
+  fallback — needs a `0050_agent_admin_providers` migration + sqlc regen;
+  today the toggle disables BYOK and the agent has nothing to run on.
+- Playwright e2e for one create-via-agent + one destructive-confirm flow.
 
 Deferred to the follow-on sub-streams (the seams above are the swap points):
 
 - **WS-31a** — real OpenCode harness via `opencode-sdk-go` (replace
-  `LLMHarness`) + the shared-daemon lifecycle + the ADR. *(The OpenAI-compatible
+  `LLMHarness`) + the shared-daemon lifecycle. *(The OpenAI-compatible
   `LLMHarness` above is an interim that makes BYOK tool-calling work today; it
   does not satisfy the daemon-lifecycle DoD item.)*
 - **WS-31b** — MCP tool bridge mapping the compute/DNS/storage/billing/audit

@@ -487,7 +487,7 @@ func Start() error {
 	if c, cryptoErr := buildCrypto(); cryptoErr == nil {
 		agentCrypto = c
 	}
-	agentSvc := buildAgentService(authDeps.repos, authDeps.audit, agentCrypto, slog.Default())
+	agentSvc := buildAgentService(authDeps.repos, authDeps.audit, agentCrypto, billingSvc, slog.Default())
 
 	// Seed the RBAC catalog (permissions + default roles + grants). Idempotent
 	// so it is safe to run on every bootstrap. Fail-fast on error: without the
