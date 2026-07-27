@@ -354,12 +354,15 @@
     },
     "console": {
       "title": "Console",
-      "placeholder": "Type a command and press Enter to run it in the instance.",
-      "run": "Run",
-      "running": "Running…",
-      "exitCode": "Exit code: {{code}}",
-      "disconnected": "Disconnected. The instance may be stopped.",
-      "hint": "Output of one-shot commands; an interactive shell session is on the roadmap."
+      "connect": "Connect",
+      "disconnect": "Disconnect",
+      "connecting": "Connecting…",
+      "connected": "Connected",
+      "disconnected": "Disconnected.",
+      "connectionClosed": "Connection closed. Reconnect to start a new session.",
+      "resizeError": "Could not resize the remote terminal.",
+      "notRunning": "Start the instance to open a console.",
+      "noPermission": "You do not have permission to open a console."
     },
     "graphicalConsole": {
       "title": "Graphical console",
