@@ -63,6 +63,12 @@ const (
 	// graphical (noVNC) console session to a running VM (WS-24). Distinct
 	// from exec: VM-only, RFB protocol, longer-lived session.
 	AuditInstanceConsoleVNCConnect = "compute.instance.console.vnc.connect"
+	// AuditInstanceConsoleExecConnect records that a user opened an
+	// interactive (xterm.js) shell session to a running instance
+	// (WS-32). Distinct from the one-shot AuditInstanceExec: this is
+	// the long-lived PTY-backed bidirectional shell. Works for BOTH
+	// containers and VMs (Incus supports exec on both).
+	AuditInstanceConsoleExecConnect = "compute.instance.console.exec.connect"
 
 	// WS-25: snapshot + backup + policy audit actions. Mirror the rbac
 	// slugs but use past-tense verbs so the audit row reads "what
@@ -164,6 +170,7 @@ type incusProvider interface {
 	incusNetworkOps
 	incusVolumeOps
 	incusExecOps
+	incusExecInteractiveOps
 	incusConsoleOps
 	incusForwardOps
 }
@@ -218,6 +225,15 @@ type incusVolumeOps interface {
 // incusExecOps covers the exec websocket proxy.
 type incusExecOps interface {
 	Exec(ctx context.Context, params incus.ExecParams) (*incus.ExecResult, error)
+}
+
+// incusExecInteractiveOps covers the WS-32 interactive (PTY-backed)
+// exec console: open an interactive exec operation (returns the op id +
+// per-fd secrets for stdin/stdout/control) and dial any per-fd
+// websocket (the bridge uses this for stdin, stdout, + control).
+type incusExecInteractiveOps interface {
+	OpenInteractiveExec(ctx context.Context, params incus.InteractiveExecParams) (incus.InteractiveExecSession, error)
+	DialExecFD(ctx context.Context, opID, secret string) (*websocket.Conn, error)
 }
 
 // incusConsoleOps covers the WS-24 VNC console proxy: open an Incus console

@@ -466,6 +466,9 @@
   "compute.err_vnc_unavailable": {
     "other": "کنسول گرافیکی برای این نمونه قابل باز کردن نیست."
   },
+  "compute.err_exec_unavailable": {
+    "other": "پوستهٔ تعاملی برای این نمونه قابل باز کردن نیست."
+  },
   "compute.err_bad_request": {
     "other": "درخواست نادرست بود."
   },
@@ -519,6 +522,9 @@
   },
   "audit.action_compute_instance_console_vnc_connect": {
     "other": "نشست کنسول گرافیکی (VNC) برای نمونهٔ محاسباتی باز شد"
+  },
+  "audit.action_compute_instance_console_exec_connect": {
+    "other": "نشست پوستهٔ تعاملی (exec) برای نمونهٔ محاسباتی باز شد"
   },
   "audit.action_compute_image_upload": {
     "other": "تصویر محاسباتی بارگذاری شد"

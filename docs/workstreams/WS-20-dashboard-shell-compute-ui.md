@@ -92,7 +92,9 @@ their day-1 compute tasks end-to-end through the browser.
       POST /instances/{id}/exec endpoint. The interactive
       bidirectional shell session needs the backend websocket bridge
       (WS-14 lists the websocket upgrade as part of its scope but
-      only shipped the one-shot variant).
+      only shipped the one-shot variant). **Tracked in WS-32
+      (Interactive Exec Console); this checkbox flips to `[x]` when
+      WS-32 merges.**
 - [ ] user can create/restore a snapshot
       — backend gap: WS-14 lists GET/POST /instances/{id}/snapshots
       as in-scope but did not ship them. The Snapshots tab surfaces a
@@ -161,9 +163,13 @@ their day-1 compute tasks end-to-end through the browser.
   xterm.js over websocket" as in-scope, but the backend (WS-14) only
   shipped the one-shot POST /instances/{id}/exec endpoint. The
   Console tab uses that endpoint + xterm.js for output rendering.
-  The interactive bidirectional shell session will land when the
-  backend websocket bridge ships (it's an Incus provider change
-  outside this WS's scope).
+  The interactive bidirectional shell session is tracked in **WS-32
+  (Interactive Exec Console)** — it adds the backend WS bridge
+  (mirroring WS-24's noVNC pattern), the new
+  `GET /instances/{id}/console` endpoint, a `compute.instance.console.exec`
+  permission, and rewrites `InstanceConsole.tsx` to remove the
+  Input/Run form (terminal becomes the input) + use ResizeObserver
+  for responsive sizing.
 - **Snapshots.** The WS-14 doc lists GET/POST /instances/{id}/snapshots
   + DELETE /snapshots/{name} as in-scope but did not ship them. The
   Snapshots tab surfaces a localized "coming soon" notice pointing at

@@ -284,6 +284,36 @@ func (f *fakeIncus) DialVNCConsole(_ context.Context, _, _ string) (*websocket.C
 	return nil, nil
 }
 
+// OpenInteractiveExec stubs the WS-32 interactive exec open path for
+// the service-level integration test. Returns a synthetic session with
+// per-fd secrets so the service path can be exercised; the WS-32
+// handler-level test in api/ exercises the real bytes-pump against the
+// Incus fake. Honours execErr so the "audit emitted before Incus call"
+// invariant can be tested.
+func (f *fakeIncus) OpenInteractiveExec(_ context.Context, params incus.InteractiveExecParams) (incus.InteractiveExecSession, error) {
+	if f.execErr != nil {
+		return incus.InteractiveExecSession{}, f.execErr
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if _, ok := f.instances[params.Project+":"+params.Instance]; !ok {
+		return incus.InteractiveExecSession{}, incus.ErrNotFound
+	}
+	return incus.InteractiveExecSession{
+		OperationID:   uuid.NewString(),
+		StdinSecret:   uuid.NewString(),
+		StdoutSecret:  uuid.NewString(),
+		ControlSecret: uuid.NewString(),
+	}, nil
+}
+
+// DialExecFD is never invoked by the service-level integration test
+// (it does not exercise the WS bytes-pump). Returns a typed nil so the
+// interface satisfies; if a test ever calls it, the test must override.
+func (f *fakeIncus) DialExecFD(_ context.Context, _, _ string) (*websocket.Conn, error) {
+	return nil, nil
+}
+
 // recorderBus is a minimal eventbus.Bus-shaped recorder.
 type recorderBus struct {
 	mu      sync.Mutex
@@ -740,4 +770,133 @@ func TestOpenVNCConsole_UnknownInstance(t *testing.T) {
 
 	_, err := f.svc.OpenVNCConsole(ctx, f.tenantID, f.userID, uuid.New())
 	require.ErrorIs(t, err, compute.ErrInstanceNotFound)
+}
+
+// -------------------------------------------------------------------------
+// WS-32: OpenExecConsole (interactive xterm.js shell)
+// -------------------------------------------------------------------------
+//
+// TestOpenExecConsole_* mirrors TestOpenVNCConsole_* for the interactive
+// exec path. The orchestration is identical (lookup -> audit emit ->
+// Incus call); the assertions differ in:
+//
+//   - BOTH containers and VMs are allowed (no ErrInstanceNotVM path).
+//   - The audit action is AuditInstanceConsoleExecConnect, not the VNC
+//     variant.
+//   - The session carries 3 per-fd secrets (stdin/stdout/control)
+//     instead of a single RFB secret.
+
+// TestOpenExecConsole_HappyPath covers the WS-32 service path: a
+// running instance gets an interactive exec session + an audit row is
+// emitted with the exec connect action BEFORE the Incus call.
+func TestOpenExecConsole_HappyPath(t *testing.T) {
+	t.Parallel()
+	f := newFixture(t)
+	ctx := f.tenantCtx()
+
+	row, err := f.svc.CreateInstance(ctx, f.tenantID, f.userID, compute.InstanceCreateParams{
+		Name:       "exec-target",
+		ImageAlias: "ubuntu/24.04", // container; exec works on both types
+	})
+	require.NoError(t, err)
+	_, err = f.svc.SetInstanceState(ctx, f.tenantID, f.userID, row.ID, compute.ActionStart, false, 30)
+	require.NoError(t, err)
+
+	session, err := f.svc.OpenExecConsole(ctx, f.tenantID, f.userID, row.ID, nil, 80, 24)
+	require.NoError(t, err)
+	assert.NotEmpty(t, session.OperationID, "session must carry the operation id")
+	assert.NotEmpty(t, session.StdinSecret, "session must carry the stdin secret")
+	assert.NotEmpty(t, session.StdoutSecret, "session must carry the stdout secret")
+	assert.NotEmpty(t, session.ControlSecret, "session must carry the control secret")
+	assert.Equal(t, f.incus.ProjectName(f.tenantID), session.Project)
+	assert.Equal(t, "exec-target", session.Instance)
+
+	rows := f.auditEm.eventsFor(compute.AuditInstanceConsoleExecConnect)
+	require.Len(t, rows, 1, "open must emit exactly one exec connect audit row")
+	assert.Equal(t, audit.StatusSuccess, rows[0].Status, "audit row must be success")
+	assert.Equal(t, row.ID, *rows[0].ResourceID, "audit row must reference the instance")
+}
+
+// TestOpenExecConsole_WorksWithVMs asserts the interactive exec path
+// is NOT VM-gated — both containers and VMs can open a shell. This is
+// the headline behavioural difference from the VNC path.
+func TestOpenExecConsole_WorksWithVMs(t *testing.T) {
+	t.Parallel()
+	f := newFixture(t)
+	ctx := f.tenantCtx()
+
+	row, err := f.svc.CreateInstance(ctx, f.tenantID, f.userID, compute.InstanceCreateParams{
+		Name:       "vm-exec",
+		Type:       "virtual-machine",
+		ImageAlias: "ubuntu/24.04",
+	})
+	require.NoError(t, err)
+	_, err = f.svc.SetInstanceState(ctx, f.tenantID, f.userID, row.ID, compute.ActionStart, false, 30)
+	require.NoError(t, err)
+
+	_, err = f.svc.OpenExecConsole(ctx, f.tenantID, f.userID, row.ID, nil, 80, 24)
+	require.NoError(t, err, "VMs must be able to open an interactive exec session")
+}
+
+// TestOpenExecConsole_NotRunning asserts the service refuses to open
+// an exec session against a stopped instance (exec requires a running
+// instance per WS-14 open question 3).
+func TestOpenExecConsole_NotRunning(t *testing.T) {
+	t.Parallel()
+	f := newFixture(t)
+	ctx := f.tenantCtx()
+
+	row, err := f.svc.CreateInstance(ctx, f.tenantID, f.userID, compute.InstanceCreateParams{
+		Name:       "exec-stopped",
+		ImageAlias: "ubuntu/24.04",
+	})
+	require.NoError(t, err)
+	// Deliberately do NOT start.
+
+	_, err = f.svc.OpenExecConsole(ctx, f.tenantID, f.userID, row.ID, nil, 80, 24)
+	require.ErrorIs(t, err, compute.ErrInstanceNotRunning)
+}
+
+// TestOpenExecConsole_UnknownInstance asserts the repo's tenant-scoping
+// produces ErrInstanceNotFound for a random id (the same invariant as
+// the VNC path).
+func TestOpenExecConsole_UnknownInstance(t *testing.T) {
+	t.Parallel()
+	f := newFixture(t)
+	ctx := f.tenantCtx()
+
+	_, err := f.svc.OpenExecConsole(ctx, f.tenantID, f.userID, uuid.New(), nil, 80, 24)
+	require.ErrorIs(t, err, compute.ErrInstanceNotFound)
+}
+
+// TestOpenExecConsole_AuditEmittedBeforeIncusCall asserts the audit
+// row lands even when the Incus daemon refuses the call. The daemon
+// failure surfaces as ErrExecUnavailable but the audit row stays at
+// success — the user *did* initiate the connect; the daemon being
+// unreachable is operational, not a denied privileged action. Mirror
+// WS-24's audit timing decision (ADR-0044 records the rationale).
+func TestOpenExecConsole_AuditEmittedBeforeIncusCall(t *testing.T) {
+	t.Parallel()
+	f := newFixture(t)
+	ctx := f.tenantCtx()
+
+	row, err := f.svc.CreateInstance(ctx, f.tenantID, f.userID, compute.InstanceCreateParams{
+		Name:       "exec-daemon-down",
+		ImageAlias: "ubuntu/24.04",
+	})
+	require.NoError(t, err)
+	_, err = f.svc.SetInstanceState(ctx, f.tenantID, f.userID, row.ID, compute.ActionStart, false, 30)
+	require.NoError(t, err)
+
+	// Force the daemon to refuse the exec-open call.
+	f.incus.execErr = errors.New("daemon unreachable")
+
+	_, err = f.svc.OpenExecConsole(ctx, f.tenantID, f.userID, row.ID, nil, 80, 24)
+	require.Error(t, err, "daemon failure must surface to the caller")
+
+	// Audit row still landed with success status.
+	rows := f.auditEm.eventsFor(compute.AuditInstanceConsoleExecConnect)
+	require.Len(t, rows, 1, "audit row must land even when the daemon refuses")
+	assert.Equal(t, audit.StatusSuccess, rows[0].Status,
+		"audit row stays at success — daemon failure is operational, not denied")
 }

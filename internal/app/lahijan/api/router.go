@@ -77,6 +77,8 @@ func RegisterRoutes(app *fiber.App, server *Server, policy middleware.PolicyReso
 //	                                                          (exec needs a running instance)
 //	/api/v1/compute/instances/{id}/vnc GET            -> compute.instance.console.vnc
 //	                                                          (WS-24 noVNC graphical console)
+//	/api/v1/compute/instances/{id}/console GET        -> compute.instance.console.exec
+//	                                                          (WS-32 interactive xterm.js shell)
 //	/api/v1/compute/images GET                        -> compute.image.read
 //	/api/v1/compute/images POST                       -> compute.instance.create
 //	                                                          (custom upload is create-adjacent)
@@ -203,6 +205,12 @@ func AuditGate(policy middleware.PolicyResolver) apigen.MiddlewareFunc {
 			// WS-24: noVNC graphical console. Distinct permission from
 			// exec — only granted to tenant.admin + tenant.member.
 			return middleware.RequirePerm(policy, rbac.PermComputeInstanceConsoleVNC)(c)
+		case isComputeInstanceConsolePath(path) && method == "GET":
+			// WS-32: interactive xterm.js shell. Distinct permission
+			// from VNC + from the one-shot exec audit action. Granted
+			// to tenant.admin + tenant.member (NOT viewer — interactive
+			// shell is privileged).
+			return middleware.RequirePerm(policy, rbac.PermComputeInstanceConsoleExec)(c)
 		case isComputeInstanceExecPath(path) && method == "POST":
 			// exec needs a running instance; reuse the start permission
 			// since both involve "interact with a running instance".
@@ -541,6 +549,7 @@ func isComputeInstancePath(path string) bool {
 		!isComputeInstanceLifecyclePath(path) &&
 		!isComputeInstanceExecPath(path) &&
 		!isComputeInstanceVNCPath(path) &&
+		!isComputeInstanceConsolePath(path) &&
 		!isComputeSnapshotPath(path) &&
 		!isComputeSnapshotRestorePath(path) &&
 		!isComputeInstanceBackupsPath(path) &&
@@ -569,6 +578,16 @@ func isComputeInstanceExecPath(path string) bool {
 // tenant.member reach the handler.
 func isComputeInstanceVNCPath(path string) bool {
 	return strings.HasPrefix(path, "/api/v1/compute/instances/") && strings.HasSuffix(path, "/vnc")
+}
+
+// isComputeInstanceConsolePath reports whether path is the WS-32
+// interactive xterm.js WebSocket endpoint. The audit gate dispatches
+// it to RequirePerm(compute.instance.console.exec) so only
+// tenant.admin + tenant.member reach the handler (NOT viewer —
+// interactive shell is privileged). Both containers and VMs are
+// allowed at the perm layer; the handler enforces Running state.
+func isComputeInstanceConsolePath(path string) bool {
+	return strings.HasPrefix(path, "/api/v1/compute/instances/") && strings.HasSuffix(path, "/console")
 }
 
 // -------------------------------------------------------------------------
