@@ -51,7 +51,18 @@ func (s *Server) handleExec(w http.ResponseWriter, r *http.Request, instance str
 		return
 	}
 	handler := s.execHandler
+	interactiveHandler := s.interactiveExecHandler
 	s.mu.Unlock()
+
+	// Interactive exec (WS-32): the daemon mints a different fd layout
+	// (stdin + combined stdout + control) and treats the session as a
+	// long-lived bidirectional PTY instead of a one-shot run + capture.
+	// Dispatch to a dedicated handler so the WS-32 bridge can be tested
+	// without disturbing the one-shot assertions.
+	if body.Interactive {
+		s.handleInteractiveExec(w, body, project, instance, interactiveHandler)
+		return
+	}
 
 	stdinSecret := uuid.NewString()
 	stdoutSecret := uuid.NewString()
@@ -221,3 +232,172 @@ func (s *Server) handleExecWS(w http.ResponseWriter, r *http.Request, opID strin
 
 // acceptKey is the (opID, secret) tuple the websocket route matches against.
 func acceptKey(opID, secret string) string { return opID + "|" + secret }
+
+// handleInteractiveExec services an Interactive=true + WaitForWS=true exec
+// POST (WS-32). The fake mints four per-fd secrets (stdin, stdout, stderr
+// for completeness, + control), parks goroutines that:
+//
+//   - echo stdin bytes back onto stdout (a minimal PTY stand-in), and
+//   - read + record the JSON control messages the bridge sends for resize
+//     (asserted by the bridge unit test via ResizeMessages()).
+//
+// The handler owns the conn lifetime for each fd it parks; closing the
+// stdin conn (the bridge does this on browser-disconnect) terminates the
+// echo loop and lets the operation complete.
+func (s *Server) handleInteractiveExec(
+	w http.ResponseWriter,
+	body incus.InstanceExecPost,
+	_, instance string,
+	handler func(conn *websocket.Conn, params incus.InstanceExecPost, resizes *[]incus.ExecControlResize),
+) {
+	stdinSecret := uuid.NewString()
+	stdoutSecret := uuid.NewString()
+	controlSecret := uuid.NewString()
+	opID := uuid.NewString()
+
+	// Interactive mode: stdout + stderr are combined on fd "1"; fd "2"
+	// is absent in real Incus. The fake omits it too so the driver's
+	// "fd 2 must be empty in interactive mode" invariant is asserted.
+	opEnvelope := map[string]any{
+		"id":          opID,
+		"class":       "websocket",
+		"status":      "Running",
+		"status_code": http.StatusOK,
+		"may_cancel":  true,
+		"created_at":  time.Now().UTC(),
+		"updated_at":  time.Now().UTC(),
+		"metadata": map[string]any{
+			"fds": map[string]string{
+				"0":       stdinSecret,
+				"1":       stdoutSecret,
+				"control": controlSecret,
+			},
+		},
+	}
+	envelopeJSON, _ := json.Marshal(opEnvelope)
+
+	secretsJSON, _ := json.Marshal(map[string]any{
+		"fds": map[string]string{
+			"0":       stdinSecret,
+			"1":       stdoutSecret,
+			"control": controlSecret,
+		},
+	})
+	s.mu.Lock()
+	s.operations[opID] = &fakeOperation{
+		op: incus.Operation{
+			ID:         opID,
+			Class:      "websocket",
+			Status:     "Running",
+			StatusCode: http.StatusOK,
+			MayCancel:  true,
+			Metadata:   secretsJSON,
+		},
+		done: make(chan struct{}),
+	}
+	if s.interactiveResizes == nil {
+		s.interactiveResizes = make(map[string]*[]incus.ExecControlResize)
+	}
+	resizes := make([]incus.ExecControlResize, 0)
+	s.interactiveResizes[opID] = &resizes
+	s.mu.Unlock()
+
+	// Stdout pump: waits for the driver to dial, then runs the
+	// interactive handler. The handler owns the conn and MUST close
+	// it. Default behaviour echoes stdin bytes back so the bridge
+	// round-trip test sees its own input.
+	go func() {
+		conn := s.acceptExecWS(opID, stdoutSecret)
+		if conn == nil {
+			return
+		}
+		handler(conn, body, s.interactiveResizes[opID])
+	}()
+
+	// Stdin pump: accept + read until the client closes (the bridge
+	// writes keystrokes here). The echo behaviour lives in the
+	// stdout handler so the stdin goroutine just drains.
+	go func() {
+		conn := s.acceptExecWS(opID, stdinSecret)
+		if conn == nil {
+			return
+		}
+		defer func() { _ = conn.Close() }()
+		for {
+			if _, _, err := conn.ReadMessage(); err != nil {
+				return
+			}
+		}
+	}()
+
+	// Control pump: accept + read JSON control messages. The fake
+	// records resizes for later assertion + replies with a 200 ack
+	// (matching the real daemon's "control fd is fire-and-forget"
+	// behaviour — the daemon does not ack on success, but writing
+	// nothing keeps the conn open for the next message).
+	go func() {
+		conn := s.acceptExecWS(opID, controlSecret)
+		if conn == nil {
+			return
+		}
+		defer func() { _ = conn.Close() }()
+		for {
+			_, data, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+			var msg incus.ExecControlResize
+			if err := json.Unmarshal(data, &msg); err != nil {
+				continue
+			}
+			if msg.Type == "resize" {
+				s.mu.Lock()
+				*s.interactiveResizes[opID] = append(*s.interactiveResizes[opID], msg)
+				s.mu.Unlock()
+			}
+		}
+	}()
+
+	writeIncusAsyncWithMeta(w, opID, envelopeJSON)
+}
+
+// InteractiveResizes returns the recorded resize control messages for
+// the given operation id. The bridge test uses this to assert the
+// browser's resize control message reached the Incus control fd.
+func (s *Server) InteractiveResizes(opID string) []incus.ExecControlResize {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	ptr, ok := s.interactiveResizes[opID]
+	if !ok || ptr == nil {
+		return nil
+	}
+	out := make([]incus.ExecControlResize, len(*ptr))
+	copy(out, *ptr)
+	return out
+}
+
+// SetInteractiveExecHandler overrides the per-interactive-exec handler.
+// The default echoes stdin bytes back to stdout (a minimal PTY round-trip
+// stand-in). The handler owns the stdout conn's lifetime: it MUST close
+// it before returning.
+func (s *Server) SetInteractiveExecHandler(h func(conn *websocket.Conn, params incus.InstanceExecPost, resizes *[]incus.ExecControlResize)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.interactiveExecHandler = h
+}
+
+// defaultInteractiveExecHandler echoes stdin bytes back to stdout so the
+// bridge round-trip test sees its own input. The conn is the stdout fd;
+// we cannot directly read from stdin here (it is a different WS), so the
+// default handler writes a single hello banner + waits for the conn to
+// close. Tests that want true echo override via SetInteractiveExecHandler
+// and wire both ends themselves.
+func defaultInteractiveExecHandler(conn *websocket.Conn, _ incus.InstanceExecPost, _ *[]incus.ExecControlResize) {
+	defer func() { _ = conn.Close() }()
+	_ = conn.WriteMessage(websocket.TextMessage, []byte("# interactive exec ready\r\n"))
+	for {
+		if _, _, err := conn.ReadMessage(); err != nil {
+			return
+		}
+	}
+}

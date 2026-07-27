@@ -20,6 +20,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/avestura/lahijan/api/gen/go"
@@ -29,8 +31,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	openapi_types "github.com/oapi-codegen/runtime/types"
-	"fmt"
-	"log/slog"
 )
 
 // DefaultComputePageSize is the page size for compute list endpoints when
@@ -109,6 +109,9 @@ func mapComputeError(c *fiber.Ctx, err error) error {
 	case errors.Is(err, compute.ErrVNCUnavailable):
 		// WS-24: daemon refused or failed the console-open call.
 		return SendServiceUnavailable(c, i18n.T(c.UserContext(), "compute.err_vnc_unavailable", nil))
+	case errors.Is(err, compute.ErrExecUnavailable):
+		// WS-32: daemon refused or failed the interactive exec-open call.
+		return SendServiceUnavailable(c, i18n.T(c.UserContext(), "compute.err_exec_unavailable", nil))
 	case errors.Is(err, compute.ErrInvalidName), errors.Is(err, compute.ErrInvalidImage):
 		return SendBadRequest(c, i18n.T(c.UserContext(), "compute.err_bad_request", nil), nil)
 	case compute.IsQuotaExceeded(err):

@@ -1345,6 +1345,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/compute/instances/{instanceId}/console": {
+        parameters: {
+            query?: {
+                /**
+                 * @description Optional argv to spawn, URL-encoded + comma-separated.
+                 *     Empty/absent defaults to ["/bin/sh"] — matches `incus exec
+                 *     <name>` with no command. The dashboard always uses the
+                 *     default; the query parameter exists so future SDKs + power
+                 *     users can pick /bin/bash, zsh, or a one-shot argv.
+                 *
+                 *     Examples:
+                 *       ?cmd=/bin/bash
+                 *       ?cmd=bash,-c,echo%20hi
+                 */
+                cmd?: string;
+            };
+            header?: never;
+            path: {
+                instanceId: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Open an interactive (xterm.js) shell session to an instance (WebSocket)
+         * @description Upgrades the HTTP request to a WebSocket and bridges the
+         *     browser's xterm.js client to an interactive PTY-backed shell
+         *     running inside the instance (the same UX as `incus exec <name>
+         *     -- /bin/sh`). The instance MUST be running. Both containers
+         *     and virtual machines are supported. The privileged action
+         *     (session-open) is gated by compute.instance.console.exec and
+         *     emits an audit row with action
+         *     compute.instance.console.exec.connect BEFORE the Incus call
+         *     (so the privileged action is observable even when the daemon
+         *     is down — mirror of the WS-24 VNC timing).
+         *
+         *     The browser sends raw keystrokes as text/binary frames; the
+         *     backend forwards them to the Incus stdin fd verbatim. Incus'
+         *     stdout+stderr (combined in interactive mode) flows back to the
+         *     browser as text frames.
+         *
+         *     Control channel: the browser may send a JSON text frame of
+         *     shape `{"type":"resize","cols":<columns>,"rows":<rows>}` on
+         *     the same WS as stdin. The backend detects JSON messages on
+         *     the browser→Incus path, translates cols/rows to the Incus
+         *     control fd's width/height naming, and forwards the resize to
+         *     the PTY so vim/htop/top render correctly. Non-JSON text frames
+         *     are forwarded to stdin verbatim. The resize control envelope
+         *     is documented in ADR-0044.
+         *
+         *     Same-origin session-cookie auth; the browser sends cookies on
+         *     the WS upgrade automatically. The session is torn down when
+         *     the browser closes the WS (closing stdin triggers Incus to
+         *     terminate the exec).
+         *
+         *     Note: although this endpoint has an operationId (so the
+         *     generated ServerInterface method name is reviewable),
+         *     oapi-codegen cannot model the WebSocket upgrade itself — the
+         *     handler is hand-written in
+         *     internal/app/lahijan/api/compute_console_handlers.go.
+         */
+        get: operations["openConsoleComputeInstance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/compute/images": {
         parameters: {
             query?: never;
@@ -7726,6 +7795,61 @@ export interface operations {
                 };
             };
             /** @description The graphical console could not be opened (e.g. daemon down, VM agent not ready). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    openConsoleComputeInstance: {
+        parameters: {
+            query?: {
+                /**
+                 * @description Optional argv to spawn, URL-encoded + comma-separated.
+                 *     Empty/absent defaults to ["/bin/sh"] — matches `incus exec
+                 *     <name>` with no command. The dashboard always uses the
+                 *     default; the query parameter exists so future SDKs + power
+                 *     users can pick /bin/bash, zsh, or a one-shot argv.
+                 *
+                 *     Examples:
+                 *       ?cmd=/bin/bash
+                 *       ?cmd=bash,-c,echo%20hi
+                 */
+                cmd?: string;
+            };
+            header?: never;
+            path: {
+                instanceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Switching Protocols — WebSocket upgrade succeeded. */
+            101: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The instance is not running (exec requires a running instance). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The interactive shell could not be opened (e.g. daemon down, exec support not ready). */
             503: {
                 headers: {
                     [name: string]: unknown;

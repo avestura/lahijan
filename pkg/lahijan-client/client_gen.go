@@ -2963,6 +2963,20 @@ type ListComputeBackupsByInstanceParams struct {
 	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
 }
 
+// OpenConsoleComputeInstanceParams defines parameters for OpenConsoleComputeInstance.
+type OpenConsoleComputeInstanceParams struct {
+	// Cmd Optional argv to spawn, URL-encoded + comma-separated.
+	// Empty/absent defaults to ["/bin/sh"] — matches `incus exec
+	// <name>` with no command. The dashboard always uses the
+	// default; the query parameter exists so future SDKs + power
+	// users can pick /bin/bash, zsh, or a one-shot argv.
+	//
+	// Examples:
+	//   ?cmd=/bin/bash
+	//   ?cmd=bash,-c,echo%20hi
+	Cmd *string `form:"cmd,omitempty" json:"cmd,omitempty"`
+}
+
 // ListComputeSnapshotsParams defines parameters for ListComputeSnapshots.
 type ListComputeSnapshotsParams struct {
 	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
@@ -3834,6 +3848,9 @@ type ClientInterface interface {
 
 	// ListComputeBackupsByInstance request
 	ListComputeBackupsByInstance(ctx context.Context, instanceId openapi_types.UUID, params *ListComputeBackupsByInstanceParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// OpenConsoleComputeInstance request
+	OpenConsoleComputeInstance(ctx context.Context, instanceId openapi_types.UUID, params *OpenConsoleComputeInstanceParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ExecComputeInstanceWithBody request with any body
 	ExecComputeInstanceWithBody(ctx context.Context, instanceId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -5966,6 +5983,18 @@ func (c *Client) UpdateComputeInstance(ctx context.Context, instanceId openapi_t
 
 func (c *Client) ListComputeBackupsByInstance(ctx context.Context, instanceId openapi_types.UUID, params *ListComputeBackupsByInstanceParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListComputeBackupsByInstanceRequest(c.Server, instanceId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) OpenConsoleComputeInstance(ctx context.Context, instanceId openapi_types.UUID, params *OpenConsoleComputeInstanceParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewOpenConsoleComputeInstanceRequest(c.Server, instanceId, params)
 	if err != nil {
 		return nil, err
 	}
@@ -12566,6 +12595,62 @@ func NewListComputeBackupsByInstanceRequest(server string, instanceId openapi_ty
 	return req, nil
 }
 
+// NewOpenConsoleComputeInstanceRequest generates requests for OpenConsoleComputeInstance
+func NewOpenConsoleComputeInstanceRequest(server string, instanceId openapi_types.UUID, params *OpenConsoleComputeInstanceParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "instanceId", runtime.ParamLocationPath, instanceId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/instances/%s/console", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Cmd != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "cmd", runtime.ParamLocationQuery, *params.Cmd); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewExecComputeInstanceRequest calls the generic ExecComputeInstance builder with application/json body
 func NewExecComputeInstanceRequest(server string, instanceId openapi_types.UUID, body ExecComputeInstanceJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -17244,6 +17329,9 @@ type ClientWithResponsesInterface interface {
 	// ListComputeBackupsByInstanceWithResponse request
 	ListComputeBackupsByInstanceWithResponse(ctx context.Context, instanceId openapi_types.UUID, params *ListComputeBackupsByInstanceParams, reqEditors ...RequestEditorFn) (*ListComputeBackupsByInstanceResponse, error)
 
+	// OpenConsoleComputeInstanceWithResponse request
+	OpenConsoleComputeInstanceWithResponse(ctx context.Context, instanceId openapi_types.UUID, params *OpenConsoleComputeInstanceParams, reqEditors ...RequestEditorFn) (*OpenConsoleComputeInstanceResponse, error)
+
 	// ExecComputeInstanceWithBodyWithResponse request with any body
 	ExecComputeInstanceWithBodyWithResponse(ctx context.Context, instanceId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ExecComputeInstanceResponse, error)
 
@@ -20378,6 +20466,33 @@ func (r ListComputeBackupsByInstanceResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r ListComputeBackupsByInstanceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type OpenConsoleComputeInstanceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON409      *Error
+	JSON503      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r OpenConsoleComputeInstanceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r OpenConsoleComputeInstanceResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -24022,6 +24137,15 @@ func (c *ClientWithResponses) ListComputeBackupsByInstanceWithResponse(ctx conte
 		return nil, err
 	}
 	return ParseListComputeBackupsByInstanceResponse(rsp)
+}
+
+// OpenConsoleComputeInstanceWithResponse request returning *OpenConsoleComputeInstanceResponse
+func (c *ClientWithResponses) OpenConsoleComputeInstanceWithResponse(ctx context.Context, instanceId openapi_types.UUID, params *OpenConsoleComputeInstanceParams, reqEditors ...RequestEditorFn) (*OpenConsoleComputeInstanceResponse, error) {
+	rsp, err := c.OpenConsoleComputeInstance(ctx, instanceId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseOpenConsoleComputeInstanceResponse(rsp)
 }
 
 // ExecComputeInstanceWithBodyWithResponse request with arbitrary body returning *ExecComputeInstanceResponse
@@ -30326,6 +30450,67 @@ func ParseListComputeBackupsByInstanceResponse(rsp *http.Response) (*ListCompute
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseOpenConsoleComputeInstanceResponse parses an HTTP response from a OpenConsoleComputeInstanceWithResponse call
+func ParseOpenConsoleComputeInstanceResponse(rsp *http.Response) (*OpenConsoleComputeInstanceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &OpenConsoleComputeInstanceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
 
 	}
 

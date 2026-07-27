@@ -96,6 +96,31 @@ func TestIsSystemRole(t *testing.T) {
 	assert.False(t, IsSystemRole(""))
 }
 
+// TestPermComputeInstanceConsoleExec_Grants verifies the WS-32 interactive
+// exec console permission: it exists in the registry, it is granted to
+// tenant.admin + tenant.member (NOT viewer — interactive shell is privileged),
+// and the owner holds it too (per the "owner has every non-global perm"
+// invariant above).
+func TestPermComputeInstanceConsoleExec_Grants(t *testing.T) {
+	t.Parallel()
+	assert.True(t, PermissionExists(PermComputeInstanceConsoleExec),
+		"compute.instance.console.exec must be in the registry")
+
+	admin := roleBySlug(t, RoleTenantAdmin).Permissions
+	member := roleBySlug(t, RoleTenantMember).Permissions
+	viewer := roleBySlug(t, RoleTenantViewer).Permissions
+	owner := roleBySlug(t, RoleTenantOwner).Permissions
+
+	assert.Contains(t, admin, PermComputeInstanceConsoleExec,
+		"tenant.admin must hold compute.instance.console.exec")
+	assert.Contains(t, member, PermComputeInstanceConsoleExec,
+		"tenant.member must hold compute.instance.console.exec")
+	assert.NotContains(t, viewer, PermComputeInstanceConsoleExec,
+		"tenant.viewer must NOT hold compute.instance.console.exec (interactive shell is privileged)")
+	assert.Contains(t, owner, PermComputeInstanceConsoleExec,
+		"tenant.owner must hold every non-global permission")
+}
+
 // roleBySlug fetches a role definition by slug, failing the test if absent.
 func roleBySlug(t *testing.T, slug string) RoleDefinition {
 	t.Helper()

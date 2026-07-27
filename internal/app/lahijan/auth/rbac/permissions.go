@@ -74,6 +74,13 @@ const (
 	// (WS-14) per WS-24: VM-only, RFB protocol, audit action
 	// compute.instance.console.vnc.connect.
 	PermComputeInstanceConsoleVNC = "compute.instance.console.vnc"
+	// PermComputeInstanceConsoleExec opens an interactive (xterm.js)
+	// shell session to a running instance (WS-32). Works for BOTH
+	// containers and VMs (Incus supports exec on both); distinct from
+	// the one-shot compute.instance.exec audit action and from the
+	// .console.vnc permission. Audit action is
+	// compute.instance.console.exec.connect.
+	PermComputeInstanceConsoleExec = "compute.instance.console.exec"
 	PermComputeProfileRead        = "compute.profile.read"
 	PermComputeProfileApply       = "compute.profile.apply"
 	PermComputeImageRead          = "compute.image.read"
@@ -266,6 +273,7 @@ var allPermissions = []Permission{
 	{Slug: PermComputeFloatingIPManage, Description: "Allocate / attach / detach / release floating IPs in the tenant."},
 	{Slug: PermComputeFloatingIPRead, Description: "View floating IPs allocated to the tenant."},
 	{Slug: PermComputeImageRead, Description: "List and inspect instance images."},
+	{Slug: PermComputeInstanceConsoleExec, Description: "Open an interactive (xterm.js) shell session to a running instance."},
 	{Slug: PermComputeInstanceConsoleVNC, Description: "Open a graphical (noVNC) console session to a running virtual-machine instance."},
 	{Slug: PermComputeInstanceCreate, Description: "Create an instance."},
 	{Slug: PermComputeInstanceDelete, Description: "Delete an instance."},

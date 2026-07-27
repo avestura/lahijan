@@ -57,6 +57,14 @@ var ErrInstanceNotVM = errors.New("compute: graphical console is only available 
 // service_unavailable.
 var ErrVNCUnavailable = errors.New("compute: graphical console unavailable")
 
+// ErrExecUnavailable is returned when the Incus daemon refuses or fails
+// the interactive exec-open call (WS-32) for a reason the service does
+// not surface more specifically (e.g. the operation timed out, the
+// instance's exec support is not ready). The handler maps it to 503
+// service_unavailable. Distinct from ErrInstanceNotRunning: the latter
+// is a 409 pre-check; this is a daemon-side operational failure.
+var ErrExecUnavailable = errors.New("compute: interactive exec console unavailable")
+
 // ErrInvalidName is returned when the caller sends an empty or invalid name.
 var ErrInvalidName = errors.New("compute: name is required")
 

@@ -64,6 +64,19 @@ type Server struct {
 	// default which echoes the command back on stdout + sets exit code 0.
 	execHandler func(project, instance string, params incus.InstanceExecPost) (stdout, stderr []byte, exitCode int)
 
+	// interactiveExecHandler is called for every Interactive=true exec
+	// POST (WS-32). The handler owns the stdout WS conn's lifetime and
+	// MUST close it before returning. Tests override the default to
+	// drive richer behaviour (true echo, resize acks, ...).
+	interactiveExecHandler func(conn *websocket.Conn, params incus.InstanceExecPost, resizes *[]incus.ExecControlResize)
+
+	// interactiveResizes records the resize control messages the fake
+	// received on the control fd of each interactive exec operation.
+	// Keyed by op id; the bridge test reads via InteractiveResizes().
+	// Pointer-to-slice so handlers parked on the operation can append
+	// without re-keying the map after every message.
+	interactiveResizes map[string]*[]incus.ExecControlResize
+
 	// consoleHandler is called when a WS client (the driver, then the
 	// browser via WS-24's bridge) dials the per-fd websocket for an Incus
 	// console operation opened against a VM. Tests can override the
@@ -135,8 +148,10 @@ func newServer() *Server {
 		},
 	}
 	s.execHandler = defaultExecHandler
+	s.interactiveExecHandler = defaultInteractiveExecHandler
 	s.consoleHandler = defaultConsoleHandler
 	s.execAccept = make(map[string]chan *websocket.Conn)
+	s.interactiveResizes = make(map[string]*[]incus.ExecControlResize)
 
 	// Seed: default storage pool + default project.
 	s.storagePools["default"] = &incus.StoragePool{
