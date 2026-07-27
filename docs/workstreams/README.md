@@ -83,7 +83,7 @@ The ws-implementer subagent (`.opencode/agent/ws-implementer.md`) and the
 | [WS-20](./WS-20-dashboard-shell-compute-ui.md) | Dashboard Shell + Compute UI | done | WS-18, WS-14 |
 | [WS-21](./WS-21-module-uis.md) | DNS/S3/Billing/Plugins/Audit UIs | done | WS-18, WS-15, WS-16, WS-17 |
 | [WS-31](./WS-31-agent-chat.md) | AI Agent Chat (OpenCode-powered) | in-progress | WS-05, WS-08, WS-14, WS-15, WS-16, WS-17, WS-18, WS-20 |
-| [WS-32](./WS-32-interactive-exec-console.md) | Interactive Exec Console (xterm.js + WebSocket) | pending | WS-11, WS-14, WS-20 |
+| [WS-32](./WS-32-interactive-exec-console.md) | Interactive Exec Console (xterm.js + WebSocket) | done | WS-11, WS-14, WS-20 |
 
 ## Phase 6 — Quality & Release
 

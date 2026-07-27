@@ -87,14 +87,11 @@ their day-1 compute tasks end-to-end through the browser.
 - [x] user can list/create/start/stop/delete instances
       — /compute (list + filter + bulk), /compute/new (3-step
       wizard), /compute/$id (detail with all lifecycle buttons).
-- [~] user can exec into a running instance via xterm.js
-      — /compute/$id Console tab uses xterm.js + the one-shot
-      POST /instances/{id}/exec endpoint. The interactive
-      bidirectional shell session needs the backend websocket bridge
-      (WS-14 lists the websocket upgrade as part of its scope but
-      only shipped the one-shot variant). **Tracked in WS-32
-      (Interactive Exec Console); this checkbox flips to `[x]` when
-      WS-32 merges.**
+- [x] user can exec into a running instance via xterm.js
+      — /compute/$id Console tab uses xterm.js + the WS-32 interactive
+      exec WebSocket bridge (POST /instances/{id}/exec one-shot
+      endpoint stays for SDKs). **Closed by WS-32 (Interactive Exec
+      Console); the checkbox above is now [x] as of WS-32.**
 - [ ] user can create/restore a snapshot
       — backend gap: WS-14 lists GET/POST /instances/{id}/snapshots
       as in-scope but did not ship them. The Snapshots tab surfaces a
