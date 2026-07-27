@@ -1,6 +1,6 @@
 # ADR-0005: Single-host topology, multi-host-ready
 
-- **Status:** Accepted
+- **Status:** Accepted (Incus-placement dimension superseded by ADR-0040)
 - **Date:** 2026-07-17
 - **Deciders:** maintainer
 
@@ -57,5 +57,7 @@ The architecture is **multi-host-ready**:
 - ADR-0007 (shared Postgres)
 - ADR-0008 (River)
 - ADR-0009 (multi-node-ready — formalizes this commitment)
+- ADR-0040 (Incus-in-container — supersedes the Incus-placement dimension
+  of this ADR; the single-host, multi-host-ready decisions here stand)
 - WS-23 (production deployment)
 - WS-26 (deferred: actual multi-node cluster support)

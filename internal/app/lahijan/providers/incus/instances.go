@@ -71,11 +71,25 @@ func (p *Provider) CreateInstance(ctx context.Context, params CreateInstancePara
 	}
 	// WS-26: forward the optional cluster target. The query string is
 	// appended only when set so the URL stays clean for non-cluster
-	// deployments.
-	path := "instances" + clusterTargetQuery(params.Target)
+	// deployments. The project is passed via the query string (not the
+	// request body's "project" field) because Incus only honours the
+	// query parameter — without it the create silently lands in the
+	// default project regardless of what InstancesPost.Project carries.
+	path := "instances?project=" + url.QueryEscape(params.Project) + clusterTargetQuery(params.Target, "&")
 	op, err := p.doAsync(ctx, "POST", path, body)
 	setStatus(span, err)
-	return op, err
+	if err != nil {
+		return op, err
+	}
+	// Incus' async POST returns 202 + an operation that may STILL FAIL
+	// asynchronously (e.g. image pull, root disk creation). doAsync waits
+	// for the terminal state, so a non-empty op.Err here means the create
+	// was accepted but then failed at the daemon level — surface it as an
+	// error so the compute service + audit reflect the real outcome.
+	if op != nil && op.Err != "" {
+		return op, fmt.Errorf("incus: create instance %q: %s", params.Name, op.Err)
+	}
+	return op, nil
 }
 
 // GetInstance fetches an instance's current state (config, status, devices).

@@ -69,6 +69,12 @@ func (p *Provider) CreateProject(ctx context.Context, name, description string, 
 // restricted-defaults config (RestrictedProjectDefaults). Idempotent: a second
 // call against the same tenant updates the config rather than failing.
 //
+// In addition to creating the project, EnsureProject seeds the project's
+// default profile with a root disk (on the daemon's first storage pool) and
+// an eth0 NIC (on the daemon's first managed bridge). Without this seed,
+// every instance create inside the new project fails with "No root device
+// could be found" — a freshly-created project's default profile starts empty.
+//
 // This is the canonical tenant-bootstrap hook called by the compute service
 // (WS-14) when a tenant is provisioned. The defaults enforce that the tenant
 // cannot see, modify, or escape into another tenant's resources.
@@ -95,15 +101,79 @@ func (p *Provider) EnsureProject(ctx context.Context, tenantID uuid.UUID) error 
 	_, err := p.do(ctx, "POST", "projects", body)
 	if err == nil {
 		setStatus(span, nil)
-		return nil
-	}
-	if errors.Is(err, ErrAlreadyExists) {
+		// Fall through to seed the default profile (below).
+	} else if errors.Is(err, ErrAlreadyExists) {
 		// Project exists — apply the latest restricted defaults via PUT.
 		setStatus(span, nil)
-		return p.UpdateProject(ctx, name, "Lahijan tenant "+tenantID.String(), config)
+		if errUpd := p.UpdateProject(ctx, name, "Lahijan tenant "+tenantID.String(), config); errUpd != nil {
+			setStatus(span, errUpd)
+			return errUpd
+		}
+		// Fall through to seed the default profile (below).
+	} else {
+		setStatus(span, err)
+		return err
 	}
-	setStatus(span, err)
-	return err
+	// Seed (or refresh) the project's default profile with a root disk +
+	// eth0 NIC. Runs on both the create-new and update-existing paths so
+	// a tenant whose project was created before this code shipped gets the
+	// seed retroactively on the next EnsureProject call.
+	if errSeed := p.seedDefaultProfile(ctx, name); errSeed != nil {
+		setStatus(span, errSeed)
+		return fmt.Errorf("incus: seed default profile for project %q: %w", name, errSeed)
+	}
+	return nil
+}
+
+// seedDefaultProfile populates the project's default profile with a root
+// disk on the daemon's first storage pool. Without this seed, every
+// instance create inside the new project fails with "No root device
+// could be found" — a freshly-created project's default profile starts empty.
+//
+// NICs are intentionally NOT seeded: when features.networks=true (the Lahijan
+// default), each project gets its own network namespace and the daemon's
+// bridges are not visible. Seeding an eth0 against e.g. incusbr0 would be
+// rejected by the restricted.devices.nic=managed guard. Networking for
+// tenant instances is configured via the UI/API (instance create's devices
+// field or a separate profile).
+//
+// Idempotent: re-running just overwrites the same device with the same value.
+// Called on both the create-new and update-existing paths of EnsureProject.
+func (p *Provider) seedDefaultProfile(ctx context.Context, project string) error {
+	pool, err := p.firstStoragePoolName(ctx)
+	if err != nil {
+		return fmt.Errorf("lookup default storage pool: %w", err)
+	}
+	devices := map[string]map[string]string{
+		"root": {
+			"type": "disk",
+			"path": "/",
+			"pool": pool,
+		},
+	}
+	return p.EnsureProfile(ctx, CreateProfileParams{
+		Project:     project,
+		Name:        "default",
+		Description: "Lahijan default profile (root disk)",
+		Devices:     devices,
+	})
+}
+
+// firstStoragePoolName returns the daemon's first storage pool name. Used by
+// seedDefaultProfile to avoid hardcoding "default" (operators may rename it).
+func (p *Provider) firstStoragePoolName(ctx context.Context) (string, error) {
+	raw, err := p.do(ctx, "GET", "storage-pools?recursion=1", nil)
+	if err != nil {
+		return "", fmt.Errorf("list storage pools: %w", err)
+	}
+	var pools []StoragePool
+	if err := json.Unmarshal(raw, &pools); err != nil {
+		return "", fmt.Errorf("decode storage pools: %w", err)
+	}
+	if len(pools) == 0 {
+		return "", errors.New("daemon has no storage pools; initialise Incus with at least one pool")
+	}
+	return pools[0].Name, nil
 }
 
 // UpdateProject replaces a project's config + description. Used by
@@ -217,35 +287,43 @@ func (p *Provider) featureConfig() map[string]string {
 
 // RestrictedProjectDefaults returns the canonical restricted-defaults config
 // applied to every Lahijan-managed Incus project. These defaults make a
-// tenant's project a security sandbox:
+// tenant's project a security sandbox.
 //
-//   - restrict=true                      — turn on restrictions
-//   - restricted.devices.unix=block      — no host unix-char/block devices
-//   - restricted.devices.usb=block       — no USB passthrough
-//   - restricted.devices.gpu=block       — no GPU passthrough
-//   - restricted.devices.infiniband=block— no Infiniband
-//   - restricted.devices.nic=managed     — only managed networks
-//   - restricted.devices.disk=allow      — disks allowed (own storage)
-//   - restricted.networks.uplinks=block  — no direct uplink attachment
-//   - restricted.networks.subnets=block  — no direct subnet allocation
-//   - restricted.cluster.target=block    — no targeting specific cluster members
-//   - restricted.cluster.groups=block    — no managing cluster groups
-//   - restricted.containers.lowlevel=block — no raw container config
+// Schema is Incus 6.0 LTS (verified against `incus project set` on 6.0.0):
+//
+//   - restricted=true                       — master toggle (was "restrict" pre-6.0)
+//   - restricted.devices.unix-block=block   — no host unix-block devices (was "restricted.devices.unix" pre-6.0)
+//   - restricted.devices.unix-char=block    — no host unix-char devices (same)
+//   - restricted.devices.usb=block          — no USB passthrough
+//   - restricted.devices.gpu=block          — no GPU passthrough
+//   - restricted.devices.infiniband=block   — no Infiniband
+//   - restricted.devices.nic=managed        — only managed networks
+//   - restricted.devices.disk=allow         — disks allowed (own storage)
+//   - restricted.networks.uplinks=block     — no direct uplink attachment
+//   - restricted.cluster.target=block       — no targeting specific cluster members
+//   - restricted.cluster.groups=block       — no managing cluster groups
+//   - restricted.containers.lowlevel=block  — no raw container config
 //   - restricted.virtual-machines.lowlevel=block — no raw VM config
+//
+// Note: restricted.networks.subnets is intentionally NOT set. Incus 6.0
+// rejects "block" — the value must be a comma-separated list of
+// "<uplink>:<subnet>" entries (or empty to allow all). Since we already
+// block every uplink via restricted.networks.uplinks=block above, the
+// tenant has no uplink to allocate a subnet on, making subnets unreachable.
 //
 // Returns a fresh map on every call so callers can mutate without affecting
 // other callers.
 func RestrictedProjectDefaults() map[string]string {
 	return map[string]string{
-		"restrict":                             "true",
-		"restricted.devices.unix":              "block",
+		"restricted":                           "true",
+		"restricted.devices.unix-block":        "block",
+		"restricted.devices.unix-char":         "block",
 		"restricted.devices.usb":               "block",
 		"restricted.devices.gpu":               "block",
 		"restricted.devices.infiniband":        "block",
 		"restricted.devices.nic":               "managed",
 		"restricted.devices.disk":              "allow",
 		"restricted.networks.uplinks":          "block",
-		"restricted.networks.subnets":          "block",
 		"restricted.cluster.target":            "block",
 		"restricted.cluster.groups":            "block",
 		"restricted.containers.lowlevel":       "block",

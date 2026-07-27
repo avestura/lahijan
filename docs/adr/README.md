@@ -47,6 +47,7 @@ Accepted; corrections land as new ADRs that supersede prior ones.
 | [0037](./0037-public-ip-floating-ips-design.md) | Public IP Assignment & Floating IPs design | Accepted | 2026-07-21 |
 | [0038](./0038-plugin-sdk-go-design.md) | Plugin SDK (Go) design — sdk-go/ module, inline response-buffer ABI, typed errors | Accepted | 2026-07-25 |
 | [0039](./0039-wasi-runtime-mode.md) | WASI plugin runtime mode — filtered importer, dedicated WASI slugs, `*` escape hatch | Accepted | 2026-07-25 |
+| [0040](./0040-incus-in-container-topology.md) | Incus-in-container topology — privileged `incus` service via `ghcr.io/cmspam/incus-docker` (supersedes the Incus-placement dimension of ADR-0005) | Accepted | 2026-07-26 |
 
 ## How to write a new ADR
 

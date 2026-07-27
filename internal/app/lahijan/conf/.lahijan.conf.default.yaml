@@ -392,17 +392,24 @@ wasm:
 # Per ADR-0025 the Incus driver is a thin internal REST client over the Incus
 # REST API (no upstream SDK dependency).
 providers:
-  # Incus compute backend (WS-11). In dev the daemon lives on the host; the
-  # Lahijan app talks to it over the Unix socket at socketPath. In prod the
-  # incus-client sidecar container mounts the host socket (see
-  # deployments/incus/preseed.yaml).
+  # Incus compute backend (WS-11). Per ADR-0040 the Incus daemon runs as a
+  # privileged container in the compose stack (image
+  # ghcr.io/cmspam/incus-docker:lts). The Lahijan process reaches it via the
+  # Unix socket at socketPath — both the Lahijan container (prod) and the
+  # incus container mount the same /var/lib/incus path. When running Lahijan
+  # on the host (dev `make run`), use the WSL2 fallback path documented in
+  # docs/howto/run-incus-on-windows.md (Windows) or talk to the daemon in
+  # the incus compose service via the driver container's published socket.
   incus:
     # toggles the Incus driver. When false, program.Start skips building it
     # and the compute module (WS-14) degrades to 501.
     enabled: false
     # Unix socket path to the Incus daemon. Empty disables Unix-socket mode
-    # and the driver uses remoteURL (HTTPS) instead.
-    socketPath: "/var/snap/incus/common/incus/unix.socket"
+    # and the driver uses remoteURL (HTTPS) instead. Default matches the
+    # cmspam incus-docker image's package layout (NOT the snap layout); the
+    # prod compose bind-mounts /var/lib/incus and the dev compose uses a
+    # named volume at the same in-container path.
+    socketPath: "/var/lib/incus/unix.socket"
     # Optional HTTPS remote Incus endpoint (e.g. https://incus.lan:8443).
     # Empty in dev (Unix socket wins). Set this + clientCert/clientKey for
     # remote-daemon deployments.

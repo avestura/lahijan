@@ -8,7 +8,8 @@
 #   1. postgres        (storage layer first; nothing else starts without it)
 #   2. powerdns        (depends on postgres)
 #   3. seaweed-master  → seaweed-volume → seaweed-filer → seaweed-s3
-#   4. incus-client    (no DB dependency; can run in parallel)
+#   4. incus           (no DB dependency; can run in parallel — per ADR-0040
+#                       the Incus daemon is containerized in the compose stack)
 #   5. otel-collector  (so Lahijan's first request is observed)
 #   6. lahijan         (the only service that runs DB migrations)
 #   7. caddy           (last; flip the proxy after the backend is ready)

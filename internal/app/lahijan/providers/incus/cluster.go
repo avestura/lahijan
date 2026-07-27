@@ -297,13 +297,14 @@ func (p *Provider) RestoreClusterMember(ctx context.Context, name string) (*Oper
 
 // clusterTargetQuery returns the target= query string for an instance
 // create. Returns "" when target is empty so the URL stays clean. The
-// caller concatenates this directly to the resource path (e.g.
-// "instances?target=node-a"); the helper checks whether the path already
-// has a query string separator so the first param uses ? and later ones
-// use &.
-func clusterTargetQuery(target string) string {
+// `prefix` arg is "?" when this is the first query parameter or "&" when
+// the caller has already appended one (e.g. "?project=...").
+func clusterTargetQuery(target, prefix string) string {
 	if target == "" {
 		return ""
 	}
-	return "?target=" + url.QueryEscape(target)
+	if prefix == "" {
+		prefix = "?"
+	}
+	return prefix + "target=" + url.QueryEscape(target)
 }

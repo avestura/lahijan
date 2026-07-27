@@ -130,6 +130,15 @@ func classify(resp *http.Response) error {
 		}
 		return fmt.Errorf("%w: %s", ErrConflict, apiErr.Message)
 	default:
+		// Incus 6.0 sometimes returns HTTP 500 with an "already exists"
+		// message for duplicate INSERTs at the database layer (e.g.
+		// "Error inserting \"default\" into database: The profile already
+		// exists"). Treat the substring match as ErrAlreadyExists so
+		// callers' idempotent upsert paths (EnsureProfile, EnsureProject,
+		// etc.) recover the same way they do for the well-behaved 409.
+		if apiErr.StatusCode >= 500 && strings.Contains(apiErr.Message, "already exists") {
+			return fmt.Errorf("%w: %s", ErrAlreadyExists, apiErr.Message)
+		}
 		return apiErr
 	}
 }

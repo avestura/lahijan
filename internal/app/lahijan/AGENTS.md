@@ -85,6 +85,16 @@ make lint test   # always before pushing
 - Every new file uses `gofumpt` formatting and passes `golangci-lint` v2 strict.
 - Every new external API the backend talks to lands as a `providers/*` driver,
   never inline in a service.
+- **Every error catch-all MUST log the underlying error before returning the
+  generic envelope.** A handler `switch { case ...: ... }` that ends with
+  `return SendInternal(c, ...)` MUST call `slog.ErrorContext(c.UserContext(), ...)`
+  first with the wrapped `err.Error()`, the error's `fmt.Sprintf("%T", err)`
+  type name, the request path, method, and `request_id`. A silent 500 is the
+  single most expensive debug path in the project — the operator sees a
+  generic "Something went wrong" with no thread to pull, and every retry
+  burns the same opacity. Reference: `api/compute_handlers.go:mapComputeError`
+  (this rule was added after a multi-hour session caused by exactly this
+  pattern — see `.opencode/skills/incus-on-windows/SKILL.md` "Driver pitfalls").
 
 ## DTO serializers (`to*DTO` functions)
 

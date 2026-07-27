@@ -62,6 +62,35 @@ CI runs unit on every PR, integration on `main` + labeled PRs, e2e nightly.
 - Don't mock the database. Use a real one via testcontainers.
 - Don't mock `time.Now`; inject a `Clock` interface.
 
+## Fake vs real — what the in-process fakes do NOT catch
+
+The provider fakes (`providers/{incus,powerdns,seaweedfs}/fake/`) implement
+the happy-path REST surface so unit + integration tests can exercise the
+service layer without a daemon. They are essential for regression coverage
+and they are **not sufficient** for first-time validation of any new
+endpoint or schema-sensitive change. Real backends enforce many things
+the fakes do not:
+
+| Drift class | Example from this project | Fake behaviour | Real backend behaviour |
+|---|---|---|---|
+| **Schema renames between versions** | `restrict` → `restricted` in Incus 6.0; `restricted.devices.unix` → `unix-block` + `unix-char` | Fake accepts both; the schema is whatever the fake's struct allows | Real Incus rejects unknown keys with HTTP 400 |
+| **Status-code quirks** | Incus returns HTTP 500 (not 409) with `"already exists"` for duplicate `INSERT`s at the DB layer | Fake returns 409 (well-behaved) | Real daemon returns 500 in some paths |
+| **Async error envelopes** | Incus `POST /1.0/instances` returns 202 + op URL; the wait endpoint returns HTTP 200 with `{"type":"error","error_code":500,...}` when the op failed | Fake synchronously returns the final Operation with `Err` populated | Real daemon wraps the failure in an envelope that decoders expecting only an Operation silently swallow |
+| **Body vs query parameters** | Incus routes by `?project=<name>`, NOT by the `project` field in the JSON body | Fake reads both | Real Incus reads only the query parameter; the body field is ignored |
+| **Device validation** | A `root` device without a `pool` property overrides the profile's root device and is rejected | Fake stores any device map verbatim | Real Incus validates device schemas against its current config |
+| **Required side-effects of bootstrap** | `EnsureProject` must seed the project's `default` profile with a root disk or every subsequent create fails | Fake pre-seeds a usable project, masking the gap | Real Incus creates a project with an empty default profile |
+
+**Hard rule:** any new `providers/*` endpoint, any change to a request body
+shape, and any change to a restricted/config key MUST be smoke-tested
+against a real backend at least once before merge. The unit test against
+the fake is for regression, not first-time validation. See
+`.opencode/skills/incus-on-windows/SKILL.md` "Driver pitfalls" for the
+concrete workflow + the cross-compiled smoke binary pattern.
+
+When you do hit a fake-passes-real-fails gap, **extend the fake** to model
+the real behaviour (so future tests catch the same drift) AND record the
+gotcha in the relevant provider skill.
+
 ## Frontend tests
 
 - Vitest + React Testing Library.
@@ -90,7 +119,10 @@ CI runs unit on every PR, integration on `main` + labeled PRs, e2e nightly.
 - No catching panics in tests; let them fail loudly.
 - No test depends on another test's side effects (parallel-safe only).
 - No real network calls in unit tests.
-- No real Incus/PDNS/SeaweedFS in CI integration tests; only fakes.
+- No real Incus/PDNS/SeaweedFS in CI integration tests; only fakes. (This
+  is a CI policy — it does NOT absolve you of the "smoke-test against the
+  real backend once before merge" rule from the *Fake vs real* section
+  above. The smoke-test happens on your dev machine, not in CI.)
 
 ## Required reading
 

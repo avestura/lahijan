@@ -1,15 +1,18 @@
 # Lahijan - Windows dev stack launcher.
 #
 # Brings up the full Lahijan dev environment on a Windows host running
-# Docker Desktop. Real Incus IS supported on Windows via a WSL2 distro
-# (run scripts/Setup-Incus.ps1 first; see docs/howto/run-incus-on-windows.md).
-# Incus cannot run inside Docker (Docker Desktop's VM blocks AF_VSOCK), but
-# it runs fine in a WSL2 distro and the Lahijan driver reaches it over
-# HTTPS+mTLS. This script auto-detects the WSL2 Incus distro + the client
-# cert produced by Setup-Incus.ps1 and wires providers.incus.remoteURL;
-# when absent it falls back to driver-only mode (the dashboard renders but
-# instance create/start needs a daemon). The WASM marketplace is enabled
-# against the in-repo sample index at examples/plugins/marketplace.
+# Docker Desktop. Per ADR-0040 the canonical Incus topology is the
+# containerized daemon in docker-compose.dev.yml (image
+# ghcr.io/cmspam/incus-docker:lts). The Incus container is part of the
+# stack that `make dev-up` (or this script) brings up.
+#
+# If the incus service fails to start (AF_VSOCK unavailable inside Docker
+# Desktop's VM), this script falls back to the WSL2-based setup produced
+# by scripts/Setup-Incus.ps1: it auto-detects the WSL2 Incus distro + the
+# client cert and wires providers.incus.remoteURL; when absent it falls
+# back to driver-only mode (the dashboard renders but instance
+# create/start needs a daemon). The WASM marketplace is enabled against
+# the in-repo sample index at examples/plugins/marketplace.
 #
 # By default this script also launches:
 #   - The dashboard SPA at      http://localhost:5173  (web/)

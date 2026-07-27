@@ -17,7 +17,9 @@
 #   - The auth signing key + encryption key (operator-managed; see
 #     deployments/SECRETS.md for rotation procedure).
 #   - The TLS certs (Caddy re-issues on first boot).
-#   - The Incus daemon state (lives on the host, outside the compose stack).
+#   - The Incus daemon state at /var/lib/incus (per ADR-0040 this is now
+#     a host bind-mount in prod; the operator backs it up + restores it
+#     separately — see scripts/backup.sh).
 #
 # Usage:
 #   scripts/restore.sh --install-dir DIR --backup FILE
@@ -111,7 +113,7 @@ fi
 COMPOSE_FILE="$INSTALL_DIR/deployments/docker-compose.prod.yml"
 echo "===> stopping Lahijan stack (postgres kept up for the restore)..."
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" stop lahijan caddy powerdns \
-	seaweed-filer seaweed-s3 seaweed-volume seaweed-master incus-client \
+	seaweed-filer seaweed-s3 seaweed-volume seaweed-master incus \
 	otel-collector jaeger loki prometheus grafana 2>/dev/null || true
 
 # ----------------------------------------------------------------------------
@@ -210,6 +212,29 @@ if [ -f "$WORK_DIR/plugins.tgz" ]; then
 			echo "plugins volume restore failed" >&2
 			exit 1
 		}
+fi
+
+# ----------------------------------------------------------------------------
+# Replace Incus state (host path /var/lib/incus). Per ADR-0040 the prod
+# compose bind-mounts /var/lib/incus from the host; restoring means
+# untarring the snapshot back over it. The Incus container MUST be stopped
+# during this step (the stack-stop above already includes the incus service).
+# ----------------------------------------------------------------------------
+if [ -f "$WORK_DIR/incus.tgz" ] && [ -d /var/lib/incus ]; then
+	echo "===> replacing Incus state (/var/lib/incus)..."
+	# Clear the existing directory. The path is owned by root (the incus
+	# container writes as root), so we need sudo. Skip with a warning if
+	# the operator is not root.
+	if [ "$(id -u)" -eq 0 ]; then
+		rm -rf /var/lib/incus/* /var/lib/incus/.[!.]* /var/lib/incus/..?* 2>/dev/null || true
+		tar -C /var/lib/incus -xzf "$WORK_DIR/incus.tgz" || {
+			echo "incus state restore failed" >&2
+			exit 1
+		}
+	else
+		echo "  (not running as root; skipping Incus state restore)" >&2
+		echo "  re-run as root or pre-restore /var/lib/incus manually" >&2
+	fi
 fi
 
 # ----------------------------------------------------------------------------

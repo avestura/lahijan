@@ -189,12 +189,16 @@ All resolved by this WS, defaults adopted as proposed in ADR-0030:
   in `docker-compose.dev.yml`. Each container ships its own
   healthcheck + restart policy.
 
-- **Incus socket wiring:** the prod compose bind-mounts the host Incus
-  socket path directly into BOTH the `incus-client` sidecar and the
-  `lahijan` container. Earlier comment drafts used a shared named
-  volume; Docker named volumes do NOT propagate bind mounts, so the
-  sidecar pattern must use a direct host bind-mount in both
-  containers. The path is configurable via `INCUS_SOCKET_PATH`.
+- **Incus topology (updated by ADR-0040, 2026-07-26):** the original
+  WS-23 design bind-mounted the host's Incus socket into both an
+  `incus-client` sidecar and the `lahijan` container (Docker named
+  volumes do NOT propagate bind mounts, so the sidecar pattern had to
+  use a direct host bind-mount in both). ADR-0040 replaced this with a
+  privileged `incus` container running the daemon itself
+  (`ghcr.io/cmspam/incus-docker:lts`, `network_mode: host`, `pid: host`,
+  `cgroup: host`); the Lahijan container mounts the host path
+  `/var/lib/incus` read-only and dials `unix.socket` via `NewUnixClient`.
+  The `incus-client` sidecar was removed from both compose files.
 
 - **Bare-metal systemd unit hardened:** `init/lahijan.service` now
   carries a `NoNewPrivileges`, `ProtectSystem=strict`,

@@ -1,8 +1,13 @@
 # Run a real Incus on Windows for Lahijan dev
 
-> **TL;DR** Run `.\scripts\Setup-Incus.ps1`. It imports an Ubuntu 24.04
-> WSL2 distro, installs Incus 6.0 LTS, configures HTTPS+mTLS, and prints
-> the exact flags to pass Lahijan. No admin/Store required.
+> **TL;DR** First try `docker compose -f deployments/docker-compose.dev.yml up -d incus`
+> (per ADR-0040). If that works, you are done. If `docker compose logs incus`
+> shows `socket: function not implemented` (AF_VSOCK unavailable in Docker
+> Desktop's VM), run `.\scripts\Setup-Incus.ps1` — it imports an Ubuntu 24.04
+> WSL2 distro, installs Incus 6.0 LTS, configures HTTPS+mTLS, **installs the
+> Incus CLI on Windows via `winget install LinuxContainers.Incus`**, and wires
+> it to the WSL2 daemon so `incus list` works from PowerShell directly. No
+> admin/Store required.
 
 This guide stands up a **real** Incus daemon on a Windows host so you can
 exercise the compute module (WS-14) end-to-end. The in-process fake under
@@ -12,7 +17,44 @@ driver bugs were found by following this guide (see *Troubleshooting*).
 
 If you only want the "why", read `.opencode/skills/incus-on-windows/SKILL.md`.
 
+## Step 0 — try the containerized Incus first (ADR-0040)
+
+Per ADR-0040 the canonical Lahijan dev topology is the containerized Incus
+in `docker-compose.dev.yml`. Try it first:
+
+```powershell
+docker compose -f deployments/docker-compose.dev.yml up -d incus
+# Wait ~60s for the daemon to come up
+docker compose -f deployments/docker-compose.dev.yml ps incus
+# Healthy? then verify
+docker compose -f deployments/docker-compose.dev.yml exec incus incus list
+```
+
+If `incus list` returns an empty table, you are done — point Lahijan at
+the daemon via the shared volume (it already does this by default).
+
+If `docker compose logs incus` shows:
+
+```
+level=fatal msg="listen vsock host(2):XXXX: socket: function not implemented"
+```
+
+…AF_VSOCK is not exposed to privileged containers in your Docker Desktop
+release. Fall through to the WSL2 path below.
+
+> **Verified empirically (Docker Desktop 28.1.1, Jul 2026):** a privileged
+> container with `/dev:/dev` bind-mounted DOES see `/dev/vsock`, but
+> `socket(AF_VSOCK, ...)` still returns `ENOSYS`. Docker Desktop uses
+> AF_VSOCK for its own backend↔VM IPC, but does not expose the family to
+> containers. The Lahijan stack still tries the container first (cheap
+> check); when it fails, fall back to WSL2.
+
 ## Why a WSL2 distro (and not Docker)
+
+> This section is the rationale for the **fallback** path. Per ADR-0040
+> the Lahijan stack tries the containerized Incus first (Step 0 above).
+> The WSL2 path is what you fall back to when Docker Desktop's VM blocks
+> AF_VSOCK for privileged containers.
 
 Incus's daemon fatality-binds a **vsock listener** at startup. `socket(AF_VSOCK)`
 returns `ENOSYS` inside a Docker Desktop container (Docker Desktop's VM blocks
@@ -101,6 +143,40 @@ is fine: containers run without an IP. If a launch fails with
 `incus profile device remove default eth0`. Full container networking
 (instances with IPs) needs NAT mode **and** no localhost proxy.
 
+## Using `incus` from Windows directly
+
+`Setup-Incus.ps1` installs the Incus CLI on Windows via `winget install
+LinuxContainers.Incus` and wires it to the WSL2 daemon so you can manage
+Incus without prefixing every command with `wsl -d Incus -u root --`:
+
+```powershell
+incus list                                     # default remote = wsl-incus
+incus launch images:ubuntu/24.04 my-vm --vm    # launch a VM
+incus exec my-vm -- bash
+incus remote list                              # show configured remotes
+```
+
+The wiring lives at `%APPDATA%\incus\`:
+
+| File | Purpose |
+|------|---------|
+| `client.crt` + `client.key` | Global client cert (the daemon already trusts this fingerprint) |
+| `servercerts\wsl-incus.crt` | The WSL2 daemon's server cert (so the CLI trusts the fingerprint without prompting) |
+| `config.yml` | Remotes list; `wsl-incus` is set as the default |
+
+> **Note:** the Windows Incus CLI uses `%APPDATA%\incus\` (i.e.
+> `C:\Users\<you>\AppData\Roaming\incus\`), NOT `~/.config/incus/` like on
+> Linux/macOS. `Setup-Incus.ps1` writes to the correct Windows path; if
+> you re-run `incus remote add` manually and nothing seems to happen,
+> check this location.
+
+If you skipped the winget install with `-SkipWingetInstall`, install the
+CLI yourself:
+
+```powershell
+winget install LinuxContainers.Incus --accept-source-agreements --accept-package-agreements
+```
+
 ## Pointing Lahijan at the daemon
 
 After setup, pass these to `Run-Dev.ps1` (or the binary directly). Viper's
@@ -153,7 +229,8 @@ wsl -d Incus -u root -- bash -c "REMOTE_URL=https://localhost:8443 CLIENT_CERT=/
 
 | Symptom | Fix |
 |---|---|
-| `listen vsock …: function not implemented` | You're inside Docker, or the WSL kernel is old. Use a WSL2 distro; `wsl --update` + `wsl --shutdown`. |
+| Containerized incus service fails (`docker compose up incus`) | Expected on Docker Desktop — AF_VSOCK is blocked even for privileged containers. Skip the container; follow Option A (WSL2 distro). |
+| `listen vsock …: function not implemented` inside WSL2 | WSL kernel is old. `wsl --update` + `wsl --shutdown`. |
 | `Failed to check dnsmasq version` at `incus admin init` | `apt install dnsmasq-base` |
 | `No root device could be found` at launch | `incus profile device add default root disk path=/ pool=default` |
 | `Network "incusbr0" unavailable` | mirrored networking; remove `eth0` from the profile or switch to NAT |
@@ -165,7 +242,12 @@ wsl -d Incus -u root -- bash -c "REMOTE_URL=https://localhost:8443 CLIENT_CERT=/
 ## Cleanup
 
 ```powershell
+# Stop + remove the WSL2 distro + the cert files
 wsl --shutdown
 wsl --unregister Incus          # removes the distro + its vhdx
 Remove-Item -Recurse E:\WSL\Incus, E:\WSL\incus-certs
+
+# Optionally: uninstall the Windows Incus CLI + its config
+winget uninstall LinuxContainers.Incus
+Remove-Item -Recurse "$env:APPDATA\incus"   # client cert, config.yml, servercerts\
 ```

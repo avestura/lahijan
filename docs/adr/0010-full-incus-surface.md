@@ -54,4 +54,6 @@ own instances, networks, etc.
 - [Incus projects](https://linuxcontainers.org/incus/docs/projects/)
 - ADR-0002 (tenancy — tenant_id + Incus project)
 - ADR-0005 (single-host topology — Incus on local socket now, cluster later)
+- ADR-0040 (Incus-in-container — daemon placement; this ADR is silent on
+  placement and is filled by ADR-0040)
 - WS-11 (Incus provider), WS-14 (compute module)

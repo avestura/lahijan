@@ -59,6 +59,25 @@ func (p *Provider) WaitOperation(ctx context.Context, opID string) (*Operation, 
 		return nil, err
 	}
 
+	// Incus' wait endpoint returns one of two envelopes on completion:
+	//
+	//   - Operation succeeded: {"type":"async","operation":"...","metadata":{<Operation>}}
+	//   - Operation failed:     {"type":"error","error_code":500,"error":"...","metadata":null}
+	//
+	// The second case still arrives over HTTP 200 (the wait itself
+	// succeeded — it's the waited-ON operation that failed). Surface the
+	// failure as a Go error so callers (CreateInstance, etc.) propagate it
+	// instead of silently swallowing an empty Operation.
+	var probe struct {
+		Type      string `json:"type"`
+		ErrorCode int    `json:"error_code"`
+		Error     string `json:"error"`
+	}
+	if err := json.Unmarshal(raw, &probe); err == nil && probe.Type == "error" && probe.Error != "" {
+		setStatus(span, fmt.Errorf("incus: %s", probe.Error))
+		return nil, fmt.Errorf("incus: operation %s: %s", opID, probe.Error)
+	}
+
 	// WaitOperation returns a Response whose Metadata is the Operation. Some
 	// Incus versions wrap an extra Response envelope around it.
 	var op Operation

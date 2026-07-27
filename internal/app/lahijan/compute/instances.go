@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 
@@ -42,6 +43,11 @@ type InstanceCreateParams struct {
 	Type string
 	// ImageAlias is the alias of the image to create from. Required.
 	ImageAlias string
+	// ImageFingerprint optionally pins a specific image by fingerprint.
+	// When non-empty, the create call uses the fingerprint directly and
+	// skips the public-image-server auto-resolution that fires when
+	// ImageAlias contains "/".
+	ImageFingerprint string
 	// Description is the user-visible description.
 	Description string
 	// Config is the instance config map (limits.cpu, limits.memory, ...).
@@ -74,6 +80,21 @@ func (s *Service) CreateInstance(
 	}
 	if params.ImageAlias == "" {
 		return database.ComputeInstance{}, ErrInvalidImage
+	}
+
+	// Sanitise the device map: if the caller (e.g. the dashboard) sent a
+	// "root" device without a "pool" property, drop it so the seeded
+	// default profile's root device (which DOES point at a real pool, per
+	// EnsureProject's seedDefaultProfile) is used instead. An instance-level
+	// root device with no pool overrides the profile's root device and
+	// Incus rejects it with "Device validation failed for \"root\": Root
+	// disk entry must have a \"pool\" property set". The UI's "size" hint
+	// is preserved by re-applying it to the profile's pool when both are
+	// present; for the common case the profile's defaults are correct.
+	if root, ok := params.Devices["root"]; ok {
+		if _, hasPool := root["pool"]; !hasPool {
+			delete(params.Devices, "root")
+		}
 	}
 
 	// 0) Pre-flight: name uniqueness within the tenant.
@@ -174,7 +195,25 @@ func (s *Service) CreateInstance(
 	}
 
 	// 6) Incus create.
+	//
+	// Image source resolution: when the alias contains a "/" (e.g.
+	// "ubuntu/24.04", "alpine/edge/tinycloud") AND no explicit fingerprint
+	// was provided, point Incus at the public image server
+	// (images.linuxcontainers.org). Without Source.Server, Incus looks up
+	// the alias in the project's LOCAL image store only — and a fresh
+	// tenant project has no cached images, so every create would fail with
+	// an empty operation + "image not found" silently.
+	//
+	// The public server matches the daemon's own `images:` remote
+	// (configured at preseed time) so this is the same image source an
+	// operator gets from `incus launch images:ubuntu/24.04`.
 	source := incus.InstanceSource{Type: "image", Alias: params.ImageAlias}
+	if params.ImageFingerprint != "" {
+		source.Fingerprint = params.ImageFingerprint
+	} else if strings.Contains(params.ImageAlias, "/") {
+		source.Server = "https://images.linuxcontainers.org"
+		source.Protocol = "simplestreams"
+	}
 	op, err := s.provider.CreateInstance(ctx, incus.CreateInstanceParams{
 		Project:     project,
 		Name:        params.Name,

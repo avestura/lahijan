@@ -75,15 +75,22 @@ func TestRestrictedProjectDefaults_ContainsAllGuards(t *testing.T) {
 	cfg := incus.RestrictedProjectDefaults()
 	// Spot-check the most important guards — they are the ones the WS-11
 	// DoD calls out (a tenant can't see another tenant's resources through
-	// Incus).
-	assert.Equal(t, "true", cfg["restrict"], "restrict flag must be on")
+	// Incus). Key names are Incus 6.0 LTS schema (verified against
+	// `incus project set` on 6.0.0).
+	assert.Equal(t, "true", cfg["restricted"], "restricted master flag must be on")
 	assert.Equal(t, "block", cfg["restricted.devices.gpu"], "GPU passthrough must be blocked")
 	assert.Equal(t, "block", cfg["restricted.devices.usb"], "USB passthrough must be blocked")
-	assert.Equal(t, "block", cfg["restricted.devices.unix"], "Unix devices must be blocked")
+	assert.Equal(t, "block", cfg["restricted.devices.unix-block"], "Unix-block devices must be blocked")
+	assert.Equal(t, "block", cfg["restricted.devices.unix-char"], "Unix-char devices must be blocked")
 	assert.Equal(t, "managed", cfg["restricted.devices.nic"], "NIC must be restricted to managed networks")
 	assert.Equal(t, "block", cfg["restricted.networks.uplinks"], "Uplinks must be blocked")
 	assert.Equal(t, "block", cfg["restricted.containers.lowlevel"], "Low-level container config must be blocked")
 	assert.Equal(t, "block", cfg["restricted.virtual-machines.lowlevel"], "Low-level VM config must be blocked")
+	// Sanity: the pre-6.0 keys must NOT be present (Incus 6.0 rejects them).
+	_, hasOldRestrict := cfg["restrict"]
+	assert.False(t, hasOldRestrict, "pre-6.0 'restrict' key must be removed (Incus 6.0 rejects it)")
+	_, hasOldUnix := cfg["restricted.devices.unix"]
+	assert.False(t, hasOldUnix, "pre-6.0 'restricted.devices.unix' key must be removed (Incus 6.0 splits it into unix-block + unix-char)")
 }
 
 func TestEnsureProject_CreatesProjectWithRestrictedDefaults(t *testing.T) {
@@ -100,7 +107,7 @@ func TestEnsureProject_CreatesProjectWithRestrictedDefaults(t *testing.T) {
 	// Fetch back via the low-level GetProject to assert the config landed.
 	prj, err := p.GetProject(ctx, p.ProjectName(tenantID))
 	require.NoError(t, err)
-	assert.Equal(t, "true", prj.Config["restrict"], "project must have restrict=true")
+	assert.Equal(t, "true", prj.Config["restricted"], "project must have restricted=true")
 	assert.Equal(t, "block", prj.Config["restricted.devices.gpu"])
 	assert.Equal(t, "true", prj.Config["features.images"], "feature flag must be on by default")
 	assert.Equal(t, "true", prj.Config["features.profiles"])
@@ -130,6 +137,34 @@ func TestEnsureProject_Idempotent(t *testing.T) {
 		}
 	}
 	assert.Equal(t, 1, count, "EnsureProject must not duplicate the project")
+}
+
+func TestEnsureProject_SeedsDefaultProfile(t *testing.T) {
+	t.Parallel()
+	srv := newFakeWithDefaults(t)
+	p := connectProvider(t, srv)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	tenantID := uuid.New()
+	require.NoError(t, p.EnsureProject(ctx, tenantID))
+	project := p.ProjectName(tenantID)
+
+	// The auto-seeded default profile must exist and carry a root disk on
+	// the daemon's first storage pool (the fake pre-seeds "default").
+	prf, err := p.GetProfile(ctx, project, "default")
+	require.NoError(t, err, "EnsureProject must seed a default profile")
+	require.Contains(t, prf.Devices, "root", "default profile must have a root device")
+	assert.Equal(t, "disk", prf.Devices["root"]["type"])
+	assert.Equal(t, "/", prf.Devices["root"]["path"])
+	assert.Equal(t, "default", prf.Devices["root"]["pool"], "root disk must use the daemon's first pool")
+	// eth0 NIC is best-effort: seedDefaultProfile adds it only when the
+	// daemon exposes a managed bridge. The fake models networks as
+	// project-scoped (real Incus treats managed bridges as cluster-wide),
+	// so a freshly-created project sees no bridge and eth0 is skipped.
+	// Real daemons (incusbr0 / lahijanbr) DO expose the bridge to every
+	// project, so the eth0 is present in production.
 }
 
 func TestCreateProject_AlreadyExists(t *testing.T) {

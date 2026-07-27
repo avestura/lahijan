@@ -145,3 +145,4 @@ documented for advanced users.**
 - ADR-0011 (direct S3 for data)
 - ADR-0016 (full OTel)
 - ADR-0029 (test sandbox topology — informs the prod shape)
+- ADR-0040 (Incus-in-container — daemon placement for the compute provider)

@@ -128,6 +128,26 @@ docker run --rm \
 	}
 
 # ----------------------------------------------------------------------------
+# Incus: snapshot the host bind-mounted /var/lib/incus directory (ADR-0040).
+# Per ADR-0040 the Incus state lives at /var/lib/incus on the HOST (the
+# compose stack bind-mounts it into the incus container). We tar the host
+# path directly (no docker run needed) so the snapshot includes everything
+# the daemon has written: database, images, instances, snapshots.
+#
+# Skip silently if /var/lib/incus does not exist (e.g. on a stack that uses
+# the alternative named-volume topology or where Incus is disabled).
+# ----------------------------------------------------------------------------
+if [ -d /var/lib/incus ]; then
+	echo "  snapshotting Incus state (/var/lib/incus)..."
+	tar -C /var/lib/incus -czf "$WORK_DIR/incus.tgz" . 2>/dev/null || {
+		echo "incus state tar failed (continuing; Incus may be running)" >&2
+		rm -f "$WORK_DIR/incus.tgz"
+	}
+else
+	echo "  skipping Incus state (/var/lib/incus not present on host)"
+fi
+
+# ----------------------------------------------------------------------------
 # Manifest: env vars we need to restore (NON-secret ones).
 # ----------------------------------------------------------------------------
 

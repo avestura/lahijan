@@ -38,8 +38,10 @@ storage pools, events, exec.
 - Health probe: `Ping(ctx)` — used by `Provider` interface.
 - Capabilities: advertised via `Capabilities()` (e.g. "cluster mode", "VM
   support").
-- Compose: `incus-client` container with the host socket mounted; Lahijan
-  connects via Unix socket.
+- Compose: `incus` privileged container with the daemon (per ADR-0040 —
+  image `ghcr.io/cmspam/incus-docker:lts`, network_mode: host, pid: host,
+  cgroup: host). Lahijan connects to the daemon's Unix socket via a
+  shared volume mounted at `/var/lib/incus`.
 
 **Out of scope:**
 - The user-facing Compute module (WS-14) — this WS is purely the driver.
@@ -63,7 +65,7 @@ storage pools, events, exec.
 - Full Incus driver implementing the Provider interface + every area method
 - Tenant project bootstrapping with restricted defaults
 - Event listener that fans Incus events into the WASM event bus + audit log
-- Compose entry for `incus-client`
+- Compose entry for the containerized `incus` daemon (per ADR-0040)
 - Integration tests using the fake Incus REST server (built in WS-22, stubbed
   here via httptest)
 
@@ -125,3 +127,10 @@ storage pools, events, exec.
 - This WS defines the `PlacementDriver` interface even though the MVP impl is
   `LocalPlacementDriver`. WS-26 swaps in the cluster version.
 - The `exec` websocket implementation is reused by WS-14 (xterm.js console).
+- **Compose topology (updated by ADR-0040, 2026-07-26):** the original
+  WS-11 deliverable was an `incus-client` sidecar that bind-mounted the
+  host's Incus socket. ADR-0040 replaced this with a privileged `incus`
+  container running the daemon itself (`ghcr.io/cmspam/incus-docker:lts`),
+  so Lahijan becomes a true one-command deploy. The driver code is
+  unchanged — `NewUnixClient` already handled the Unix-socket transport;
+  only the compose wiring differs.

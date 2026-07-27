@@ -1,14 +1,15 @@
 # Lahijan — production Docker Compose stack.
 #
 # WS-23. Brings up the full single-host topology from ADR-0005 + ADR-0006 +
-# ADR-0007 in production mode:
+# ADR-0007 + ADR-0040 in production mode:
 #
 #   - Postgres 16 (shared by Lahijan, PowerDNS, SeaweedFS Filer — three
 #     logical databases, one container, one backup target)
 #   - PowerDNS Authoritative 4.9 (gpgsql backend, HTTP API for Lahijan)
 #   - SeaweedFS 3.61 (master + volume + filer + s3 — the prod split)
+#   - Incus 6.0 LTS (containerized via ghcr.io/cmspam/incus-docker:lts;
+#     privileged, host networking — per ADR-0040)
 #   - Lahijan app (ghcr.io/avestura/lahijan:<tag>, all providers enabled)
-#   - Incus client sidecar (bind-mounts the host Incus socket)
 #   - Caddy 2 (TLS-terminating reverse proxy, auto-Letsencrypt)
 #   - OTel collector + Jaeger + Loki + Prometheus + Grafana (observability)
 #
@@ -44,10 +45,10 @@ networks:
 
 # Named volumes — every stateful service persists here so `docker compose
 # down` (without -v) preserves data. The operator backup script
-# (scripts/backup.sh) snapshots Postgres + the SeaweedFS volume. The
-# incus_socket volume is the mount point the sidecar + the Lahijan app share
-# so the Incus host socket reaches the Lahijan container without exposing
-# it to the network.
+# (scripts/backup.sh) snapshots Postgres + the SeaweedFS volume. The Incus
+# daemon's state lives at the host path /var/lib/incus (bind-mounted, not a
+# named volume) so an operator's host-installed `incus` CLI manages the same
+# daemon the Lahijan container talks to (per ADR-0040).
 volumes:
   postgres_data:
     name: lahijan-prod-postgres
@@ -456,38 +457,74 @@ services:
           memory: 384M
 
   # ---------------------------------------------------------------------
-  # Incus client sidecar — mounts the host Incus socket so the Lahijan
-  # container can also mount it via the same bind path (per
-  # deployments/incus/README.md). The sidecar's only job is to fail-fast
-  # at startup if the host socket is missing or unreadable; Lahijan
-  # itself bind-mounts the host path directly (Docker named volumes do
-  # not propagate bind mounts, so the sidecar's view and Lahijan's view
-  # MUST both be host bind-mounts of the same path).
+  # Incus daemon (containerized). Per ADR-0040 Lahijan ships Incus itself
+  # via the upstream-endorsed ghcr.io/cmspam/incus-docker image rather
+  # than requiring a host install. The :lts tag tracks Incus 6.0 LTS
+  # (the version the Lahijan driver is smoke-tested against); it is
+  # Debian-based and ships QEMU so VM-type instances work.
+  #
+  # The container MUST run privileged with host networking + PID +
+  # cgroup namespaces — Incus needs kernel access to create bridges,
+  # manage cgroups, and (for VMs) hand off /dev/kvm. There is no way
+  # to run Incus unprivileged inside a container. Operators who cannot
+  # accept these constraints must use the host-install path documented
+  # in deployments/incus/README.md (advanced/legacy).
+  #
+  # State lives at /var/lib/incus on the HOST (bind-mounted, not a
+  # named volume) so an operator's host-installed `incus` CLI manages
+  # the same daemon Lahijan talks to. Lahijan itself mounts the same
+  # path read-only and dials /var/lib/incus/unix.socket via
+  # NewUnixClient.
   # ---------------------------------------------------------------------
-  incus-client:
-    image: ghcr.io/lxc/incus:6.0
-    container_name: lahijan-prod-incus-client
+  incus:
+    image: ghcr.io/cmspam/incus-docker:${INCUS_IMAGE_TAG:-lts}
+    container_name: lahijan-prod-incus
     restart: unless-stopped
-    networks: [backend]
     logging: *default-logging
+    # Host networking + PID + cgroup namespaces are required for Incus
+    # to create incusbr0, manage cgroups, and load modules. Compose v2
+    # spellings: network_mode/pid/cgroup (NOT the docker-run flags).
+    privileged: true
+    network_mode: host
+    pid: host
+    cgroup: host
+    environment:
+      # Insert `iptables -I DOCKER-USER -j ACCEPT` so Incus' incusbr0
+      # traffic is not blocked by Docker's iptables rules. Required for
+      # instances to reach the internet on docker-iptables hosts.
+      SETIPTABLES: "true"
+      # On RHEL / CoreOS / Fedora where /dev/kvm is owned by a host GID
+      # (e.g. 36), set KVM_GID so the container matches. Leave unset on
+      # Debian/Ubuntu where /dev/kvm is root:root.
+      KVM_GID: ${INCUS_KVM_GID:-}
     volumes:
-      # Bind-mount the host's Incus socket dir read-only. The Lahijan
-      # container bind-mounts the SAME host path so both see the same
-      # socket. The path is configurable via INCUS_SOCKET_PATH so
-      # snap-vs-package installs differ.
-      - "${INCUS_SOCKET_PATH:-/var/lib/incus}:/var/lib/incus:ro"
-    command: ["sleep", "infinity"]
+      # Full /dev passthrough so Incus can reach /dev/kvm, /dev/net/tun,
+      # /dev/vhost-vsock, /dev/vfio/*, etc.
+      - /dev:/dev
+      # The Incus state dir. Bind-mounted to the host path so the
+      # host's `incus` CLI (if installed) manages the same daemon.
+      - /var/lib/incus:/var/lib/incus
+      # Kernel modules so Incus can load veth/vbridge/vhost_vsock.
+      - /lib/modules:/lib/modules:ro
+      # Optional: AppArmor passthrough on OpenSUSE Tumbleweed / RHEL.
+      # Mount it only if your host runs AppArmor AND Incus complains
+      # about dnsmasq in its logs.
+      # - /sys/kernel/security:/sys/kernel/security
     healthcheck:
-      test: ["CMD", "test", "-S", "/var/lib/incus/unix.socket"]
+      # The cmspam image ships the `incus` binary. `incus list` succeeds
+      # only when the daemon is up + responding over the local socket.
+      # Fall back to the socket-file test for older image variants.
+      test: ["CMD-SHELL", "incus list >/dev/null 2>&1 || test -S /var/lib/incus/unix.socket"]
       interval: 15s
       timeout: 5s
-      retries: 6
-      start_period: 15s
+      retries: 12
+      # Cold start can take a while if Incus is upgrading its DB schema.
+      start_period: 60s
     deploy:
       resources:
         limits:
-          cpus: "0.10"
-          memory: 64M
+          cpus: "2.0"
+          memory: 2G
 
   # ---------------------------------------------------------------------
   # The Lahijan app — all providers enabled, prod config. River workers run
@@ -506,8 +543,8 @@ services:
         condition: service_healthy
       seaweed-s3:
         condition: service_healthy
-      incus-client:
-        condition: service_started
+      incus:
+        condition: service_healthy
     environment:
       # Process + config.
       LAHIJAN_ENVIRONMENT: "prd"
@@ -573,10 +610,12 @@ services:
       - "8080"
     volumes:
       - lahijan_plugins:/var/lib/lahijan/plugins
-      # The Lahijan container bind-mounts the SAME host Incus socket path
-      # the incus-client sidecar sees. Read-only so the app can never
-      # corrupt the host daemon.
-      - "${INCUS_SOCKET_PATH:-/var/lib/incus}:/var/lib/incus:ro"
+      # The Incus daemon runs in the sibling `incus` service and writes
+      # its state to the host path /var/lib/incus (bind-mounted into the
+      # incus container per ADR-0040). Lahijan mounts the SAME host path
+      # read-only and dials /var/lib/incus/unix.socket via NewUnixClient.
+      # The Incus socket is never published on the network (Unix-only).
+      - /var/lib/incus:/var/lib/incus:ro
     healthcheck:
       # The Lahijan binary exposes /healthcheck/liveness (WS-04).
       test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://localhost:8080/healthcheck/liveness || exit 1"]

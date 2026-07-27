@@ -25,32 +25,39 @@ func TestProfile_CRUD(t *testing.T) {
 	require.NoError(t, p.EnsureProject(ctx, tenantID))
 	project := p.ProjectName(tenantID)
 
+	// Use a non-default profile name: EnsureProject now seeds a "default"
+	// profile automatically (root disk + eth0), so creating "default"
+	// here would collide. "shape" is what the compute module uses for
+	// tenant-defined instance shapes.
 	require.NoError(t, p.CreateProfile(ctx, incus.CreateProfileParams{
 		Project:     project,
-		Name:        "default",
-		Description: "tenant default profile",
+		Name:        "shape",
+		Description: "tenant shape profile",
 		Config:      map[string]string{"limits.cpu": "2"},
 	}))
 
-	got, err := p.GetProfile(ctx, project, "default")
+	got, err := p.GetProfile(ctx, project, "shape")
 	require.NoError(t, err)
 	assert.Equal(t, "2", got.Config["limits.cpu"])
 
 	list, err := p.ListProfiles(ctx, project)
 	require.NoError(t, err)
-	require.Len(t, list, 1)
+	// 2 profiles: the auto-seeded "default" + the "shape" we just created.
+	require.Len(t, list, 2)
 
-	require.NoError(t, p.UpdateProfile(ctx, project, "default", incus.ProfilePut{
+	require.NoError(t, p.UpdateProfile(ctx, project, "shape", incus.ProfilePut{
 		Config: map[string]string{"limits.cpu": "4"},
 	}))
-	got, err = p.GetProfile(ctx, project, "default")
+	got, err = p.GetProfile(ctx, project, "shape")
 	require.NoError(t, err)
 	assert.Equal(t, "4", got.Config["limits.cpu"])
 
-	require.NoError(t, p.DeleteProfile(ctx, project, "default"))
+	require.NoError(t, p.DeleteProfile(ctx, project, "shape"))
 	list, err = p.ListProfiles(ctx, project)
 	require.NoError(t, err)
-	assert.Empty(t, list)
+	// Only the auto-seeded "default" remains.
+	require.Len(t, list, 1)
+	assert.Equal(t, "default", list[0].Name)
 }
 
 func TestProfile_Ensure_Idempotent(t *testing.T) {

@@ -2,11 +2,16 @@
 #
 # Brings up the shared Postgres instance described in ADR-0007 (one container,
 # three logical databases: lahijan, pdns, seaweed). This file is the dev
-# topology; WS-11/12/13 will append Incus-client, PowerDNS, SeaweedFS and the
-# OTel collector services here as they land. WS-03 stands up only Postgres.
+# topology; it mirrors docker-compose.prod.yml (per ADR-0040, the same
+# containerized Incus daemon is brought up here too). WS-03 stood up only
+# Postgres originally; subsequent workstreams appended the other services.
 #
 # Usage:
 #   make dev-up        # docker compose -f deployments/docker-compose.dev.yml up -d
+#                      # (Postgres + MailHog + PowerDNS + SeaweedFS; no Incus)
+#   make dev-up-incus  # same + the containerized Incus daemon (Linux only;
+#                      # gated behind the `incus` compose profile — Windows/
+#                      # Mac follow .opencode/skills/incus-on-windows/SKILL.md)
 #   make dev-down
 #   make db-up         # apply migrations (after dev-up)
 #
@@ -72,28 +77,65 @@ services:
       retries: 6
       start_period: 5s
 
-  # Incus client sidecar (WS-11). In dev Lahijan runs on the host and connects
-  # to the host's Incus socket directly, so this service is gated behind a
-  # compose profile and only brought up when an operator wants to validate the
-  # prod-style mount from inside a container. Enable with:
-  #   docker compose --profile incus up -d
-  # The host MUST have Incus installed and the socket at INCUS_SOCKET_PATH.
-  incus-client:
-    image: ghcr.io/lxc/incus:6.0
-    container_name: lahijan-incus-client-dev
+  # Incus daemon (WS-11 / ADR-0040). Per ADR-0040 Lahijan ships Incus
+  # itself via the upstream-endorsed ghcr.io/cmspam/incus-docker image
+  # rather than requiring a host install. The :lts tag is Incus 6.0 LTS
+  # (Debian-based, VM-capable via QEMU). Same image + flags as the prod
+  # stack so dev and prod topologies are identical.
+  #
+  # The container is privileged with host networking + PID + cgroup
+  # namespaces — this is the price of running a container/VM manager
+  # inside a container. See deployments/incus/README.md for the
+  # host-install alternative (advanced/legacy) if you cannot accept
+  # these constraints.
+  #
+  # Gated behind the `incus` compose profile (NOT started by `make
+  # dev-up`). Two reasons:
+  #   1. Docker Desktop for Windows fatality-blocks AF_VSOCK for
+  #      privileged containers (verified empirically — see the
+  #      incus-on-windows skill), so the cmspam image cannot run there.
+  #      Without the profile gate, `docker compose up` aborts on the
+  #      image pull / healthcheck and takes down the entire dev stack.
+  #   2. Incus is only needed when working on the compute module; the
+  #      Postgres + PowerDNS + SeaweedFS services cover every other dev
+  #      path. Bringing Incus up by default wastes ~2GB of RAM and a
+  #      60-second healthcheck window on every dev loop.
+  # Linux operators opt in via `make dev-up-incus` (or
+  # `docker compose --profile incus ...`). Windows/Mac operators follow
+  # the WSL2 fallback in `.opencode/skills/incus-on-windows/SKILL.md`.
+  # The service definition itself stays identical to prod (ADR-0040
+  # "dev mirrors prod" is preserved at the file level; only the default
+  # activation differs).
+  #
+  # Dev uses a NAMED VOLUME (not a host bind-mount) for /var/lib/incus
+  # so the stack works identically on any Docker host that DOES expose
+  # AF_VSOCK. The Lahijan app process itself runs on the host
+  # (`make run`); when it connects to the daemon it does so via the
+  # socket file at /var/lib/incus/unix.socket INSIDE this container.
+  # To verify the daemon from the host:
+  #   docker compose -f deployments/docker-compose.dev.yml --profile incus exec incus incus list
+  incus:
     profiles: ["incus"]
+    image: ghcr.io/cmspam/incus-docker:${INCUS_IMAGE_TAG:-lts}
+    container_name: lahijan-incus-dev
     restart: unless-stopped
+    privileged: true
+    network_mode: host
+    pid: host
+    cgroup: host
+    environment:
+      SETIPTABLES: "true"
+      KVM_GID: ${INCUS_KVM_GID:-}
     volumes:
-      # Mount the host's Incus socket dir read-only. The Lahijan container
-      # (when run under compose) bind-mounts the same path.
-      - "${INCUS_SOCKET_PATH:-/var/lib/incus}:/var/lib/incus:ro"
-    command: ["sleep", "infinity"]
+      - /dev:/dev
+      - incus_data:/var/lib/incus
+      - /lib/modules:/lib/modules:ro
     healthcheck:
-      test: ["CMD", "test", "-S", "/var/lib/incus/unix.socket"]
+      test: ["CMD-SHELL", "incus list >/dev/null 2>&1 || test -S /var/lib/incus/unix.socket"]
       interval: 10s
-      timeout: 3s
-      retries: 6
-      start_period: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
 
   # PowerDNS Authoritative (WS-12). The daemon runs in a container and uses
   # the gpgsql backend pointing at the shared Postgres (ADR-0007). The PDNS
@@ -354,3 +396,5 @@ volumes:
     name: lahijan-postgres-data-dev
   seaweedfs_data:
     name: lahijan-seaweedfs-data-dev
+  incus_data:
+    name: lahijan-incus-data-dev

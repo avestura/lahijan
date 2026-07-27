@@ -23,14 +23,15 @@ command brings up:
 | `postgres` | `postgres:16-alpine` | Shared Postgres (3 logical DBs: lahijan, pdns, seaweed) |
 | `powerdns` | `powerdns/pdns-auth-49:4.9.3` | Authoritative DNS, gpgsql backend |
 | `seaweed-master/volume/filer/s3` | `chrislusf/seaweedfs:3.61` | Object storage (prod split) |
-| `incus-client` | `ghcr.io/lxc/incus:6.0` | Sidecar that surfaces the host Incus socket |
+| `incus` | `ghcr.io/cmspam/incus-docker:lts` | Privileged Incus daemon (per ADR-0040); Unix socket via shared volume |
 | `otel-collector` | `otel/opentelemetry-collector-contrib:0.108.0` | Telemetry fan-out hub |
 | `jaeger/loki/prometheus/grafana` | upstream images | Observability backends |
 
 Caddy is the only service with public ports (80 + 443). Everything else
-lives on the `backend` overlay network. **Incus runs on the host** (not
-in a container) because it needs kernel access; the Lahijan container
-reaches it via a read-only bind-mount of the host socket.
+lives on the `backend` overlay network. Per **ADR-0040** the Incus daemon
+runs inside the privileged `incus` container (not on the host) so the
+whole stack comes up with a single `docker compose up`. Lahijan reaches
+it over `/var/lib/incus/unix.socket` via the shared volume.
 
 ## 2. Prerequisites
 
@@ -290,7 +291,7 @@ docker compose ... up -d --force-recreate caddy
 | Caddy shows 502 / "bad gateway" | Lahijan container not healthy | `docker inspect --format='{{json .State.Health.Status}}' lahijan-prod-app` |
 | Browser shows cert warning | DNS for `LAHIJAN_PUBLIC_HOST` not pointing at host OR Let's Encrypt rate-limited | Check `dig app.example.com` + Caddy's logs (`docker compose logs caddy`); ACME errors are loud |
 | Users cannot log in | Auth signing key changed (cookies invalidated) OR Postgres down | Check `docker compose logs lahijan` for `auth/signing.key must be set` |
-| Compute module shows "feature disabled" | Incus socket not bind-mounted correctly | `docker exec lahijan-prod-app ls -la /var/lib/incus/unix.socket` — should exist |
+| Compute module shows "feature disabled" | Incus container failed to start (often AF_VSOCK missing on hardened hosts) OR socket not reachable | `docker compose ps incus` (must be `healthy`); `docker compose exec incus incus list`; `docker exec lahijan-prod-app ls -la /var/lib/incus/unix.socket` |
 | PowerDNS API key invalid | Mismatch between `PDNS_API_KEY` and `LAHIJAN_PROVIDERS_POWERDNS_API_KEY` (same value in two env vars) | Diff `.env.prod`; the two keys MUST be identical |
 | SeaweedFS admin credentials rejected | Same mismatch shape (`SEAWEEDFS_S3_*` ↔ `LAHIJAN_PROVIDERS_SEAWEEDFS_ADMIN_*`) | Same fix |
 | First-run admin not created | DB not actually empty OR `LAHIJAN_BOOTSTRAP_ADMIN_EMAIL` empty | `docker exec lahijan-prod-postgres psql -U postgres -d lahijan -c 'SELECT count(*) FROM users;'` — 0 means bootstrap should have run |
@@ -490,9 +491,13 @@ into the `compute_instances.cluster_member` column for the UI.
   services in this stack; the topology is HA-friendly but the
   defaults are sized for a single host. Scale by adding volume
   servers.
-- **Incus client sidecar:** the `incus-client` container in this
-  stack is a thin wrapper around the host's Incus socket; it has no
-  state and can be replicated freely.
+- **Incus daemon (per ADR-0040):** runs as the privileged `incus`
+  service in this stack (image `ghcr.io/cmspam/incus-docker:lts`).
+  State lives at the host path `/var/lib/incus` (bind-mounted into the
+  incus container, also mounted read-only into the Lahijan container
+  for socket access). Backup is via `scripts/backup.sh` which tars
+  `/var/lib/incus` directly. To manage Incus from the host:
+  `docker compose exec incus incus list`.
 
 ### 14d. Public IP / floating IP data plane (WS-30, ADR-0037)
 

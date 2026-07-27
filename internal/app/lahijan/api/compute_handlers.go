@@ -29,6 +29,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	openapi_types "github.com/oapi-codegen/runtime/types"
+	"fmt"
+	"log/slog"
 )
 
 // DefaultComputePageSize is the page size for compute list endpoints when
@@ -131,6 +133,14 @@ func mapComputeError(c *fiber.Ctx, err error) error {
 		return SendError(c, fiber.StatusPaymentRequired, "insufficient_balance",
 			i18n.T(c.UserContext(), "compute.err_insufficient_balance", nil), nil)
 	}
+	// Unexpected error: log the underlying error with the request id so the
+	// operator can diagnose it. The envelope stays generic (no error leak).
+	slog.ErrorContext(c.UserContext(), "compute: unexpected error",
+		"error", err.Error(),
+		"error_type", fmt.Sprintf("%T", err),
+		"path", c.Path(),
+		"method", c.Method(),
+		"request_id", c.Locals("request_id"))
 	return SendInternal(c, i18n.T(c.UserContext(), "auth.err_internal", nil))
 }
 

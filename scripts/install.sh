@@ -101,21 +101,37 @@ fi
 
 case "$(uname -s)" in
 	Linux*)
-		# Incus only runs on Linux. macOS / Windows deployers must use a Linux VM
-		# (the script exits here with a pointer to the docs).
-		if ! command -v incus >/dev/null 2>&1; then
-			warn "incus not found on PATH."
-			warn "Incus provides the compute backend (system containers + VMs)."
-			warn "Without it the compute module will degrade to 'feature disabled'."
-			warn "Install per https://linuxcontainers.org/incus/docs/main/installing/"
-			warn "Continuing anyway — Lahijan will run, just without compute."
+		# Per ADR-0040 Incus runs containerized in the compose stack
+		# (image ghcr.io/cmspam/incus-docker:lts). No host `incus`
+		# install is required — Docker Engine alone is enough. We still
+		# check for the kernel modules Incus needs (vhost_vsock, kvm,
+		# veth, bridge) so a missing module fails fast with a clear
+		# message instead of an obscure daemon stack trace.
+		for mod in vhost_vsock veth bridge; do
+			if [ -d "/sys/module/$mod" ]; then
+				ok "kernel module '$mod' loaded"
+			else
+				warn "kernel module '$mod' not loaded."
+				warn "  The containerized Incus can usually modprobe it from /lib/modules."
+				warn "  If the daemon fails to start with 'socket: function not implemented',"
+				warn "  run: sudo modprobe $mod   (and add to /etc/modules-load.d/ for persistence)."
+			fi
+		done
+		# Ensure the host path /var/lib/incus exists so the prod compose
+		# bind-mount does not silently create an empty dir owned by root.
+		if [ ! -d /var/lib/incus ]; then
+			warn "/var/lib/incus does not exist; the prod compose will create it as root-owned."
+			warn "If you have an existing host-installed Incus, point the bind-mount there."
 		else
-			ok "incus found: $(incus --version)"
+			ok "/var/lib/incus exists (Incus state dir)"
 		fi
 		;;
 	*)
-		warn "$(uname -s) cannot run Incus locally. Compute features will be disabled."
-		warn "Deploy on a Linux VM (or a Linux host) for full functionality."
+		warn "$(uname -s) host: containerized Incus may fail to start"
+		warn "(Docker Desktop's VM may block AF_VSOCK for privileged containers)."
+		warn "If the incus service fails with 'socket: function not implemented',"
+		warn "follow the WSL2 fallback in docs/howto/run-incus-on-windows.md (Windows)"
+		warn "or deploy on a Linux VM for full functionality."
 		;;
 esac
 
