@@ -1,5 +1,8 @@
 # Lahijan Cloud Platform
 
+> [!WARNING]
+> Work in progress and not production-ready. Bugs live here and there.
+
 Lahijan is an open-source cloud platform that gives end users a self-service
 portal for **compute, DNS, and object storage** while hiding the operator
 complexity behind three best-of-breed backends:
