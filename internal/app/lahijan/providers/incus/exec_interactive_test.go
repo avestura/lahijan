@@ -1,13 +1,14 @@
 // Package incus: exec_interactive_test.go covers the WS-32 interactive
 // exec path against the in-process fake daemon. Asserts:
 //
-//   - OpenInteractiveExec returns the 3 per-fd secrets (0=stdin, 1=stdout,
-//     control=control) the bridge expects; stderr (fd 2) is absent in
-//     interactive mode.
+//   - OpenInteractiveExec returns the per-fd layout the WS-32 bridge
+//     depends on: a single bidirectional data fd ("0") + "control";
+//     stdout ("1") + stderr ("2") are absent in interactive PTY mode
+//     (the real Incus daemon merges output onto fd "0").
 //   - The default shell fallback kicks in when Command is empty.
 //   - WriteExecResize emits a well-formed JSON control message.
-//   - The fake echoes stdin bytes back to stdout so the bridge round-trip
-//     has something to assert against.
+//   - The fake echoes input frames back over the single data fd so the
+//     bridge round-trip has something to assert against.
 package incus_test
 
 import (
@@ -23,10 +24,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestOpenInteractiveExec_ReturnsThreeFDs asserts the metadata layout
-// the WS-32 bridge depends on: stdin + stdout + control present, stderr
-// (fd 2) absent.
-func TestOpenInteractiveExec_ReturnsThreeFDs(t *testing.T) {
+// TestOpenInteractiveExec_ReturnsBidirectionalDataFD asserts the metadata
+// layout the WS-32 bridge depends on. The real Incus daemon exposes a
+// SINGLE bidirectional data fd ("0" — the PTY master) + "control"; there
+// is no separate stdout ("1") or stderr ("2") in interactive mode. The
+// previous fake wrongly minted a "1", which let this check pass while the
+// real daemon returned only "0" + "control" and the driver 503'd.
+func TestOpenInteractiveExec_ReturnsBidirectionalDataFD(t *testing.T) {
 	t.Parallel()
 	srv := newFakeWithDefaults(t)
 	p := connectProvider(t, srv)
@@ -54,8 +58,8 @@ func TestOpenInteractiveExec_ReturnsThreeFDs(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, session.OperationID)
 	assert.NotEmpty(t, session.StdinSecret, "stdin (fd 0) secret must be present")
-	assert.NotEmpty(t, session.StdoutSecret, "stdout (fd 1) secret must be present")
-	assert.Empty(t, session.StderrSecret, "stderr (fd 2) must be absent in Interactive mode")
+	assert.Empty(t, session.StdoutSecret, "stdout (fd 1) must be ABSENT in interactive PTY mode (bidirectional on fd 0)")
+	assert.Empty(t, session.StderrSecret, "stderr (fd 2) must be absent in interactive mode")
 	assert.NotEmpty(t, session.ControlSecret, "control secret must be present (Incus 5+/6+)")
 }
 
@@ -113,9 +117,11 @@ func TestOpenInteractiveExec_MissingInstance_ReturnsError(t *testing.T) {
 	require.Error(t, err, "exec against a missing instance must error")
 }
 
-// TestDialExecFD_RoundTripsBytes asserts the per-fd dial + byte pump.
-// The fake's default interactive handler writes a banner on stdout; we
-// read it via DialExecFD(fd=1) to confirm the WS hand-off works.
+// TestDialExecFD_RoundTripsBytes asserts the per-fd dial + byte pump on
+// the single bidirectional data fd. The fake's default interactive
+// handler writes a banner on fd "0"; we dial StdinSecret (the data fd)
+// and read the banner back to confirm the WS hand-off works in both
+// directions on the one websocket.
 func TestDialExecFD_RoundTripsBytes(t *testing.T) {
 	t.Parallel()
 	srv := newFakeWithDefaults(t)
@@ -141,8 +147,8 @@ func TestDialExecFD_RoundTripsBytes(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Dial stdout + read the default handler's banner.
-	conn, err := p.DialExecFD(ctx, session.OperationID, session.StdoutSecret)
+	// Dial the bidirectional data fd (fd "0") + read the handler's banner.
+	conn, err := p.DialExecFD(ctx, session.OperationID, session.StdinSecret)
 	require.NoError(t, err)
 	defer func() { _ = conn.Close() }()
 
@@ -150,7 +156,7 @@ func TestDialExecFD_RoundTripsBytes(t *testing.T) {
 	_, data, err := conn.ReadMessage()
 	require.NoError(t, err)
 	assert.Contains(t, string(data), "interactive exec ready",
-		"stdout must carry the fake handler's banner")
+		"data fd must carry the fake handler's banner")
 }
 
 // TestWriteExecResize_FormatsJSON asserts WriteExecResize emits the
@@ -245,19 +251,19 @@ func TestWriteExecResize_ZeroDimensionsNoop(t *testing.T) {
 		"non-positive dimensions must not produce a resize message")
 }
 
-// TestInteractiveExec_HandlerWritesStdout asserts the interactive
-// handler owns the stdout conn and can write bytes the bridge will
-// see. The fake's stdin/stdout pumps are separate goroutines; the
-// handler is the seam where a future "true echo" fake would wire the
-// two together. For WS-32 we only need to assert the handler can push
-// bytes onto stdout (the bridge test covers the full round-trip).
-func TestInteractiveExec_HandlerWritesStdout(t *testing.T) {
+// TestInteractiveExec_HandlerWritesDataFD asserts the interactive
+// handler owns the single bidirectional data fd ("0") and can push
+// bytes the bridge will see on the same websocket it writes input to.
+// The fake's data pump is ONE goroutine on ONE conn; the handler is the
+// seam where output is emitted. For WS-32 we assert the handler can
+// write bytes onto the data fd that the bridge reads as output.
+func TestInteractiveExec_HandlerWritesDataFD(t *testing.T) {
 	t.Parallel()
 	srv := newFakeWithDefaults(t)
 	p := connectProvider(t, srv)
 
-	// Override the handler so it writes a known payload to stdout as
-	// soon as the driver dials. The handler then blocks on ReadMessage
+	// Override the handler so it writes a known payload to the data fd
+	// as soon as the driver dials. The handler then blocks on ReadMessage
 	// (returning when the test closes the conn).
 	const payload = "ws-32-interactive-payload\r\n"
 	srv.SetInteractiveExecHandler(func(conn *websocket.Conn, _ incus.InstanceExecPost, _ *[]incus.ExecControlResize) {
@@ -292,20 +298,18 @@ func TestInteractiveExec_HandlerWritesStdout(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Dial stdin + stdout; both must be dialable independently.
-	stdin, err := p.DialExecFD(ctx, session.OperationID, session.StdinSecret)
+	// Interactive mode: a SINGLE bidirectional data fd. Dial it once.
+	data, err := p.DialExecFD(ctx, session.OperationID, session.StdinSecret)
 	require.NoError(t, err)
-	defer func() { _ = stdin.Close() }()
-	stdout, err := p.DialExecFD(ctx, session.OperationID, session.StdoutSecret)
-	require.NoError(t, err)
-	defer func() { _ = stdout.Close() }()
+	defer func() { _ = data.Close() }()
 
-	// The handler writes the payload to stdout as soon as it parks.
-	_ = stdout.SetReadDeadline(time.Now().Add(5 * time.Second))
-	_, data, err := stdout.ReadMessage()
+	// The handler writes the payload onto the data fd as soon as it
+	// parks; the driver (bridge) reads it back as output on the same conn.
+	_ = data.SetReadDeadline(time.Now().Add(5 * time.Second))
+	_, got, err := data.ReadMessage()
 	require.NoError(t, err)
-	assert.Equal(t, payload, string(data),
-		"stdout must carry the handler's payload verbatim")
+	assert.Equal(t, payload, string(got),
+		"data fd must carry the handler's payload verbatim")
 }
 
 // TestInteractiveExec_MalformedControlMessageDropped asserts the
@@ -388,4 +392,3 @@ func TestControlResizeMessage_WireFormat(t *testing.T) {
 	assert.Contains(t, string(payload), `"width":132`)
 	assert.Contains(t, string(payload), `"height":50`)
 }
-

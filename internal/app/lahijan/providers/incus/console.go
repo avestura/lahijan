@@ -141,7 +141,7 @@ func (p *Provider) DialVNCConsole(ctx context.Context, opID, secret string) (*we
 		return nil, errors.New("incus: console dial requires non-empty op id + secret")
 	}
 	wsURL := p.execWebSocketURL(opID, secret)
-	conn, _, err := websocket.DefaultDialer.DialContext(ctx, wsURL, http.Header{
+	conn, _, err := p.wsDialer.DialContext(ctx, wsURL, http.Header{
 		"User-Agent": {userAgent},
 	})
 	if err != nil {

@@ -35,6 +35,7 @@ import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { usePerm } from "@/lib/perm";
+import { useSessionStore } from "@/lib/stores/session-store";
 import { classifyStatus } from "../api";
 
 interface Props {
@@ -60,15 +61,27 @@ interface ResizeControlMessage {
  * buildWebSocketURL constructs the ws/wss URL for the console bridge.
  * Same-origin session-cookie auth: the browser sends cookies on the
  * WS upgrade automatically.
+ *
+ * tenantId is appended as ?tenant_id= because the browser's WebSocket
+ * API (new WebSocket(url)) exposes NO header setter — the X-Tenant-Id
+ * header the rest of the app sends via the fetch interceptor cannot
+ * be attached here. The backend's tenant middleware resolves the
+ * query param as a fallback (WS-32). Without it the upgrade is
+ * rejected with 400 "tenant scope required" before a byte is pumped.
  */
-function buildWebSocketURL(instanceId: string): string {
+function buildWebSocketURL(instanceId: string, tenantId: string | null): string {
   const scheme = location.protocol === "https:" ? "wss" : "ws";
-  return `${scheme}://${location.host}/api/v1/compute/instances/${instanceId}/console`;
+  const base = `${scheme}://${location.host}/api/v1/compute/instances/${instanceId}/console`;
+  return tenantId ? `${base}?tenant_id=${encodeURIComponent(tenantId)}` : base;
 }
 
 export function InstanceConsole({ instanceId, status }: Props) {
   const { t } = useTranslation();
   const { hasPerm } = usePerm("compute.instance.console.exec");
+  // The active tenant id is needed on the WS URL (see buildWebSocketURL).
+  // Read reactively so a tenant switch reconnects the console under the
+  // new scope.
+  const currentTenantId = useSessionStore((s) => s.currentTenantId);
 
   const termRef = useRef<HTMLDivElement | null>(null);
   const term = useRef<Terminal | null>(null);
@@ -131,7 +144,7 @@ export function InstanceConsole({ instanceId, status }: Props) {
     if (!termInst) return;
 
     setConnectionState("connecting");
-    const sock = new WebSocket(buildWebSocketURL(instanceId));
+    const sock = new WebSocket(buildWebSocketURL(instanceId, currentTenantId));
     ws.current = sock;
 
     sock.onopen = () => {
@@ -177,7 +190,7 @@ export function InstanceConsole({ instanceId, status }: Props) {
       // the state transition; nothing to do here beyond a no-op so
       // React's exhaustive-deps lint is happy.
     };
-  }, [instanceId, doFit, sendResize]);
+  }, [instanceId, currentTenantId, doFit, sendResize]);
 
   /** disconnect closes the WS cleanly. Closing stdin triggers Incus to
    *  terminate the exec per the documented "EOF on stdin ends the
@@ -281,10 +294,12 @@ export function InstanceConsole({ instanceId, status }: Props) {
     };
   }, [doFit, sendResize]);
 
-  // Auto-connect when the instance is running + perm is granted. The
-  // user can Disconnect manually and re-Connect with the button.
+  // Auto-connect when the instance is running + perm is granted + the
+  // tenant scope is known (the WS upgrade needs ?tenant_id=; without it
+  // the backend rejects with 400 before a byte is pumped). The user can
+  // Disconnect manually and re-Connect with the button.
   useEffect(() => {
-    if (!isRunning || !hasPerm) return;
+    if (!isRunning || !hasPerm || !currentTenantId) return;
     connect();
     return () => {
       disconnect();
@@ -292,7 +307,7 @@ export function InstanceConsole({ instanceId, status }: Props) {
     // We intentionally depend only on instanceId + the gates; the
     // connect/disconnect callbacks are stable enough for this lifecycle.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [instanceId, isRunning, hasPerm]);
+  }, [instanceId, isRunning, hasPerm, currentTenantId]);
 
   // Permission gate: server still enforces; this is defense in depth.
   if (!hasPerm) {

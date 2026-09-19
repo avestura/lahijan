@@ -251,7 +251,7 @@ func (p *Provider) execWriteLoop(ctx context.Context, opID, secret string, input
 // execDial opens the websocket for an operation's per-fd secret.
 func (p *Provider) execDial(ctx context.Context, opID, secret string) (*websocket.Conn, error) {
 	wsURL := p.execWebSocketURL(opID, secret)
-	conn, _, err := websocket.DefaultDialer.DialContext(ctx, wsURL, http.Header{
+	conn, _, err := p.wsDialer.DialContext(ctx, wsURL, http.Header{
 		"User-Agent": {userAgent},
 	})
 	if err != nil {

@@ -24,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -78,6 +79,21 @@ type Provider struct {
 	// events into. Nil when events are disabled. The events listener is
 	// the only writer to the bus from inside this package.
 	bus EventBus
+
+	// wsDialer is the gorilla/websocket dialer used for every per-fd,
+	// VNC, and events websocket the driver opens against the daemon. It
+	// mirrors the HTTP transport: unix-socket NetDialContext in
+	// NewUnixClient, the same TLS config (incl. insecureSkipVerify) in
+	// NewRemoteClient. Defaults to websocket.DefaultDialer for tests
+	// that construct a Provider against a plain httptest server.
+	//
+	// This is required because gorilla/websocket's DefaultDialer
+	// verifies TLS certs + dials TCP — so without it, wss:// dials
+	// against a self-signed-cert daemon (the WSL2 dev Incus, any
+	// production daemon using the Incus auto-generated cert) fail with
+	// "x509: certificate signed by unknown authority", and ws:// dials
+	// against a unix-socket daemon try TCP and time out.
+	wsDialer *websocket.Dialer
 }
 
 // EventBus is the minimal subset of *eventbus.Bus the driver needs. Keeping
@@ -171,6 +187,14 @@ type Config struct {
 	// Bus is the optional WASM event bus for the events listener.
 	// Nil disables the events listener.
 	Bus EventBus
+
+	// WSDialer is the gorilla/websocket dialer used for every websocket
+	// the driver opens (per-fd exec, VNC, events). NewUnixClient and
+	// NewRemoteClient build one that matches their HTTP transport
+	// (unix-socket NetDial / TLS config). When nil, NewClient falls back
+	// to websocket.DefaultDialer so tests against a plain httptest server
+	// (TCP, no TLS) keep working unchanged.
+	WSDialer *websocket.Dialer
 }
 
 // defaultRequestTimeout is used when Config.RequestTimeout is zero.
@@ -197,6 +221,13 @@ func NewClient(cfg Config) (*Provider, error) {
 	if prefix == "" {
 		prefix = defaultProjectPrefix
 	}
+	wsDialer := cfg.WSDialer
+	if wsDialer == nil {
+		// Tests that wire the provider against a plain httptest server
+		// (TCP, no TLS) get the default dialer; production paths
+		// (NewUnixClient / NewRemoteClient) always supply a matching one.
+		wsDialer = websocket.DefaultDialer
+	}
 	return &Provider{
 		httpClient:      cfg.HTTPClient,
 		baseURL:         strings.TrimRight(cfg.BaseURL, "/"),
@@ -204,6 +235,7 @@ func NewClient(cfg Config) (*Provider, error) {
 		projectPrefix:   prefix,
 		projectFeatures: cfg.ProjectFeatures,
 		bus:             cfg.Bus,
+		wsDialer:        wsDialer,
 	}, nil
 }
 
@@ -214,17 +246,28 @@ func NewUnixClient(socketPath string, cfg Config) (*Provider, error) {
 	if socketPath == "" {
 		return nil, errors.New("incus: socketPath is required for Unix-socket mode")
 	}
+	// Shared dialer: both the HTTP transport and the websocket dialer
+	// reach the daemon over the SAME unix socket. The synthetic "incus"
+	// host is irrelevant to a unix dial (the NetDialContext ignores
+	// network+addr and dials the socket directly).
+	unixDial := func(ctx context.Context, _, _ string) (net.Conn, error) {
+		d := net.Dialer{Timeout: 5 * time.Second}
+		return d.DialContext(ctx, "unix", socketPath)
+	}
 	transport := &http.Transport{
-		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-			d := net.Dialer{Timeout: 5 * time.Second}
-			return d.DialContext(ctx, "unix", socketPath)
-		},
+		DialContext: unixDial,
 		// Disable keep-alive pooling — Incus' server does not benefit from
 		// it and a long-lived idle conn can mask a daemon restart.
 		DisableKeepAlives: true,
 	}
 	cfg.HTTPClient = &http.Client{Transport: transport}
 	cfg.BaseURL = "http://incus"
+	if cfg.WSDialer == nil {
+		cfg.WSDialer = &websocket.Dialer{
+			NetDialContext:   unixDial,
+			HandshakeTimeout: 10 * time.Second,
+		}
+	}
 	return NewClient(cfg)
 }
 
@@ -245,6 +288,19 @@ func NewRemoteClient(remoteURL string, tlsCfg TLSConfig, cfg Config) (*Provider,
 	}
 	cfg.HTTPClient = &http.Client{Transport: transport}
 	cfg.BaseURL = strings.TrimRight(remoteURL, "/")
+	if cfg.WSDialer == nil {
+		// The websocket dialer MUST share the HTTP transport's TLS config
+		// (incl. InsecureSkipVerify): the daemon's auto-generated cert is
+		// self-signed, so gorilla/websocket's DefaultDialer — which verifies
+		// certs — rejects every wss:// per-fd/exec + VNC + events dial with
+		// "x509: certificate signed by unknown authority". Sharing the config
+		// makes the WS path accept exactly the certs the HTTP path already
+		// accepts.
+		cfg.WSDialer = &websocket.Dialer{
+			TLSClientConfig:  tlsConfig,
+			HandshakeTimeout: 10 * time.Second,
+		}
+	}
 	return NewClient(cfg)
 }
 

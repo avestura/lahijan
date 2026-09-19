@@ -38,6 +38,11 @@ type EventListener struct {
 	// cancel stops the read loop and triggers a clean close.
 	cancel context.CancelFunc
 
+	// dialer is the websocket dialer (shared with the provider) so the
+	// events wss:// dial honours the daemon's TLS config the same way the
+	// HTTP transport does.
+	dialer *websocket.Dialer
+
 	// done is closed when the read loop has fully exited.
 	done chan struct{}
 
@@ -115,7 +120,7 @@ func (p *Provider) StartEventListener(cfg EventListenerConfig) (*EventListener, 
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	listener := &EventListener{cancel: cancel, done: make(chan struct{})}
+	listener := &EventListener{cancel: cancel, done: make(chan struct{}), dialer: p.wsDialer}
 
 	// Build the events URL once; the listener reconnects to it on transient
 	// disconnects. We pin to the "lifecycle" type to skip the high-volume
@@ -141,7 +146,7 @@ func (l *EventListener) run(ctx context.Context, wsURL string, maxBackoff time.D
 			log.Debug("incus events listener: context done", "error", err)
 			return
 		}
-		conn, _, err := websocket.DefaultDialer.DialContext(ctx, wsURL, http.Header{
+		conn, _, err := l.dialer.DialContext(ctx, wsURL, http.Header{
 			"User-Agent": {userAgent},
 		})
 		if err != nil {
