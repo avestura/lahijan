@@ -4,6 +4,14 @@
 - **Date:** 2026-07-27
 - **Deciders:** maintainer
 - **Related:** WS-32, ADR-0031 (noVNC bridge — pattern this WS mirrors 1:1)
+- **Amended:** 2026-09-17 — the original text described the interactive
+  per-fd metadata as `0`/`1`/`control` (a separate stdout). Bringing the
+  bridge up against a real Incus daemon showed the daemon returns
+  `0`/`control` only: fd `0` is the **bidirectional** PTY master. The
+  three decisions below are unchanged; the wire-protocol description and
+  the fd counts are corrected in place, and four implementation
+  constraints found in the same pass are recorded under
+  [Amendment notes](#amendment-notes-2026-09-17).
 
 ## Context
 
@@ -26,7 +34,7 @@ have to make.
 
    - **Option A — control fd (modern).** When `Interactive=true` and
      `WaitForWS=true`, the daemon mints an additional per-fd secret
-     named `"control"` alongside `"0"`/`"1"`/`"2"`. The control fd
+     named `"control"` alongside the data fd `"0"`. The control fd
      accepts JSON messages of shape
      `{"type":"resize","width":N,"height":N}` (plus `signal` for
      signal forwarding). All Incus releases that support interactive
@@ -47,8 +55,11 @@ have to make.
    - `Interactive=false` -> the daemon returns three per-fd secrets
      (`0`/`1`/`2`) and the caller dials + pumps each.
    - `Interactive=true` -> the daemon allocates a single PTY and
-     combines stderr into stdout. The metadata carries only `0`, `1`,
-     and `control`; `2` is absent. This is the same UX as
+     combines stderr into stdout — *and* merges the result back onto
+     the input fd. The metadata carries only `0` and `control`; both
+     `1` and `2` are absent. Fd `0` is the PTY master: the client
+     writes keystrokes to it and reads the shell's output from it on
+     the same websocket. This is the same UX as
      `incus exec <name> -- /bin/sh` on the CLI.
 
 3. **Where does the audit row land relative to the Incus call?** Per
@@ -74,8 +85,8 @@ have to make.
 WS-32 implements the interactive exec console as follows:
 
 1. **Resize: Option A — the control fd.** The provider's
-   `OpenInteractiveExec` returns a fourth secret (`ControlSecret`)
-   alongside stdin/stdout. The bridge opens the control fd once at
+   `OpenInteractiveExec` returns a second secret (`ControlSecret`)
+   alongside the data fd. The bridge opens the control fd once at
    session start and writes JSON resize messages to it for the
    duration of the browser's WS connection. The browser sends the
    resize on the same WS as stdin (JSON envelope
@@ -88,12 +99,16 @@ WS-32 implements the interactive exec console as follows:
    shell still works, but vim/htop render at the daemon's default
    80x25 PTY size.
 
-2. **Stdout + stderr: combined.** The provider always passes
-   `Interactive=true`, so the daemon allocates a single PTY and
-   combines stderr into stdout. `OpenInteractiveExec` returns
-   `StderrSecret=""` to signal this; the bridge dials only two byte
-   channels (stdin + stdout) plus the control channel. There is no
-   fd-2 dial path in the bridge.
+2. **Stdout + stderr: combined onto the bidirectional data fd.** The
+   provider always passes `Interactive=true`, so the daemon allocates a
+   single PTY and merges stdout + stderr back onto fd `0`.
+   `OpenInteractiveExec` returns `StdoutSecret=""` and
+   `StderrSecret=""` to signal this; the bridge dials **one** byte
+   channel (fd `0`) plus the control channel, and runs both pumps over
+   that one conn — one goroutine reading, one writing, which
+   gorilla/websocket permits. There is no fd-1 or fd-2 dial path in the
+   bridge. Stdout is treated as optional rather than required: an empty
+   `StdoutSecret` is the normal interactive case, not an error.
 
 3. **Audit timing: mirror WS-24 verbatim.** The service emits the
    audit row (`action=compute.instance.console.exec.connect`,
@@ -104,9 +119,9 @@ WS-32 implements the interactive exec console as follows:
 
 This ADR reuses ADR-0031's "fiberws + gorillaws bridge, pre-upgrade
 validation, audit gate dispatch" pattern verbatim — the only
-behavioural differences are: (a) three Incus-side WS (stdin, stdout,
-control) instead of one (RFB), (b) the JSON control-message sniffer
-on the browser→Incus path, and (c) no VM-only gate (exec works on
+behavioural differences are: (a) two Incus-side WS (the bidirectional
+data fd + control) instead of one (RFB), (b) the JSON control-message
+sniffer on the browser→Incus path, and (c) no VM-only gate (exec works on
 both containers and VMs).
 
 ## Consequences
@@ -151,22 +166,24 @@ both containers and VMs).
 ## Compliance
 
 - `internal/app/lahijan/providers/incus/exec_interactive.go` defines
-  `OpenInteractiveExec` (returns four per-fd secrets including
-  `control`) + `DialExecFD` (dials any per-fd WS) + `WriteExecResize`
+  `OpenInteractiveExec` (returns the data-fd secret + `control`) + `DialExecFD` (dials any per-fd WS) + `WriteExecResize`
   (formats + writes the JSON resize control message). All three open
   OTel spans via the package-local tracer (per ADR-0016).
 - `internal/app/lahijan/providers/incus/fake/exec.go` extends the
-  httptest fake to dispatch on `Interactive=true`, mint four secrets,
-  and record resize control messages so the bridge unit test can
-  assert the control channel actually forwarded them.
+  httptest fake to dispatch on `Interactive=true`, mint the daemon's
+  real two-secret layout (`0` + `control`), echo input frames back on
+  fd `0` the way a PTY does, and record resize control messages so the
+  bridge unit test can assert the control channel actually forwarded
+  them. The fake previously minted a separate `1`, which made the whole
+  test suite pass against a layout the daemon never produces.
 - `internal/app/lahijan/compute/console_exec.go` is the service-layer
   orchestration (lookup → audit emit → Incus call → return session).
   `compute.AuditInstanceConsoleExecConnect` is the audit action
   constant; the service emits BEFORE the Incus call.
 - `internal/app/lahijan/api/compute_console_handlers.go` is the
   WebSocket upgrade handler. Pre-upgrade validation + audit emit +
-  `mapComputeError` translation; post-upgrade three-way bridge with
-  the control-fd resize sniffer. Every catch-all logs the underlying
+  `mapComputeError` translation; post-upgrade bridge (data fd +
+  control fd) with the control-fd resize sniffer. Every catch-all logs the underlying
   error (with type, op id, fd name) before returning the generic
   envelope per the backend AGENTS.md "Hard rules" section.
 - The audit gate in `api/router.go` dispatches
@@ -186,6 +203,54 @@ both containers and VMs).
   `openConsoleComputeInstance` + the control-channel protocol in the
   description (so future SDK authors can implement it without reading
   the handler source).
+
+## Amendment notes (2026-09-17)
+
+Four constraints surfaced only when the bridge was exercised against a
+real Incus daemon rather than the in-process fake. Each is load-bearing
+— reverting any one of them breaks the console with no compile error and
+no failing test, so each now has a named regression test.
+
+1. **Browser input must reach Incus as BINARY frames.** The interactive
+   exec fd `0` silently discards TEXT-opcode frames: a text-frame
+   `echo hi
+` produces no echo and no execution, while the identical
+   bytes sent as a binary frame are echoed and run. xterm.js's `onData`
+   emits strings, so the browser side is unavoidably text; the bridge
+   therefore rewrites the opcode to binary on every stdin forward. The
+   payload is untouched — only the opcode changes. Pinned by
+   `TestPumpBrowserToIncusStdin_AlwaysBinaryOpcode`.
+
+2. **The websocket dialer must share the HTTP transport's config.**
+   `websocket.DefaultDialer` verifies TLS and dials TCP, so every
+   per-fd, VNC, and events dial failed in both supported topologies: a
+   `wss://` dial against a daemon using the Incus auto-generated
+   self-signed cert failed with `x509: certificate signed by unknown
+   authority`, and a `ws://` dial against a Unix-socket daemon tried TCP
+   and timed out. `Provider` now carries a `wsDialer` built alongside
+   the HTTP transport (`NetDialContext` to the socket in
+   `NewUnixClient`, the same `TLSClientConfig` in `NewRemoteClient`), and
+   every dial site uses it. The WS path now accepts exactly the certs
+   the HTTP path already accepts — no separate trust decision.
+
+3. **The tenant hint needs a query-param fallback.** The browser's
+   `new WebSocket(url)` exposes no header setter, so the `X-Tenant-Id`
+   header the rest of the dashboard sends via the fetch interceptor
+   cannot ride the upgrade request. `tenant_id` is accepted as a query
+   param, ranked below the header form so a stray query value cannot
+   override an explicit header. This is **not** a privilege grant: as
+   with the header, the value is only a scope hint and membership is
+   still enforced downstream by `RequirePerm`, so a spoofed hint reaches
+   nothing the caller could not already reach. Pinned by
+   `TestTenantWithResolver_QueryID_SetsContext` and
+   `TestTenantWithResolver_HeaderID_BeatsQueryID`.
+
+4. **The Vite dev/preview proxies need `ws: true`.** Without it
+   http-proxy never binds the `upgrade` event, so the console handshake
+   is answered by Vite's own static server (SPA fallback) and the
+   terminal reports "disconnected" before a byte is pumped. Set on both
+   `server.proxy` and `preview.proxy` — the WS-22 e2e harness runs
+   against `vite preview`.
 
 ## References
 
