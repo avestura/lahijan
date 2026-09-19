@@ -250,14 +250,19 @@ func (s *Server) handleInteractiveExec(
 	_, instance string,
 	handler func(conn *websocket.Conn, params incus.InstanceExecPost, resizes *[]incus.ExecControlResize),
 ) {
-	stdinSecret := uuid.NewString()
-	stdoutSecret := uuid.NewString()
+	dataSecret := uuid.NewString()
 	controlSecret := uuid.NewString()
 	opID := uuid.NewString()
 
-	// Interactive mode: stdout + stderr are combined on fd "1"; fd "2"
-	// is absent in real Incus. The fake omits it too so the driver's
-	// "fd 2 must be empty in interactive mode" invariant is asserted.
+	// Real Incus interactive exec (Interactive=true + WaitForWS=true)
+	// exposes a SINGLE bidirectional data fd ("0" — the PTY master: the
+	// client writes keystrokes to it AND reads output from it on the same
+	// websocket) plus the "control" channel for resize/signal JSON. There
+	// is no separate stdout ("1") or stderr ("2") fd in interactive mode;
+	// the PTY merges them. The previous fake wrongly minted a separate
+	// "1", which made every test pass while the real daemon returned only
+	// "0" + "control" — so the driver's "fd 1 must exist" check 503'd
+	// against real Incus. This layout now mirrors the daemon exactly.
 	opEnvelope := map[string]any{
 		"id":          opID,
 		"class":       "websocket",
@@ -268,8 +273,7 @@ func (s *Server) handleInteractiveExec(
 		"updated_at":  time.Now().UTC(),
 		"metadata": map[string]any{
 			"fds": map[string]string{
-				"0":       stdinSecret,
-				"1":       stdoutSecret,
+				"0":       dataSecret,
 				"control": controlSecret,
 			},
 		},
@@ -278,8 +282,7 @@ func (s *Server) handleInteractiveExec(
 
 	secretsJSON, _ := json.Marshal(map[string]any{
 		"fds": map[string]string{
-			"0":       stdinSecret,
-			"1":       stdoutSecret,
+			"0":       dataSecret,
 			"control": controlSecret,
 		},
 	})
@@ -302,32 +305,18 @@ func (s *Server) handleInteractiveExec(
 	s.interactiveResizes[opID] = &resizes
 	s.mu.Unlock()
 
-	// Stdout pump: waits for the driver to dial, then runs the
-	// interactive handler. The handler owns the conn and MUST close
-	// it. Default behaviour echoes stdin bytes back so the bridge
-	// round-trip test sees its own input.
+	// Data fd pump: accept the single bidirectional websocket ("0") and
+	// hand it to the interactive handler. The handler owns the conn and
+	// MUST close it. The default handler writes a banner + echoes every
+	// input frame back (a minimal PTY round-trip stand-in) on this SAME
+	// conn — reading keystrokes and writing output go over one websocket,
+	// exactly like the real daemon's PTY master.
 	go func() {
-		conn := s.acceptExecWS(opID, stdoutSecret)
+		conn := s.acceptExecWS(opID, dataSecret)
 		if conn == nil {
 			return
 		}
 		handler(conn, body, s.interactiveResizes[opID])
-	}()
-
-	// Stdin pump: accept + read until the client closes (the bridge
-	// writes keystrokes here). The echo behaviour lives in the
-	// stdout handler so the stdin goroutine just drains.
-	go func() {
-		conn := s.acceptExecWS(opID, stdinSecret)
-		if conn == nil {
-			return
-		}
-		defer func() { _ = conn.Close() }()
-		for {
-			if _, _, err := conn.ReadMessage(); err != nil {
-				return
-			}
-		}
 	}()
 
 	// Control pump: accept + read JSON control messages. The fake
@@ -386,17 +375,24 @@ func (s *Server) SetInteractiveExecHandler(h func(conn *websocket.Conn, params i
 	s.interactiveExecHandler = h
 }
 
-// defaultInteractiveExecHandler echoes stdin bytes back to stdout so the
-// bridge round-trip test sees its own input. The conn is the stdout fd;
-// we cannot directly read from stdin here (it is a different WS), so the
-// default handler writes a single hello banner + waits for the conn to
-// close. Tests that want true echo override via SetInteractiveExecHandler
-// and wire both ends themselves.
+// defaultInteractiveExecHandler is a minimal PTY stand-in for the single
+// bidirectional data fd ("0") the real daemon exposes in interactive mode.
+// It writes a banner, then echoes every input frame back onto the SAME conn
+// so a bridge round-trip test sees its own keystrokes returned as output
+// (mirroring how a real shell echoes typed chars + command output over the
+// PTY master). The handler owns the conn and closes it when the read side
+// ends (the bridge closes stdin on disconnect, which terminates this loop).
 func defaultInteractiveExecHandler(conn *websocket.Conn, _ incus.InstanceExecPost, _ *[]incus.ExecControlResize) {
 	defer func() { _ = conn.Close() }()
 	_ = conn.WriteMessage(websocket.TextMessage, []byte("# interactive exec ready\r\n"))
 	for {
-		if _, _, err := conn.ReadMessage(); err != nil {
+		msgType, data, err := conn.ReadMessage()
+		if err != nil {
+			return
+		}
+		// Echo the frame straight back (same type, same bytes) — a real
+		// PTY echoes typed input and emits command output over this fd.
+		if err := conn.WriteMessage(msgType, data); err != nil {
 			return
 		}
 	}

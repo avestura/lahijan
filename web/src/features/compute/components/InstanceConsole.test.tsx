@@ -109,6 +109,15 @@ vi.mock("@/lib/perm", () => ({
   usePerm: (_slug: string) => hasPermMock(),
 }));
 
+// The console WS URL carries ?tenant_id= because the browser's WebSocket
+// API cannot set the X-Tenant-Id header (WS-32). Mock the session store so
+// the component has a deterministic tenant id to stamp on the URL.
+const FIXED_TENANT_ID = "00000000-0000-0000-0000-0000000000ab";
+vi.mock("@/lib/stores/session-store", () => ({
+  useSessionStore: (selector: (s: { currentTenantId: string | null }) => unknown) =>
+    selector({ currentTenantId: FIXED_TENANT_ID }),
+}));
+
 /**
  * wsStub mirrors the bits of the real WebSocket the component touches.
  * The URL is captured for assertion; the state machine is just enough
@@ -227,6 +236,14 @@ describe("<InstanceConsole />", () => {
     render(<InstanceConsole instanceId="i1" status="Running" />);
     expect(wsInstances).toHaveLength(1);
     expect(wsInstances[0]?.url).toContain("/api/v1/compute/instances/i1/console");
+  });
+
+  it("appends ?tenant_id= to the WS URL (the browser WebSocket API cannot set headers)", () => {
+    render(<InstanceConsole instanceId="i1" status="Running" />);
+    expect(wsInstances).toHaveLength(1);
+    // The backend tenant middleware resolves the tenant from this query
+    // param as a fallback for the header-less WS upgrade (WS-32).
+    expect(wsInstances[0]?.url).toContain(`tenant_id=${FIXED_TENANT_ID}`);
   });
 
   it("does NOT open a WebSocket when the instance is not running", () => {

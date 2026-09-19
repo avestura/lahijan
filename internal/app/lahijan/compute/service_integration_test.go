@@ -783,8 +783,9 @@ func TestOpenVNCConsole_UnknownInstance(t *testing.T) {
 //   - BOTH containers and VMs are allowed (no ErrInstanceNotVM path).
 //   - The audit action is AuditInstanceConsoleExecConnect, not the VNC
 //     variant.
-//   - The session carries 3 per-fd secrets (stdin/stdout/control)
-//     instead of a single RFB secret.
+//   - The session carries 2 per-fd secrets (stdin/control). Stdin (fd "0")
+//     is the bidirectional PTY master — stdout (fd "1") is absent in
+//     interactive mode, so the bridge reuses stdin for the output pump.
 
 // TestOpenExecConsole_HappyPath covers the WS-32 service path: a
 // running instance gets an interactive exec session + an audit row is
@@ -805,8 +806,8 @@ func TestOpenExecConsole_HappyPath(t *testing.T) {
 	session, err := f.svc.OpenExecConsole(ctx, f.tenantID, f.userID, row.ID, nil, 80, 24)
 	require.NoError(t, err)
 	assert.NotEmpty(t, session.OperationID, "session must carry the operation id")
-	assert.NotEmpty(t, session.StdinSecret, "session must carry the stdin secret")
-	assert.NotEmpty(t, session.StdoutSecret, "session must carry the stdout secret")
+	assert.NotEmpty(t, session.StdinSecret, "session must carry the stdin (bidirectional data fd) secret")
+	assert.Empty(t, session.StdoutSecret, "stdout secret must be empty in interactive PTY mode (output rides on fd 0)")
 	assert.NotEmpty(t, session.ControlSecret, "session must carry the control secret")
 	assert.Equal(t, f.incus.ProjectName(f.tenantID), session.Project)
 	assert.Equal(t, "exec-target", session.Instance)

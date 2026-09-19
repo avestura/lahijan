@@ -12,17 +12,20 @@
 //   - Width / Height      -> initial PTY dimensions; subsequent resizes
 //     flow over the control fd as JSON messages.
 //
-// When Interactive=true + WaitForWS=true the daemon returns four
-// per-fd websocket secrets in metadata.fds:
+// When Interactive=true + WaitForWS=true the daemon allocates a PTY and
+// returns TWO per-fd websocket secrets in metadata.fds:
 //
-//	"0"       -> stdin  (browser writes keystrokes; the daemon forwards
-//	            them to the PTY master).
-//	"1"       -> stdout (PTY slave output; stderr is combined in when
-//	            Interactive=true so fd 2 is omitted).
-//	"2"       -> stderr (only when Interactive=false; absent here).
+//	"0"       -> the bidirectional PTY master. The browser writes
+//	            keystrokes to it AND reads the shell's output from it on
+//	            the SAME websocket (gorilla/websocket allows one concurrent
+//	            reader + one writer). There is no separate stdout fd.
 //	"control" -> control channel for out-of-band JSON messages:
 //	             {"type":"resize","width":N,"height":N} resizes the
 //	             PTY; {"type":"signal",...} forwards signals.
+//
+// Stdout ("1") + stderr ("2") are ABSENT in interactive mode — the PTY
+// merges them onto fd "0". (The non-interactive path in exec.go is the
+// one that mints separate "0"/"1"/"2" fds for run + capture.)
 //
 // The resize mechanism is the modern Incus control fd (not a separate
 // REST POST). All Incus releases that support Interactive+WaitForWS
@@ -89,11 +92,18 @@ type InteractiveExecSession struct {
 	// created for this exec session.
 	OperationID string
 
-	// StdinSecret dials fd "0" — the browser's keystrokes flow here.
+	// StdinSecret dials fd "0". In interactive mode this fd is
+	// BIDIRECTIONAL — it is the PTY master: the bridge writes the
+	// browser's keystrokes to it AND reads the shell's output from
+	// it on the same websocket. Always present for interactive exec.
 	StdinSecret string
 
-	// StdoutSecret dials fd "1" — the PTY's combined stdout+stderr
-	// (Interactive mode merges them; fd 2 is absent).
+	// StdoutSecret dials fd "1". EMPTY in interactive PTY mode: the
+	// real Incus daemon merges stdout+stderr onto the bidirectional
+	// fd "0" and omits "1" entirely. When empty, the bridge reuses
+	// the stdin conn for the output pump (one goroutine reads while
+	// another writes — safe for gorilla/websocket). Populated only by
+	// a hypothetical non-interactive variant reusing this type.
 	StdoutSecret string
 
 	// StderrSecret dials fd "2". Empty in Interactive mode (the
@@ -186,8 +196,11 @@ func (p *Provider) OpenInteractiveExec(
 	}
 
 	session := InteractiveExecSession{OperationID: op.ID}
-	// Pull each well-known fd by name. Stdin (0) + stdout (1) are
-	// required; control + stderr are optional.
+	// Pull each well-known fd by name. Stdin (0) is the bidirectional
+	// PTY master in interactive mode; control is the JSON control
+	// channel. Stdout (1) + stderr (2) are absent in interactive mode
+	// (the daemon merges output onto fd 0) — StdoutSecret stays empty
+	// and the bridge reuses the stdin conn for the output pump.
 	session.StdinSecret = meta.FDs["0"]
 	session.StdoutSecret = meta.FDs["1"]
 	session.StderrSecret = meta.FDs["2"]
@@ -198,11 +211,13 @@ func (p *Provider) OpenInteractiveExec(
 		setStatus(span, err)
 		return InteractiveExecSession{}, err
 	}
-	if session.StdoutSecret == "" {
-		err := errors.New("incus: interactive exec metadata missing stdout (fd 1) secret")
-		setStatus(span, err)
-		return InteractiveExecSession{}, err
-	}
+	// NOTE: stdout (fd "1") is intentionally NOT required. In
+	// interactive PTY mode the real Incus daemon exposes a single
+	// bidirectional data fd ("0") and omits "1"; the bridge then pumps
+	// output off the stdin conn. Requiring "1" here made every test
+	// pass against the fake (which wrongly minted a separate "1") while
+	// the real daemon returned only "0" + "control" and the driver
+	// 503'd. Only stdin (+ optionally control) is guaranteed.
 	setStatus(span, nil)
 	return session, nil
 }
@@ -222,7 +237,7 @@ func (p *Provider) DialExecFD(ctx context.Context, opID, secret string) (*websoc
 		return nil, errors.New("incus: exec fd dial requires non-empty op id + secret")
 	}
 	wsURL := p.execWebSocketURL(opID, secret)
-	conn, _, err := websocket.DefaultDialer.DialContext(ctx, wsURL, http.Header{
+	conn, _, err := p.wsDialer.DialContext(ctx, wsURL, http.Header{
 		"User-Agent": {userAgent},
 	})
 	if err != nil {

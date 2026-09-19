@@ -64,3 +64,49 @@ func TestTenantWithResolver_NoHeader_LeavesUnset(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, fiber.StatusOK, resp.StatusCode, "middleware must never fail the request")
 }
+
+// TestTenantWithResolver_QueryID_SetsContext covers the WS-32 console path:
+// the browser's WebSocket API cannot set the X-Tenant-Id header, so the
+// dashboard appends ?tenant_id=<uuid> to the upgrade URL. The resolver
+// must honour that query form exactly like the header form.
+func TestTenantWithResolver_QueryID_SetsContext(t *testing.T) {
+	t.Parallel()
+	tenant := uuid.New()
+	app := fiber.New()
+	app.Use(TenantWithResolver(TenantResolver{}))
+	app.Get("/x", func(c *fiber.Ctx) error {
+		got, err := database.TenantFromContext(c.UserContext())
+		require.NoError(t, err)
+		assert.Equal(t, tenant, got, "tenant_id query param must populate context")
+		return c.SendString("ok")
+	})
+
+	// No headers set — the tenant arrives exclusively via the query string.
+	req := httptest.NewRequest("GET", "/x?"+QueryTenantID+"="+tenant.String(), nil)
+	resp, err := app.Test(req, -1)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+}
+
+// TestTenantWithResolver_HeaderID_BeatsQueryID pins the precedence rule:
+// the header form wins over the query form so a normal API client carrying
+// a stray ?tenant_id= is not silently overridden.
+func TestTenantWithResolver_HeaderID_BeatsQueryID(t *testing.T) {
+	t.Parallel()
+	headerTenant := uuid.New()
+	queryTenant := uuid.New()
+	app := fiber.New()
+	app.Use(TenantWithResolver(TenantResolver{}))
+	app.Get("/x", func(c *fiber.Ctx) error {
+		got, err := database.TenantFromContext(c.UserContext())
+		require.NoError(t, err)
+		assert.Equal(t, headerTenant, got, "header form must win over query form")
+		return c.SendString("ok")
+	})
+
+	req := httptest.NewRequest("GET", "/x?"+QueryTenantID+"="+queryTenant.String(), nil)
+	req.Header.Set(HeaderTenantID, headerTenant.String())
+	resp, err := app.Test(req, -1)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+}

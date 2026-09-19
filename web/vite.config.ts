@@ -37,6 +37,14 @@ export default defineConfig({
       "/api": {
         target: "http://localhost:8080",
         changeOrigin: true,
+        // ws:true is REQUIRED to proxy the WebSocket upgrade for the
+        // WS-32 interactive console endpoint
+        // (/api/v1/compute/instances/{id}/console). Without it Vite's
+        // http-proxy never binds the 'upgrade' event, so the browser's
+        // ws://<vite-host>/api/.../console handshake is answered by
+        // Vite's own static server (SPA fallback / 404) and the terminal
+        // drops to "disconnected" before a single byte is pumped.
+        ws: true,
       },
       "/health": {
         target: "http://localhost:8080",
@@ -48,11 +56,14 @@ export default defineConfig({
     port: 4173,
     strictPort: true,
     // Mirror the dev proxy so `vite preview` (used by the WS-22 e2e harness)
-    // routes /api + /health to the running Go backend on :8080.
+    // routes /api + /health to the running Go backend on :8080. ws:true is
+    // required for the WS-32 console WebSocket (see server.proxy note above);
+    // the e2e compute spec exercises the same bridge.
     proxy: {
       "/api": {
         target: "http://localhost:8080",
         changeOrigin: true,
+        ws: true,
       },
       "/health": {
         target: "http://localhost:8080",

@@ -160,17 +160,29 @@ func (s *Server) serveExecConsoleBridge(conn *fiberws.Conn, session compute.Exec
 		_ = conn.Close()
 		return
 	}
-	stdoutConn, err := s.computeSvc.DialExecConsoleFD(bg, session, session.StdoutSecret)
-	if err != nil {
-		s.logConsoleDialFailure(session, "stdout", err)
-		_ = stdinConn.Close()
-		_ = conn.WriteMessage(gorillaws.CloseMessage,
-			gorillaws.FormatCloseMessage(
-				gorillaws.CloseTryAgainLater,
-				i18n.T(bg, "compute.err_exec_unavailable", nil),
-			))
-		_ = conn.Close()
-		return
+
+	// In interactive PTY mode the real Incus daemon exposes a SINGLE
+	// bidirectional data fd ("0") and omits a separate stdout ("1"):
+	// the bridge writes keystrokes to it AND reads shell output from it
+	// on the same websocket. When StdoutSecret is empty, reuse the stdin
+	// conn for the output pump (gorilla/websocket supports one concurrent
+	// reader + one writer on a conn, so the two pumps below are safe).
+	// When StdoutSecret is populated (a non-PTY / non-interactive variant),
+	// dial it separately as before.
+	stdoutConn := stdinConn
+	if session.StdoutSecret != "" {
+		stdoutConn, err = s.computeSvc.DialExecConsoleFD(bg, session, session.StdoutSecret)
+		if err != nil {
+			s.logConsoleDialFailure(session, "stdout", err)
+			_ = stdinConn.Close()
+			_ = conn.WriteMessage(gorillaws.CloseMessage,
+				gorillaws.FormatCloseMessage(
+					gorillaws.CloseTryAgainLater,
+					i18n.T(bg, "compute.err_exec_unavailable", nil),
+				))
+			_ = conn.Close()
+			return
+		}
 	}
 	// The control fd is optional: very old Incus builds do not return
 	// a "control" secret. When absent, the bridge degrades gracefully
@@ -185,9 +197,15 @@ func (s *Server) serveExecConsoleBridge(conn *fiberws.Conn, session compute.Exec
 			controlConn = nil
 		}
 	}
+	// sharedDataFD is true when stdin + stdout are the same bidirectional
+	// websocket (the normal interactive case). It gates double-close
+	// avoidance in the shutdown path below.
+	sharedDataFD := session.StdoutSecret == ""
 	defer func() {
 		_ = stdinConn.Close()
-		_ = stdoutConn.Close()
+		if !sharedDataFD {
+			_ = stdoutConn.Close()
+		}
 		if controlConn != nil {
 			_ = controlConn.Close()
 		}
@@ -200,7 +218,9 @@ func (s *Server) serveExecConsoleBridge(conn *fiberws.Conn, session compute.Exec
 		once.Do(func() {
 			_ = conn.Close()
 			_ = stdinConn.Close()
-			_ = stdoutConn.Close()
+			if !sharedDataFD {
+				_ = stdoutConn.Close()
+			}
 			if controlConn != nil {
 				_ = controlConn.Close()
 			}
@@ -214,7 +234,10 @@ func (s *Server) serveExecConsoleBridge(conn *fiberws.Conn, session compute.Exec
 		closeAll()
 	}()
 
-	// Incus stdout -> Browser (runs on the handler goroutine).
+	// Incus stdout -> Browser (runs on the handler goroutine). When
+	// sharedDataFD is true this reads the output side of the same conn
+	// the stdin pump writes to — one reader + one writer, which gorilla
+	// websocket permits.
 	pumpWebSocketBridge(stdoutConn, conn, consoleBridgePumpBufferSize)
 	closeAll()
 }
@@ -240,10 +263,16 @@ func (s *Server) logConsoleDialFailure(session compute.ExecConsoleSession, fd st
 // forwards them to the Incus stdin WS. Text frames are sniffed for
 // the resize control envelope; matching frames are routed to the
 // control WS (when wired) instead of the stdin WS. Non-matching text
-// frames + binary frames go to stdin verbatim.
+// frames + binary frames go to stdin verbatim — ALWAYS as a binary
+// opcode (see the comment at the WriteMessage call).
+//
+// The browser side is typed as the wsMessageConn interface (not the
+// concrete *fiberws.Conn) so the pump is unit-testable with a pair of
+// gorilla/websocket test conns; in production the caller passes a
+// *fiberws.Conn which satisfies the interface.
 //
 // Errors are logged at Debug (they are expected on every clean close).
-func pumpBrowserToIncusStdin(browser *fiberws.Conn, stdin *gorillaws.Conn, control *gorillaws.Conn) {
+func pumpBrowserToIncusStdin(browser wsMessageConn, stdin *gorillaws.Conn, control *gorillaws.Conn) {
 	for {
 		msgType, data, err := browser.ReadMessage()
 		if err != nil {
@@ -266,7 +295,15 @@ func pumpBrowserToIncusStdin(browser *fiberws.Conn, stdin *gorillaws.Conn, contr
 				continue
 			}
 		}
-		if err := stdin.WriteMessage(msgType, data); err != nil {
+		// Incus's interactive exec fd "0" only accepts BINARY WebSocket
+		// frames for PTY input — it silently drops TEXT frames (verified
+		// against a real Incus 6.0 daemon: a text-frame "echo X\n" is
+		// ignored, while the same bytes as a binary frame are echoed +
+		// executed). The browser's xterm.js emits keystrokes as string
+		// data (text frames), so ALWAYS forward stdin to Incus as a
+		// binary frame regardless of the browser's frame type. The
+		// payload bytes are identical; only the opcode changes.
+		if err := stdin.WriteMessage(gorillaws.BinaryMessage, data); err != nil {
 			if !isExpectedClose(err) {
 				slog.Default().Debug("console bridge: stdin write ended",
 					"error", err.Error())
