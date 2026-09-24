@@ -9,7 +9,12 @@
  * the harness). Enable in the full `make test-e2e` stack.
  */
 import { test, expect } from "@playwright/test";
-import { API_BASE_URL, navigateViaSidebar, registerAndLogin } from "./helpers";
+import {
+    API_BASE_URL,
+    navigateViaSidebar,
+    registerAndLogin,
+    tenantHeaders,
+} from "./helpers";
 
 test.describe("dns journey", () => {
     test("create a zone via the dialog, add a record, clean up", async ({
@@ -41,21 +46,30 @@ test.describe("dns journey", () => {
 
         // Look up the created zone via the API (the UI doesn't expose the
         // id on the row in a stable way yet), add an A record, then delete.
-        const zonesResp = await request.get(`${API_BASE_URL}/api/v1/dns/zones`);
+        const headers = await tenantHeaders(request);
+        const zonesResp = await request.get(
+            `${API_BASE_URL}/api/v1/dns/zones`,
+            {
+                headers,
+            },
+        );
         expect(zonesResp.status()).toBe(200);
-        const zones = (await zonesResp.json()) as Array<{
-            id: string;
-            name: string;
-        }>;
-        const zone = zones.find((z) => z.name === zoneName);
+        const zones = (
+            (await zonesResp.json()) as {
+                items: Array<{ id: string; name: string }>;
+            }
+        ).items;
+        // The dialog canonicalises "x.test" to "x.test.".
+        const zone = zones.find((z) => z.name === `${zoneName}.`);
         expect(zone, "created zone is listable via the API").toBeTruthy();
         const zoneId = zone?.id ?? "";
 
         const createRecord = await request.post(
             `${API_BASE_URL}/api/v1/dns/zones/${zoneId}/records`,
             {
+                headers,
                 data: {
-                    name: `www.${zoneName}`,
+                    name: `www.${zoneName}.`,
                     type: "A",
                     content: "203.0.113.42",
                     ttl: 300,
@@ -66,6 +80,7 @@ test.describe("dns journey", () => {
 
         const del = await request.delete(
             `${API_BASE_URL}/api/v1/dns/zones/${zoneId}`,
+            { headers },
         );
         expect(del.status()).toBe(204);
     });

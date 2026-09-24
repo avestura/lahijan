@@ -125,6 +125,24 @@ export async function registerAndLogin(
 }
 
 /**
+ * Headers for tenant-scoped API calls made with the `request` fixture (which
+ * holds the session from registerUser). Every tenant-scoped route needs
+ * X-Tenant-Id; the new user's personal tenant is its first membership.
+ */
+export async function tenantHeaders(
+    request: APIRequestContext,
+): Promise<Record<string, string>> {
+    const me = await request.get(`${API_BASE_URL}/api/v1/auth/me`);
+    expect(me.status(), "GET /auth/me").toBe(200);
+    const body = (await me.json()) as {
+        memberships: Array<{ tenantId: string }>;
+    };
+    const tenantId = body.memberships[0]?.tenantId;
+    expect(tenantId, "new user has a personal tenant").toBeTruthy();
+    return { "X-Tenant-Id": tenantId ?? "" };
+}
+
+/**
  * Sign out through the header user menu. Waits for the redirect back to
  * /login as the success signal.
  */

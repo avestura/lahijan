@@ -52,6 +52,7 @@ Accepted; corrections land as new ADRs that supersede prior ones.
 | [0042](./0042-agent-tool-bridge-rbac-audit-actor.md) | Agent tool bridge — RBAC + audit decorator + `actor_type="user"` with `via_agent` flag | Accepted | 2026-07-27 |
 | [0043](./0043-agent-provider-limits-metering.md) | Agent provider config, admin limits, and token metering — synchronous `PostCharge` for admin models, BYOK unmetered | Accepted | 2026-07-27 |
 | [0044](./0044-interactive-exec-console-bridge.md) | Interactive exec console bridge — control-fd resize, combined stdout/stderr, audit timing (mirror WS-24) | Accepted | 2026-07-27 |
+| [0045](./0045-seaweedfs-iam-via-filer-document.md) | SeaweedFS IAM via the filer identity document; SeaweedFS 3.99 | Accepted | 2026-09-24 |
 
 ## How to write a new ADR
 

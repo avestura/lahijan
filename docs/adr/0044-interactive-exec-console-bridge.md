@@ -12,6 +12,8 @@
   the fd counts are corrected in place, and four implementation
   constraints found in the same pass are recorded under
   [Amendment notes](#amendment-notes-2026-09-17).
+- **Amended:** 2026-09-24 — the control-fd wire format below was wrong;
+  see [Amendment notes (2026-09-24)](#amendment-notes-2026-09-24).
 
 ## Context
 
@@ -36,7 +38,8 @@ have to make.
      `WaitForWS=true`, the daemon mints an additional per-fd secret
      named `"control"` alongside the data fd `"0"`. The control fd
      accepts JSON messages of shape
-     `{"type":"resize","width":N,"height":N}` (plus `signal` for
+     `{"command":"window-resize","args":{"width":"N","height":"N"}}`
+     (Incus' `api.InstanceExecControl`; corrected 2026-09-24) (plus `signal` for
      signal forwarding). All Incus releases that support interactive
      exec (5.x, 6.x — the only versions Lahijan supports per
      ADR-0040) return the control secret.
@@ -251,6 +254,20 @@ no failing test, so each now has a named regression test.
    terminal reports "disconnected" before a byte is pumped. Set on both
    `server.proxy` and `preview.proxy` — the WS-22 e2e harness runs
    against `vite preview`.
+
+## Amendment notes (2026-09-24)
+
+Verified on a real Linux host (Incus 7.4, container + KVM VM):
+
+- **Resize wire format.** The daemon's control fd decodes
+  `api.InstanceExecControl`:
+  `{"command":"window-resize","args":{"width":"<cols>","height":"<rows>"}}`
+  with **string** args. The `{"type":"resize","width":N,"height":N}`
+  shape the bridge originally sent is silently ignored, which left every
+  console PTY at 80x25. `WriteExecResize` now emits the Incus shape; the
+  browser-facing envelope (`{"type":"resize","cols","rows"}`) is
+  unchanged, and the fake Incus server decodes the real shape so the
+  unit tests would catch a regression.
 
 ## References
 

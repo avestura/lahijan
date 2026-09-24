@@ -9,7 +9,12 @@
  * from the test compose. Enable in the full `make test-e2e` stack.
  */
 import { test, expect } from "@playwright/test";
-import { API_BASE_URL, navigateViaSidebar, registerAndLogin } from "./helpers";
+import {
+    API_BASE_URL,
+    navigateViaSidebar,
+    registerAndLogin,
+    tenantHeaders,
+} from "./helpers";
 
 test.describe("storage journey", () => {
     test("create a bucket via the dialog, mint creds, clean up", async ({
@@ -41,29 +46,39 @@ test.describe("storage journey", () => {
         await expect(page.getByTestId("page-storage")).toContainText(slug);
 
         // Look up the created bucket via the API, mint a credential, delete.
+        const headers = await tenantHeaders(request);
         const bucketsResp = await request.get(
             `${API_BASE_URL}/api/v1/storage/buckets`,
+            { headers },
         );
         expect(bucketsResp.status()).toBe(200);
-        const buckets = (await bucketsResp.json()) as Array<{
-            id: string;
-            slug: string;
-        }>;
+        const buckets = (
+            (await bucketsResp.json()) as {
+                items: Array<{ id: string; slug: string }>;
+            }
+        ).items;
         const bucket = buckets.find((b) => b.slug === slug);
         expect(bucket, "created bucket is listable via the API").toBeTruthy();
         const bucketId = bucket?.id ?? "";
 
         const mintCreds = await request.post(
             `${API_BASE_URL}/api/v1/storage/buckets/${bucketId}/credentials`,
-            { data: { label: "e2e" } },
+            {
+                headers,
+                data: { label: "e2e", actions: ["Read", "Write", "List"] },
+            },
         );
         expect(mintCreds.status()).toBe(201);
-        const creds = await mintCreds.json();
-        expect(creds.access_key_id).toBeTruthy();
-        expect(creds.secret_access_key).toBeTruthy();
+        const creds = (await mintCreds.json()) as {
+            credential: { accessKeyId: string };
+            secretKey: string;
+        };
+        expect(creds.credential.accessKeyId).toBeTruthy();
+        expect(creds.secretKey).toBeTruthy();
 
         const del = await request.delete(
             `${API_BASE_URL}/api/v1/storage/buckets/${bucketId}`,
+            { headers },
         );
         expect(del.status()).toBe(204);
     });

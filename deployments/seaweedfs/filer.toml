@@ -1,0 +1,35 @@
+# SeaweedFS filer store for the prod compose stack (WS-23, ADR-0007).
+#
+# `weed filer` has no CLI flags for its metadata store; it reads this file
+# from /etc/seaweedfs/filer.toml. postgres2 keeps one table per bucket and
+# creates tables itself. Connection values are overridden from env by the
+# compose file (WEED_POSTGRES2_HOSTNAME, _USERNAME, _PASSWORD, _DATABASE) so
+# no secret lives here.
+
+[filer.options]
+recursive_delete = false
+
+[postgres2]
+enabled = true
+createTable = """
+  CREATE TABLE IF NOT EXISTS "%s" (
+    dirhash   BIGINT,
+    name      VARCHAR(65535),
+    directory VARCHAR(65535),
+    meta      bytea,
+    PRIMARY KEY (dirhash, name)
+  );
+"""
+hostname = "postgres"
+port = 5432
+username = "seaweed"
+password = ""
+database = "seaweed"
+schema = ""
+sslmode = "disable"
+connection_max_idle = 10
+connection_max_open = 20
+connection_max_lifetime_seconds = 0
+enableUpsert = true
+# The scaffold's UPSERT is CockroachDB syntax; this is the Postgres form.
+upsertQuery = """INSERT INTO "%[1]s" (dirhash,name,directory,meta) VALUES($1,$2,$3,$4) ON CONFLICT (dirhash,name) DO UPDATE SET meta = EXCLUDED.meta"""

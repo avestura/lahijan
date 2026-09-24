@@ -18,16 +18,21 @@ command brings up:
 
 | Service | Container | Purpose |
 |---------|-----------|---------|
-| `caddy` | `caddy:2.8-alpine` | Public ingress, TLS termination, auto-Letsencrypt |
-| `lahijan` | `ghcr.io/avestura/lahijan:<tag>` | The Go backend (REST API + dashboard SPA + River workers) |
+| `caddy` | `caddy:2.8-alpine` | Public ingress, TLS termination, auto-Letsencrypt; serves the dashboard SPA (`web/dist`) |
+| `lahijan` | `ghcr.io/avestura/lahijan:<tag>` | The Go backend (REST API + River workers) |
+| `migrate` | `migrate/migrate:v4.19.1` | One-shot: applies `internal/app/lahijan/database/migrations` before `lahijan` starts |
 | `postgres` | `postgres:16-alpine` | Shared Postgres (3 logical DBs: lahijan, pdns, seaweed) |
 | `powerdns` | `powerdns/pdns-auth-49:4.9.3` | Authoritative DNS, gpgsql backend |
-| `seaweed-master/volume/filer/s3` | `chrislusf/seaweedfs:3.61` | Object storage (prod split) |
+| `seaweed-master/volume/filer/s3` | `chrislusf/seaweedfs:3.99` | Object storage (prod split); see ADR-0045 |
+| `seaweed-iam-init` | `curlimages/curl` | One-shot: seeds the S3 admin identity in the filer if absent |
 | `incus` | `ghcr.io/cmspam/incus-docker:lts` | Privileged Incus daemon (per ADR-0040); Unix socket via shared volume |
 | `otel-collector` | `otel/opentelemetry-collector-contrib:0.108.0` | Telemetry fan-out hub |
 | `jaeger/loki/prometheus/grafana` | upstream images | Observability backends |
 
-Caddy is the only service with public ports (80 + 443). Everything else
+Caddy serves the dashboard SPA from `web/dist` (build it with
+`make web-build` before `up`) and proxies `/api/*`, `/healthcheck/*` and
+`/admin/jobs/ui` to Lahijan. Public ports: Caddy (80 + 443), PowerDNS
+(53, authoritative DNS) and the S3 data plane (8333); everything else
 lives on the `backend` overlay network. Per **ADR-0040** the Incus daemon
 runs inside the privileged `incus` container (not on the host) so the
 whole stack comes up with a single `docker compose up`. Lahijan reaches
@@ -139,6 +144,22 @@ subsequent boot.
 
 To re-run the bootstrap on an existing stack, drop the database (see
 §9 Restore) or `DELETE FROM users` and restart Lahijan.
+
+### 4.1 Settings a real deploy needs (WS-23 hardening, 2026-09-24)
+
+| `.env.prod` variable | Why |
+|---|---|
+| `LAHIJAN_DNS_NAMESERVERS` | NS records written into new zones; must be what your registrar delegates to |
+| `PDNS_DEFAULT_SOA_CONTENT` | SOA primary for new zones (PowerDNS defaults to `a.misconfigured.dns.server.invalid.`) |
+| `LAHIJAN_S3_PUBLIC_URL` | Origin presigned URLs are signed for; without it they point at `seaweed-s3:8333` |
+| `caddy/conf.d/s3.caddy` | Optional TLS S3 site, e.g. `s3.example.com { reverse_proxy seaweed-s3:8333 }` |
+| `caddy/conf.d/acme.global` | Optional ACME contact: `email ops@example.com` |
+| `SEAWEEDFS_VOLUME_SIZE_LIMIT_MB` | Lower (e.g. 1024) on small disks |
+
+Hosts with fewer than 2 vCPUs must cap the `cpus: "2.0"` limits of
+`incus` and `lahijan` in an override file (Docker rejects limits above the
+host CPU count). After the first `up`, initialise Incus once with
+`deployments/incus/preseed.yaml` (see `incus/README.md`).
 
 ## 5. Daily ops
 

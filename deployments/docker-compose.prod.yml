@@ -104,6 +104,12 @@ services:
       # empty to use Let's Encrypt's default (the CA prompts on first
       # issuance via HTTP-01).
       ACME_EMAIL: ${LAHIJAN_ACME_EMAIL:-}
+      # Basic-auth (bcrypt) for the operator-only /grafana + /jaeger routes.
+      # The fallback is admin/admin — set real hashes in .env.prod.
+      GRAFANA_BASIC_AUTH_USER: ${GRAFANA_BASIC_AUTH_USER:-admin}
+      GRAFANA_BASIC_AUTH_HASH: ${GRAFANA_BASIC_AUTH_HASH:-$$2a$$14$$Hxj2pIwrccwsmtm6VZ1pZOf0KVqZg.rBFc1IrnZNQDA8oHM.JjD1W}
+      JAEGER_BASIC_AUTH_USER: ${JAEGER_BASIC_AUTH_USER:-admin}
+      JAEGER_BASIC_AUTH_HASH: ${JAEGER_BASIC_AUTH_HASH:-$$2a$$14$$Hxj2pIwrccwsmtm6VZ1pZOf0KVqZg.rBFc1IrnZNQDA8oHM.JjD1W}
     ports:
       # Public HTTP(S). Caddy redirects 80 → 443 and serves TLS on 443.
       # Both are published on the host so the firewall can let them
@@ -113,10 +119,14 @@ services:
       - "443:443/udp" # HTTP/3 (QUIC); Caddy negotiates it automatically
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy/conf.d:/etc/caddy/conf.d:ro
+      # The dashboard SPA build (`make web-build` → web/dist). Caddy serves
+      # it directly; the Go binary only serves /api + /healthcheck.
+      - ../web/dist:/srv/web:ro
       - caddy_data:/data
       - caddy_config:/config
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://localhost:2019/config/ || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://127.0.0.1:2019/config/ || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 6
@@ -179,24 +189,23 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    # The official image ignores PDNS_<setting> env vars; its startup script
+    # renders powerdns/templates.d/lahijan.j2 (TEMPLATE_FILES) from these
+    # env vars into pdns.d/, and pdns.prod.conf replaces the gsqlite3
+    # default. Same approach as pdns.dev.conf, minus the baked secrets.
     environment:
-      PDNS_gpgsql_host: postgres
-      PDNS_gpgsql_user: ${PDNS_DATABASE_USER}
-      PDNS_gpgsql_password: ${PDNS_DATABASE_PASSWORD}
-      PDNS_gpgsql_dbname: ${PDNS_DATABASE_NAME}
-      PDNS_gpgsql_port: 5432
-      PDNS_api: "yes"
-      PDNS_webserver: "yes"
-      PDNS_webserver_address: "0.0.0.0"
-      PDNS_webserver_port: "8081"
-      # In prod restrict the webserver to Lahijan + the operator's source IP.
-      # The default allows any RFC1918 + the compose network; tighten to
-      # your admin subnet via .env.prod.
-      PDNS_webserver_allow_from: ${PDNS_WEBSERVER_ALLOW_FROM:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
-      PDNS_api_key: ${PDNS_API_KEY}
-      PDNS_webserver_loglevel: "9"
-      PDNS_default_soa_edit_api: "DEFAULT"
-      PDNS_dnsupdate: "no"
+      TEMPLATE_FILES: lahijan
+      PDNS_DB_HOST: postgres
+      PDNS_DB_PORT: "5432"
+      PDNS_DB_NAME: ${PDNS_DATABASE_NAME}
+      PDNS_DB_USER: ${PDNS_DATABASE_USER}
+      PDNS_DB_PASSWORD: ${PDNS_DATABASE_PASSWORD}
+      PDNS_API_KEY: ${PDNS_API_KEY}
+      # Restrict the API to the compose network + the operator's subnet.
+      PDNS_WEBSERVER_ALLOW_FROM: ${PDNS_WEBSERVER_ALLOW_FROM:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
+      # SOA written into every new zone; the primary NS should match
+      # LAHIJAN_DNS_NAMESERVERS below.
+      PDNS_DEFAULT_SOA_CONTENT: ${PDNS_DEFAULT_SOA_CONTENT:-ns1.example.com. hostmaster.@ 0 10800 3600 604800 3600}
     expose:
       # Internal-only; Lahijan reaches it over the backend network.
       - "8081"
@@ -207,9 +216,12 @@ services:
       - "53:53/udp"
       - "53:53/tcp"
     volumes:
-      - ./powerdns/pdns.conf.template:/etc/powerdns/pdns.conf.template:ro
+      - ./powerdns/pdns.prod.conf:/etc/powerdns/pdns.conf:ro
+      - ./powerdns/templates.d/lahijan.j2:/etc/powerdns/templates.d/lahijan.j2:ro
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://localhost:8081/api/v1/servers/localhost || exit 1"]
+      # The pdns image ships no wget/curl; rping round-trips the control
+      # socket, i.e. the server is up and answering.
+      test: ["CMD", "pdns_control", "rping"]
       interval: 15s
       timeout: 5s
       retries: 10
@@ -254,7 +266,8 @@ services:
       - "5300"
       - "8082"
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://localhost:8082/api/v1/servers/localhost || exit 1"]
+      # The recursor image ships no wget/curl either.
+      test: ["CMD", "rec_control", "ping"]
       interval: 15s
       timeout: 5s
       retries: 10
@@ -304,7 +317,7 @@ services:
     volumes:
       - ./dnsdist/dnsdist.conf.template:/etc/dnsdist/dnsdist.conf.template:ro
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://localhost:8083/ || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://127.0.0.1:8083/ || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
@@ -319,7 +332,7 @@ services:
   # SeaweedFS — master + volume + filer + s3 (prod split).
   # ---------------------------------------------------------------------
   seaweed-master:
-    image: chrislusf/seaweedfs:3.61
+    image: chrislusf/seaweedfs:${SEAWEEDFS_IMAGE_TAG:-3.99}
     container_name: lahijan-prod-seaweed-master
     restart: unless-stopped
     networks: [backend]
@@ -327,14 +340,24 @@ services:
     command:
       - "master"
       - "-ip=seaweed-master"
+      - "-ip.bind=0.0.0.0" # -ip alone binds only that address; healthchecks dial loopback
       - "-port=9333"
-      - "-defaultReplication=001" # 1 replica on top of the primary
-      - "-volumeSizeLimit=800" # GB per volume server; tune to disk
+      # 000 = no extra copy. 001 needs a second volume server on the same
+      # rack; with the single seaweed-volume below every write would fail.
+      # Raise it only after adding volume servers.
+      - "-defaultReplication=${SEAWEEDFS_DEFAULT_REPLICATION:-000}"
+      # Max size of one volume file. 30000 MB is the SeaweedFS default; lower
+      # it on small disks (each collection pre-creates several volumes).
+      - "-volumeSizeLimitMB=${SEAWEEDFS_VOLUME_SIZE_LIMIT_MB:-30000}"
+      # The image entrypoint injects -volumePreallocate, which fallocates the
+      # full size limit for every volume up front (7 volumes per collection
+      # x 30000 MB would exhaust any single-host disk). A later flag wins.
+      - "-volumePreallocate=false"
     expose: ["9333"]
     volumes:
       - seaweedfs_data:/data
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://localhost:9333/ || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://127.0.0.1:9333/ || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
@@ -346,7 +369,7 @@ services:
           memory: 512M
 
   seaweed-volume:
-    image: chrislusf/seaweedfs:3.61
+    image: chrislusf/seaweedfs:${SEAWEEDFS_IMAGE_TAG:-3.99}
     container_name: lahijan-prod-seaweed-volume
     restart: unless-stopped
     networks: [backend]
@@ -357,6 +380,7 @@ services:
     command:
       - "volume"
       - "-ip=seaweed-volume"
+      - "-ip.bind=0.0.0.0" # -ip alone binds only that address; healthchecks dial loopback
       - "-port=8080"
       - "-mserver=seaweed-master:9333"
       # publicUrl is the host users hit for object data. In prod this is
@@ -368,7 +392,7 @@ services:
     volumes:
       - seaweedfs_data:/data
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://localhost:8080/status || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://127.0.0.1:8080/status || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
@@ -380,7 +404,7 @@ services:
           memory: 1G
 
   seaweed-filer:
-    image: chrislusf/seaweedfs:3.61
+    image: chrislusf/seaweedfs:${SEAWEEDFS_IMAGE_TAG:-3.99}
     container_name: lahijan-prod-seaweed-filer
     restart: unless-stopped
     networks: [backend]
@@ -395,17 +419,26 @@ services:
     command:
       - "filer"
       - "-ip=seaweed-filer"
+      - "-ip.bind=0.0.0.0" # -ip alone binds only that address; healthchecks dial loopback
       - "-port=8888"
       - "-master=seaweed-master:9333"
-      - "-postgres"
-      - "-postgres.hostname=postgres"
-      - "-postgres.port=5432"
-      - "-postgres.database=${SEAWEED_DATABASE_NAME}"
-      - "-postgres.username=${SEAWEED_DATABASE_USER}"
-      - "-postgres.password=${SEAWEED_DATABASE_PASSWORD}"
+      # Keep small files inline in the filer store. `weed s3` hot-reloads
+      # IAM from the inline content of /etc/iam/identity.json (which is how
+      # Lahijan-minted credentials go live); a chunk-stored file is read as
+      # empty and every reload fails with "unmarshal error".
+      - "-saveToFilerLimit=65536"
+    # The metadata store is configured by filer.toml (weed filer has no
+    # store flags); WEED_POSTGRES2_* env vars override its connection keys.
+    environment:
+      WEED_POSTGRES2_HOSTNAME: postgres
+      WEED_POSTGRES2_DATABASE: ${SEAWEED_DATABASE_NAME}
+      WEED_POSTGRES2_USERNAME: ${SEAWEED_DATABASE_USER}
+      WEED_POSTGRES2_PASSWORD: ${SEAWEED_DATABASE_PASSWORD}
+    volumes:
+      - ./seaweedfs/filer.toml:/etc/seaweedfs/filer.toml:ro
     expose: ["8888"]
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://localhost:8888/ || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://127.0.0.1:8888/ || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
@@ -416,8 +449,36 @@ services:
           cpus: "0.50"
           memory: 512M
 
+  # One-shot IAM seed. `weed s3` loads its identities from the filer
+  # document /etc/iam/identity.json at startup and hot-reloads it on change;
+  # Lahijan re-publishes that document (admin + every minted credential) on
+  # boot and on each credential change. This job only writes the admin
+  # identity when the document does not exist yet, so s3 never starts with
+  # zero identities (SeaweedFS treats that as "auth disabled").
+  seaweed-iam-init:
+    image: curlimages/curl:8.10.1
+    container_name: lahijan-prod-seaweed-iam-init
+    restart: "no"
+    networks: [backend]
+    logging: *default-logging
+    depends_on:
+      seaweed-filer:
+        condition: service_healthy
+    environment:
+      SEAWEEDFS_S3_ACCESS_KEY: ${SEAWEEDFS_S3_ACCESS_KEY}
+      SEAWEEDFS_S3_SECRET_KEY: ${SEAWEEDFS_S3_SECRET_KEY}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        doc=http://seaweed-filer:8888/etc/iam/identity.json
+        if curl -sf -o /dev/null "$$doc"; then echo "iam document present"; exit 0; fi
+        printf '{"identities":[{"name":"lahijan_admin","credentials":[{"accessKey":"%s","secretKey":"%s"}],"actions":["Admin","Read","Write","List","Tagging"]}]}'           "$$SEAWEEDFS_S3_ACCESS_KEY" "$$SEAWEEDFS_S3_SECRET_KEY" |
+          curl -sf -X PUT -H "Content-Type: application/json" --data-binary @- "$$doc"
+        echo "iam document seeded"
+
   seaweed-s3:
-    image: chrislusf/seaweedfs:3.61
+    image: chrislusf/seaweedfs:${SEAWEEDFS_IMAGE_TAG:-3.99}
     container_name: lahijan-prod-seaweed-s3
     restart: unless-stopped
     networks: [backend]
@@ -425,27 +486,25 @@ services:
     depends_on:
       seaweed-filer:
         condition: service_healthy
+      seaweed-iam-init:
+        condition: service_completed_successfully
+    # No -config: a static identity file would win at every s3 restart and
+    # silently drop all Lahijan-minted credentials. Identities come from the
+    # filer (see seaweed-iam-init above). The admin keys MUST match
+    # LAHIJAN_PROVIDERS_SEAWEEDFS_ADMIN* on the lahijan service.
     command:
       - "s3"
-      - "-ip=seaweed-s3"
+      - "-ip.bind=0.0.0.0"
       - "-port=8333"
       - "-filer=seaweed-filer:8888"
-      - "-config=/etc/seaweedfs/s3.json"
-    environment:
-      # The admin credentials Lahijan uses. The same values MUST be set
-      # on the Lahijan app below (LAHIJAN_PROVIDERS_SEAWEEDFS_ADMIN_*).
-      SEAWEEDFS_S3_ACCESS_KEY: ${SEAWEEDFS_S3_ACCESS_KEY}
-      SEAWEEDFS_S3_SECRET_KEY: ${SEAWEEDFS_S3_SECRET_KEY}
     ports:
       # S3 data plane — published on the host so users' S3 clients hit it
       # directly (per ADR-0011). Caddy can proxy 8333 → 443 for HTTPS S3
       # if the operator wants TLS on the data plane (default off; S3
       # clients usually accept self-signed or plain HTTP on private LANs).
       - "${SEAWEEDFS_S3_HOST_PORT:-8333}:8333"
-    volumes:
-      - ./seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://localhost:8333/ || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://127.0.0.1:8333/status || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
@@ -527,6 +586,29 @@ services:
           memory: 2G
 
   # ---------------------------------------------------------------------
+  # Schema migrations — one-shot golang-migrate run over the hand-written,
+  # paired migrations (ADR-0003). The app never migrates itself; this job
+  # runs on every `up` (a no-op when current) and `lahijan` waits for it to
+  # exit 0, so `scripts/upgrade.sh` applies new migrations before the new
+  # binary starts. Pinned to the go.mod / CI migrate version.
+  # ---------------------------------------------------------------------
+  migrate:
+    image: migrate/migrate:v4.19.1
+    container_name: lahijan-prod-migrate
+    restart: "no"
+    networks: [backend]
+    logging: *default-logging
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command:
+      - "-path=/migrations"
+      - "-database=postgres://${LAHIJAN_DATABASE_USER}:${LAHIJAN_DATABASE_PASSWORD}@postgres:5432/${LAHIJAN_DATABASE_NAME}?sslmode=disable"
+      - "up"
+    volumes:
+      - ../internal/app/lahijan/database/migrations:/migrations:ro
+
+  # ---------------------------------------------------------------------
   # The Lahijan app — all providers enabled, prod config. River workers run
   # in the same process (multi-node / external workers land in WS-26).
   # ---------------------------------------------------------------------
@@ -539,6 +621,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       powerdns:
         condition: service_healthy
       seaweed-s3:
@@ -562,8 +646,8 @@ services:
       LAHIJAN_DATABASE_USER: ${LAHIJAN_DATABASE_USER}
       LAHIJAN_DATABASE_PASSWORD: ${LAHIJAN_DATABASE_PASSWORD}
       LAHIJAN_DATABASE_SSLMODE: disable
-      LAHIJAN_DATABASE_MAX_CONNS: "30"
-      LAHIJAN_DATABASE_MIN_CONNS: "5"
+      LAHIJAN_DATABASE_MAXCONNS: "30"
+      LAHIJAN_DATABASE_MINCONNS: "5"
       # Auth + secrets.
       LAHIJAN_AUTH_SIGNING_KEY: ${LAHIJAN_AUTH_SIGNING_KEY}
       LAHIJAN_AUTH_SECRETS_ENCRYPTIONKEY: ${LAHIJAN_AUTH_SECRETS_ENCRYPTIONKEY}
@@ -587,8 +671,16 @@ services:
       LAHIJAN_PROVIDERS_POWERDNS_ENABLED: "true"
       LAHIJAN_PROVIDERS_POWERDNS_BASEURL: http://powerdns:8081
       LAHIJAN_PROVIDERS_POWERDNS_APIKEY: ${PDNS_API_KEY}
+      # NS records Lahijan writes into every new zone (space-separated,
+      # trailing dots). Empty keeps the config default.
+      LAHIJAN_PROVIDERS_POWERDNS_DEFAULTNAMESERVERS: ${LAHIJAN_DNS_NAMESERVERS:-}
       LAHIJAN_PROVIDERS_SEAWEEDFS_ENABLED: "true"
       LAHIJAN_PROVIDERS_SEAWEEDFS_S3ENDPOINT: http://seaweed-s3:8333
+      # Public S3 origin presigned URLs are signed for (see .env.prod).
+      LAHIJAN_PROVIDERS_SEAWEEDFS_PUBLICENDPOINT: ${LAHIJAN_S3_PUBLIC_URL:-}
+      # The dashboard origin may use presigned URLs from the browser; written
+      # into every bucket's CORS configuration (space-separated list).
+      LAHIJAN_PROVIDERS_SEAWEEDFS_CORSALLOWEDORIGINS: ${LAHIJAN_PUBLIC_URL}
       LAHIJAN_PROVIDERS_SEAWEEDFS_FILERURL: http://seaweed-filer:8888
       LAHIJAN_PROVIDERS_SEAWEEDFS_ADMINACCESSKEY: ${SEAWEEDFS_S3_ACCESS_KEY}
       LAHIJAN_PROVIDERS_SEAWEEDFS_ADMINSECRETKEY: ${SEAWEEDFS_S3_SECRET_KEY}
@@ -600,8 +692,8 @@ services:
       # is empty Lahijan generates one and logs it ONCE via `docker compose
       # logs lahijan`. Set both to skip the random-generation path.
       LAHIJAN_BOOTSTRAP_ENABLED: "true"
-      LAHIJAN_BOOTSTRAP_ADMIN_EMAIL: ${LAHIJAN_BOOTSTRAP_ADMIN_EMAIL}
-      LAHIJAN_BOOTSTRAP_ADMIN_PASSWORD: ${LAHIJAN_BOOTSTRAP_ADMIN_PASSWORD:-}
+      LAHIJAN_BOOTSTRAP_ADMINEMAIL: ${LAHIJAN_BOOTSTRAP_ADMIN_EMAIL}
+      LAHIJAN_BOOTSTRAP_ADMINPASSWORD: ${LAHIJAN_BOOTSTRAP_ADMIN_PASSWORD:-}
       # OTel — Lahijan pushes traces + logs to the collector.
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
@@ -618,7 +710,7 @@ services:
       - /var/lib/incus:/var/lib/incus:ro
     healthcheck:
       # The Lahijan binary exposes /healthcheck/liveness (WS-04).
-      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://localhost:8080/healthcheck/liveness || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://127.0.0.1:8080/healthcheck/liveness || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
@@ -650,7 +742,7 @@ services:
       - jaeger
       - loki
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://localhost:13133/ || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://127.0.0.1:13133/ || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 5

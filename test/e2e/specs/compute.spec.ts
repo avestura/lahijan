@@ -11,7 +11,12 @@
  * `make test-e2e` stack.
  */
 import { test, expect } from "@playwright/test";
-import { API_BASE_URL, navigateViaSidebar, registerAndLogin } from "./helpers";
+import {
+    API_BASE_URL,
+    navigateViaSidebar,
+    registerAndLogin,
+    tenantHeaders,
+} from "./helpers";
 
 test.describe("compute journey", () => {
     test("create an instance via the wizard, then clean up via the API", async ({
@@ -24,6 +29,8 @@ test.describe("compute journey", () => {
                 "gated behind LAHIJAN_E2E_RUN_COMPUTE=1",
         );
 
+        // Instance create waits on a real image download against a live daemon.
+        test.setTimeout(300_000);
         await registerAndLogin(page, request, "compute");
         await navigateViaSidebar(page, "nav-compute", "compute");
         await expect(page.getByTestId("page-compute")).toBeVisible();
@@ -32,9 +39,10 @@ test.describe("compute journey", () => {
         await page.getByTestId("new-instance-button").click();
         await page.waitForURL("**/compute/new", { timeout: 15_000 });
 
-        // Step 1 — image: pick the first available image from the fake.
-        await page.getByTestId("create-instance-image").click();
-        await page.locator("[role='option']").first().click();
+        // Step 1 — image: the field is a free-text alias input (the catalog
+        // dropdown and stream browser are shortcuts); alpine/3.22 is in the
+        // featured catalog every tenant is seeded with.
+        await page.getByTestId("create-instance-image").fill("alpine/3.22");
         await page.getByTestId("create-instance-next").click();
 
         // Step 2 — size: name + defaults are fine; just advance.
@@ -46,7 +54,8 @@ test.describe("compute journey", () => {
         await page.getByTestId("create-instance-submit").click();
 
         // On success the wizard navigates to the new instance's detail page.
-        await page.waitForURL(/\/compute\/[0-9a-fA-F-]+/, { timeout: 30_000 });
+        // A real daemon may download the image first; the fake answers at once.
+        await page.waitForURL(/\/compute\/[0-9a-fA-F-]+/, { timeout: 240_000 });
         expect(page.url(), "navigated to the new instance detail").toMatch(
             /\/compute\/[0-9a-fA-F-]+/,
         );
@@ -56,13 +65,22 @@ test.describe("compute journey", () => {
         const instanceId = page.url().split("/").pop() ?? "";
         expect(instanceId, "parsed instance id from URL").toBeTruthy();
 
+        const headers = await tenantHeaders(request);
         const start = await request.post(
             `${API_BASE_URL}/api/v1/compute/instances/${instanceId}/start`,
+            { headers },
         );
-        expect(start.status()).toBe(202);
+        expect(start.status()).toBe(200);
+
+        const stop = await request.post(
+            `${API_BASE_URL}/api/v1/compute/instances/${instanceId}/stop`,
+            { headers },
+        );
+        expect(stop.status()).toBe(200);
 
         const del = await request.delete(
             `${API_BASE_URL}/api/v1/compute/instances/${instanceId}`,
+            { headers },
         );
         expect(del.status()).toBe(204);
     });

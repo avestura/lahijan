@@ -32,7 +32,11 @@ test.describe("dashboard shell + navigation", () => {
             ["nav-compute", "compute", "page-compute"],
             ["nav-dns", "dns", "page-dns"],
             ["nav-storage", "storage", "page-storage"],
-            ["nav-settings", "settings", "page-settings-profile"],
+            [
+                "nav-settings-profile",
+                "settings/profile",
+                "page-settings-profile",
+            ],
             ["nav-dashboard", "dashboard", "page-dashboard"],
         ] as const) {
             await navigateViaSidebar(page, testId, urlPart);

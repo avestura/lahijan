@@ -27,14 +27,15 @@
 #                                 LAHIJAN_OBSERVABILITY_PUBLIC=false to
 #                                 disable the public mount entirely).
 #
-# The operator can layer additional routes (e.g. S3 path-style on :443)
-# via a Caddyfile snippet in deployments/caddy/Caddyfile.local — Caddy
-# imports it via the `include_local` snippet below when the file exists.
+# The operator can layer additional config via deployments/caddy/conf.d/
+# (mounted at /etc/caddy/conf.d): `*.global` files are imported into the
+# global options block, `*.caddy` files are imported as extra site blocks.
+# A glob with no matches imports nothing, so both are optional.
 
-# Global options. The email is read from env so the operator can get
-# Let's Encrypt expiry notifications.
+# Global options. Caddy rejects an empty `email`, so the ACME contact is an
+# opt-in snippet: `echo "email ops@example.com" > conf.d/acme.global`.
 {
-	email {$ACME_EMAIL:}
+	import /etc/caddy/conf.d/*.global
 }
 
 # Primary site: the public dashboard origin. Caddy issues a cert for this
@@ -44,24 +45,20 @@
 	# Encode responses (gzip + zstd) so the SPA bundle ships smaller.
 	encode zstd gzip
 
-	# Trusted proxies: anything on the compose backend network. Caddy
-	# passes X-Forwarded-* through to Lahijan; Lahijan trusts the proxy
-	# because it never serves the public directly (only via Caddy).
-	trusted_proxies static private_ranges
-
-	# The dashboard SPA + REST API + admin endpoints all live on the Lahijan
-	# app. Caddy reverse-proxies everything that does not match a more
-	# specific route below.
-	reverse_proxy lahijan:8080 {
-		# Flush immediately so SSE / chunked responses (audit log stream,
-		# River admin UI websocket) work without buffering.
-		flush_interval -1
-		# Forward the original Host so Lahijan's CORS + redirect logic
-		# sees the public hostname.
-		header_up Host {host}
-		header_up X-Real-IP {remote_host}
-		header_up X-Forwarded-For {remote_host}
-		header_up X-Forwarded-Proto {scheme}
+	# Backend routes: the REST API (incl. the WS-32 console WebSocket), the
+	# orchestrator probes, and the River admin UI. Everything else is the
+	# dashboard SPA below — the Go binary does not serve web/dist itself.
+	@backend path /api/* /healthcheck/* /admin/jobs/ui /admin/jobs/ui/*
+	handle @backend {
+		reverse_proxy lahijan:8080 {
+			# Flush immediately so SSE / chunked responses (audit log
+			# stream, console WebSocket) work without buffering.
+			flush_interval -1
+			# Forward the original Host so Lahijan's CORS + redirect logic
+			# sees the public hostname.
+			header_up Host {host}
+			header_up X-Real-IP {remote_host}
+		}
 	}
 
 	# Operator-only routes — gated by basic auth. Set
@@ -74,37 +71,37 @@
 			# running `caddy hash-password` and pasting the bcrypt hash
 			# here. The operator-only route is the only protection on
 			# Grafana's built-in admin login; do not leave the default.
-			{$GRAFANA_BASIC_AUTH_USER:-admin} {$GRAFANA_BASIC_AUTH_HASH:-JDJhJDE0JEhCS2JRdTlGRjJ4ck9OWWNEMOjVXe2tJSxF9/d3UzS2lWUHl4OE9LZm9tZVJ2UXouTjg4NTQ4}
+			{$GRAFANA_BASIC_AUTH_USER:admin} {$GRAFANA_BASIC_AUTH_HASH:$2a$14$Hxj2pIwrccwsmtm6VZ1pZOf0KVqZg.rBFc1IrnZNQDA8oHM.JjD1W}
 		}
-		strip_prefix /grafana
+		# No prefix strip: Grafana runs with GF_SERVER_SERVE_FROM_SUB_PATH.
 		reverse_proxy grafana:3000
 	}
 
 	@jaeger path /jaeger/*
 	handle @jaeger {
 		basic_auth {
-			{$JAEGER_BASIC_AUTH_USER:-admin} {$JAEGER_BASIC_AUTH_HASH:-JDJhJDE0JEhCS2JRdTlGRjJ4ck9OWWNEMOjVXe2tJSxF9/d3UzS2lWUHl4OE9LZm9tZVJ2UXouTjg4NTQ4}
+			{$JAEGER_BASIC_AUTH_USER:admin} {$JAEGER_BASIC_AUTH_HASH:$2a$14$Hxj2pIwrccwsmtm6VZ1pZOf0KVqZg.rBFc1IrnZNQDA8oHM.JjD1W}
 		}
-		strip_prefix /jaeger
+		uri strip_prefix /jaeger
 		reverse_proxy jaeger:16686
 	}
-}
 
-# Optional S3 endpoint on its own hostname (e.g. s3.example.com). Set
-# LAHIJAN_S3_PUBLIC_HOST in .env.prod to enable virtual-host-style S3
-# addressing; when empty the operator uses path-style on the dashboard host.
-{$LAHIJAN_S3_PUBLIC_HOST:} {
-	reverse_proxy seaweed-s3:8333 {
-		header_up Host {host}
-		header_up X-Real-IP {remote_host}
-		header_up X-Forwarded-For {remote_host}
-		header_up X-Forwarded-Proto {scheme}
+	# Dashboard SPA (web/dist, mounted at /srv/web). Unknown paths fall
+	# back to index.html so TanStack Router deep links survive a reload.
+	handle {
+		root * /srv/web
+		try_files {path} /index.html
+		file_server
 	}
 }
 
-# Local-override include so operators can layer extra site blocks (e.g. for
-# MinIO console, Prometheus, custom dashboards) without editing this file.
-# The import fails silently when the file is absent (Caddy treats it as a
-# snippet include). Create deployments/caddy/Caddyfile.local to use.
-include_local:
-try_include /etc/caddy/Caddyfile.local
+# Optional S3 endpoint on its own hostname (e.g. s3.example.com) for
+# TLS on the S3 data plane. Caddy rejects an empty site address, so this is
+# opt-in: create conf.d/s3.caddy with
+#
+#   s3.example.com {
+#   	reverse_proxy seaweed-s3:8333
+#   }
+#
+# Without it users hit the published S3 port directly (SEAWEEDFS_S3_HOST_PORT).
+import /etc/caddy/conf.d/*.caddy

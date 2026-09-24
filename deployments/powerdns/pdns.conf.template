@@ -29,6 +29,8 @@ gpgsql-port=${PDNS_DATABASE_PORT:-5432}
 gpgsql-dbname=${PDNS_DATABASE_NAME:-pdns}
 gpgsql-user=${PDNS_DATABASE_USER}
 gpgsql-password=${PDNS_DATABASE_PASSWORD}
+# Required for DNSSEC: without it the cryptokeys API answers 422.
+gpgsql-dnssec=yes
 
 # --- HTTP API + webserver (the Lahijan driver talks to this) ---
 api=yes

@@ -1,0 +1,33 @@
+# Rendered by the pdns image's startup script (jinja2, container env) into
+# /etc/powerdns/pdns.d/lahijan.conf. Selected via TEMPLATE_FILES=lahijan.
+
+# --- gpgsql backend (ADR-0007: shared Postgres, logical DB) ---
+launch=gpgsql
+gpgsql-host={{ PDNS_DB_HOST }}
+gpgsql-port={{ PDNS_DB_PORT }}
+gpgsql-dbname={{ PDNS_DB_NAME }}
+gpgsql-user={{ PDNS_DB_USER }}
+gpgsql-password={{ PDNS_DB_PASSWORD }}
+# Required for DNSSEC: without it the cryptokeys API answers 422.
+gpgsql-dnssec=yes
+
+# --- HTTP API + webserver (the Lahijan driver talks to this) ---
+api=yes
+api-key={{ PDNS_API_KEY }}
+webserver=yes
+webserver-address=0.0.0.0
+webserver-port=8081
+webserver-allow-from={{ PDNS_WEBSERVER_ALLOW_FROM }}
+webserver-loglevel=normal
+
+# --- Authoritative DNS listener ---
+local-address=0.0.0.0,::
+local-port=53
+
+# --- SOA for new zones: "<primary-ns> <hostmaster> <serial> <refresh>
+#     <retry> <expire> <minimum>"; the image default names
+#     a.misconfigured.dns.server.invalid. ---
+default-soa-content={{ PDNS_DEFAULT_SOA_CONTENT }}
+
+# --- Lahijan is the only writer: no RFC 2136, no AXFR unless per-zone ---
+dnsupdate=no

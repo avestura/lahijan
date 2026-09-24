@@ -66,8 +66,8 @@ profiles:
         pool: default
       eth0:
         type: nic
-        nictype: bridged
-        parent: lahijanbr
+        # `network` alone attaches to the managed bridge; Incus rejects
+        # nictype/parent alongside it.
         network: lahijanbr
 
 # Projects are NOT created here. Each tenant's project is created at tenant
