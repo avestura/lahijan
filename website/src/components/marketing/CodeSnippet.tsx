@@ -1,17 +1,17 @@
 /**
- * CodeSnippet — a styled, copyable code block for the hero's
- * "docker compose up" command.
+ * CodeSnippet — a copyable code block for the hero's "docker compose up"
+ * command.
  *
- * The actual command text is sourced from the locale bundle (key
- * `codeSnippet.command`) so a deployer can localize it if needed. The
- * clipboard button uses the Clipboard API; on copy it shows a transient
- * "Copied" label that auto-clears.
+ * Boxy code block: sunken 32px header strip with the language as a mono
+ * label and a copy button at the inline end, 1px line, square, no
+ * traffic-light dots. The command text is sourced from the locale bundle
+ * (key `codeSnippet.command`). The block is always LTR, since shell commands
+ * read left to right in every locale.
  */
 import { useEffect, useRef, useState } from "react";
-import { CheckIcon, ClipboardCopyIcon } from "lucide-react";
+import { CheckIcon, CopyIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function CodeSnippet({ className }: { className?: string }) {
@@ -41,43 +41,36 @@ export function CodeSnippet({ className }: { className?: string }) {
   }
 
   return (
-    <div className={cn("mx-auto w-full max-w-2xl", className)}>
-      <p className="mb-2 text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {t("codeSnippet.label")}
-      </p>
-      <div className="relative overflow-hidden rounded-lg border border-border bg-card shadow-lg">
-        <div className="flex items-center justify-between border-b border-border bg-muted/50 px-4 py-2">
-          <div className="flex items-center gap-2">
-            <span className="h-3 w-3 rounded-full bg-destructive/70" />
-            <span className="h-3 w-3 rounded-full bg-warning/70" />
-            <span className="h-3 w-3 rounded-full bg-success/70" />
-          </div>
-          <Button
+    <div className={cn("w-full", className)}>
+      <p className="bx-label mb-3">{t("codeSnippet.label")}</p>
+      <div className="border border-line bg-surface">
+        <div className="flex h-8 items-center justify-between border-b border-line bg-surface-sunken ps-3">
+          <span className="bx-label">{t("codeSnippet.shell")}</span>
+          <button
             type="button"
-            variant="ghost"
-            size="sm"
             onClick={onCopy}
-            aria-label={t("codeSnippet.copied")}
-            className="h-7 gap-1 px-2 text-xs text-muted-foreground"
+            aria-label={t("codeSnippet.copyLabel")}
+            className="inline-flex h-8 items-center gap-2 border-s border-line px-3 font-mono text-xs font-medium uppercase tracking-label text-ink-muted transition-colors duration-80 ease-linear hover:bg-surface-hover hover:text-ink"
           >
             {copied ? (
-              <>
-                <CheckIcon className="h-3.5 w-3.5" />
-                {t("codeSnippet.copied")}
-              </>
+              <CheckIcon className="h-4 w-4" aria-hidden="true" />
             ) : (
-              <>
-                <ClipboardCopyIcon className="h-3.5 w-3.5" />
-                {t("codeSnippet.copied")}
-              </>
+              <CopyIcon className="h-4 w-4" aria-hidden="true" />
             )}
-          </Button>
+            <span aria-live="polite">
+              {copied ? t("codeSnippet.copied") : t("codeSnippet.copy")}
+            </span>
+          </button>
         </div>
-        <pre className="overflow-x-auto p-4 text-start font-mono text-sm leading-relaxed text-foreground">
+        <pre
+          dir="ltr"
+          className="overflow-x-auto p-4 text-start font-mono text-base text-foreground"
+        >
           <code>
-            <span className="select-none text-muted-foreground">{t("codeSnippet.comment")}</span>
+            <span className="select-none text-ink-subtle">{t("codeSnippet.comment")}</span>
             {"\n"}
-            <span className="font-semibold text-primary">{t("codeSnippet.command")}</span>
+            <span aria-hidden="true" className="select-none text-ink-faint before:content-['$_']" />
+            <span className="font-medium">{t("codeSnippet.command")}</span>
           </code>
         </pre>
       </div>

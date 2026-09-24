@@ -1,4 +1,5 @@
 /// <reference types="./src/vite-env.d.ts" />
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
@@ -6,8 +7,16 @@ import react from "@vitejs/plugin-react";
 // The marketing site is statically prerendered (vite-react-ssg) and shipped
 // behind any CDN/static host, so we default to a relative base. The build
 // emits one `index.html` per route plus shared assets under dist/.
+const pkg = JSON.parse(readFileSync(path.resolve(__dirname, "package.json"), "utf8")) as {
+  version: string;
+};
+
 export default defineConfig({
   plugins: [react()],
+  define: {
+    // Build string shown in the footer (see src/lib/site.ts).
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

@@ -1,7 +1,9 @@
 /**
- * SectionHeading — eyebrow + title + subtitle, centered by default.
+ * SectionHeading — mono eyebrow + title + subtitle.
  *
- * Used at the top of every marketing section to keep the visual rhythm.
+ * Left-aligned by default (Boxy: text is left-aligned; centre only short
+ * hero copy). The eyebrow is the mono uppercase label; hierarchy comes from
+ * size and weight, never from colour.
  */
 import { cn } from "@/lib/utils";
 
@@ -10,6 +12,8 @@ interface SectionHeadingProps {
   title: string;
   subtitle?: string;
   align?: "center" | "start";
+  /** Heading level. Page headers use h1, sections h2. */
+  as?: "h1" | "h2";
   className?: string;
 }
 
@@ -17,22 +21,33 @@ export function SectionHeading({
   eyebrow,
   title,
   subtitle,
-  align = "center",
+  align = "start",
+  as: Heading = "h2",
   className,
 }: SectionHeadingProps) {
   return (
-    <div
-      className={cn(
-        "max-w-3xl",
-        align === "center" ? "mx-auto text-center" : "text-start",
-        className,
-      )}
-    >
-      {eyebrow ? (
-        <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-primary">{eyebrow}</p>
+    <div className={cn(align === "center" ? "mx-auto text-center" : "text-start", className)}>
+      {eyebrow ? <p className="bx-label">{eyebrow}</p> : null}
+      <Heading
+        className={cn(
+          "max-w-[20ch] text-foreground",
+          Heading === "h1" ? "site-subdisplay" : "text-3xl md:text-4xl",
+          eyebrow && "mt-3",
+          align === "center" && "mx-auto",
+        )}
+      >
+        {title}
+      </Heading>
+      {subtitle ? (
+        <p
+          className={cn(
+            "mt-5 max-w-[56ch] text-lg text-muted-foreground",
+            align === "center" && "mx-auto",
+          )}
+        >
+          {subtitle}
+        </p>
       ) : null}
-      <h2 className="text-3xl font-bold tracking-tight text-foreground md:text-4xl">{title}</h2>
-      {subtitle ? <p className="mt-4 text-lg text-muted-foreground">{subtitle}</p> : null}
     </div>
   );
 }

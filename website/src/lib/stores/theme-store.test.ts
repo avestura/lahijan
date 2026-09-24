@@ -23,15 +23,24 @@ describe("theme-store", () => {
     expect(effectiveTheme("system")).toBe("light");
   });
 
-  it("applyThemeToDocument toggles .dark on <html>", () => {
+  it("applyThemeToDocument sets data-theme (and the legacy .dark class) on <html>", () => {
     applyThemeToDocument("dark");
+    expect(document.documentElement.dataset.theme).toBe("dark");
     expect(document.documentElement.classList.contains("dark")).toBe(true);
     applyThemeToDocument("light");
+    expect(document.documentElement.dataset.theme).toBe("light");
     expect(document.documentElement.classList.contains("dark")).toBe(false);
+  });
+
+  it("applyThemeToDocument resolves system to a concrete data-theme", () => {
+    // matchMedia is mocked to `matches: false`, so system resolves to light.
+    applyThemeToDocument("system");
+    expect(document.documentElement.dataset.theme).toBe("light");
   });
 
   it("the store's setTheme + toggle keep the document in sync", () => {
     useThemeStore.getState().setTheme("dark");
+    expect(document.documentElement.dataset.theme).toBe("dark");
     expect(document.documentElement.classList.contains("dark")).toBe(true);
     useThemeStore.getState().toggle();
     expect(useThemeStore.getState().theme).toBe("light");

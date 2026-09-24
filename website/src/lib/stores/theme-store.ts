@@ -6,9 +6,10 @@
  * automatically when the user changes their OS preference.
  *
  * Persists to localStorage so reloads keep the user's pick. The
- * <html class> + media-query subscriptions are wired in
- * `applyThemeToDocument`, called from main.tsx on bootstrap and on every
- * store change.
+ * <html data-theme> attribute (read by the Boxy tokens in boxy.css) is
+ * written by `applyThemeToDocument`, called from main.tsx on bootstrap and
+ * on every store change. Before JS runs, boxy.css falls back to
+ * `prefers-color-scheme`, so the prerendered HTML is already themed.
  */
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -38,16 +39,33 @@ export function effectiveTheme(theme: Theme): EffectiveTheme {
 }
 
 /**
- * applyThemeToDocument flips <html class="dark"> for the active theme.
- * The Tailwind config (darkMode: ["class"]) reads this attribute.
+ * applyThemeToDocument sets <html data-theme="light|dark"> for the active
+ * theme. Boxy's role tokens and the Tailwind `dark:` variant both key off
+ * that attribute. The legacy `dark` class is kept in sync for any code that
+ * still checks it.
  */
 export function applyThemeToDocument(theme: Theme): EffectiveTheme {
   const eff = effectiveTheme(theme);
   if (typeof document === "undefined") return eff;
   const root = document.documentElement;
+  root.dataset.theme = eff;
   root.classList.toggle("dark", eff === "dark");
   root.style.colorScheme = eff;
   return eff;
+}
+
+let systemListenerBound = false;
+
+/**
+ * bindSystemThemeListener re-applies the theme when the OS preference
+ * changes while the user's pick is "system". Bound once per page.
+ */
+function bindSystemThemeListener(read: () => Theme): void {
+  if (systemListenerBound || typeof window === "undefined" || !window.matchMedia) return;
+  systemListenerBound = true;
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+    if (read() === "system") applyThemeToDocument("system");
+  });
 }
 
 export const useThemeStore = create<ThemeState>()(
@@ -57,11 +75,7 @@ export const useThemeStore = create<ThemeState>()(
       setTheme: (next) => {
         set({ theme: next });
         applyThemeToDocument(next);
-        // Subscribe to OS-level changes when "system".
-        if (next === "system" && typeof window !== "undefined") {
-          const mq = window.matchMedia("(prefers-color-scheme: dark)");
-          mq.addEventListener("change", () => applyThemeToDocument("system"));
-        }
+        bindSystemThemeListener(() => get().theme);
       },
       toggle: () => {
         const next: Theme = get().theme === "dark" ? "light" : "dark";
@@ -73,7 +87,9 @@ export const useThemeStore = create<ThemeState>()(
       name: STORAGE_KEY,
       partialize: (s) => ({ theme: s.theme }),
       onRehydrateStorage: () => (state) => {
-        if (state) applyThemeToDocument(state.theme);
+        if (!state) return;
+        applyThemeToDocument(state.theme);
+        bindSystemThemeListener(() => useThemeStore.getState().theme);
       },
     },
   ),

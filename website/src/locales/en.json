@@ -43,40 +43,57 @@
     "title": "Your cloud, your rules.",
     "subtitle": "Compute, DNS, and object storage behind one clean self-service portal. Deploy in minutes with a single command.",
     "primary": "Self-host Lahijan",
-    "secondary": "Explore features"
+    "secondary": "Explore features",
+    "trust": "MIT licensed · One binary · Docker Compose",
+    "stack": {
+      "label": "What your users get",
+      "compute": "System containers and virtual machines",
+      "dns": "Authoritative zones and records",
+      "storage": "S3-compatible buckets and keys",
+      "extensionsTitle": "Extensions",
+      "extensions": "Sandboxed WASM, installed as .lahx"
+    }
   },
   "features": {
     "sectionTitle": "Everything you need to run a cloud",
     "sectionSubtitle": "Three best-of-breed backends, one unified control plane, zero vendor lock-in.",
     "compute": {
       "title": "Compute",
-      "body": "Provision system containers and virtual machines on demand. Full instance lifecycle, profiles, devices, and networks."
+      "body": "Provision system containers and virtual machines on demand. Full instance lifecycle, profiles, devices, and networks.",
+      "tag": "Containers · VMs"
     },
     "dns": {
       "title": "DNS",
-      "body": "Authoritative DNS for your zones, with a records editor that gets out of your way."
+      "body": "Authoritative DNS for your zones, with a records editor that gets out of your way.",
+      "tag": "Authoritative"
     },
     "storage": {
       "title": "Object storage",
-      "body": "S3-compatible buckets with per-user credentials. Your apps hit the data plane directly; Lahijan manages policies."
+      "body": "S3-compatible buckets with per-user credentials. Your apps hit the data plane directly; Lahijan manages policies.",
+      "tag": "S3-compatible"
     },
     "plugins": {
-      "title": "WASM plugins",
-      "body": "Extend the platform with sandboxed WebAssembly modules. Android-style permissions keep you in control."
+      "title": "WASM extensions",
+      "body": "Extend the platform with sandboxed WebAssembly extensions, installed as .lahx packages. Admins approve every requested permission at install time.",
+      "tag": "WASM · .lahx"
     },
     "rbac": {
       "title": "RBAC + audit",
-      "body": "Role-based access control with an append-only audit trail. Every privileged action is recorded."
+      "body": "Role-based access control with an append-only audit trail. Every privileged action is recorded.",
+      "tag": "Append-only"
     },
     "billing": {
       "title": "PAYG billing",
-      "body": "Top up user balances and meter usage per minute. A ledger you can reconcile, not a black box."
+      "body": "Top up user balances and meter usage per minute. A ledger you can reconcile, not a black box.",
+      "tag": "Prepaid ledger"
     },
     "agent": {
       "title": "Built-in AI agent",
-      "body": "A natural-language assistant that runs your cloud for you — list instances, inspect zones and buckets, and act on your behalf, scoped to exactly what you're allowed to do."
+      "body": "A natural-language assistant that runs your cloud for you — list instances, inspect zones and buckets, and act on your behalf, scoped to exactly what you're allowed to do.",
+      "tag": "Natural language"
     },
-    "learnMore": "Learn more"
+    "learnMore": "Learn more",
+    "eyebrow": "Platform"
   },
   "howItWorks": {
     "sectionTitle": "How it works",
@@ -92,13 +109,17 @@
     "step3": {
       "title": "Scale",
       "body": "Every resource meters per minute. The ledger records every credit and debit; receipts are a query away."
-    }
+    },
+    "eyebrow": "Workflow"
   },
   "codeSnippet": {
     "label": "Get started in one command",
     "comment": "# clone, configure, bring the stack up",
     "command": "docker compose up -d",
-    "copied": "Copied"
+    "copied": "Copied",
+    "copy": "Copy",
+    "copyLabel": "Copy command",
+    "shell": "Terminal"
   },
   "architecture": {
     "sectionTitle": "Architecture at a glance",
@@ -110,7 +131,14 @@
     "database": "PostgreSQL",
     "databaseBody": "Shared by Lahijan and the backends. Row-level tenant isolation.",
     "backends": "Compute · DNS · Object storage",
-    "backendsBody": "Three best-of-breed backends, abstracted behind the Lahijan API."
+    "backendsBody": "Three best-of-breed backends, abstracted behind the Lahijan API.",
+    "eyebrow": "Architecture",
+    "tags": {
+      "browser": "Client",
+      "backend": "Control plane",
+      "database": "State",
+      "backends": "Services"
+    }
   },
   "pricing": {
     "sectionTitle": "Simple, metered pricing",
@@ -141,7 +169,8 @@
     "example": {
       "title": "Worked example",
       "body": "A small instance (1 vCPU, 2 GB RAM, 20 GB disk) left running for a month costs about {{amount}} at the sample rates above."
-    }
+    },
+    "eyebrow": "Pricing"
   },
   "faq": {
     "sectionTitle": "Frequently asked questions",
@@ -164,14 +193,15 @@
         "a": "Each operator sets their own unit prices. Users prepay into a balance; usage is metered per minute and debited from the ledger."
       },
       "plugins": {
-        "q": "What are WASM plugins?",
-        "a": "WebAssembly modules that extend Lahijan with new automation. Each plugin declares a permission manifest; admins approve each permission at install time."
+        "q": "What are WASM extensions?",
+        "a": "WebAssembly modules, packaged as .lahx files, that add new automation to Lahijan. Each extension declares a permission manifest, and an admin approves every permission at install time."
       },
       "sdk": {
         "q": "Is there an API?",
         "a": "Yes. Every action you can do in the UI you can do over a versioned REST API with generated client libraries."
       }
-    }
+    },
+    "eyebrow": "FAQ"
   },
   "testimonials": {
     "sectionTitle": "From the people running it",
@@ -192,13 +222,16 @@
         "name": "Hostmaster",
         "role": "Managed hosting"
       }
-    }
+    },
+    "eyebrow": "Operators"
   },
   "finalCta": {
     "title": "Run your own cloud today.",
     "subtitle": "Clone the repo, edit the config, bring the stack up. That's it.",
     "primary": "Self-host Lahijan",
-    "secondary": "Read the docs"
+    "secondary": "Read the docs",
+    "eyebrow": "Get started",
+    "note": "Free and open source. No account, no credit card."
   },
   "footer": {
     "product": "Product",
@@ -208,7 +241,9 @@
     "rights": "All rights reserved.",
     "copyright": "© {{year}} {{name}}. {{rights}}",
     "madeWith": "Built with care for operators.",
-    "description": "Open-source cloud platform for compute, DNS, and object storage."
+    "description": "Open-source cloud platform for compute, DNS, and object storage.",
+    "version": "v{{version}}",
+    "license": "Released under the MIT license."
   },
   "common": {
     "name": "Name",
@@ -219,7 +254,45 @@
     "features": {
       "title": "Features",
       "subtitle": "A complete cloud stack behind one API.",
-      "lead": "Lahijan unifies the three biggest operational concerns — compute, DNS, and object storage — under a single API and UI, with the audit log and billing you need to run it for real users."
+      "lead": "Lahijan unifies the three biggest operational concerns — compute, DNS, and object storage — under a single API and UI, with the audit log and billing you need to run it for real users.",
+      "detailTitle": "What each service does",
+      "detail": {
+        "compute": {
+          "p1": "Launch system containers and virtual machines from a shared image catalog.",
+          "p2": "Profiles, devices, networks, storage pools and snapshots: the full surface, not a simplified subset.",
+          "p3": "An in-browser console for every instance, with no SSH keys to hand around."
+        },
+        "dns": {
+          "p1": "Host authoritative zones for your own domains.",
+          "p2": "Edit A, AAAA, CNAME, MX, TXT and more in a records editor built for speed.",
+          "p3": "Every change is scoped to the tenant that owns the zone and recorded in the audit log."
+        },
+        "storage": {
+          "p1": "Create buckets and mint per-user S3 credentials from the portal.",
+          "p2": "Point any S3 client or SDK at the data endpoint; objects never pass through the control plane.",
+          "p3": "Manage bucket policies and access keys through the same API as everything else."
+        },
+        "agent": {
+          "p1": "Ask in plain language: list instances, inspect a zone, check a bucket.",
+          "p2": "It acts through the same API and permissions as the signed-in user, never more.",
+          "p3": "Every action it takes lands in the audit log like any other."
+        },
+        "plugins": {
+          "p1": "Upload an extension as a single .lahx package.",
+          "p2": "Each package declares the permissions it needs; an admin approves each one before install.",
+          "p3": "Extensions run sandboxed in WebAssembly, isolated from the host and from each other."
+        },
+        "rbac": {
+          "p1": "Roles and fine-grained permissions for every privileged action.",
+          "p2": "Sign in with a password, OAuth, OIDC, SAML, TOTP or WebAuthn.",
+          "p3": "An append-only audit log: rows can be written, never edited or deleted."
+        },
+        "billing": {
+          "p1": "Admins top up user balances; usage is metered per minute and debited.",
+          "p2": "Every credit and debit is a ledger entry you can reconcile.",
+          "p3": "Operators set their own unit prices for compute, DNS and storage."
+        }
+      }
     },
     "pricing": {
       "title": "Pricing",
@@ -334,7 +407,15 @@
     "notFound": {
       "title": "Page not found",
       "body": "We couldn't find what you were looking for.",
-      "home": "Back to home"
+      "home": "Back to home",
+      "code": "Error 404"
     }
+  },
+  "facts": {
+    "label": "By the numbers",
+    "binary": "Go binary. One process, no microservices to wire together.",
+    "services": "Core services: compute, DNS and object storage.",
+    "metering": "Seconds per metering tick. Every resource bills by the minute.",
+    "locales": "Languages from day one, right-to-left included."
   }
 }

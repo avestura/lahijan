@@ -1,7 +1,10 @@
 /**
  * Dialog — shadcn/ui primitive (wraps @radix-ui/react-dialog).
  *
- * Used by the marketing site's mobile navigation drawer.
+ * Used by the marketing site's mobile navigation drawer. Boxy treatment: a
+ * solid scrim (never blurred) that fades over 240ms, and a full-height
+ * drawer on the inline-end edge with a heavy 1px line and a hard 4px offset
+ * shadow. It slides in over 160ms with the sharp curve, mirrored in RTL.
  *
  * Docs: https://ui.shadcn.com/docs/components/dialog
  */
@@ -22,37 +25,39 @@ const DialogOverlay = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Overlay
     ref={ref}
-    className={cn(
-      "fixed inset-0 z-50 bg-black/60 backdrop-blur-sm",
-      "data-[state=open]:animate-fade-in",
-      className,
-    )}
+    className={cn("fixed inset-0 z-40 bg-scrim", "data-[state=open]:animate-fade-in", className)}
     {...props}
   />
 ));
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
+interface DialogContentProps
+  extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
+  /** Accessible label for the close button (pass a translated string). */
+  closeLabel: string;
+}
+
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+  DialogContentProps
+>(({ className, children, closeLabel, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed inset-x-0 top-0 z-50 mx-auto flex h-auto w-full max-w-md translate-y-0 flex-col gap-4 border border-border bg-popover p-6 text-popover-foreground shadow-lg",
-        "data-[state=open]:animate-fade-in",
+        "fixed inset-y-0 end-0 z-40 flex w-full max-w-sm flex-col border-s border-line-heavy bg-popover text-popover-foreground shadow-3",
+        "data-[state=open]:animate-drawer-in rtl:data-[state=open]:animate-drawer-in-rtl",
         className,
       )}
       {...props}
     >
       {children}
       <DialogPrimitive.Close
-        className="absolute end-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring"
-        aria-label="nav.closeMenu"
+        className="absolute end-2 top-2 inline-flex h-10 w-10 items-center justify-center text-ink-muted transition-colors duration-80 ease-linear hover:bg-surface-hover hover:text-ink"
+        aria-label={closeLabel}
       >
-        <XIcon className="h-5 w-5" />
+        <XIcon className="h-5 w-5" aria-hidden="true" />
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPortal>
@@ -65,7 +70,7 @@ const DialogTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Title
     ref={ref}
-    className={cn("text-base font-semibold text-foreground", className)}
+    className={cn("font-display text-md font-semibold text-foreground", className)}
     {...props}
   />
 ));
@@ -77,7 +82,7 @@ const DialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Description
     ref={ref}
-    className={cn("text-sm text-muted-foreground", className)}
+    className={cn("text-base text-muted-foreground", className)}
     {...props}
   />
 ));

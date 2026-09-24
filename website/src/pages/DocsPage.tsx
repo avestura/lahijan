@@ -6,13 +6,13 @@
  * links onward. The actual destination is configurable via env so each
  * deployer can point at their hosted docs.
  */
-import { BookOpenIcon, CompassIcon, ServerIcon, TerminalIcon } from "lucide-react";
+import { ArrowRightIcon, BookOpenIcon, CompassIcon, ServerIcon, TerminalIcon } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { CTASection } from "@/components/marketing/CTASection";
+import { PageHeader } from "@/components/marketing/PageHeader";
 import { Section } from "@/components/marketing/Section";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SeoHead } from "@/components/seo/SeoHead";
 import { DOCS_URL } from "@/lib/site";
@@ -57,41 +57,44 @@ export function DocsPage() {
   return (
     <>
       <SeoHead titleKey="page.docs.title" descriptionKey="page.docs.lead" path="/docs" />
-      <Section className="bg-background">
-        <div className="mx-auto max-w-3xl text-center">
-          <h1 className="text-4xl font-extrabold tracking-tight text-foreground md:text-5xl">
-            {t("page.docs.title")}
-          </h1>
-          <p className="mt-4 text-lg text-muted-foreground">{t("page.docs.subtitle")}</p>
-          <p className="mt-6 text-base text-muted-foreground">{t("page.docs.lead")}</p>
-        </div>
-      </Section>
+      <PageHeader
+        eyebrow={t("page.docs.title")}
+        title={t("page.docs.subtitle")}
+        lead={t("page.docs.lead")}
+      >
+        <Button asChild size="lg" variant="outline" className="mt-10">
+          <a href={DOCS_URL}>{t("page.docs.visitDocsSite")}</a>
+        </Button>
+      </PageHeader>
 
-      <Section className="bg-muted/30">
-        <ul role="list" className="mx-auto grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-2">
+      <Section rhythm="tight">
+        <ul
+          role="list"
+          className="site-bleed bx-collapse grid-cols-1 border-y border-line md:grid-cols-2"
+        >
           {DOC_LINKS.map(({ icon: Icon, titleKey, bodyKey, anchor }) => (
             <li key={titleKey}>
-              <a href={`${DOCS_URL}${anchor}`} className="block h-full no-underline">
-                <Card className="h-full transition-shadow hover:shadow-lg">
-                  <CardHeader>
-                    <span className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-md bg-accent text-accent-foreground">
-                      <Icon className="h-5 w-5" />
-                    </span>
-                    <CardTitle className="text-base">{t(titleKey)}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm leading-relaxed text-muted-foreground">{t(bodyKey)}</p>
-                  </CardContent>
-                </Card>
+              <a
+                href={`${DOCS_URL}${anchor}`}
+                className="group flex h-full items-start gap-6 px-4 py-10 text-foreground no-underline transition-colors duration-80 ease-linear hover:bg-surface-hover hover:no-underline md:px-8"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center border border-line bg-surface-sunken">
+                  <Icon className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
+                </span>
+                <span className="flex-1">
+                  <span className="block font-display text-xl font-semibold tracking-heading">
+                    {t(titleKey)}
+                  </span>
+                  <span className="mt-2 block text-base text-muted-foreground">{t(bodyKey)}</span>
+                </span>
+                <ArrowRightIcon
+                  className="mt-1 h-5 w-5 shrink-0 text-ink-subtle group-hover:text-ink rtl:rotate-180"
+                  aria-hidden="true"
+                />
               </a>
             </li>
           ))}
         </ul>
-        <div className="mt-10 text-center">
-          <Button asChild size="lg" variant="outline">
-            <a href={DOCS_URL}>{t("page.docs.visitDocsSite")}</a>
-          </Button>
-        </div>
       </Section>
 
       <CTASection compact />

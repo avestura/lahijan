@@ -1,5 +1,8 @@
 /// <reference types="vite/client" />
 
+/** Package version, injected by vite.config.ts `define`. */
+declare const __APP_VERSION__: string;
+
 interface ImportMetaEnv {
   /**
    * Public base URL of the Lahijan deployment. Used to build absolute URLs in

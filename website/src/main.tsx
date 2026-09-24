@@ -16,13 +16,20 @@
  */
 import { ViteReactSSG } from "vite-react-ssg";
 
+// Boxy tokens first (the token file), then the self-hosted fonts, then the
+// Tailwind layers that consume both.
+import "@/styles/boxy.css";
+import "@fontsource-variable/inter";
+import "@fontsource-variable/inter-tight";
+import "@fontsource-variable/jetbrains-mono";
+import "@fontsource-variable/vazirmatn";
 import "@/styles/tailwind.css";
 
 import { initI18n, isRTL } from "@/lib/i18n";
 import { applyThemeToDocument, useThemeStore } from "@/lib/stores/theme-store";
 import { routes } from "@/routes";
 
-// Sync <html class> with the persisted theme on the very first paint so we
+// Sync <html data-theme> (and the legacy .dark class) with the persisted theme on the very first paint so we
 // don't get a flash of the wrong theme. Skipped during SSG (no document).
 if (typeof document !== "undefined") {
   applyThemeToDocument(useThemeStore.getState().theme);

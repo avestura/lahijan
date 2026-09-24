@@ -3,7 +3,8 @@
  *
  * Object-based routes consumed by vite-react-ssg. The SiteLayout is the
  * single parent route; each page is an index or child path under it. The
- * errorElement renders the NotFoundPage for any unmatched path.
+ * errorElement renders the NotFoundPage (inside the same site chrome) for
+ * any unmatched path.
  */
 import type { RouteObject } from "react-router-dom";
 
@@ -23,7 +24,11 @@ export const routes: RouteObject[] = [
   {
     path: "/",
     element: <SiteLayout />,
-    errorElement: <NotFoundPage />,
+    errorElement: (
+      <SiteLayout>
+        <NotFoundPage />
+      </SiteLayout>
+    ),
     children: [
       { index: true, element: <LandingPage /> },
       { path: "features", element: <FeaturesPage /> },

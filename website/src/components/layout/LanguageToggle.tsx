@@ -13,7 +13,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useLocale } from "@/hooks/useLocale";
@@ -26,15 +25,19 @@ export function LanguageToggle() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label={t("locale.label")}>
-          <GlobeIcon className="h-5 w-5" />
+        <Button variant="outline" size="icon" aria-label={t("locale.label")}>
+          <GlobeIcon className="h-5 w-5" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>{t("locale.label")}</DropdownMenuLabel>
-        <DropdownMenuSeparator />
         {SUPPORTED_LOCALES.map((l) => (
-          <DropdownMenuItem key={l} onClick={() => setLocale(l)} data-active={locale === l}>
+          <DropdownMenuItem
+            key={l}
+            lang={l}
+            onClick={() => setLocale(l)}
+            data-active={locale === l}
+          >
             {LOCALE_LABELS[l]}
           </DropdownMenuItem>
         ))}

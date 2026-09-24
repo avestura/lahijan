@@ -1,75 +1,63 @@
 /**
  * About page (`/about`).
  *
- * Lead copy, mission, principles, and the "why Lahijan?" section.
+ * Page header, mission + name origin, principles, CTA. Both content blocks
+ * are collapsed grids so each reads as one ruled table.
  */
 import { useTranslation } from "react-i18next";
 
 import { CTASection } from "@/components/marketing/CTASection";
+import { PageHeader } from "@/components/marketing/PageHeader";
 import { Section } from "@/components/marketing/Section";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SeoHead } from "@/components/seo/SeoHead";
+import { useFormatNumber } from "@/lib/format";
 
 const PRINCIPLE_KEYS = ["transparent", "tenantIsolation", "open"] as const;
+const STORY_KEYS = ["mission", "nameOrigin"] as const;
 
 export function AboutPage() {
   const { t } = useTranslation();
+  const fmt = useFormatNumber();
 
   return (
     <>
       <SeoHead titleKey="page.about.title" descriptionKey="page.about.lead" path="/about" />
-      <Section className="bg-background">
-        <div className="mx-auto max-w-3xl text-center">
-          <h1 className="text-4xl font-extrabold tracking-tight text-foreground md:text-5xl">
-            {t("page.about.title")}
-          </h1>
-          <p className="mt-4 text-lg text-muted-foreground">{t("page.about.subtitle")}</p>
-          <p className="mt-6 text-base text-muted-foreground">{t("page.about.lead")}</p>
+      <PageHeader
+        eyebrow={t("page.about.title")}
+        title={t("page.about.subtitle")}
+        lead={t("page.about.lead")}
+      />
+
+      <Section rhythm="tight">
+        <div className="site-bleed bx-collapse grid-cols-1 border-y border-line md:grid-cols-2">
+          {STORY_KEYS.map((key) => (
+            <div key={key} className="px-4 py-10 md:px-8">
+              <h2 className="text-2xl">{t(`page.about.${key}.title`)}</h2>
+              <p className="mt-4 max-w-[56ch] text-md text-muted-foreground">
+                {t(`page.about.${key}.body`)}
+              </p>
+            </div>
+          ))}
         </div>
       </Section>
 
-      <Section className="bg-muted/30" containerClassName="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">{t("page.about.mission.title")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              {t("page.about.mission.body")}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">{t("page.about.nameOrigin.title")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              {t("page.about.nameOrigin.body")}
-            </p>
-          </CardContent>
-        </Card>
-      </Section>
-
-      <Section className="bg-background">
-        <h2 className="text-center text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+      <Section aria-labelledby="principles-title">
+        <h2 id="principles-title" className="max-w-[20ch] text-3xl md:text-4xl">
           {t("page.about.principles.title")}
         </h2>
-        <ul role="list" className="mx-auto mt-10 grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-3">
-          {PRINCIPLE_KEYS.map((key) => (
-            <li key={key}>
-              <Card className="h-full">
-                <CardHeader>
-                  <CardTitle className="text-base">
-                    {t(`page.about.principles.items.${key}.title`)}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm leading-relaxed text-muted-foreground">
-                    {t(`page.about.principles.items.${key}.body`)}
-                  </p>
-                </CardContent>
-              </Card>
+        <ul
+          role="list"
+          className="site-bleed bx-collapse mt-16 grid-cols-1 border-y border-line md:grid-cols-3"
+        >
+          {PRINCIPLE_KEYS.map((key, idx) => (
+            <li key={key} className="px-4 py-10 md:px-8">
+              <span aria-hidden="true" className="bx-mono text-xs text-ink-faint">
+                {fmt(idx + 1, 2)}
+              </span>
+              <h3 className="mt-6 text-xl">{t(`page.about.principles.items.${key}.title`)}</h3>
+              <p className="mt-3 text-base text-muted-foreground">
+                {t(`page.about.principles.items.${key}.body`)}
+              </p>
             </li>
           ))}
         </ul>

@@ -1,62 +1,182 @@
 /*
- * Tailwind entrypoint. Layers:
- *   - tokens.css       (primitives)
- *   - theme.css        (semantic + component; light + dark)  [via @import]
- *   - tailwind.css     (this file; directives + base styles)
+ * Tailwind entrypoint.
  *
- * Vite resolves @import in CSS source order, so the tokens must be imported
- * before Tailwind directives for the utilities to compile.
+ * Load order (see src/main.tsx):
+ *   1. boxy.css          Boxy tokens + reset (verbatim copy; the token file)
+ *   2. @fontsource-*     self-hosted variable fonts (no network font requests)
+ *   3. tailwind.css      this file: font override, Tailwind layers, site parts
+ *
+ * Component code uses role tokens only (via the Tailwind colour names wired
+ * in tailwind.config.ts, or var(--bx-*) role tokens directly).
  */
-
-@import "./tokens.css";
-@import "./theme.css";
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Point the Boxy families at the self-hosted @fontsource-variable faces.
+   Vazirmatn follows Inter so Persian glyphs render in a matching sans. */
+:root {
+  --bx-font-sans: "Inter Variable", "Inter", "Vazirmatn Variable", ui-sans-serif, system-ui,
+    -apple-system, "Segoe UI", sans-serif;
+  --bx-font-display: "Inter Tight Variable", "Inter Tight", "Inter Variable", "Vazirmatn Variable",
+    ui-sans-serif, system-ui, sans-serif;
+  --bx-font-mono: "JetBrains Mono Variable", "JetBrains Mono", "Vazirmatn Variable", ui-monospace,
+    SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* Arabic-script text joins its letters; tracking breaks the joins. Persian
+   also has no case, so the uppercase label treatment is a no-op there. */
+:root[dir="rtl"] {
+  --bx-track-display: 0;
+  --bx-track-heading: 0;
+  --bx-track-label: 0;
+  --bx-track-micro: 0;
+}
+
 @layer base {
   html {
-    font-family: var(--font-sans);
     -webkit-tap-highlight-color: transparent;
     scroll-behavior: smooth;
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
-    font-feature-settings:
-      "rlig" 1,
-      "calt" 1;
+    background: var(--bx-canvas);
+    color: var(--bx-ink);
+    font-family: var(--bx-font-sans);
+    font-size: var(--bx-text-md);
+    line-height: var(--bx-lh-md);
+    -webkit-font-smoothing: antialiased;
   }
 
+  /* Preflight resets headings to inherit; restore the Boxy treatment. */
   h1,
   h2,
   h3,
   h4,
   h5,
   h6 {
-    @apply text-foreground;
+    font-family: var(--bx-font-display);
+    font-weight: var(--bx-weight-semibold);
+    letter-spacing: var(--bx-track-heading);
+    color: var(--bx-ink);
+    text-wrap: balance;
   }
 
-  /* Focus ring tokens; respects dark mode via the semantic layer. */
-  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
-    outline: 2px solid hsl(var(--color-ring));
-    outline-offset: 2px;
+  p {
+    text-wrap: pretty;
   }
 
-  /* Skip-to-content link for accessibility (Lighthouse a11y best practice). */
+  /* Focus: a hard, offset, high-contrast square. Never removed. */
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: var(--bx-focus-width) solid var(--bx-focus);
+    outline-offset: var(--bx-focus-offset);
+  }
+
+  ::selection {
+    background: var(--bx-selection);
+    color: var(--bx-ink);
+  }
+
+  /* Skip-to-content link (a11y). */
   .skip-link {
-    @apply sr-only;
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
   .skip-link:focus {
-    @apply not-sr-only;
     position: fixed;
-    top: 0.5rem;
-    inset-inline-start: 0.5rem;
-    z-index: 100;
-    padding: 0.5rem 1rem;
-    border-radius: var(--radius);
-    background: hsl(var(--color-primary));
-    color: hsl(var(--color-primary-fg));
+    inset-block-start: var(--bx-space-2);
+    inset-inline-start: var(--bx-space-2);
+    z-index: 60;
+    inline-size: auto;
+    block-size: auto;
+    clip-path: none;
+    padding: var(--bx-space-2) var(--bx-space-4);
+    background: var(--bx-accent);
+    color: var(--bx-on-accent);
+  }
+}
+
+@layer components {
+  /* Page container with the rail: two vertical hairlines at the container
+     edges that every section hangs off. */
+  .site-rail {
+    width: 100%;
+    max-width: var(--bx-container);
+    margin-inline: auto;
+    padding-inline: var(--bx-space-4);
+    border-inline: var(--bx-border) solid var(--bx-line-subtle);
+  }
+  @media (min-width: 768px) {
+    .site-rail {
+      padding-inline: var(--bx-space-6);
+    }
+  }
+
+  /* Pull a block out to the rails (cancels the container padding). */
+  .site-bleed {
+    margin-inline: calc(var(--bx-space-4) * -1);
+  }
+  @media (min-width: 768px) {
+    .site-bleed {
+      margin-inline: calc(var(--bx-space-6) * -1);
+    }
+  }
+
+  /* Editorial section rhythm: half below md, --bx-section-y (160px) above. */
+  .site-section {
+    padding-block: var(--bx-space-10);
+  }
+  @media (min-width: 768px) {
+    .site-section {
+      padding-block: var(--bx-section-y);
+    }
+  }
+  .site-section--tight {
+    padding-block: var(--bx-space-9);
+  }
+  @media (min-width: 768px) {
+    .site-section--tight {
+      padding-block: var(--bx-space-12);
+    }
+  }
+
+  /* Hero display type: 72px down to 40px, from the scale endpoints. */
+  .site-display {
+    font-size: clamp(2.5rem, 1.6rem + 3.6vw, 4.5rem);
+    line-height: 1;
+    letter-spacing: var(--bx-track-display);
+  }
+  .site-subdisplay {
+    font-size: clamp(2rem, 1.4rem + 2.4vw, 3.375rem);
+    line-height: 1.04;
+    letter-spacing: var(--bx-track-display);
+  }
+  /* Persian needs taller leading than Latin at display sizes. */
+  :root[dir="rtl"] .site-display,
+  :root[dir="rtl"] .site-subdisplay {
+    line-height: 1.32;
+  }
+
+  /* Links inside running copy. */
+  .site-link {
+    color: var(--bx-ink-accent);
+    text-underline-offset: 3px;
+  }
+  .site-link:hover {
+    text-decoration: underline;
+  }
+
+  /* An 8px square status mark, never a circle. */
+  .site-status {
+    display: inline-block;
+    inline-size: 8px;
+    block-size: 8px;
+    background: var(--bx-success);
+    flex-shrink: 0;
   }
 }

@@ -1,80 +1,85 @@
 /**
  * Hero — top-of-page hero block for the landing page.
  *
- * Renders the project badge, headline, subtitle, and the primary + secondary
- * CTAs. The primary CTA ("Self-host Lahijan") jumps to the architecture /
- * how-it-works section; the secondary CTA scrolls to features.
+ * Boxy editorial split hero: 7/5 columns with a 1px vertical rule between
+ * them. Copy on the inline-start side (eyebrow tag, display h1 capped at
+ * 14ch, lead, a shared-border action group with the page's single primary
+ * action, and a mono trust line). The product surface on the inline-end side
+ * runs out to the rail: the service matrix end users get, then the one-line
+ * install command.
  *
- * Below the fold: a "Get started in one command" code snippet.
+ * Per pillar 1 the services are "compute / DNS / object storage", never the
+ * underlying backends' names.
  */
-import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import { CodeSnippet } from "@/components/marketing/CodeSnippet";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonGroup } from "@/components/ui/button";
+import { useFormatNumber } from "@/lib/format";
+
+const STACK = [
+  { titleKey: "features.compute.title", bodyKey: "hero.stack.compute" },
+  { titleKey: "features.dns.title", bodyKey: "hero.stack.dns" },
+  { titleKey: "features.storage.title", bodyKey: "hero.stack.storage" },
+  { titleKey: "hero.stack.extensionsTitle", bodyKey: "hero.stack.extensions" },
+] as const;
 
 export function Hero() {
   const { t } = useTranslation();
+  const fmt = useFormatNumber();
 
   return (
-    <section className="relative overflow-hidden border-b border-border bg-gradient-to-b from-background to-accent/30">
-      <div className="container py-20 md:py-28">
-        <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
+    <section className="border-b border-line">
+      <div className="site-rail">
+        <div className="site-bleed grid grid-cols-1 lg:grid-cols-12">
+          <div className="px-4 py-20 md:px-8 md:py-32 lg:col-span-7 lg:pe-16">
+            <span className="inline-flex h-6 items-center gap-2 border border-line bg-surface-sunken px-2 font-mono text-xs font-medium uppercase tracking-label text-ink-muted">
+              <span className="site-status" aria-hidden="true" />
+              {t("hero.badge")}
             </span>
-            {t("hero.badge")}
-          </span>
 
-          <h1 className="mt-6 text-4xl font-extrabold tracking-tight text-foreground md:text-6xl">
-            {t("hero.title")}
-          </h1>
+            <h1 className="site-display mt-6 max-w-[14ch] text-foreground">{t("hero.title")}</h1>
 
-          <p className="mt-6 max-w-2xl text-lg text-muted-foreground md:text-xl">
-            {t("hero.subtitle")}
-          </p>
+            <p className="mt-6 max-w-[52ch] text-lg text-muted-foreground">{t("hero.subtitle")}</p>
 
-          <div className="mt-8 flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center sm:justify-center">
-            <Button asChild size="lg">
-              <a href="#how-it-works">{t("hero.primary")}</a>
-            </Button>
-            <Button asChild size="lg" variant="outline">
-              <a href="#features">{t("hero.secondary")}</a>
-            </Button>
+            <ButtonGroup className="mt-10">
+              <Button asChild size="lg">
+                <a href="#how-it-works">{t("hero.primary")}</a>
+              </Button>
+              <Button asChild size="lg" variant="outline">
+                <a href="#features">{t("hero.secondary")}</a>
+              </Button>
+            </ButtonGroup>
+
+            <p className="bx-label mt-6">{t("hero.trust")}</p>
           </div>
 
-          <div className="mt-12 w-full">
-            <CodeSnippet />
+          <div className="flex flex-col border-t border-line bg-surface-sunken lg:col-span-5 lg:border-s lg:border-t-0">
+            <p className="bx-label flex h-10 items-center border-b border-line px-6">
+              {t("hero.stack.label")}
+            </p>
+            <dl>
+              {STACK.map(({ titleKey, bodyKey }, idx) => (
+                <div
+                  key={bodyKey}
+                  className="grid grid-cols-[1fr_auto] gap-x-4 border-b border-line bg-surface px-6 py-5"
+                >
+                  <dt className="font-display text-md font-semibold text-foreground">
+                    {t(titleKey)}
+                  </dt>
+                  <dd className="bx-mono row-span-2 text-xs text-ink-subtle" aria-hidden="true">
+                    {fmt(idx + 1, 2)}
+                  </dd>
+                  <dd className="mt-1 text-base text-muted-foreground">{t(bodyKey)}</dd>
+                </div>
+              ))}
+            </dl>
+            <div className="mt-auto p-6">
+              <CodeSnippet />
+            </div>
           </div>
         </div>
       </div>
     </section>
-  );
-}
-
-/** A link-style button used in CTA sections; reroute through <Link>. */
-export function CtaLinkButton({
-  to,
-  label,
-  variant = "default",
-}: {
-  to: string;
-  label: string;
-  variant?: "default" | "outline" | "secondary" | "ghost";
-}) {
-  void useTranslation();
-  if (to.startsWith("http") || to.startsWith("/web")) {
-    return (
-      <Button asChild size="lg" variant={variant}>
-        <a href={to}>{label}</a>
-      </Button>
-    );
-  }
-  return (
-    <Button asChild size="lg" variant={variant}>
-      <Link to={to}>{label}</Link>
-    </Button>
   );
 }

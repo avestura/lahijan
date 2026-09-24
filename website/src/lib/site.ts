@@ -31,6 +31,9 @@ export const DASHBOARD_BASE_URL: string = RAW_DASHBOARD_BASE_URL.endsWith("/")
  */
 export const DOCS_URL: string = RAW_DOCS_URL.endsWith("/") ? RAW_DOCS_URL : `${RAW_DOCS_URL}/`;
 
+/** Build version shown in the footer's mono build string. */
+export const APP_VERSION: string = __APP_VERSION__;
+
 /** Default OpenGraph image (relative; prerendered as an absolute URL at render time). */
 export const DEFAULT_OG_IMAGE = "/favicon.svg";
 

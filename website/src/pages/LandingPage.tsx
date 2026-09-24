@@ -1,13 +1,14 @@
 /**
  * Landing page (`/`).
  *
- * The marketing site's front door. Composes the Hero, FeatureGrid,
+ * The marketing site's front door. Composes the Hero, Facts, FeatureGrid,
  * HowItWorks, ArchitectureDiagram, PricingTable, Testimonials, FAQ, and
- * final CTA sections into one scrollable page. Each section has a stable
+ * the inverted CTA band into one scrollable page. Each section has a stable
  * id so the hero's anchor CTAs and the sitemap's deep links work.
  */
 import { ArchitectureDiagram } from "@/components/marketing/ArchitectureDiagram";
 import { CTASection } from "@/components/marketing/CTASection";
+import { Facts } from "@/components/marketing/Facts";
 import { FAQ } from "@/components/marketing/FAQ";
 import { FeatureGrid } from "@/components/marketing/FeatureGrid";
 import { Hero } from "@/components/marketing/Hero";
@@ -21,6 +22,7 @@ export function LandingPage() {
     <>
       <SeoHead titleKey="app.tagline" descriptionKey="app.description" path="/" />
       <Hero />
+      <Facts />
       <FeatureGrid />
       <HowItWorks />
       <ArchitectureDiagram />

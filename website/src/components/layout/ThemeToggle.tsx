@@ -2,7 +2,9 @@
  * ThemeToggle — light / dark / system selector.
  *
  * Mirrors web/src/components/layout/ThemeToggle.tsx. Mounted in the Header.
- * Persists via the theme store (localStorage).
+ * Persists via the theme store (localStorage), which writes
+ * <html data-theme>. The trigger icon swaps instantly with the theme (no
+ * rotate or scale animation: Boxy motion is mechanical).
  */
 import { MonitorIcon, MoonIcon, SunIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -12,10 +14,17 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTheme } from "@/hooks/useTheme";
 import type { Theme } from "@/lib/stores/theme-store";
+
+const OPTIONS = [
+  { value: "light", icon: SunIcon, labelKey: "theme.light" },
+  { value: "dark", icon: MoonIcon, labelKey: "theme.dark" },
+  { value: "system", icon: MonitorIcon, labelKey: "theme.system" },
+] as const satisfies readonly { value: Theme; icon: unknown; labelKey: string }[];
 
 export function ThemeToggle() {
   const { t } = useTranslation();
@@ -24,30 +33,23 @@ export function ThemeToggle() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label={t("theme.label")}>
-          <SunIcon className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-          <MoonIcon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+        <Button variant="outline" size="icon" aria-label={t("theme.label")}>
+          <SunIcon className="h-5 w-5 dark:hidden" aria-hidden="true" />
+          <MoonIcon className="hidden h-5 w-5 dark:block" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem
-          onClick={() => setTheme("light" as Theme)}
-          data-active={theme === "light"}
-        >
-          <SunIcon className="me-2 h-4 w-4" />
-          {t("theme.light")}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("dark" as Theme)} data-active={theme === "dark"}>
-          <MoonIcon className="me-2 h-4 w-4" />
-          {t("theme.dark")}
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => setTheme("system" as Theme)}
-          data-active={theme === "system"}
-        >
-          <MonitorIcon className="me-2 h-4 w-4" />
-          {t("theme.system")}
-        </DropdownMenuItem>
+        <DropdownMenuLabel>{t("theme.label")}</DropdownMenuLabel>
+        {OPTIONS.map(({ value, icon: Icon, labelKey }) => (
+          <DropdownMenuItem
+            key={value}
+            onClick={() => setTheme(value)}
+            data-active={theme === value}
+          >
+            <Icon className="h-4 w-4" aria-hidden="true" />
+            {t(labelKey)}
+          </DropdownMenuItem>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   );

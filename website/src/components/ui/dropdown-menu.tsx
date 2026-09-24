@@ -4,6 +4,9 @@
  * Mirrors web/src/components/ui/dropdown-menu.tsx but only the subset used
  * by the marketing site (Theme + Language toggles).
  *
+ * Boxy listbox: raised surface, 1px line, hard 2px offset shadow, 32px rows
+ * with no gaps, and the selected row marked by a 2px accent inline-start bar.
+ *
  * Docs: https://ui.shadcn.com/docs/components/dropdown-menu
  */
 import * as React from "react";
@@ -25,8 +28,8 @@ const DropdownMenuContent = React.forwardRef<
       ref={ref}
       sideOffset={sideOffset}
       className={cn(
-        "z-50 min-w-[10rem] overflow-hidden rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md",
-        "data-[state=open]:animate-fade-in",
+        "z-20 min-w-40 overflow-hidden border border-line bg-popover text-popover-foreground shadow-2",
+        "data-[state=open]:animate-fade-in-down",
         className,
       )}
       {...props}
@@ -44,8 +47,9 @@ const DropdownMenuItem = React.forwardRef<
   <DropdownMenuPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors",
-      "focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      "relative flex h-8 cursor-default select-none items-center gap-2 border-s-2 border-transparent px-3 text-base text-ink-muted outline-none transition-colors duration-80 ease-linear",
+      "focus:bg-surface-hover focus:text-ink data-[disabled]:pointer-events-none data-[disabled]:text-ink-faint",
+      "data-[active=true]:border-line-accent data-[active=true]:bg-surface-accent data-[active=true]:text-ink",
       inset && "ps-8",
       className,
     )}
@@ -62,7 +66,11 @@ const DropdownMenuLabel = React.forwardRef<
 >(({ className, inset, ...props }, ref) => (
   <DropdownMenuPrimitive.Label
     ref={ref}
-    className={cn("px-2 py-1.5 text-sm font-semibold", inset && "ps-8", className)}
+    className={cn(
+      "flex h-8 items-center border-b border-line-subtle bg-surface-sunken px-3 font-mono text-xs font-medium uppercase tracking-label text-ink-subtle",
+      inset && "ps-8",
+      className,
+    )}
     {...props}
   />
 ));
@@ -74,7 +82,7 @@ const DropdownMenuSeparator = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DropdownMenuPrimitive.Separator
     ref={ref}
-    className={cn("-mx-1 my-1 h-px bg-border", className)}
+    className={cn("h-px bg-line-subtle", className)}
     {...props}
   />
 ));

@@ -1,6 +1,9 @@
 /**
  * Card — shadcn/ui primitive. Mirrors web/src/components/ui/card.tsx.
  *
+ * Boxy: a bordered rectangle that does not float. In a grid, put cards in a
+ * `.bx-collapse` so neighbours share one line.
+ *
  * Docs: https://ui.shadcn.com/docs/components/card
  */
 import * as React from "react";
@@ -11,10 +14,7 @@ const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElemen
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn(
-        "rounded-xl border border-border bg-card text-card-foreground shadow",
-        className,
-      )}
+      className={cn("border border-line bg-card text-card-foreground", className)}
       {...props}
     />
   ),
@@ -23,7 +23,7 @@ Card.displayName = "Card";
 
 const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("flex flex-col space-y-1.5 p-6", className)} {...props} />
+    <div ref={ref} className={cn("flex flex-col gap-2 p-6", className)} {...props} />
   ),
 );
 CardHeader.displayName = "CardHeader";
@@ -32,7 +32,7 @@ const CardTitle = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivE
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn("font-semibold leading-none tracking-tight", className)}
+      className={cn("font-display text-md font-semibold tracking-heading", className)}
       {...props}
     />
   ),
@@ -41,7 +41,7 @@ CardTitle.displayName = "CardTitle";
 
 const CardDescription = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("text-sm text-muted-foreground", className)} {...props} />
+    <div ref={ref} className={cn("text-base text-muted-foreground", className)} {...props} />
   ),
 );
 CardDescription.displayName = "CardDescription";
