@@ -24,6 +24,12 @@ describe("rolesImply", () => {
     expect(rolesImply(["member"], "compute.instance.create")).toBe(true);
   });
 
+  it("accepts the tenant.* role slugs the backend actually sends", () => {
+    expect(rolesImply(["tenant.owner"], "compute.instance.create")).toBe(true);
+    expect(rolesImply(["tenant.member"], "s3.bucket.create")).toBe(true);
+    expect(rolesImply(["tenant.viewer"], "dns.zone.create")).toBe(false);
+  });
+
   it("viewer cannot mutate", () => {
     expect(rolesImply(["viewer"], "compute.read")).toBe(true);
     expect(rolesImply(["viewer"], "compute.instance.create")).toBe(false);

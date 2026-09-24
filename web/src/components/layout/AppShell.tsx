@@ -30,12 +30,12 @@ export function AppShell() {
   useAuth();
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
+    <div className="flex h-screen w-full overflow-hidden bg-canvas text-ink">
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto">
-          <div className="container mx-auto max-w-7xl p-6">
+        <main className="flex-1 overflow-y-auto bg-canvas">
+          <div className="mx-auto w-full max-w-[var(--bx-container-wide)] p-6">
             <Outlet />
           </div>
         </main>

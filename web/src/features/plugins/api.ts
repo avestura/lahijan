@@ -14,6 +14,8 @@ import { apiClient } from "@/lib/api/client";
 import { queryKeys } from "@/lib/api/keys";
 import { useToast } from "@/hooks/useToast";
 import { useTranslation } from "react-i18next";
+import { apiErrorMessage } from "@/lib/api-errors";
+import { useSessionStore } from "@/lib/stores/session-store";
 
 type AdminPlugin = components["schemas"]["AdminPlugin"];
 type AdminMarketplaceEntry = components["schemas"]["AdminMarketplaceEntry"];
@@ -58,7 +60,8 @@ export function useAdminPlugin(pluginId: string | undefined) {
 }
 
 /**
- * useUploadAdminPlugin — POST /admin/plugins/upload (multipart).
+ * useUploadAdminPlugin — POST /admin/plugins/upload (multipart, one
+ * `package` part holding the .lahx extension package).
  *
  * Uses a direct fetch because openapi-fetch's typed wrapper doesn't
  * surface FormData bodies well in v0.13. The cookie auth is sent
@@ -70,29 +73,39 @@ export function useUploadAdminPlugin() {
   const { t } = useTranslation();
 
   return useMutation({
-    mutationFn: async ({
-      wasm,
-      manifest,
-    }: {
-      wasm: File;
-      manifest: string;
-    }): Promise<AdminPlugin> => {
+    mutationFn: async ({ pkg }: { pkg: File }): Promise<AdminPlugin> => {
       const fd = new FormData();
-      fd.append("wasm", wasm);
-      fd.append("manifest", manifest);
+      fd.append("package", pkg);
+      // Raw fetch bypasses apiClient's middleware, so stamp the tenant scope
+      // it would add: RequirePerm rejects the request without X-Tenant-Id.
+      const tenantId = useSessionStore.getState().currentTenantId;
       const resp = await fetch("/api/v1/admin/plugins/upload", {
         method: "POST",
         body: fd,
         credentials: "include",
+        headers: tenantId ? { "X-Tenant-Id": tenantId } : undefined,
       });
       if (!resp.ok) {
-        throw new Error(`admin.plugins.upload: ${resp.status}`);
+        // The server explains what is wrong with the package (missing
+        // manifest, oversized module, not a ZIP, ...): surface that text.
+        const body: unknown = await resp.json().catch(() => null);
+        const err = new Error(`admin.plugins.upload: ${resp.status}`);
+        (err as Error & { detail?: string }).detail = apiErrorMessage(body, "");
+        throw err;
       }
       return (await resp.json()) as AdminPlugin;
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: queryKeys.plugins.list() });
       toast({ title: t("plugins.mutations.uploadSuccess"), variant: "success" });
+    },
+    onError: (err) => {
+      const detail = (err as Error & { detail?: string }).detail;
+      toast({
+        title: t("plugins.mutations.uploadError"),
+        description: detail ?? undefined,
+        variant: "destructive",
+      });
     },
   });
 }

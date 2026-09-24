@@ -83,7 +83,12 @@ export function InstanceConsole({ instanceId, status }: Props) {
   // new scope.
   const currentTenantId = useSessionStore((s) => s.currentTenantId);
 
-  const termRef = useRef<HTMLDivElement | null>(null);
+  // The container is tracked in state (via a callback ref) rather than a
+  // plain ref so the terminal is created whenever the element actually
+  // exists. With a mount-once effect, opening the tab while the instance
+  // was not yet running (or permissions were still loading) left the
+  // terminal uncreated for the rest of the session.
+  const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const term = useRef<Terminal | null>(null);
   const fit = useRef<FitAddon | null>(null);
   const ws = useRef<WebSocket | null>(null);
@@ -145,9 +150,15 @@ export function InstanceConsole({ instanceId, status }: Props) {
 
     setConnectionState("connecting");
     const sock = new WebSocket(buildWebSocketURL(instanceId, currentTenantId));
+    sock.binaryType = "arraybuffer";
     ws.current = sock;
 
+    // Every handler checks it still owns ws.current: an older socket closed
+    // by this call fires onclose LATER, and without the guard it nulled
+    // ws.current for the new session, so keystrokes were silently dropped
+    // while output kept streaming ("connected, but can't type").
     sock.onopen = () => {
+      if (ws.current !== sock) return;
       setConnectionState("connected");
       // Send the initial resize right after the WS opens so the remote
       // PTY starts at the right dimensions instead of the daemon's
@@ -161,6 +172,7 @@ export function InstanceConsole({ instanceId, status }: Props) {
     // included); xterm.js renders them. Binary frames are written as
     // Uint8Array so UTF-8 multibyte sequences stay intact.
     sock.onmessage = (ev) => {
+      if (ws.current !== sock) return;
       if (ev.data instanceof ArrayBuffer) {
         termInst.write(new Uint8Array(ev.data));
       } else if (typeof ev.data === "string") {
@@ -180,6 +192,7 @@ export function InstanceConsole({ instanceId, status }: Props) {
     };
 
     sock.onclose = () => {
+      if (ws.current !== sock) return;
       setConnectionState("disconnected");
       ws.current = null;
     };
@@ -207,10 +220,10 @@ export function InstanceConsole({ instanceId, status }: Props) {
     setConnectionState("disconnected");
   }, []);
 
-  // Boot the terminal once on mount. The terminal persists across
-  // connect/disconnect cycles; only the WS is torn down + rebuilt.
+  // Boot the terminal whenever its container element appears. The terminal
+  // persists across connect/disconnect cycles; only the WS is rebuilt.
   useEffect(() => {
-    if (!termRef.current) return;
+    if (!container) return;
     const termInst = new Terminal({
       fontFamily: "var(--font-mono), ui-monospace, monospace",
       fontSize: 13,
@@ -223,16 +236,19 @@ export function InstanceConsole({ instanceId, status }: Props) {
       scrollback: 5000,
       // The terminal is conventionally dark regardless of the app
       // theme; the dashboard's light theme would wash out ANSI
-      // colours if we let xterm.js inherit.
+      // colours if we let xterm.js inherit. xterm.js paints to a canvas
+      // and needs literal colours (it cannot resolve CSS variables).
+      // boxy-ignore-start
       theme: {
-        background: "#000000",
-        foreground: "#e6e6e6",
-        cursor: "#e6e6e6",
+        background: "#0b0d0f",
+        foreground: "#eceef0",
+        cursor: "#eceef0",
       },
+      // boxy-ignore-end
     });
     const fitAddon = new FitAddon();
     termInst.loadAddon(fitAddon);
-    termInst.open(termRef.current);
+    termInst.open(container);
     fitAddon.fit();
     term.current = termInst;
     fit.current = fitAddon;
@@ -250,22 +266,25 @@ export function InstanceConsole({ instanceId, status }: Props) {
       }
     });
 
+    // A fresh terminal (e.g. the container re-mounted) must reattach to a
+    // session that is already open.
+    if (ws.current?.readyState === WebSocket.OPEN) {
+      termInst.focus();
+    }
+
     return () => {
       dataDisposable.dispose();
       termInst.dispose();
       term.current = null;
       fit.current = null;
     };
-    // We intentionally only run this once on mount; the terminal
-    // outlives the WS connection.
-  }, []);
+  }, [container]);
 
   // ResizeObserver on the terminal's container. This catches every
   // layout change (sidebar collapse, devtools dock, window resize,
   // tab resize) instead of just window.resize. Debounced 80ms to
   // avoid spamming fit() + resize control messages during a drag.
   useEffect(() => {
-    const container = termRef.current;
     if (!container) return;
     if (typeof ResizeObserver === "undefined") {
       // Very old browsers (or jsdom) — fall back to no-op. Tests
@@ -292,14 +311,14 @@ export function InstanceConsole({ instanceId, status }: Props) {
         resizeTimer.current = null;
       }
     };
-  }, [doFit, sendResize]);
+  }, [container, doFit, sendResize]);
 
   // Auto-connect when the instance is running + perm is granted + the
   // tenant scope is known (the WS upgrade needs ?tenant_id=; without it
   // the backend rejects with 400 before a byte is pumped). The user can
   // Disconnect manually and re-Connect with the button.
   useEffect(() => {
-    if (!isRunning || !hasPerm || !currentTenantId) return;
+    if (!isRunning || !hasPerm || !currentTenantId || !container) return;
     connect();
     return () => {
       disconnect();
@@ -307,49 +326,53 @@ export function InstanceConsole({ instanceId, status }: Props) {
     // We intentionally depend only on instanceId + the gates; the
     // connect/disconnect callbacks are stable enough for this lifecycle.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [instanceId, isRunning, hasPerm, currentTenantId]);
-
-  // Permission gate: server still enforces; this is defense in depth.
-  if (!hasPerm) {
-    return <p className="text-sm text-muted-foreground">{t("compute.console.noPermission")}</p>;
-  }
-
-  // Instance must be running; the backend re-validates.
-  if (!isRunning) {
-    return <p className="text-sm text-muted-foreground">{t("compute.console.notRunning")}</p>;
-  }
+  }, [instanceId, isRunning, hasPerm, currentTenantId, container]);
 
   const isConnecting = connectionState === "connecting";
   const isConnected = connectionState === "connected";
+  const usable = hasPerm && isRunning;
 
+  // The terminal container stays mounted even while the console is
+  // unusable (no permission / instance not running) so xterm.js is never
+  // left bound to a detached element; it is only hidden.
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={isConnected ? disconnect : connect}
-          disabled={isConnecting}
-        >
-          {isConnected
-            ? t("compute.console.disconnect")
-            : isConnecting
-              ? t("compute.console.connecting")
-              : t("compute.console.connect")}
-        </Button>
-        <span className="text-xs text-muted-foreground">
-          {isConnected
-            ? t("compute.console.connected")
-            : isConnecting
-              ? t("compute.console.connecting")
-              : t("compute.console.disconnected")}
-        </span>
-      </div>
+      {!hasPerm && (
+        <p className="text-sm text-muted-foreground">{t("compute.console.noPermission")}</p>
+      )}
+      {hasPerm && !isRunning && (
+        <p className="text-sm text-muted-foreground">{t("compute.console.notRunning")}</p>
+      )}
+      {usable && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={isConnected ? disconnect : connect}
+            disabled={isConnecting}
+          >
+            {isConnected
+              ? t("compute.console.disconnect")
+              : isConnecting
+                ? t("compute.console.connecting")
+                : t("compute.console.connect")}
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            {isConnected
+              ? t("compute.console.connected")
+              : isConnecting
+                ? t("compute.console.connecting")
+                : t("compute.console.disconnected")}
+          </span>
+        </div>
+      )}
       <div
-        ref={termRef}
-        className="h-80 overflow-hidden rounded-md border border-border bg-black p-2"
+        ref={setContainer}
+        hidden={!usable}
+        className="h-80 overflow-hidden border border-border bg-black p-2"
         aria-label={t("compute.console.title")}
         role="region"
+        onClick={() => term.current?.focus()}
       />
     </div>
   );

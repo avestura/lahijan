@@ -153,7 +153,7 @@ export function DNSRecordList({ tenantId, zoneId, zoneName, nameFilter, typeFilt
   return (
     <div className="space-y-3">
       {selected.size > 0 && (
-        <div className="flex items-center justify-between rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
+        <div className="flex items-center justify-between border border-border bg-surface-sunken px-3 py-2 text-sm">
           <span>{t("dns.records.selected", { count: selected.size })}</span>
           {canDelete && (
             <Button
@@ -179,7 +179,7 @@ export function DNSRecordList({ tenantId, zoneId, zoneName, nameFilter, typeFilt
         )}
       </div>
 
-      <div className="rounded-md border border-border">
+      <div className="border border-border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -317,7 +317,11 @@ function CreateDNSRecordDialog({ open, onOpenChange, tenantId, zoneId, zoneName 
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="dns-rec-name">{t("dns.records.create.name.label")}</Label>
-            <Input id="dns-rec-name" placeholder={`www  ·  @  ·  www.${zoneName}`} {...form.register("name")} />
+            <Input
+              id="dns-rec-name"
+              placeholder={`www  ·  @  ·  www.${zoneName}`}
+              {...form.register("name")}
+            />
             {form.formState.errors.name && (
               <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
             )}

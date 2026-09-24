@@ -1,12 +1,13 @@
 /**
- * InstanceStatusChart — donut of the tenant's instances grouped by the
- * same status buckets the compute list's filter dropdown uses (running /
- * stopped / frozen / other). Degrades to an empty-state card when the
- * compute module is disabled or there are no instances.
+ * InstanceStatusChart — the tenant's instances grouped by the same status
+ * buckets the compute list's filter uses (running / stopped / frozen /
+ * other), drawn as a Boxy instrument: a mono total, one square stacked bar
+ * and a legend of 8px squares with counts (color is never the only signal).
+ * Degrades to an empty-state card when the compute module is disabled or
+ * there are no instances.
  */
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/layout/EmptyState";
@@ -16,10 +17,18 @@ import { ServerIcon } from "lucide-react";
 import { useTenant } from "@/hooks/useTenant";
 import { useComputeInstances, classifyStatus } from "@/features/compute/api";
 import { isFeatureDisabledError } from "@/lib/api-errors";
-import { chartPalette } from "@/features/dashboard/charts";
+import { cn } from "@/lib/utils";
 
 const BUCKETS = ["running", "stopped", "frozen", "other"] as const;
 type Bucket = (typeof BUCKETS)[number];
+
+// Same tones as InstanceStatusBadge's squares.
+const FILL: Record<Bucket, string> = {
+  running: "bg-success",
+  stopped: "bg-ink-faint",
+  frozen: "bg-surface-inverse",
+  other: "bg-warning",
+};
 
 export function InstanceStatusChart() {
   const { t } = useTranslation();
@@ -38,7 +47,6 @@ export function InstanceStatusChart() {
     })).filter((d) => d.value > 0);
   }, [query.data, t]);
 
-  const palette = chartPalette();
   const total = data.reduce((sum, d) => sum + d.value, 0);
 
   let body: React.ReactNode;
@@ -61,40 +69,33 @@ export function InstanceStatusChart() {
     );
   } else {
     body = (
-      <div className="relative h-[220px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={data}
-              dataKey="value"
-              nameKey="label"
-              innerRadius={58}
-              outerRadius={84}
-              paddingAngle={2}
-              stroke="hsl(var(--color-card))"
-              strokeWidth={2}
-            >
-              {data.map((d, i) => (
-                <Cell key={d.name} fill={palette[i % palette.length]} />
-              ))}
-            </Pie>
-            <Tooltip
-              formatter={(v: number, n: string) => [String(v), n]}
-              contentStyle={{
-                background: "hsl(var(--color-card))",
-                border: "1px solid hsl(var(--color-border))",
-                borderRadius: "0.5rem",
-                color: "hsl(var(--color-card-fg))",
-              }}
-            />
-          </PieChart>
-        </ResponsiveContainer>
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-3xl font-semibold tabular-nums">{total}</span>
-          <span className="text-xs uppercase tracking-wider text-muted-foreground">
-            {t("nav.compute")}
+      <div className="space-y-4" data-testid="instance-status-chart">
+        <div className="flex items-baseline gap-2">
+          <span className="font-mono text-4xl font-medium tabular-nums tracking-[-0.02em]">
+            {total}
           </span>
+          <span className="label-mono">{t("nav.compute")}</span>
         </div>
+        <div className="flex h-4 w-full gap-px border border-line bg-line" aria-hidden="true">
+          {data.map((d) => (
+            <div
+              key={d.name}
+              className={cn("h-full", FILL[d.name])}
+              style={{ width: `${(d.value / total) * 100}%` }}
+            />
+          ))}
+        </div>
+        <ul className="divide-y divide-line-subtle border border-line">
+          {data.map((d) => (
+            <li key={d.name} className="flex items-center justify-between bg-card px-3 py-2">
+              <span className="flex items-center gap-2 font-mono text-label uppercase tracking-[0.08em] text-ink-muted">
+                <span className={cn("h-2 w-2", FILL[d.name])} aria-hidden="true" />
+                {d.label}
+              </span>
+              <span className="font-mono text-sm tabular-nums">{d.value}</span>
+            </li>
+          ))}
+        </ul>
       </div>
     );
   }
@@ -102,7 +103,7 @@ export function InstanceStatusChart() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">{t("dashboard.charts.instances")}</CardTitle>
+        <CardTitle>{t("dashboard.charts.instances")}</CardTitle>
       </CardHeader>
       <CardContent>{body}</CardContent>
     </Card>

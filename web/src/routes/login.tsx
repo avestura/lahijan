@@ -4,11 +4,13 @@
  * Renders the marketing-light layout (centered card). If the session store
  * already has a user, redirect to /dashboard.
  */
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
 import { LoginForm } from "@/features/auth/LoginForm";
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/hooks/useAuth";
 import { useSessionStore } from "@/lib/stores/session-store";
 
 export const Route = createFileRoute("/login")({
@@ -25,6 +27,20 @@ export const Route = createFileRoute("/login")({
 
 function LoginRoute() {
   const { t } = useTranslation();
+  // /login renders outside AppShell, which is where the /auth/me bootstrap
+  // normally fires; run it here too so a signed-in visitor is recognised.
+  useAuth();
+  const status = useSessionStore((s) => s.status);
+  const navigate = useNavigate();
+  // beforeLoad only sees the store as it is at navigation time. On a full
+  // page load of /login the /auth/me bootstrap has not resolved yet, so an
+  // already-signed-in user would be left on the login form; redirect once
+  // the session resolves.
+  useEffect(() => {
+    if (status === "authenticated") {
+      void navigate({ to: "/dashboard", replace: true });
+    }
+  }, [status, navigate]);
   return (
     <div
       className="flex min-h-screen items-center justify-center bg-background p-4"

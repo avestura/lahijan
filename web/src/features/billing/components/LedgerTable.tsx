@@ -55,7 +55,7 @@ export function LedgerTable() {
           />
         ) : (
           <>
-            <div className="rounded-md border border-border">
+            <div className="border border-border">
               <Table>
                 <TableHeader>
                   <TableRow>

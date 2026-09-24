@@ -23,17 +23,17 @@ export function FeatureDisabledState({ title, description, className }: FeatureD
       role="status"
       data-testid="feature-disabled"
       className={cn(
-        "flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-muted/30 p-10 text-center",
+        "flex flex-col items-center justify-center gap-3 border border-line bg-surface-sunken px-6 py-16 text-center",
         className,
       )}
     >
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+      <div className="flex h-12 w-12 items-center justify-center border border-line-strong text-ink-subtle">
         <BanIcon className="h-6 w-6" aria-hidden="true" />
       </div>
       <div className="space-y-1">
-        <p className="text-base font-medium text-foreground">{title}</p>
+        <p className="text-base font-semibold text-ink">{title}</p>
         {description ? (
-          <p className="mx-auto max-w-sm text-sm text-muted-foreground">{description}</p>
+          <p className="mx-auto max-w-sm text-sm text-ink-muted">{description}</p>
         ) : null}
       </div>
     </div>

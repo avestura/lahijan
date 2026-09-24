@@ -92,7 +92,7 @@ export function StorageCredentialsCard({ tenantId, bucketId }: Props) {
             description={t("storage.credentials.empty.body")}
           />
         ) : (
-          <div className="rounded-md border border-border">
+          <div className="border border-border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -311,7 +311,7 @@ function CreateCredentialDialog({ open, onOpenChange, tenantId, bucketId, onCopi
             <div className="space-y-2">
               <div>
                 <Label>{t("storage.credentials.reveal.accessKeyId")}</Label>
-                <div className="rounded-md border border-border bg-muted/50 p-3">
+                <div className="border border-border bg-surface-sunken p-3">
                   <code className="block break-all font-mono text-xs">
                     {create.data.credential.accessKeyId}
                   </code>
@@ -319,7 +319,7 @@ function CreateCredentialDialog({ open, onOpenChange, tenantId, bucketId, onCopi
               </div>
               <div>
                 <Label>{t("storage.credentials.reveal.secretKey")}</Label>
-                <div className="rounded-md border border-border bg-muted/50 p-3">
+                <div className="border border-border bg-surface-sunken p-3">
                   <code className="block break-all font-mono text-xs">{create.data.secretKey}</code>
                 </div>
               </div>

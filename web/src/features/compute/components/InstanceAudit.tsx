@@ -1,8 +1,9 @@
 /**
  * InstanceAudit — the Audit tab on the instance detail page.
  *
- * Calls /api/v1/audit filtered by resourceType=compute_instance +
- * the current instance id (via the metadata field). Requires
+ * Calls /api/v1/audit filtered server-side by resourceType=instance +
+ * resourceId=<this instance> (the compute module records instance events
+ * under the "instance" resource type). Requires
  * audit.read; if the user lacks it we show a "permission denied"
  * notice rather than an empty list (the API would 403 anyway).
  */
@@ -47,16 +48,15 @@ export function InstanceAudit({ instanceId }: Props) {
     enabled: hasPerm,
     staleTime: 30_000,
     queryFn: async (): Promise<AuditEvent[]> => {
-      // The audit list endpoint filters by action / resourceType but
-      // not by resource id directly today; we filter client-side.
       const { data, error, response } = await apiClient.GET("/api/v1/audit", {
-        params: { query: { limit: 100, offset: 0, resourceType: "compute_instance" } },
+        params: {
+          query: { limit: 100, offset: 0, resourceType: "instance", resourceId: instanceId },
+        },
       });
       if (error || !data) {
         throw new Error(`audit.list: ${response?.status ?? "network"}`);
       }
-      const items = data.items ?? [];
-      return items.filter((e) => e.resourceId === instanceId);
+      return data.items ?? [];
     },
   });
 
@@ -87,7 +87,7 @@ export function InstanceAudit({ instanceId }: Props) {
   }
 
   return (
-    <div className="rounded-md border border-border">
+    <div className="border border-border">
       <Table>
         <TableHeader>
           <TableRow>

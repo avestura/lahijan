@@ -136,6 +136,11 @@ interface wsStub {
 
 const wsInstances: wsStub[] = [];
 
+/** When true, close() defers onclose (like a real socket, whose close
+ *  event arrives asynchronously) and stores it in pendingCloses. */
+let deferClose = false;
+const pendingCloses: (() => void)[] = [];
+
 class WebSocketStub {
   static readonly OPEN = 1;
   static readonly CLOSED = 3;
@@ -159,6 +164,10 @@ class WebSocketStub {
 
   close(): void {
     this.readyState = WebSocketStub.CLOSED;
+    if (deferClose) {
+      pendingCloses.push(() => this.onclose?.());
+      return;
+    }
     this.onclose?.();
   }
 }
@@ -196,6 +205,8 @@ beforeEach(() => {
   onDataCallbacks.length = 0;
   fitCalls = 0;
   roCallback = null;
+  deferClose = false;
+  pendingCloses.length = 0;
   globalThis.WebSocket = WebSocketStub as unknown as typeof WebSocket;
   globalThis.ResizeObserver = ResizeObserverStub as unknown as typeof ResizeObserver;
 });
@@ -389,5 +400,43 @@ describe("<InstanceConsole />", () => {
     render(<InstanceConsole instanceId="i1" status="Running" />);
     expect(tMock).toHaveBeenCalledWith("compute.console.connect");
     expect(tMock).toHaveBeenCalledWith("compute.console.title");
+  });
+
+  it("keeps forwarding keystrokes when a replaced socket's close event arrives late", async () => {
+    deferClose = true;
+    const { rerender } = render(<InstanceConsole instanceId="i1" status="Running" />);
+    await act(async () => {
+      wsInstances[0]?.onopen?.();
+    });
+    // A dependency change re-runs auto-connect: old socket closed, new one opened.
+    rerender(<InstanceConsole instanceId="i2" status="Running" />);
+    const fresh = wsInstances[1];
+    expect(fresh).toBeDefined();
+    await act(async () => {
+      fresh?.onopen?.();
+    });
+    // The OLD socket's close event lands after the new session is live.
+    await act(async () => {
+      pendingCloses.forEach((fire) => fire());
+    });
+    act(() => {
+      onDataCallbacks.at(-1)?.("x");
+    });
+    expect(fresh?.sent).toContain("x");
+  });
+
+  it("creates the terminal and connects when the instance starts after the tab opened", async () => {
+    const { rerender } = render(<InstanceConsole instanceId="i1" status="Stopped" />);
+    expect(wsInstances).toHaveLength(0);
+    rerender(<InstanceConsole instanceId="i1" status="Running" />);
+    await waitFor(() => expect(wsInstances).toHaveLength(1));
+    expect(terminalInstances.length).toBeGreaterThan(0);
+    await act(async () => {
+      wsInstances[0]?.onopen?.();
+    });
+    act(() => {
+      onDataCallbacks.at(-1)?.("y");
+    });
+    expect(wsInstances[0]?.sent).toContain("y");
   });
 });

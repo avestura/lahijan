@@ -1,65 +1,104 @@
 /**
  * InstanceStorage — the Storage tab on the instance detail page.
  *
- * Surfaces the `devices` map's disk entries (root + any extra mounts).
+ * Lists the effective disk devices (root disk + extra volumes/mounts,
+ * including those inherited from profiles) with their pool, mount path,
+ * size limit and live usage. Usage is only reported for running instances
+ * on storage pools that track it (e.g. not the plain directory driver).
  */
 import type { components } from "@api-schema";
 import { useTranslation } from "react-i18next";
-
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState } from "@/components/layout/EmptyState";
 import { HardDriveIcon } from "lucide-react";
 
-type Instance = components["schemas"]["ComputeInstance"];
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { EmptyState } from "@/components/layout/EmptyState";
+import { deviceOrigin, devicesOfType, formatBytes } from "../format";
+import { RuntimeSection } from "./RuntimeSection";
+
+type Runtime = components["schemas"]["ComputeInstanceRuntime"];
 
 interface Props {
-  instance: Instance;
+  runtime: Runtime;
 }
 
-interface DiskDevice {
-  name: string;
-  type: string;
-  raw: Record<string, string>;
-}
+const DISK_COLUMN_KEYS = new Set(["type", "pool", "path", "source", "size"]);
 
-function pickDisks(devices: Instance["devices"]): DiskDevice[] {
-  if (!devices) return [];
-  const out: DiskDevice[] = [];
-  for (const [name, props] of Object.entries(devices)) {
-    if (props && props.type === "disk") {
-      out.push({ name, type: props.type ?? "disk", raw: props });
-    }
-  }
-  return out;
-}
+export function InstanceStorage({ runtime }: Props) {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language;
+  const disks = devicesOfType(runtime, "disk");
 
-export function InstanceStorage({ instance }: Props) {
-  const { t } = useTranslation();
-  const disks = pickDisks(instance.devices);
-  if (disks.length === 0) {
-    return (
-      <EmptyState icon={HardDriveIcon} title={t("common.none")} description={t("common.none")} />
-    );
-  }
   return (
-    <div className="space-y-3">
-      {disks.map((disk) => (
-        <Card key={disk.name}>
-          <CardHeader>
-            <CardTitle className="text-sm">{disk.name}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-3">
-              {Object.entries(disk.raw).map(([k, v]) => (
-                <div key={k} className="space-y-1">
-                  <dt className="text-xs uppercase tracking-wider text-muted-foreground">{k}</dt>
-                  <dd className="font-mono text-xs">{v}</dd>
-                </div>
-              ))}
-            </dl>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+    <RuntimeSection title={t("compute.storage.disks")} description={t("compute.storage.disksHint")}>
+      {disks.length === 0 ? (
+        <EmptyState icon={HardDriveIcon} title={t("compute.storage.noDisks")} />
+      ) : (
+        <Table data-testid="instance-disks">
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t("compute.devices.columns.name")}</TableHead>
+              <TableHead>{t("compute.storage.columns.mount")}</TableHead>
+              <TableHead>{t("compute.storage.columns.pool")}</TableHead>
+              <TableHead className="text-end">{t("compute.storage.columns.size")}</TableHead>
+              <TableHead className="text-end">{t("compute.storage.columns.usage")}</TableHead>
+              <TableHead>{t("compute.devices.columns.settings")}</TableHead>
+              <TableHead>{t("compute.devices.columns.source")}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {disks.map(([name, props]) => {
+              const usage = runtime.disks[name];
+              const used = usage?.usage;
+              const extra = Object.entries(props).filter(([k]) => !DISK_COLUMN_KEYS.has(k));
+              return (
+                <TableRow key={name}>
+                  <TableCell className="font-mono text-xs">{name}</TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {props.path ?? "—"}
+                    {props.source && (
+                      <div className="text-muted-foreground">
+                        {t("compute.storage.from", { source: props.source })}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">{props.pool ?? "—"}</TableCell>
+                  <TableCell className="text-end font-mono text-xs tabular-nums">
+                    {props.size ?? t("compute.storage.unlimited")}
+                  </TableCell>
+                  <TableCell className="text-end font-mono text-xs tabular-nums">
+                    {used !== undefined && used >= 0
+                      ? formatBytes(used, locale)
+                      : t("compute.storage.usageUnknown")}
+                    {usage?.total !== undefined && usage.total > 0 && (
+                      <div className="text-muted-foreground">
+                        {t("compute.storage.ofTotal", { total: formatBytes(usage.total, locale) })}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {extra.length === 0
+                      ? "—"
+                      : extra.map(([k, v]) => <div key={k}>{`${k}=${v}`}</div>)}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">
+                      {t(`compute.origin.${deviceOrigin(runtime, name)}`)}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      )}
+    </RuntimeSection>
   );
 }

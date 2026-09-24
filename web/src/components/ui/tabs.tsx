@@ -1,5 +1,8 @@
 /**
- * Tabs — shadcn/ui primitive (wraps @radix-ui/react-tabs).
+ * Tabs — shadcn/ui primitive (wraps @radix-ui/react-tabs), Boxy tab strip:
+ * tabs butt together over one full-width 1px rule; the active tab's 2px
+ * accent bar is drawn with shadows (never a negative margin) so a hover
+ * fill can never punch a gap in the rule (components-core.md).
  *
  * Docs: https://ui.shadcn.com/docs/components/tabs
  */
@@ -17,7 +20,7 @@ const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      "inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground",
+      "flex w-full items-stretch overflow-x-auto border-b border-line text-ink-subtle",
       className,
     )}
     {...props}
@@ -32,10 +35,11 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all",
-      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-      "disabled:pointer-events-none disabled:opacity-50",
-      "data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow",
+      "inline-flex h-[var(--bx-control-md)] shrink-0 items-center justify-center whitespace-nowrap px-4 text-sm font-medium",
+      "transition-[background-color,color] duration-75 ease-linear hover:bg-surface-hover hover:text-ink",
+      "focus-visible:outline-offset-[-2px]",
+      "disabled:cursor-not-allowed disabled:text-ink-faint",
+      "data-[state=active]:text-ink data-[state=active]:shadow-[inset_0_-2px_0_0_var(--bx-accent),0_1px_0_0_var(--bx-accent)]",
       className,
     )}
     {...props}
@@ -49,10 +53,7 @@ const TabsContent = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <TabsPrimitive.Content
     ref={ref}
-    className={cn(
-      "mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-      className,
-    )}
+    className={cn("mt-5 animate-fade-in focus-visible:outline-offset-4", className)}
     {...props}
   />
 ));

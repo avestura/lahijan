@@ -113,7 +113,7 @@ function PluginDetailPage() {
           <CardTitle className="text-base">{t("plugins.detail.manifest")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <pre className="overflow-x-auto rounded-md border border-border bg-muted/50 p-3 font-mono text-xs">
+          <pre className="overflow-x-auto border border-border bg-surface-sunken p-3 font-mono text-xs">
             {JSON.stringify(plugin.manifest, null, 2)}
           </pre>
         </CardContent>

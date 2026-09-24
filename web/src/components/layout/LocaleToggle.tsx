@@ -25,7 +25,12 @@ export function LocaleToggle() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label={t("locale.label")} data-testid="locale-toggle">
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={t("locale.label")}
+          data-testid="locale-toggle"
+        >
           <GlobeIcon className="h-5 w-5" />
         </Button>
       </DropdownMenuTrigger>

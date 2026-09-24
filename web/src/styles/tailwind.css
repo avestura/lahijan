@@ -1,14 +1,15 @@
 /*
  * Tailwind entrypoint. Layers:
- *   - tokens.css       (primitives)
- *   - theme.css        (semantic + component; light + dark)  [via @import]
- *   - tailwind.css     (this file; directives + base styles)
+ *   - boxy.css      Boxy design system: tokens, reset, primitives (the only
+ *                   file allowed to hold raw color values)
+ *   - theme.css     Lahijan's additions: fonts, chart ramp, shell constants
+ *   - tailwind.css  (this file) directives + base styles
  *
- * Vite resolves @import in CSS source order, so the tokens must be imported
- * before Tailwind directives for the utilities to compile.
+ * Vite resolves @import in source order, so the tokens load before the
+ * Tailwind directives that reference them.
  */
 
-@import "./tokens.css";
+@import "./boxy.css";
 @import "./theme.css";
 
 @tailwind base;
@@ -17,39 +18,106 @@
 
 @layer base {
   html {
-    font-family: var(--font-sans);
-    /* Disable the iOS tap-highlight; the design system provides its own
-       focus ring tokens via --color-ring. */
+    font-family: var(--bx-font-sans);
     -webkit-tap-highlight-color: transparent;
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
+    background: var(--bx-canvas);
+    color: var(--bx-ink);
+    font-size: var(--bx-text-base);
+    line-height: var(--bx-lh-base);
+    -webkit-font-smoothing: antialiased;
     font-feature-settings:
       "rlig" 1,
       "calt" 1;
   }
 
-  /* Headings inherit the foreground color; sizes come from the typography
-     scale in tailwind.config.ts. */
+  /* Headings: type + weight carry hierarchy, never color (axiom 6). The app
+     shell caps headings at 32px (industrial). */
   h1,
   h2,
   h3,
   h4,
   h5,
   h6 {
-    @apply text-foreground;
+    color: var(--bx-ink);
+    font-family: var(--bx-font-display);
   }
 
-  /* Focus ring tokens; respects dark mode via the semantic layer. */
-  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
-    outline: 2px solid hsl(var(--color-ring));
-    outline-offset: 2px;
+  /* Tabular numerals wherever figures line up. */
+  table,
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
   }
 
-  /* RTL helpers: when <html dir="rtl"> is set, the icon-only buttons should
-     mirror horizontally; the .rtl-flip utility opts elements in. */
+  /* Focus: a hard, offset square (never a glow). */
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: var(--bx-focus-width) solid var(--bx-focus);
+    outline-offset: var(--bx-focus-offset);
+  }
+
+  /* RTL helpers: icon-only buttons that point somewhere mirror in RTL. */
   [dir="rtl"] .rtl-flip {
     transform: scaleX(-1);
+  }
+}
+
+@layer components {
+  /* Mono uppercase tracked label: eyebrows, table headers, captions. */
+  .label-mono {
+    font-family: var(--bx-font-mono);
+    font-size: var(--bx-text-xs);
+    line-height: var(--bx-lh-xs);
+    font-weight: var(--bx-weight-medium);
+    letter-spacing: var(--bx-track-label);
+    text-transform: uppercase;
+    color: var(--bx-ink-subtle);
+  }
+
+  /* Command palette rows (cmdk): 40px rows, selected = surface-active + a
+     2px accent inset bar; group headings are mono labels on sunken strips. */
+  [cmdk-group-heading] {
+    display: flex;
+    align-items: center;
+    height: 24px;
+    padding-inline: var(--bx-space-4);
+    background: var(--bx-surface-sunken);
+    border-block: var(--bx-border) solid var(--bx-line-subtle);
+    font-family: var(--bx-font-mono);
+    font-size: var(--bx-text-xs);
+    letter-spacing: var(--bx-track-label);
+    text-transform: uppercase;
+    color: var(--bx-ink-subtle);
+  }
+  [cmdk-item] {
+    height: 40px;
+    padding-inline: var(--bx-space-4);
+    font-size: var(--bx-text-base);
+    color: var(--bx-ink);
+    cursor: pointer;
+  }
+  [cmdk-item][data-selected="true"] {
+    background: var(--bx-surface-active);
+    box-shadow: inset 2px 0 0 0 var(--bx-accent);
+  }
+
+  /* Lucide icons: Boxy's 1.5px stroke. */
+  svg.lucide {
+    stroke-width: 1.5;
+  }
+
+  /* Stepped skeleton pulse (no shimmer gradient). */
+  @keyframes bx-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.6;
+    }
+  }
+  .skeleton-pulse {
+    animation: bx-pulse 1s var(--bx-ease-step) infinite;
   }
 }

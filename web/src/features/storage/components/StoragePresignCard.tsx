@@ -117,7 +117,7 @@ export function StoragePresignCard({ bucketId }: Props) {
         </form>
 
         {presign.data && (
-          <div className="space-y-2 rounded-md border border-border bg-muted/50 p-3">
+          <div className="space-y-2 border border-border bg-surface-sunken p-3">
             <div className="flex items-center justify-between">
               <Label>{t("storage.presign.result.title")}</Label>
               <span className="text-xs text-muted-foreground">
@@ -125,7 +125,7 @@ export function StoragePresignCard({ bucketId }: Props) {
                 {new Date(presign.data.expiresAt).toLocaleString()}
               </span>
             </div>
-            <code className="block break-all rounded bg-background p-2 font-mono text-xs">
+            <code className="block break-all bg-background p-2 font-mono text-xs">
               {presign.data.url}
             </code>
             <p className="text-xs text-muted-foreground">{t("storage.presign.result.warning")}</p>

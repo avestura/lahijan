@@ -64,7 +64,7 @@ export function Header() {
     <>
       <header
         data-testid="app-header"
-        className="flex h-14 items-center justify-between gap-4 border-b border-border bg-background px-4"
+        className="flex h-topbar shrink-0 items-center justify-between gap-4 border-b border-line bg-surface px-4"
       >
         <div className="flex flex-1 items-center gap-2">
           <Button
@@ -77,7 +77,7 @@ export function Header() {
           >
             <SearchIcon className="h-4 w-4" />
             <span className="hidden md:inline">{t("commandPalette.placeholder")}</span>
-            <kbd className="ms-2 hidden rounded border border-border bg-muted px-1 text-[10px] uppercase sm:inline">
+            <kbd className="ms-2 hidden border border-line bg-surface-sunken px-1 font-mono text-2xs uppercase text-ink-subtle sm:inline">
               {KBD_HINT}
             </kbd>
           </Button>
@@ -85,8 +85,8 @@ export function Header() {
         <div className="flex items-center gap-1">
           <TenantSwitcher />
           <Button variant="ghost" size="icon" aria-label={t("common.actions")} className="relative">
-            <BellIcon className="h-5 w-5" />
-            <span className="absolute end-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-destructive" />
+            <BellIcon className="h-4 w-4" />
+            <span className="absolute end-2 top-2 h-2 w-2 bg-destructive" />
           </Button>
           <LocaleToggle />
           <ThemeToggle />
@@ -99,10 +99,10 @@ export function Header() {
                 aria-label={t("auth.logout")}
                 data-testid="user-menu-trigger"
               >
-                <Avatar className="h-7 w-7">
+                <Avatar className="h-6 w-6">
                   <AvatarFallback>{initials}</AvatarFallback>
                 </Avatar>
-                <ChevronDownIcon className="h-4 w-4 text-muted-foreground" />
+                <ChevronDownIcon className="h-4 w-4 text-ink-subtle" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
@@ -129,7 +129,7 @@ export function Header() {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={onSignOut}
-                className="text-destructive focus:text-destructive"
+                className="text-destructive-ink focus:text-destructive-ink"
                 data-testid="user-menu-logout"
               >
                 <LogOutIcon className="me-2 h-4 w-4" />

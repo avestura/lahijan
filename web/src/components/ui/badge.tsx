@@ -9,18 +9,21 @@ import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
 
+// Boxy tag (components-core.md): square, 1px border, mono uppercase, never
+// a pill. Semantic variants use the soft fill + base border + semantic ink
+// trio; color is always paired with the text label.
 const badgeVariants = cva(
-  "inline-flex items-center gap-1 rounded-full border border-transparent px-2.5 py-0.5 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  "inline-flex h-5 items-center gap-1 whitespace-nowrap border px-2 font-mono text-label font-medium uppercase tracking-[0.08em]",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/80",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/80",
-        success: "bg-success text-success-foreground hover:bg-success/80",
-        warning: "bg-warning text-warning-foreground hover:bg-warning/80",
-        outline: "border-border text-foreground",
-        muted: "bg-muted text-muted-foreground hover:bg-muted/80",
+        default: "border-line-accent bg-primary-soft text-ink-accent",
+        secondary: "border-line bg-surface-sunken text-ink-muted",
+        destructive: "border-destructive bg-destructive-soft text-destructive-ink",
+        success: "border-success bg-success-soft text-success-ink",
+        warning: "border-warning bg-warning-soft text-warning-ink",
+        outline: "border-line bg-transparent text-ink-muted",
+        muted: "border-line-subtle bg-surface-sunken text-ink-subtle",
       },
     },
     defaultVariants: {
@@ -34,7 +37,7 @@ export interface BadgeProps
     VariantProps<typeof badgeVariants> {}
 
 /**
- * Badge — small status pill. Use for instance states, role tags, etc.
+ * Badge — square status tag. Use for instance states, role tags, etc.
  */
 const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(
   ({ className, variant, ...props }, ref) => (

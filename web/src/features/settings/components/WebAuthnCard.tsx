@@ -66,7 +66,7 @@ export function WebAuthnCard() {
           <EmptyState
             icon={KeyIcon}
             title={t("settings.security.webauthn.empty")}
-            description={t("settings.security.webauthn.empty")}
+            description={t("settings.security.webauthn.emptyBody")}
           />
         )}
       </CardContent>

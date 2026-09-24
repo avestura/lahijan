@@ -71,9 +71,7 @@ describe("<InstanceGraphicalConsole />", () => {
     // Wait for the setTimeout-mocked onerror to flush.
     return new Promise<void>((resolve) => {
       setTimeout(() => {
-        expect(
-          screen.getByText("compute.graphicalConsole.notVendoredTitle"),
-        ).toBeInTheDocument();
+        expect(screen.getByText("compute.graphicalConsole.notVendoredTitle")).toBeInTheDocument();
         spy.mockRestore();
         resolve();
       }, 10);

@@ -64,7 +64,7 @@ export function RecoveryCodesCard() {
             <DialogDescription>{t("settings.security.recovery.warning")}</DialogDescription>
           </DialogHeader>
           {regenerate.data && (
-            <ul className="grid grid-cols-2 gap-1 rounded-md border border-border bg-muted/50 p-3 font-mono text-xs">
+            <ul className="grid grid-cols-2 gap-1 border border-border bg-surface-sunken p-3 font-mono text-xs">
               {regenerate.data.codes.map((c) => (
                 <li key={c}>{c}</li>
               ))}

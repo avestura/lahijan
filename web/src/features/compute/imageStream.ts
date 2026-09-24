@@ -103,9 +103,7 @@ export function flattenStream(feed: StreamFeed): StreamImage[] {
     if (!meta?.sha256) continue;
     // Pick the data artifact size (rootfs/disk); 0 when only metadata present.
     const data =
-      latest.items["disk.qcow2"] ??
-      latest.items["root.squashfs"] ??
-      latest.items["root.tar.xz"];
+      latest.items["disk.qcow2"] ?? latest.items["root.squashfs"] ?? latest.items["root.tar.xz"];
     out.push({
       alias,
       os: alias.split("/")[0] ?? product.os?.toLowerCase() ?? "",

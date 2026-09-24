@@ -138,7 +138,7 @@ export function ImageStreamBrowser({ open, onOpenChange, onPick }: Props) {
           </span>
         </div>
 
-        <div className="max-h-[55vh] overflow-y-auto rounded-md border border-border">
+        <div className="max-h-[55vh] overflow-y-auto border border-border">
           {query.isLoading ? (
             <LoadingState rows={6} />
           ) : query.error ? (
@@ -180,7 +180,7 @@ export function ImageStreamBrowser({ open, onOpenChange, onPick }: Props) {
 function StreamRow({ img, onPick }: { img: StreamImage; onPick: (alias: string) => void }) {
   const { t } = useTranslation();
   return (
-    <li className="flex items-center gap-3 px-3 py-2 hover:bg-muted/40">
+    <li className="flex items-center gap-3 px-3 py-2 hover:bg-surface-sunken">
       <div className="min-w-0 flex-1">
         <p className="truncate font-mono text-sm">{img.alias}</p>
         <p className="truncate text-xs text-muted-foreground">

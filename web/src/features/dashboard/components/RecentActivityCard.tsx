@@ -33,13 +33,10 @@ export function RecentActivityCard() {
     body = (
       <ul className="space-y-1">
         {items.map((e) => (
-          <li
-            key={e.id}
-            className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted/40"
-          >
+          <li key={e.id} className="flex items-center gap-3 px-2 py-2 hover:bg-surface-sunken">
             <span
               className={
-                "h-2 w-2 shrink-0 rounded-full " +
+                "h-2 w-2 shrink-0 " +
                 (e.status === "success"
                   ? "bg-success"
                   : e.status === "failure"

@@ -16,12 +16,7 @@
  */
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  DownloadIcon,
-  FileIcon,
-  RefreshCwIcon,
-  UploadIcon,
-} from "lucide-react";
+import { DownloadIcon, FileIcon, RefreshCwIcon, UploadIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,10 +27,7 @@ import { ErrorState } from "@/components/layout/ErrorState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { useToast } from "@/hooks/useToast";
 import { isFeatureDisabledError } from "@/lib/api-errors";
-import {
-  useStorageObjectVersions,
-  uploadObjectViaPresign,
-} from "../api";
+import { useStorageObjectVersions, uploadObjectViaPresign } from "../api";
 import { formatBytes } from "../format";
 
 interface Props {
@@ -128,7 +120,7 @@ export function StorageObjectsCard({ bucketId }: Props) {
     );
   } else {
     body = (
-      <ul className="divide-y divide-border rounded-md border border-border">
+      <ul className="divide-y divide-border border border-border">
         {rows.map((v, i) => (
           <li key={`${v.key}-${i}`} className="flex items-center gap-3 px-3 py-2">
             <FileIcon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
@@ -136,9 +128,7 @@ export function StorageObjectsCard({ bucketId }: Props) {
               <p className="truncate break-all font-mono text-xs">{v.key}</p>
               <p className="text-xs text-muted-foreground">
                 {formatBytes(v.size ?? 0)}
-                {v.lastModified
-                  ? ` · ${new Date(v.lastModified).toLocaleString()}`
-                  : ""}
+                {v.lastModified ? ` · ${new Date(v.lastModified).toLocaleString()}` : ""}
               </p>
             </div>
             <Button
@@ -182,12 +172,12 @@ export function StorageObjectsCard({ bucketId }: Props) {
       </div>
 
       {upload && (
-        <div className="space-y-1 rounded-md border border-border bg-muted/30 p-3">
+        <div className="space-y-1 border border-border bg-surface-sunken p-3">
           <div className="flex items-center justify-between text-xs">
             <span className="truncate font-mono">{upload.name}</span>
             <span className="tabular-nums">{upload.percent}%</span>
           </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+          <div className="h-2 w-full overflow-hidden bg-muted">
             <div
               className="h-full bg-primary transition-[width]"
               style={{ width: `${upload.percent}%` }}
@@ -196,9 +186,7 @@ export function StorageObjectsCard({ bucketId }: Props) {
         </div>
       )}
 
-      {query.isFetching && !query.isLoading ? (
-        <Skeleton className="h-4 w-24" />
-      ) : null}
+      {query.isFetching && !query.isLoading ? <Skeleton className="h-4 w-24" /> : null}
 
       {body}
     </div>

@@ -19,7 +19,7 @@ export function NotFoundState() {
       data-testid="not-found"
       className="flex flex-col items-center justify-center gap-4 p-16 text-center"
     >
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+      <div className="flex h-12 w-12 items-center justify-center border border-line-strong text-ink-subtle">
         <CompassIcon className="h-6 w-6" aria-hidden="true" />
       </div>
       <div className="space-y-1">

@@ -95,9 +95,9 @@ export function UsagePanel() {
                     {row.qty.toLocaleString()}
                   </span>
                 </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                <div className="h-2 w-full overflow-hidden bg-muted">
                   <div
-                    className="h-2 rounded-full bg-primary transition-all"
+                    className="h-2 bg-primary transition-[width] duration-150 ease-linear"
                     style={{ width: `${Math.max(2, row.pct)}%` }}
                   />
                 </div>

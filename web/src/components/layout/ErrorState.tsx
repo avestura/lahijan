@@ -21,14 +21,14 @@ export function ErrorState({ message, retryLabel, onRetry, className }: ErrorSta
     <div
       role="alert"
       className={cn(
-        "flex flex-col items-center justify-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-10 text-center",
+        "flex flex-col items-center justify-center gap-3 border border-destructive bg-destructive-soft px-6 py-16 text-center",
         className,
       )}
     >
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+      <div className="flex h-12 w-12 items-center justify-center border border-destructive text-destructive-ink">
         <AlertTriangleIcon className="h-6 w-6" aria-hidden="true" />
       </div>
-      <p className="max-w-md text-sm text-foreground">{message}</p>
+      <p className="max-w-md text-sm font-medium text-ink">{message}</p>
       {onRetry ? (
         <Button variant="outline" size="sm" onClick={onRetry}>
           {retryLabel}

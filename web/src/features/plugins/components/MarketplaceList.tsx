@@ -97,7 +97,7 @@ export function MarketplaceList() {
         <p className="text-xs text-muted-foreground">{t("plugins.marketplace.subtitle")}</p>
       </CardHeader>
       <CardContent>
-        <div className="rounded-md border border-border">
+        <div className="border border-border">
           <Table>
             <TableHeader>
               <TableRow>

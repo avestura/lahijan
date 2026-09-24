@@ -175,10 +175,9 @@ export function useSetDNSSEC(tenantId: string | null, zoneId: string | undefined
 
   return useMutation({
     mutationFn: async ({ action }: { action: "enable" | "disable" }) => {
-      const { error } = await apiClient.POST(
-        "/api/v1/dns/zones/{zoneId}/dnssec/{action}",
-        { params: { path: { zoneId: zoneId!, action } } },
-      );
+      const { error } = await apiClient.POST("/api/v1/dns/zones/{zoneId}/dnssec/{action}", {
+        params: { path: { zoneId: zoneId!, action } },
+      });
       if (error) {
         throw new Error(
           apiErrorMessage(
@@ -321,10 +320,9 @@ export function useDeleteDNSRecord(tenantId: string | null, zoneId: string | und
 
   return useMutation({
     mutationFn: async ({ recordId }: { recordId: string }) => {
-      const { error } = await apiClient.DELETE(
-        "/api/v1/dns/zones/{zoneId}/records/{recordId}",
-        { params: { path: { zoneId: zoneId!, recordId } } },
-      );
+      const { error } = await apiClient.DELETE("/api/v1/dns/zones/{zoneId}/records/{recordId}", {
+        params: { path: { zoneId: zoneId!, recordId } },
+      });
       if (error) {
         throw new Error(apiErrorMessage(error, t("dns.mutations.recordDeleteError")));
       }
@@ -368,13 +366,10 @@ export function useApplyDNSTemplate(tenantId: string | null, zoneId: string | un
 
   return useMutation({
     mutationFn: async ({ templateId }: { templateId: string }): Promise<ApplyDNSTemplateResult> => {
-      const { data, error } = await apiClient.POST(
-        "/api/v1/dns/zones/{zoneId}/apply-template",
-        {
-          params: { path: { zoneId: zoneId! } },
-          body: { templateId },
-        },
-      );
+      const { data, error } = await apiClient.POST("/api/v1/dns/zones/{zoneId}/apply-template", {
+        params: { path: { zoneId: zoneId! } },
+        body: { templateId },
+      });
       if (error || !data) {
         throw new Error(apiErrorMessage(error, t("dns.mutations.templateApplyError")));
       }

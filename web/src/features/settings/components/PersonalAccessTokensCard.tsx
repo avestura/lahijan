@@ -105,7 +105,7 @@ export function PersonalAccessTokensCard() {
             description={t("settings.tokens.empty.body")}
           />
         ) : (
-          <div className="rounded-md border border-border">
+          <div className="border border-border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -206,7 +206,7 @@ export function PersonalAccessTokensCard() {
             <DialogDescription>{t("settings.tokens.reveal.body")}</DialogDescription>
           </DialogHeader>
           {create.data?.token && (
-            <div className="rounded-md border border-border bg-muted/50 p-3">
+            <div className="border border-border bg-surface-sunken p-3">
               <code className="block break-all font-mono text-xs">{create.data.token}</code>
             </div>
           )}

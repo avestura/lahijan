@@ -188,7 +188,7 @@ function ImageTableBody({ loading, error, images, canDelete, onDelete }: ImageTa
     );
   }
   return (
-    <div className="rounded-md border border-border">
+    <div className="border border-border">
       <Table>
         <TableHeader>
           <TableRow>
@@ -316,7 +316,9 @@ function AddImageDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={INSTANCE_TYPES[0]}>{t("compute.create.type.container")}</SelectItem>
+                  <SelectItem value={INSTANCE_TYPES[0]}>
+                    {t("compute.create.type.container")}
+                  </SelectItem>
                   <SelectItem value={INSTANCE_TYPES[1]}>{t("compute.create.type.vm")}</SelectItem>
                 </SelectContent>
               </Select>

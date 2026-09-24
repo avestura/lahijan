@@ -33,7 +33,14 @@ function useBucketId(): string {
   return params.bucketId;
 }
 
-const DETAIL_TABS = ["objects", "overview", "connection", "credentials", "presign", "quota"] as const;
+const DETAIL_TABS = [
+  "objects",
+  "overview",
+  "connection",
+  "credentials",
+  "presign",
+  "quota",
+] as const;
 type DetailTab = (typeof DETAIL_TABS)[number];
 
 function StorageBucketDetailPage() {

@@ -126,8 +126,8 @@ export function CreateInstanceWizard() {
           >
             <span
               className={[
-                "flex h-6 w-6 items-center justify-center rounded-full border",
-                i < stepIndex ? "border-success bg-success/10 text-success" : "",
+                "flex h-6 w-6 items-center justify-center border",
+                i < stepIndex ? "border-success bg-success-soft text-success" : "",
                 i === stepIndex ? "border-primary text-primary" : "",
                 i > stepIndex ? "border-border text-muted-foreground" : "",
               ].join(" ")}
@@ -244,7 +244,7 @@ export function CreateInstanceWizard() {
                 </div>
               </div>
 
-              <div className="rounded-md border border-border">
+              <div className="border border-border">
                 <button
                   type="button"
                   className="flex w-full items-center justify-between px-4 py-2 text-sm font-medium"
@@ -325,8 +325,12 @@ export function CreateInstanceWizard() {
           >
             {t("common.previous")}
           </Button>
+          {/* Distinct keys: without them React reuses one <button> and flips
+              its type to "submit" mid-click, so "Next" on the size step
+              submitted the form and skipped the review step. */}
           {step === "review" ? (
             <Button
+              key="submit"
               type="submit"
               disabled={create.isPending || Object.keys(form.formState.errors).length > 0}
               data-testid="create-instance-submit"
@@ -334,7 +338,13 @@ export function CreateInstanceWizard() {
               {create.isPending ? t("compute.create.submitting") : t("compute.create.submit")}
             </Button>
           ) : (
-            <Button type="button" onClick={next} disabled={create.isPending} data-testid="create-instance-next">
+            <Button
+              key="next"
+              type="button"
+              onClick={next}
+              disabled={create.isPending}
+              data-testid="create-instance-next"
+            >
               {t("common.next")}
             </Button>
           )}

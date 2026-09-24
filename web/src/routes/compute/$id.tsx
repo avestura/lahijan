@@ -3,11 +3,13 @@
  *
  * Header: name + lifecycle buttons (start/stop/restart/freeze/unfreeze/delete),
  * gated by usePerm(). Body: tabbed panel with Overview, Console,
- * Snapshots, Network, Storage, Config, Audit. Auto-refreshes the
- * instance state every 5s (faster while transitioning).
+ * Snapshots, Network, Storage, Config, Logs, Audit. Network / Storage /
+ * Config / Overview read the live runtime view (useInstanceRuntime), not
+ * the stored row, so profile-provided devices and usage figures show. Auto-refreshes the
+ * instance state every 5 seconds (faster while transitioning).
  */
 import { createFileRoute, getRouteApi } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
 import {
@@ -38,6 +40,7 @@ import { usePerm } from "@/lib/perm";
 import { useTenant } from "@/hooks/useTenant";
 import {
   useComputeInstance,
+  useInstanceRuntime,
   useDeleteInstance,
   useLifecycle,
   classifyStatus,
@@ -51,6 +54,7 @@ import { InstanceNetwork } from "@/features/compute/components/InstanceNetwork";
 import { InstanceStorage } from "@/features/compute/components/InstanceStorage";
 import { InstanceConfig } from "@/features/compute/components/InstanceConfig";
 import { InstanceAudit } from "@/features/compute/components/InstanceAudit";
+import { InstanceLogs } from "@/features/compute/components/InstanceLogs";
 
 export const Route = createFileRoute("/compute/$id")({
   component: InstanceDetailPage,
@@ -82,6 +86,7 @@ const ALL_DETAIL_TABS = [
   "network",
   "storage",
   "config",
+  "logs",
   "audit",
 ] as const;
 
@@ -109,6 +114,7 @@ function InstanceDetailPage() {
   const tenant = useTenant();
   const tenantId = tenant.currentTenantId;
   const query = useComputeInstance(tenantId, id);
+  const runtime = useInstanceRuntime(tenantId, id);
   const lifecycle = useLifecycle(tenantId);
   const destroy = useDeleteInstance(tenantId);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -151,10 +157,25 @@ function InstanceDetailPage() {
     );
   };
 
+  // Tabs that need the live view show a loader / error until it arrives.
+  const withRuntime = (render: (rt: NonNullable<typeof runtime.data>) => ReactNode) => {
+    if (runtime.data) return render(runtime.data);
+    if (runtime.error) {
+      return (
+        <ErrorState
+          message={t("compute.runtime.unavailable")}
+          retryLabel={t("common.retry")}
+          onRetry={() => void runtime.refetch()}
+        />
+      );
+    }
+    return <LoadingState rows={4} />;
+  };
+
   const renderTab = (tab: DetailTab) => {
     switch (tab) {
       case "overview":
-        return <InstanceOverview instance={inst} />;
+        return <InstanceOverview instance={inst} runtime={runtime.data} />;
       case "console":
         return <InstanceConsole instanceId={inst.id} status={inst.status} />;
       case "console-graphical":
@@ -162,11 +183,15 @@ function InstanceDetailPage() {
       case "snapshots":
         return <InstanceSnapshots instanceId={inst.id} tenantId={tenantId} />;
       case "network":
-        return <InstanceNetwork instance={inst} />;
+        return withRuntime((rt) => <InstanceNetwork runtime={rt} />);
       case "storage":
-        return <InstanceStorage instance={inst} />;
+        return withRuntime((rt) => <InstanceStorage runtime={rt} />);
       case "config":
-        return <InstanceConfig instance={inst} />;
+        return withRuntime((rt) => (
+          <InstanceConfig instanceId={inst.id} tenantId={tenantId} runtime={rt} />
+        ));
+      case "logs":
+        return <InstanceLogs instanceId={inst.id} tenantId={tenantId} />;
       case "audit":
         return <InstanceAudit instanceId={inst.id} />;
     }

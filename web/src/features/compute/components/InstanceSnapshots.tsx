@@ -80,14 +80,14 @@ export function InstanceSnapshots({ instanceId, tenantId }: InstanceSnapshotsPro
   return (
     <Card>
       <CardHeader className="flex flex-row items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-muted-foreground">
+        <div className="flex h-9 w-9 items-center justify-center bg-muted text-muted-foreground">
           <CameraIcon className="h-4 w-4" aria-hidden="true" />
         </div>
         <CardTitle className="text-base">{t("compute.snapshots.title")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {canCreate && (
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 rounded-md border p-3">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 border p-3">
             <div className="grid gap-2 md:grid-cols-2">
               <div className="space-y-1">
                 <Label htmlFor="snap-name">{t("compute.snapshots.name.label")}</Label>
@@ -143,7 +143,7 @@ export function InstanceSnapshots({ instanceId, tenantId }: InstanceSnapshotsPro
             {t("compute.snapshots.empty")}
           </p>
         ) : (
-          <ul className="divide-y rounded-md border">
+          <ul className="divide-y border">
             {snapshots.map((snap) => {
               const id = snap.id;
               const isConfirmingDelete = confirmingDelete === id;
@@ -157,11 +157,11 @@ export function InstanceSnapshots({ instanceId, tenantId }: InstanceSnapshotsPro
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{snap.name}</span>
                       {snap.policyId ? (
-                        <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-xs text-blue-700 dark:text-blue-300">
+                        <span className="bg-blue-500/10 px-2 py-0.5 text-xs text-blue-700 dark:text-blue-300">
                           {t("compute.snapshots.bySchedule")}
                         </span>
                       ) : (
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                        <span className="bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                           {t("compute.snapshots.manual")}
                         </span>
                       )}

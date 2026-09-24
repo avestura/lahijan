@@ -84,9 +84,7 @@ function useLoadNovnc(): { state: LoadState; load: () => void } {
     if (state === "loading") return;
     setState("loading");
 
-    const existing = document.querySelector<HTMLScriptElement>(
-      `script[src="${NOVNC_SCRIPT_URL}"]`,
-    );
+    const existing = document.querySelector<HTMLScriptElement>(`script[src="${NOVNC_SCRIPT_URL}"]`);
     if (existing) {
       existing.addEventListener(
         "load",
@@ -226,9 +224,7 @@ export function InstanceGraphicalConsole({ instanceId, status }: Props) {
   // Permission gate: server still enforces; this is defense in depth.
   if (!hasPerm) {
     return (
-      <p className="text-sm text-muted-foreground">
-        {t("compute.graphicalConsole.noPermission")}
-      </p>
+      <p className="text-sm text-muted-foreground">{t("compute.graphicalConsole.noPermission")}</p>
     );
   }
 
@@ -236,32 +232,24 @@ export function InstanceGraphicalConsole({ instanceId, status }: Props) {
   // backend re-validates) AND must be running.
   if (!isRunning) {
     return (
-      <p className="text-sm text-muted-foreground">
-        {t("compute.graphicalConsole.notRunning")}
-      </p>
+      <p className="text-sm text-muted-foreground">{t("compute.graphicalConsole.notRunning")}</p>
     );
   }
 
   // Asset gate: show the vendor notice if noVNC could not be loaded.
   if (novncState === "missing") {
     return (
-      <div className="space-y-2 rounded-md border border-yellow-500/40 bg-yellow-500/10 p-4 text-sm">
+      <div className="space-y-2 border border-yellow-500/40 bg-yellow-500/10 p-4 text-sm">
         <div className="flex items-center gap-2 font-medium">
           <AlertTriangleIcon className="h-4 w-4" />
           {t("compute.graphicalConsole.notVendoredTitle")}
         </div>
-        <p className="text-muted-foreground">
-          {t("compute.graphicalConsole.notVendoredBody")}
-        </p>
+        <p className="text-muted-foreground">{t("compute.graphicalConsole.notVendoredBody")}</p>
       </div>
     );
   }
   if (novncState === "failed") {
-    return (
-      <p className="text-sm text-destructive">
-        {t("compute.graphicalConsole.loadFailed")}
-      </p>
-    );
+    return <p className="text-sm text-destructive">{t("compute.graphicalConsole.loadFailed")}</p>;
   }
 
   return (
@@ -309,7 +297,7 @@ export function InstanceGraphicalConsole({ instanceId, status }: Props) {
       </div>
 
       {clipboardOpen && (
-        <div className="space-y-2 rounded-md border border-border bg-card p-3">
+        <div className="space-y-2 border border-border bg-card p-3">
           <Label htmlFor="vnc-clipboard" className="text-xs">
             {t("compute.graphicalConsole.clipboardSync")}
           </Label>
@@ -330,7 +318,7 @@ export function InstanceGraphicalConsole({ instanceId, status }: Props) {
 
       <div
         ref={screenRef}
-        className="h-96 overflow-hidden rounded-md border border-border bg-black p-2"
+        className="h-96 overflow-hidden border border-border bg-black p-2"
         aria-label={t("compute.graphicalConsole.title")}
         role="region"
       />

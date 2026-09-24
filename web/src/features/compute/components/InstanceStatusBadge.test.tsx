@@ -21,18 +21,19 @@ describe("<InstanceStatusBadge />", () => {
     tMock.mockClear();
   });
 
-  it("renders the running bucket as a success badge", () => {
+  it("renders the running bucket with a success square", () => {
     render(<InstanceStatusBadge status="Running" />);
     expect(tMock).toHaveBeenCalledWith("compute.status.running");
     const badge = screen.getByText("compute.status.running");
-    expect(badge.className).toContain("bg-success");
+    expect(badge.getAttribute("data-tone")).toBe("success");
+    expect(badge.querySelector("[aria-hidden]")?.className).toContain("bg-success");
   });
 
-  it("renders the stopped bucket as a muted badge", () => {
+  it("renders the stopped bucket with a muted square", () => {
     render(<InstanceStatusBadge status="Stopped" />);
     expect(tMock).toHaveBeenCalledWith("compute.status.stopped");
     const badge = screen.getByText("compute.status.stopped");
-    expect(badge.className).toContain("bg-muted");
+    expect(badge.getAttribute("data-tone")).toBe("muted");
   });
 
   it("renders the frozen bucket as a secondary badge", () => {

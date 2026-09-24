@@ -104,7 +104,9 @@
       "storage": "استفادهٔ ذخیره‌سازی بر اساس سطل",
       "balance": "موجودی و دفتر اخیر",
       "activity": "فعالیت‌های اخیر",
-      "viewAll": "مشاهدهٔ همه"
+      "viewAll": "مشاهدهٔ همه",
+      "storageNoUsage": "هنوز داده‌ای ذخیره نشده است",
+      "storageNoUsageBody": "سطل‌های شما خالی هستند یا میزان استفادهٔ آن‌ها هنوز اندازه‌گیری نشده است."
     },
     "emptyState": {
       "title": "هنوز چیزی اینجا نیست",
@@ -117,6 +119,7 @@
     "retry": "تلاش دوباره",
     "cancel": "انصراف",
     "save": "ذخیره",
+    "reset": "بازنشانی",
     "saved": "ذخیره شد",
     "delete": "حذف",
     "close": "بستن",
@@ -158,6 +161,107 @@
     "error": "عملیات ناموفق بود."
   },
   "compute": {
+    "runtime": {
+      "onlyWhileRunning": "داده‌های زنده فقط هنگام روشن بودن نمونه در دسترس است.",
+      "unavailable": "بارگیری داده‌های زندهٔ نمونه ممکن نشد."
+    },
+    "origin": {
+      "instance": "نمونه",
+      "profile": "پروفایل",
+      "system": "سیستم"
+    },
+    "devices": {
+      "columns": {
+        "name": "نام",
+        "type": "نوع",
+        "settings": "تنظیمات",
+        "source": "منبع"
+      }
+    },
+    "overview": {
+      "addresses": "نشانی‌های IP",
+      "memory": "حافظه",
+      "cpuTime": "زمان پردازنده",
+      "processes": "فرایندها",
+      "pid": "(PID {{pid}})",
+      "architecture": "معماری",
+      "created": "ایجاد",
+      "lastUsed": "آخرین استفاده"
+    },
+    "network": {
+      "interfaces": "رابط‌ها",
+      "interfacesHint": "وضعیت زندهٔ شبکه که نمونه گزارش می‌دهد.",
+      "noInterfaces": "هیچ رابطی گزارش نشده است",
+      "hostSide": "میزبان: {{name}}",
+      "packets_one": "{{n}} بسته",
+      "packets_other": "{{n}} بسته",
+      "devices": "دستگاه‌های NIC",
+      "devicesHint": "دستگاه‌های شبکهٔ مؤثر، از جمله آن‌هایی که از پروفایل‌ها به ارث رسیده‌اند.",
+      "noDevices": "هیچ دستگاه شبکه‌ای متصل نیست",
+      "columns": {
+        "name": "رابط",
+        "state": "وضعیت",
+        "addresses": "نشانی‌ها",
+        "mac": "MAC",
+        "mtu": "MTU",
+        "rx": "دریافتی",
+        "tx": "ارسالی",
+        "attachedTo": "متصل به"
+      }
+    },
+    "storage": {
+      "disks": "دیسک‌ها",
+      "disksHint": "دستگاه‌های دیسک مؤثر: دیسک ریشه به‌همراه حجم‌ها یا نقاط اتصال افزوده.",
+      "noDisks": "هیچ دیسکی متصل نیست",
+      "from": "از {{source}}",
+      "unlimited": "بدون محدودیت",
+      "usageUnknown": "گزارش نشده",
+      "ofTotal": "از {{total}}",
+      "columns": {
+        "mount": "مسیر اتصال",
+        "pool": "مخزن",
+        "size": "سقف اندازه",
+        "usage": "مصرف‌شده"
+      }
+    },
+    "config": {
+      "effective": "پیکربندی مؤثر",
+      "effectiveHint": "همهٔ تنظیمات اعمال‌شده، پس از اعمال پروفایل‌ها.",
+      "filter": "فیلتر کلید یا مقدار",
+      "columns": {
+        "key": "کلید",
+        "value": "مقدار"
+      },
+      "own": "پیکربندی نمونه",
+      "ownHint": "تنظیماتی که روی خود این نمونه ذخیره شده‌اند و بر مقادیر پروفایل مقدم‌اند. کلیدهای مدیریت‌شده توسط سیستم خودکار حفظ می‌شوند.",
+      "noOwnKeys": "هیچ تنظیمی روی خود نمونه نیست؛ همه از پروفایل‌ها می‌آیند.",
+      "invalidKey": "کلیدها می‌توانند شامل حروف، ارقام، نقطه، خط تیره و زیرخط باشند.",
+      "addKey": "افزودن تنظیم",
+      "devices": "دستگاه‌های نمونه",
+      "devicesHint": "دستگاه‌هایی که مستقیماً به این نمونه متصل‌اند. دستگاه‌های پروفایل در زبانه‌های شبکه و ذخیره‌سازی نمایش داده می‌شوند.",
+      "noOwnDevices": "هیچ دستگاهی مستقیماً به نمونه متصل نیست.",
+      "removeDevice": "حذف دستگاه {{name}}",
+      "properties": "ویژگی‌ها",
+      "propertiesHint": "هر خط یک key=value.",
+      "propertiesExample": {
+        "disk": "pool=default\nsource=my-volume\npath=/mnt/data",
+        "nic": "network=lahijanbr",
+        "proxy": "listen=tcp:0.0.0.0:8080\nconnect=tcp:127.0.0.1:80",
+        "unix-char": "source=/dev/ttyUSB0",
+        "gpu": "gputype=physical"
+      },
+      "invalidDevice": "برای دستگاه نامی بگذارید و هر ویژگی را به شکل key=value بنویسید.",
+      "addDevice": "افزودن دستگاه"
+    },
+    "logs": {
+      "title": "گزارش‌ها",
+      "hint": "خروجی کنسول و گزارش‌های اجرایی نگه‌داری‌شده برای نمونه.",
+      "none": "هیچ گزارشی موجود نیست",
+      "file": "پروندهٔ گزارش",
+      "refresh": "نوسازی",
+      "truncated": "نمایش ۱ مبی‌بایت پایانی این گزارش.",
+      "empty": "(خالی)"
+    },
     "title": "نمونه‌ها",
     "subtitle": "واحدهای پردازشی که در این مستأجر ساخته‌اید.",
     "list": {
@@ -282,6 +386,7 @@
         "network": "شبکه",
         "storage": "ذخیره‌سازی",
         "config": "پیکربندی",
+        "logs": "گزارش‌ها",
         "audit": "حسابرسی"
       },
       "notFound": "نمونه یافت نشد.",
@@ -421,7 +526,9 @@
       "freezeSuccess": "نمونه در حال انجماد است.",
       "unfreezeSuccess": "نمونه از انجماد خارج می‌شود.",
       "deleteSuccess": "نمونه حذف شد.",
-      "createSuccess": "نمونه ساخته شد."
+      "createSuccess": "نمونه ساخته شد.",
+      "updateSuccess": "نمونه به‌روز شد.",
+      "updateError": "به‌روزرسانی رد شد"
     },
     "quota": {
       "label": "سهمیه",
@@ -518,7 +625,8 @@
           "lastUsed": "آخرین استفاده",
           "created": "ساخته‌شده"
         },
-        "empty": "هنوز کلید عبوری وجود ندارد."
+        "empty": "هنوز کلید عبوری وجود ندارد.",
+        "emptyBody": "یک کلید عبور اضافه کنید تا با Touch ID، Windows Hello یا کلید امنیتی سخت‌افزاری وارد شوید."
       },
       "recovery": {
         "title": "کدهای بازیابی",
@@ -1228,21 +1336,16 @@
     },
     "upload": {
       "title": "بارگذاری افزونه",
-      "subtitle": "یک باینری .wasm و یک مانیفست ارائه کنید.",
-      "wasm": {
-        "label": "پرونده WASM",
-        "hint": "یک پروندهٔ .wasm بکشید یا برای انتخاب کلیک کنید."
-      },
-      "manifest": {
-        "label": "مانیفست",
-        "hint": "یک lahijan.manifest.yaml بکشید یا برای انتخاب کلیک کنید."
+      "subtitle": "یک بستهٔ افزونهٔ ‎.lahx‎ بارگذاری کنید: یک بایگانی ZIP شامل lahijan.manifest.yaml و plugin.wasm.",
+      "package": {
+        "label": "بستهٔ افزونه",
+        "drop": "پروندهٔ ‎.lahx‎ را اینجا رها کنید یا برای انتخاب کلیک کنید",
+        "hint": "ساخت بسته: zip -j my-plugin.lahx lahijan.manifest.yaml plugin.wasm",
+        "wrongType": "یک بستهٔ افزونهٔ ‎.lahx‎ انتخاب کنید."
       },
       "submit": "بارگذاری",
       "submitting": "در حال بارگذاری…",
-      "summary": {
-        "wasm": "WASM",
-        "manifest": "مانیفست"
-      }
+      "summary": { "package": "{{name}} ({{size}} بایت)" }
     },
     "marketplace": {
       "title": "فروشگاه",
@@ -1277,6 +1380,7 @@
     },
     "mutations": {
       "uploadSuccess": "افزونه بارگذاری شد.",
+      "uploadError": "بارگذاری ناموفق بود",
       "installSuccess": "افزونه نصب شد.",
       "upgradeSuccess": "افزونه ارتقا یافت.",
       "enableSuccess": "افزونه فعال شد.",

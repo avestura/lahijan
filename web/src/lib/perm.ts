@@ -94,10 +94,15 @@ const ROLE_IMPLICATIONS: Record<string, Set<string>> = {
   ]) as Set<string>,
 };
 
+// The backend sends tenant role slugs as "tenant.owner" / "tenant.member" /
+// ... (auth/rbac/roles.go); the table above is keyed by the bare role.
+const TENANT_ROLE_PREFIX = "tenant.";
+
 function rolesImply(roles: string[], perm: string): boolean {
   for (const r of roles) {
     if (r === PLATFORM_ADMIN) return true;
-    const set = ROLE_IMPLICATIONS[r];
+    const key = r.startsWith(TENANT_ROLE_PREFIX) ? r.slice(TENANT_ROLE_PREFIX.length) : r;
+    const set = ROLE_IMPLICATIONS[key];
     if (!set) continue;
     if (set.has("*")) return true;
     if (set.has(perm)) return true;

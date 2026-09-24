@@ -127,9 +127,7 @@ export function AuditTable({ filters, setFilters }: Props) {
           <Input
             id="audit-resource"
             value={filters.resourceType ?? ""}
-            onChange={(e) =>
-              resetAndSet({ resourceType: e.target.value || undefined })
-            }
+            onChange={(e) => resetAndSet({ resourceType: e.target.value || undefined })}
           />
         </div>
         <div className="w-[200px] space-y-1">
@@ -137,9 +135,7 @@ export function AuditTable({ filters, setFilters }: Props) {
           <Input
             id="audit-actor-user"
             value={filters.actorUserId ?? ""}
-            onChange={(e) =>
-              resetAndSet({ actorUserId: e.target.value || undefined })
-            }
+            onChange={(e) => resetAndSet({ actorUserId: e.target.value || undefined })}
           />
         </div>
         <div className="w-[180px] space-y-1">
@@ -216,7 +212,7 @@ export function AuditTable({ filters, setFilters }: Props) {
         />
       ) : (
         <>
-          <div className="rounded-md border border-border">
+          <div className="border border-border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -324,11 +320,11 @@ function AuditEventDialog({ event, onClose }: { event: AuditEvent | null; onClos
       role="dialog"
       aria-modal="true"
       aria-labelledby="audit-detail-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bx-scrim)] p-4"
       onClick={onClose}
     >
       <div
-        className="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-md border border-border bg-background p-6 shadow-lg"
+        className="max-h-[80vh] w-full max-w-2xl overflow-y-auto border border-border bg-background p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="audit-detail-title" className="mb-3 text-lg font-semibold">
@@ -361,7 +357,7 @@ function AuditEventDialog({ event, onClose }: { event: AuditEvent | null; onClos
         {event.metadata && Object.keys(event.metadata).length > 0 && (
           <div className="mt-4 space-y-1">
             <h3 className="text-sm font-medium">{t("audit.detail.metadata")}</h3>
-            <pre className="overflow-x-auto rounded-md border border-border bg-muted/50 p-3 font-mono text-xs">
+            <pre className="overflow-x-auto border border-border bg-surface-sunken p-3 font-mono text-xs">
               {JSON.stringify(event.metadata, null, 2)}
             </pre>
           </div>
@@ -374,7 +370,7 @@ function AuditEventDialog({ event, onClose }: { event: AuditEvent | null; onClos
               {event.outcomes.map((o) => (
                 <li
                   key={o.id}
-                  className="flex items-center justify-between gap-2 rounded-md border border-border p-2"
+                  className="flex items-center justify-between gap-2 border border-border p-2"
                 >
                   <Badge variant={statusVariant(o.status)}>
                     {t(`audit.filters.status.${o.status}`)}

@@ -73,7 +73,7 @@ export function AdminPricesCard() {
             description={t("billing.admin.prices.empty.body")}
           />
         ) : (
-          <div className="rounded-md border border-border">
+          <div className="border border-border">
             <Table>
               <TableHeader>
                 <TableRow>

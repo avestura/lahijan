@@ -30,6 +30,13 @@ export const queryKeys = {
     // backup targets / backups.
     snapshots: (tenantId: string, instanceId: string) =>
       ["compute", tenantId, "instances", "detail", instanceId, "snapshots"] as const,
+    // Live, backend-sourced view (state, usage, expanded config) + logs.
+    runtime: (tenantId: string, instanceId: string) =>
+      ["compute", tenantId, "instances", "detail", instanceId, "runtime"] as const,
+    logs: (tenantId: string, instanceId: string) =>
+      ["compute", tenantId, "instances", "detail", instanceId, "logs"] as const,
+    log: (tenantId: string, instanceId: string, file: string) =>
+      ["compute", tenantId, "instances", "detail", instanceId, "logs", file] as const,
     snapshotPolicies: (tenantId: string) => ["compute", tenantId, "snapshot-policies"] as const,
     backupTargets: (tenantId: string) => ["compute", tenantId, "backup-targets"] as const,
     backups: (tenantId: string) => ["compute", tenantId, "backups"] as const,

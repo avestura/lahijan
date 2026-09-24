@@ -54,7 +54,7 @@ export function PluginPermissionsCard({ plugin }: Props) {
               return (
                 <li
                   key={perm}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border p-2"
+                  className="flex flex-wrap items-center justify-between gap-2 border border-border p-2"
                 >
                   <code className="font-mono text-xs">{perm}</code>
                   <div className="flex items-center gap-2">

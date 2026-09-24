@@ -41,13 +41,15 @@ export function effectiveTheme(theme: Theme): EffectiveTheme {
 }
 
 /**
- * applyThemeToDocument flips <html class="dark"> for the active theme.
- * The Tailwind config (darkMode: ["class"]) reads this attribute.
+ * applyThemeToDocument sets <html data-theme> for the active theme — the
+ * attribute Boxy's role tokens (styles/boxy.css) and the Tailwind dark
+ * variant key off. The `dark` class is kept for code that still checks it.
  */
 export function applyThemeToDocument(theme: Theme): EffectiveTheme {
   const eff = effectiveTheme(theme);
   if (typeof document === "undefined") return eff;
   const root = document.documentElement;
+  root.dataset.theme = eff;
   root.classList.toggle("dark", eff === "dark");
   root.style.colorScheme = eff;
   return eff;

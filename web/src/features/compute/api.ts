@@ -15,7 +15,7 @@ import type { components } from "@api-schema";
 
 import { apiClient } from "@/lib/api/client";
 import { queryKeys } from "@/lib/api/keys";
-import { isFeatureDisabledError } from "@/lib/api-errors";
+import { apiErrorMessage, isFeatureDisabledError } from "@/lib/api-errors";
 import { useToast } from "@/hooks/useToast";
 import { useTranslation } from "react-i18next";
 import type { CreateInstanceValues } from "./schemas";
@@ -31,7 +31,7 @@ export type LifecycleAction = "start" | "stop" | "restart" | "freeze" | "unfreez
 /**
  * useComputeInstances — list of instances in the active tenant.
  *
- * Polls every 5s so the user sees state transitions (start / stop) without
+ * Polls every 5 seconds so the user sees state transitions (start / stop) without
  * a manual refresh, per the WS-20 doc's "all status changes reflect
  * within 5s" DoD line.
  */
@@ -53,7 +53,7 @@ export function useComputeInstances(tenantId: string | null) {
   });
 }
 
-/** useComputeInstance — single instance, polled every 5s while in transition. */
+/** useComputeInstance — single instance, polled every 5 seconds while in transition. */
 export function useComputeInstance(tenantId: string | null, instanceId: string | undefined) {
   return useQuery({
     queryKey:
@@ -374,10 +374,7 @@ type Snapshot = components["schemas"]["ComputeSnapshot"];
  * manual refresh; the cadence is conservative so the listing does not
  * compete with the (more critical) instance-status poll.
  */
-export function useComputeSnapshots(
-  tenantId: string | null,
-  instanceId: string | undefined,
-) {
+export function useComputeSnapshots(tenantId: string | null, instanceId: string | undefined) {
   return useQuery({
     queryKey:
       tenantId && instanceId
@@ -449,10 +446,7 @@ export function useCreateComputeSnapshot(tenantId: string | null, instanceId: st
  * useDeleteComputeSnapshot — delete a snapshot (soft-delete + Incus
  * delete). Invalidates the snapshot list.
  */
-export function useDeleteComputeSnapshot(
-  tenantId: string | null,
-  instanceId: string,
-) {
+export function useDeleteComputeSnapshot(tenantId: string | null, instanceId: string) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -484,10 +478,7 @@ export function useDeleteComputeSnapshot(
  * useRestoreComputeSnapshot — restore the instance to a snapshot. The
  * instance MUST already exist; Incus does not auto-create it.
  */
-export function useRestoreComputeSnapshot(
-  tenantId: string | null,
-  instanceId: string,
-) {
+export function useRestoreComputeSnapshot(tenantId: string | null, instanceId: string) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -517,6 +508,120 @@ export function useRestoreComputeSnapshot(
     },
     onError: () => {
       toast({ title: t("compute.snapshots.mutations.restoreError"), variant: "destructive" });
+    },
+  });
+}
+
+type InstanceRuntime = components["schemas"]["ComputeInstanceRuntime"];
+type InstanceLog = components["schemas"]["ComputeInstanceLog"];
+
+/**
+ * useInstanceRuntime — live view of an instance straight from the compute
+ * backend: state, CPU/memory/disk/network usage and the effective
+ * (profile-expanded) config + devices. Polls every 5s so counters move.
+ */
+export function useInstanceRuntime(tenantId: string | null, instanceId: string | undefined) {
+  return useQuery({
+    queryKey:
+      tenantId && instanceId
+        ? queryKeys.compute.runtime(tenantId, instanceId)
+        : ["compute", "disabled"],
+    enabled: !!tenantId && !!instanceId,
+    refetchInterval: (query) => (isFeatureDisabledError(query.state.error) ? false : 5_000),
+    queryFn: async (): Promise<InstanceRuntime> => {
+      const { data, error, response } = await apiClient.GET(
+        "/api/v1/compute/instances/{instanceId}/runtime",
+        { params: { path: { instanceId: instanceId! } } },
+      );
+      if (error || !data) {
+        throw new Error(`compute.instances.runtime: ${response?.status ?? "network"}`);
+      }
+      return data;
+    },
+  });
+}
+
+/** useInstanceLogs — names of the log files kept for the instance. */
+export function useInstanceLogs(tenantId: string | null, instanceId: string) {
+  return useQuery({
+    queryKey: tenantId ? queryKeys.compute.logs(tenantId, instanceId) : ["compute", "disabled"],
+    enabled: !!tenantId,
+    queryFn: async (): Promise<string[]> => {
+      const { data, error, response } = await apiClient.GET(
+        "/api/v1/compute/instances/{instanceId}/logs",
+        { params: { path: { instanceId } } },
+      );
+      if (error || !data) {
+        throw new Error(`compute.instances.logs: ${response?.status ?? "network"}`);
+      }
+      return data.items;
+    },
+  });
+}
+
+/** useInstanceLog — one log file (the tail when larger than 1 MiB). */
+export function useInstanceLog(tenantId: string | null, instanceId: string, file: string | null) {
+  return useQuery({
+    queryKey:
+      tenantId && file
+        ? queryKeys.compute.log(tenantId, instanceId, file)
+        : ["compute", "disabled"],
+    enabled: !!tenantId && !!file,
+    // The console buffer is captured as it is read, so keep reading it
+    // while the tab is open; file logs refresh on demand.
+    refetchInterval: file === "console.log" ? 5_000 : false,
+    queryFn: async (): Promise<InstanceLog> => {
+      const { data, error, response } = await apiClient.GET(
+        "/api/v1/compute/instances/{instanceId}/logs/{logFile}",
+        { params: { path: { instanceId, logFile: file! } } },
+      );
+      if (error || !data) {
+        throw new Error(`compute.instances.log: ${response?.status ?? "network"}`);
+      }
+      return data;
+    },
+  });
+}
+
+/**
+ * useUpdateInstance — PATCH /instances/{id}. Fields left undefined keep
+ * their current value (the backend merges them from the live instance).
+ * `config` / `devices` replace the instance's own (non-profile) maps.
+ */
+export function useUpdateInstance(tenantId: string | null, instanceId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const { t } = useTranslation();
+  return useMutation({
+    mutationFn: async (body: {
+      config?: Record<string, string>;
+      devices?: Record<string, Record<string, string>>;
+      description?: string;
+    }): Promise<Instance> => {
+      const { data, error, response } = await apiClient.PATCH(
+        "/api/v1/compute/instances/{instanceId}",
+        { params: { path: { instanceId } }, body },
+      );
+      if (error || !data) {
+        const err = new Error(`compute.instances.update: ${response?.status ?? "network"}`);
+        (err as Error & { detail?: string }).detail = apiErrorMessage(error, "");
+        throw err;
+      }
+      return data;
+    },
+    onSuccess: () => {
+      if (tenantId) {
+        void qc.invalidateQueries({ queryKey: queryKeys.compute.instance(tenantId, instanceId) });
+        void qc.invalidateQueries({ queryKey: queryKeys.compute.runtime(tenantId, instanceId) });
+      }
+      toast({ title: t("compute.mutations.updateSuccess"), variant: "success" });
+    },
+    onError: (err) => {
+      toast({
+        title: t("compute.mutations.updateError"),
+        description: (err as Error & { detail?: string }).detail ?? undefined,
+        variant: "destructive",
+      });
     },
   });
 }

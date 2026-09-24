@@ -1,109 +1,59 @@
 /**
- * Lahijan semantic + component tokens (light theme).
+ * Lahijan dashboard theme — a thin layer over Boxy (styles/boxy.css).
  *
- * Layer 2 (semantic) and Layer 3 (component) both live here so the light +
- * dark overrides stay obvious. See tokens.css for layer 1 (primitives).
+ * boxy.css is the token file: every color, space, type and motion value the
+ * UI uses comes from its role tokens (--bx-ink, --bx-line, --bx-surface…).
+ * tailwind.config.ts maps the Tailwind/shadcn class names onto those roles,
+ * so components keep writing `bg-card`, `border-border`, `text-muted-foreground`.
+ *
+ * This file only adds what Boxy leaves to the product:
+ *   - the self-hosted font families (no third-party font requests; the
+ *     platform must run offline), with Vazirmatn for Persian script;
+ *   - the chart palette (Boxy's lightness-stepped accent ramp);
+ *   - the dashboard's layout constants.
  */
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/inter-tight";
+@import "@fontsource-variable/jetbrains-mono";
+@import "@fontsource-variable/vazirmatn";
 
 :root {
-  /* ---------- Typography defaults ---------- */
-  --font-sans: var(--pri-font-sans);
-  --font-mono: var(--pri-font-mono);
+  --bx-font-sans: "Inter Variable", "Inter", "Vazirmatn Variable", ui-sans-serif, system-ui,
+    -apple-system, "Segoe UI", Roboto, sans-serif;
+  --bx-font-display: "Inter Tight Variable", "Inter Variable", "Vazirmatn Variable", ui-sans-serif,
+    system-ui, sans-serif;
+  --bx-font-mono: "JetBrains Mono Variable", "JetBrains Mono", "Vazirmatn Variable", ui-monospace,
+    SFMono-Regular, Menlo, Consolas, monospace;
 
-  /* ---------- Radius ---------- */
-  --radius: var(--pri-radius-md);
-
-  /* ---------- Shadows (component-facing names) ---------- */
-  --shadow-sm: var(--pri-shadow-sm);
-  --shadow-md: var(--pri-shadow-md);
-  --shadow-lg: var(--pri-shadow-lg);
-  --shadow-xl: var(--pri-shadow-xl);
-
-  /* ---------- 2. SEMANTIC (light) ---------- */
-  /* Surfaces */
-  --color-bg: var(--pri-neutral-050);
-  --color-fg: var(--pri-neutral-900);
-  --color-card: var(--pri-neutral-000);
-  --color-card-fg: var(--pri-neutral-900);
-  --color-popover: var(--pri-neutral-000);
-  --color-popover-fg: var(--pri-neutral-900);
-
-  /* Brand + accents */
-  --color-primary: var(--pri-blue-600);
-  --color-primary-fg: var(--pri-neutral-000);
-  --color-secondary: var(--pri-neutral-100);
-  --color-secondary-fg: var(--pri-neutral-900);
-  --color-accent: var(--pri-blue-100);
-  --color-accent-fg: var(--pri-blue-900);
-  --color-muted: var(--pri-neutral-100);
-  --color-muted-fg: var(--pri-neutral-500);
-  --color-destructive: var(--pri-red-500);
-  --color-destructive-fg: var(--pri-neutral-000);
-  --color-success: var(--pri-green-500);
-  --color-success-fg: var(--pri-neutral-000);
-  --color-warning: var(--pri-amber-500);
-  --color-warning-fg: var(--pri-neutral-000);
-
-  /* Inputs + focus ring + border */
-  --color-input: var(--pri-neutral-200);
-  --color-ring: var(--pri-blue-600);
-  --color-border: var(--pri-neutral-200);
-
-  /* Chart palette (5 steps). Consumed by recharts widgets on the dashboard. */
-  --color-chart-1: var(--pri-blue-500);
-  --color-chart-2: var(--pri-teal-500);
-  --color-chart-3: var(--pri-amber-500);
-  --color-chart-4: var(--pri-red-500);
-  --color-chart-5: var(--pri-neutral-500);
-
-  /* ---------- 3. COMPONENT tokens ---------- */
-  /* Sidebar. */
-  --color-sidebar: var(--pri-neutral-000);
-  --color-sidebar-fg: var(--pri-neutral-700);
-  --color-sidebar-accent: var(--pri-blue-50);
-  --color-sidebar-accent-fg: var(--pri-blue-900);
-  --color-sidebar-border: var(--pri-neutral-200);
+  /* Industrial app shell (components-core.md: 48px top bar, 256px sidebar). */
+  --app-topbar-h: 48px;
+  --app-sidebar-w: 256px;
 }
 
-/* ---------- 2. SEMANTIC (dark) ---------- */
-.dark {
-  --color-bg: var(--pri-neutral-950);
-  --color-fg: var(--pri-neutral-050);
-  --color-card: var(--pri-neutral-900);
-  --color-card-fg: var(--pri-neutral-050);
-  --color-popover: var(--pri-neutral-900);
-  --color-popover-fg: var(--pri-neutral-050);
+/* Chart palette: one accent ramp stepping in lightness (color.md). */
+:root,
+[data-theme="light"] {
+  --color-chart-1: #0f62fe;
+  --color-chart-2: #78a9ff;
+  --color-chart-3: #002d9c;
+  --color-chart-4: #a6c8ff;
+  --color-chart-5: #001d6c;
+}
 
-  --color-primary: var(--pri-blue-500);
-  --color-primary-fg: var(--pri-neutral-950);
-  --color-secondary: var(--pri-neutral-800);
-  --color-secondary-fg: var(--pri-neutral-050);
-  --color-accent: var(--pri-blue-900);
-  --color-accent-fg: var(--pri-blue-50);
-  --color-muted: var(--pri-neutral-800);
-  --color-muted-fg: var(--pri-neutral-400);
-  --color-destructive: var(--pri-red-500);
-  --color-destructive-fg: var(--pri-neutral-050);
-  --color-success: var(--pri-green-500);
-  --color-success-fg: var(--pri-neutral-050);
-  --color-warning: var(--pri-amber-500);
-  --color-warning-fg: var(--pri-neutral-950);
+[data-theme="dark"] {
+  --color-chart-1: #4589ff;
+  --color-chart-2: #a6c8ff;
+  --color-chart-3: #78a9ff;
+  --color-chart-4: #d0e2ff;
+  --color-chart-5: #0f62fe;
+}
 
-  --color-input: var(--pri-neutral-700);
-  --color-ring: var(--pri-blue-400);
-  --color-border: var(--pri-neutral-800);
-
-  /* Chart palette (dark). Brightened so donut/bar slices stay legible. */
-  --color-chart-1: var(--pri-blue-400);
-  --color-chart-2: var(--pri-teal-400);
-  --color-chart-3: var(--pri-amber-400);
-  --color-chart-4: var(--pri-red-400);
-  --color-chart-5: var(--pri-neutral-400);
-
-  /* Sidebar component tokens (dark). */
-  --color-sidebar: var(--pri-neutral-900);
-  --color-sidebar-fg: var(--pri-neutral-300);
-  --color-sidebar-accent: var(--pri-neutral-800);
-  --color-sidebar-accent-fg: var(--pri-neutral-050);
-  --color-sidebar-border: var(--pri-neutral-800);
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-chart-1: #4589ff;
+    --color-chart-2: #a6c8ff;
+    --color-chart-3: #78a9ff;
+    --color-chart-4: #d0e2ff;
+    --color-chart-5: #0f62fe;
+  }
 }

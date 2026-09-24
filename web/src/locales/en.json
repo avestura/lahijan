@@ -104,7 +104,9 @@
       "storage": "Storage usage by bucket",
       "balance": "Balance & recent ledger",
       "activity": "Recent activity",
-      "viewAll": "View all"
+      "viewAll": "View all",
+      "storageNoUsage": "No stored data yet",
+      "storageNoUsageBody": "Your buckets are empty, or their usage has not been measured yet."
     },
     "emptyState": {
       "title": "Nothing here yet",
@@ -117,6 +119,7 @@
     "retry": "Retry",
     "cancel": "Cancel",
     "save": "Save",
+    "reset": "Reset",
     "saved": "Saved",
     "delete": "Delete",
     "close": "Close",
@@ -158,6 +161,107 @@
     "error": "Action failed."
   },
   "compute": {
+    "runtime": {
+      "onlyWhileRunning": "Live data is only available while the instance is running.",
+      "unavailable": "Could not load live instance data."
+    },
+    "origin": {
+      "instance": "instance",
+      "profile": "profile",
+      "system": "system"
+    },
+    "devices": {
+      "columns": {
+        "name": "Name",
+        "type": "Type",
+        "settings": "Settings",
+        "source": "Source"
+      }
+    },
+    "overview": {
+      "addresses": "IP addresses",
+      "memory": "Memory",
+      "cpuTime": "CPU time",
+      "processes": "Processes",
+      "pid": "(PID {{pid}})",
+      "architecture": "Architecture",
+      "created": "Created",
+      "lastUsed": "Last used"
+    },
+    "network": {
+      "interfaces": "Interfaces",
+      "interfacesHint": "Live network state reported by the instance.",
+      "noInterfaces": "No interfaces reported",
+      "hostSide": "host: {{name}}",
+      "packets_one": "{{n}} packet",
+      "packets_other": "{{n}} packets",
+      "devices": "NIC devices",
+      "devicesHint": "Effective network devices, including ones inherited from profiles.",
+      "noDevices": "No network devices attached",
+      "columns": {
+        "name": "Interface",
+        "state": "State",
+        "addresses": "Addresses",
+        "mac": "MAC",
+        "mtu": "MTU",
+        "rx": "Received",
+        "tx": "Sent",
+        "attachedTo": "Attached to"
+      }
+    },
+    "storage": {
+      "disks": "Disks",
+      "disksHint": "Effective disk devices: the root disk plus any attached volumes or mounts.",
+      "noDisks": "No disks attached",
+      "from": "from {{source}}",
+      "unlimited": "no limit",
+      "usageUnknown": "not reported",
+      "ofTotal": "of {{total}}",
+      "columns": {
+        "mount": "Mount path",
+        "pool": "Pool",
+        "size": "Size limit",
+        "usage": "Used"
+      }
+    },
+    "config": {
+      "effective": "Effective configuration",
+      "effectiveHint": "Every setting in force, after profiles are applied.",
+      "filter": "Filter keys or values",
+      "columns": {
+        "key": "Key",
+        "value": "Value"
+      },
+      "own": "Instance configuration",
+      "ownHint": "Settings stored on this instance. They override profile values. System-managed keys are kept automatically.",
+      "noOwnKeys": "No settings on the instance itself; everything comes from its profiles.",
+      "invalidKey": "Keys may contain letters, digits, dots, dashes and underscores.",
+      "addKey": "Add setting",
+      "devices": "Instance devices",
+      "devicesHint": "Devices attached directly to this instance. Profile devices are shown in the Network and Storage tabs.",
+      "noOwnDevices": "No devices attached directly to the instance.",
+      "removeDevice": "Remove device {{name}}",
+      "properties": "Properties",
+      "propertiesHint": "One key=value per line.",
+      "propertiesExample": {
+        "disk": "pool=default\nsource=my-volume\npath=/mnt/data",
+        "nic": "network=lahijanbr",
+        "proxy": "listen=tcp:0.0.0.0:8080\nconnect=tcp:127.0.0.1:80",
+        "unix-char": "source=/dev/ttyUSB0",
+        "gpu": "gputype=physical"
+      },
+      "invalidDevice": "Give the device a name and write each property as key=value.",
+      "addDevice": "Add device"
+    },
+    "logs": {
+      "title": "Logs",
+      "hint": "Console output and runtime logs kept for the instance.",
+      "none": "No logs available",
+      "file": "Log file",
+      "refresh": "Refresh",
+      "truncated": "Showing the last 1 MiB of this log.",
+      "empty": "(empty)"
+    },
     "title": "Instances",
     "subtitle": "Compute units you have provisioned in this tenant.",
     "list": {
@@ -282,6 +386,7 @@
         "network": "Network",
         "storage": "Storage",
         "config": "Config",
+        "logs": "Logs",
         "audit": "Audit"
       },
       "notFound": "Instance not found.",
@@ -421,7 +526,9 @@
       "freezeSuccess": "Instance freezing.",
       "unfreezeSuccess": "Instance unfreezing.",
       "deleteSuccess": "Instance deleted.",
-      "createSuccess": "Instance created."
+      "createSuccess": "Instance created.",
+      "updateSuccess": "Instance updated.",
+      "updateError": "Update rejected"
     },
     "quota": {
       "label": "Quota",
@@ -518,7 +625,8 @@
           "lastUsed": "Last used",
           "created": "Created"
         },
-        "empty": "No passkeys yet."
+        "empty": "No passkeys yet.",
+        "emptyBody": "Add a passkey to sign in with Touch ID, Windows Hello, or a hardware security key."
       },
       "recovery": {
         "title": "Recovery codes",
@@ -1227,19 +1335,17 @@
       "manifest": "Manifest"
     },
     "upload": {
-      "title": "Upload plugin",
-      "subtitle": "Provide a .wasm binary and a manifest.",
-      "wasm": { "label": "WASM file", "hint": "Drop a .wasm file or click to browse." },
-      "manifest": {
-        "label": "Manifest",
-        "hint": "Drop a lahijan.manifest.yaml or click to browse."
+      "title": "Upload extension",
+      "subtitle": "Upload a .lahx extension package: a ZIP containing lahijan.manifest.yaml and plugin.wasm.",
+      "package": {
+        "label": "Extension package",
+        "drop": "Drop a .lahx file here or click to browse",
+        "hint": "Build one with: zip -j my-plugin.lahx lahijan.manifest.yaml plugin.wasm",
+        "wrongType": "Choose a .lahx extension package."
       },
       "submit": "Upload",
       "submitting": "Uploading…",
-      "summary": {
-        "wasm": "WASM",
-        "manifest": "Manifest"
-      }
+      "summary": { "package": "{{name}} ({{size}} bytes)" }
     },
     "marketplace": {
       "title": "Marketplace",
@@ -1274,6 +1380,7 @@
     },
     "mutations": {
       "uploadSuccess": "Plugin uploaded.",
+      "uploadError": "Upload failed",
       "installSuccess": "Plugin installed.",
       "upgradeSuccess": "Plugin upgraded.",
       "enableSuccess": "Plugin enabled.",

@@ -66,7 +66,7 @@ export function PluginList({ plugins, isLoading, error, onRetry }: Props) {
   }
 
   return (
-    <div className="rounded-md border border-border">
+    <div className="border border-border">
       <Table>
         <TableHeader>
           <TableRow>

@@ -84,10 +84,10 @@ export function BillingBalanceCard() {
                   <li key={e.id} className="flex items-center gap-3 py-2">
                     <span
                       className={
-                        "flex h-7 w-7 shrink-0 items-center justify-center rounded-full " +
+                        "flex h-7 w-7 shrink-0 items-center justify-center " +
                         (credit
-                          ? "bg-success/10 text-success"
-                          : "bg-destructive/10 text-destructive")
+                          ? "bg-success-soft text-success"
+                          : "bg-destructive-soft text-destructive")
                       }
                       aria-hidden="true"
                     >

@@ -7,27 +7,20 @@
 import { z } from "zod";
 
 /**
- * MANIFEST_SAMPLE — a placeholder manifest the user can paste into
- * the manifest textarea when they have no manifest file. Surfaced
- * as the textarea default in the upload dialog.
+ * EXTENSION_PACKAGE_SUFFIX — file extension of a Lahijan extension
+ * package: a ZIP with lahijan.manifest.yaml + plugin.wasm at its root
+ * (backend: internal/app/lahijan/wasm/lahx).
  */
-export const MANIFEST_SAMPLE = `name: my-plugin
-version: 0.1.0
-description: An example Lahijan plugin.
-permissions:
-  - events.listen:compute.instance.*
-  - network.outbound:hooks.example.com
-`;
+export const EXTENSION_PACKAGE_SUFFIX = ".lahx";
 
 /**
  * pluginUploadSchema isn't a form schema — the upload endpoint is
- * multipart/form-data with two file parts (wasm + manifest). The
- * types are documented here for clarity; the component reads file
- * inputs directly.
+ * multipart/form-data with one `package` file part (the .lahx). The
+ * type is documented here for clarity; the dialog reads the file input
+ * directly.
  */
 export const pluginUploadSchema = z.object({
-  wasm: z.instanceof(File),
-  manifest: z.string().min(1),
+  pkg: z.instanceof(File).refine((f) => f.name.toLowerCase().endsWith(EXTENSION_PACKAGE_SUFFIX)),
 });
 
 export type PluginUploadValues = z.infer<typeof pluginUploadSchema>;

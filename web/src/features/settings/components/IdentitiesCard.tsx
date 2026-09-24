@@ -50,7 +50,7 @@ export function IdentitiesCard() {
             description={t("settings.identities.empty.body")}
           />
         ) : (
-          <div className="rounded-md border border-border">
+          <div className="border border-border">
             <Table>
               <TableHeader>
                 <TableRow>

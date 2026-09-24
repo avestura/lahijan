@@ -46,10 +46,7 @@ export function ImageAliasField({ value, onChange, catalog, catalogLoading, erro
   const { t } = useTranslation();
   const [browseOpen, setBrowseOpen] = useState(false);
 
-  const inCatalog = useMemo(
-    () => catalog.some((img) => img.alias === value),
-    [catalog, value],
-  );
+  const inCatalog = useMemo(() => catalog.some((img) => img.alias === value), [catalog, value]);
 
   return (
     <div className="space-y-2">
@@ -104,9 +101,7 @@ export function ImageAliasField({ value, onChange, catalog, catalogLoading, erro
         data-testid="create-instance-image"
       />
       <p className="text-xs text-muted-foreground">{t("compute.create.image.hint")}</p>
-      {catalogLoading && (
-        <p className="text-xs text-muted-foreground">{t("common.loading")}</p>
-      )}
+      {catalogLoading && <p className="text-xs text-muted-foreground">{t("common.loading")}</p>}
       {error && <p className="text-xs text-destructive">{error}</p>}
 
       <ImageStreamBrowser

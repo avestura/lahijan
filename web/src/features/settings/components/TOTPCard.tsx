@@ -93,14 +93,14 @@ export function TOTPCard() {
 
         {enroll.data && (
           <div className="space-y-4">
-            <div className="flex flex-col items-center gap-2 rounded-md border border-border p-4">
+            <div className="flex flex-col items-center gap-2 border border-border p-4">
               <p className="text-sm text-muted-foreground">{t("settings.security.totp.qr.alt")}</p>
               <QRCodeSVG value={enroll.data.provisioningUri} size={160} />
               <div className="space-y-1 text-center">
                 <p className="text-xs text-muted-foreground">
                   {t("settings.security.totp.qr.cannotScan")}
                 </p>
-                <code className="block rounded bg-muted px-2 py-1 font-mono text-xs">
+                <code className="block bg-muted px-2 py-1 font-mono text-xs">
                   {enroll.data.secret}
                 </code>
               </div>
@@ -129,7 +129,7 @@ export function TOTPCard() {
             </form>
 
             {verify.data && (
-              <div className="rounded-md border border-success/50 bg-success/10 p-3 text-sm">
+              <div className="border border-success bg-success-soft p-3 text-sm">
                 <p className="font-medium text-success">{t("settings.security.recovery.title")}</p>
                 <ul className="mt-2 grid grid-cols-2 gap-1 font-mono text-xs">
                   {verify.data.codes.map((c) => (

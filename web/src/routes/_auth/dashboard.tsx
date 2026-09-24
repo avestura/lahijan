@@ -38,7 +38,8 @@ function DashboardPage() {
 
       <ResourceOverviewCards />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      {/* Collapsed grid: panels share 1px rules instead of floating. */}
+      <div className="grid grid-cols-1 gap-px border border-line bg-line lg:grid-cols-2 [&>*]:border-0">
         <InstanceStatusChart />
         <StorageUsageChart />
         <BillingBalanceCard />

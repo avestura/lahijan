@@ -16,11 +16,16 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         type={type}
         ref={ref}
         className={cn(
-          "flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors",
+          // Industrial underlined field (components-core.md): sunken fill,
+          // bottom rule only; focus draws a 2px accent underline without
+          // shifting layout; invalid switches it to danger.
+          "flex h-[var(--bx-control-md)] w-full border-0 border-b border-line-strong bg-surface-sunken px-3 text-sm text-ink",
+          "transition-[border-color,box-shadow] duration-75 ease-linear",
           "file:border-0 file:bg-transparent file:text-sm file:font-medium",
-          "placeholder:text-muted-foreground",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
-          "disabled:cursor-not-allowed disabled:opacity-50",
+          "placeholder:text-ink-subtle hover:border-ink-muted",
+          "focus:border-transparent focus:shadow-[inset_0_-2px_0_0_var(--bx-accent)] focus:outline-none",
+          "aria-[invalid=true]:shadow-[inset_0_-2px_0_0_var(--bx-danger)]",
+          "disabled:cursor-not-allowed disabled:border-line-subtle disabled:text-ink-faint",
           className,
         )}
         {...props}

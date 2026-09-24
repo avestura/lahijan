@@ -163,7 +163,7 @@ function ConfigBlock({
           {copied ? t("common.copied") : t("common.copy")}
         </Button>
       </div>
-      <pre className="overflow-x-auto rounded-md border border-border bg-muted/40 p-2 font-mono text-xs">
+      <pre className="overflow-x-auto border border-border bg-surface-sunken p-2 font-mono text-xs">
         {code}
       </pre>
     </div>

@@ -72,7 +72,7 @@ export function ReceiptsCard() {
             description={t("billing.user.receipts.empty.body")}
           />
         ) : (
-          <div className="rounded-md border border-border">
+          <div className="border border-border">
             <Table>
               <TableHeader>
                 <TableRow>

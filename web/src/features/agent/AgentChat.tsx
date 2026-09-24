@@ -109,7 +109,7 @@ function ConversationSidebar(props: {
   const del = useDeleteAgentConversation(tenant.currentTenantId);
 
   return (
-    <div className="flex w-64 shrink-0 flex-col border-e border-border bg-card/40">
+    <div className="flex w-64 shrink-0 flex-col border-e border-border bg-card">
       <div className="flex items-center justify-between gap-2 p-3">
         <span className="text-sm font-semibold">{t("agent.conversations")}</span>
         <Button
@@ -137,8 +137,10 @@ function ConversationSidebar(props: {
           <div
             key={c.id}
             className={
-              "group flex cursor-pointer items-center justify-between gap-2 rounded-md px-3 py-2 text-sm transition-colors " +
-              (c.id === props.activeId ? "bg-accent text-accent-foreground" : "hover:bg-accent/50")
+              "group flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm transition-colors " +
+              (c.id === props.activeId
+                ? "bg-accent text-accent-foreground"
+                : "hover:bg-surface-hover")
             }
             onClick={() => props.onSelect(c.id)}
           >
@@ -152,7 +154,7 @@ function ConversationSidebar(props: {
                 del.mutate(c.id, { onSuccess: () => props.onDeleted(c.id) });
               }}
             >
-              <Trash2Icon className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+              <Trash2Icon className="h-4 w-4 text-muted-foreground hover:text-destructive" />
             </button>
           </div>
         ))}
@@ -342,7 +344,7 @@ function MessageBubble(props: { message: AgentMessage; streaming: boolean }) {
     <div className={"flex " + (isUser ? "justify-end" : "justify-start")}>
       <div
         className={
-          "max-w-[80%] whitespace-pre-wrap rounded-lg px-4 py-2 text-sm " +
+          "max-w-[80%] whitespace-pre-wrap px-4 py-2 text-sm " +
           (isUser ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")
         }
       >
@@ -370,11 +372,11 @@ function ConfirmModal(props: {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bx-scrim)] p-4"
       role="dialog"
       aria-modal="true"
     >
-      <div className="w-full max-w-md rounded-lg border border-border bg-card p-5 shadow-lg">
+      <div className="w-full max-w-md border border-border bg-card p-5">
         <div className="mb-2 flex items-center gap-2 font-semibold text-destructive">
           <AlertTriangleIcon className="h-5 w-5" />
           {t("agent.confirmTitle")}
@@ -383,9 +385,7 @@ function ConfirmModal(props: {
           {t("agent.confirmBody", { tool: props.pending.tool })}
         </p>
         {argPreview && (
-          <pre className="mb-3 max-h-40 overflow-auto rounded-md bg-muted p-2 text-xs">
-            {argPreview}
-          </pre>
+          <pre className="mb-3 max-h-40 overflow-auto bg-muted p-2 text-xs">{argPreview}</pre>
         )}
         <div className="flex justify-end gap-2">
           <Button
@@ -421,7 +421,7 @@ function ConfirmModal(props: {
 function DisabledPanel({ label }: { label: string }) {
   return (
     <div className="flex flex-1 items-center justify-center p-8">
-      <div className="max-w-sm rounded-lg border border-border bg-card p-6 text-center text-sm text-muted-foreground">
+      <div className="max-w-sm border border-border bg-card p-6 text-center text-sm text-muted-foreground">
         {label}
       </div>
     </div>

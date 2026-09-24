@@ -6,15 +6,7 @@
  */
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/layout/EmptyState";
@@ -60,44 +52,61 @@ export function StorageUsageChart() {
         description={t("storage.list.empty.body")}
       />
     );
+  } else if (data.every((d) => d.bytes === 0)) {
+    body = (
+      <EmptyState
+        icon={DatabaseIcon}
+        title={t("dashboard.charts.storageNoUsage")}
+        description={t("dashboard.charts.storageNoUsageBody")}
+      />
+    );
   } else {
     body = (
       <div className="h-[260px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 4 }}>
-            <CartesianGrid
-              strokeDasharray="3 3"
-              horizontal={false}
-              stroke="hsl(var(--color-border))"
-            />
+          <BarChart
+            data={data}
+            layout="vertical"
+            margin={{ left: 8, right: 16, top: 4, bottom: 4 }}
+          >
+            <CartesianGrid horizontal={false} stroke="var(--bx-line-subtle)" />
             <XAxis
               type="number"
               tickFormatter={(v: number) => formatBytes(v)}
-              stroke="hsl(var(--color-muted-fg))"
-              fontSize={11}
+              stroke="var(--bx-line)"
+              tick={{
+                fill: "var(--bx-ink-subtle)",
+                fontFamily: "var(--bx-font-mono)",
+                fontSize: 11,
+              }}
               tickLine={false}
-              axisLine={false}
             />
             <YAxis
               type="category"
               dataKey="name"
               width={120}
-              stroke="hsl(var(--color-muted-fg))"
-              fontSize={11}
+              stroke="var(--bx-line)"
+              tick={{
+                fill: "var(--bx-ink-muted)",
+                fontFamily: "var(--bx-font-mono)",
+                fontSize: 11,
+              }}
               tickLine={false}
-              axisLine={false}
             />
             <Tooltip
               formatter={(v: number) => [formatBytes(v), t("storage.usage.size")]}
-              cursor={{ fill: "hsl(var(--color-muted) / 0.4)" }}
+              cursor={{ fill: "var(--bx-surface-hover)" }}
               contentStyle={{
-                background: "hsl(var(--color-card))",
-                border: "1px solid hsl(var(--color-border))",
-                borderRadius: "0.5rem",
-                color: "hsl(var(--color-card-fg))",
+                background: "var(--bx-surface-raised)",
+                border: "1px solid var(--bx-line-heavy)",
+                borderRadius: 0,
+                boxShadow: "var(--bx-shadow-2)",
+                color: "var(--bx-ink)",
+                fontFamily: "var(--bx-font-mono)",
+                fontSize: 12,
               }}
             />
-            <Bar dataKey="bytes" fill={chartPrimary()} radius={[0, 4, 4, 0]} />
+            <Bar dataKey="bytes" fill={chartPrimary()} radius={0} maxBarSize={24} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -107,7 +116,7 @@ export function StorageUsageChart() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">{t("dashboard.charts.storage")}</CardTitle>
+        <CardTitle>{t("dashboard.charts.storage")}</CardTitle>
       </CardHeader>
       <CardContent>{body}</CardContent>
     </Card>

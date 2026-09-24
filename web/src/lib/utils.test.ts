@@ -19,4 +19,9 @@ describe("cn utility", () => {
   it("handles arrays and objects (via clsx)", () => {
     expect(cn(["a", "b"], { c: true, d: false })).toBe("a b c");
   });
+
+  it("keeps custom font sizes next to text colors (Boxy scale)", () => {
+    expect(cn("text-label", "text-ink-subtle")).toBe("text-label text-ink-subtle");
+    expect(cn("text-2xs text-ink", "text-label")).toBe("text-ink text-label");
+  });
 });

@@ -124,7 +124,7 @@ export function InstanceList({ instances, isLoading, error, onRetry }: Props) {
   return (
     <div className="space-y-3">
       {selected.size > 0 && (
-        <div className="flex items-center justify-between rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
+        <div className="flex items-center justify-between border border-border bg-surface-sunken px-3 py-2 text-sm">
           <span>{t("compute.list.bulkActions.selected", { count: selected.size })}</span>
           <div className="flex gap-2">
             {canStart && (
@@ -179,7 +179,7 @@ export function InstanceList({ instances, isLoading, error, onRetry }: Props) {
         </div>
       )}
 
-      <div className="rounded-md border border-border">
+      <div className="border border-border">
         <Table>
           <TableHeader>
             <TableRow>

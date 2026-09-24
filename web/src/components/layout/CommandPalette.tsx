@@ -153,22 +153,21 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="overflow-hidden p-0 shadow-2xl">
-        <Command
-          label={t("commandPalette.label")}
-          className="flex flex-col overflow-hidden rounded-xl"
-        >
-          <div className="flex items-center border-b border-border px-3">
-            <SearchIcon className="me-2 h-4 w-4 shrink-0 text-muted-foreground" />
+      {/* 640px, 96px from the top (not centred), heavy border + hard shadow
+          from DialogContent (components-forms.md command palette). */}
+      <DialogContent className="top-24 max-w-[640px] translate-y-0 gap-0 overflow-hidden p-0">
+        <Command label={t("commandPalette.label")} className="flex flex-col overflow-hidden">
+          <div className="flex items-center border-b border-line px-4">
+            <SearchIcon className="me-2 h-4 w-4 shrink-0 text-ink-subtle" />
             <Command.Input
               autoFocus
               placeholder={t("commandPalette.placeholder")}
               data-testid="command-palette-input"
-              className="flex h-11 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              className="flex h-12 w-full bg-transparent text-base outline-none placeholder:text-ink-subtle"
             />
           </div>
-          <Command.List className="max-h-[320px] overflow-y-auto p-1">
-            <Command.Empty className="p-6 text-center text-sm text-muted-foreground">
+          <Command.List className="max-h-80 overflow-y-auto">
+            <Command.Empty className="p-6 font-mono text-label uppercase tracking-[0.08em] text-ink-subtle">
               {t("commandPalette.empty")}
             </Command.Empty>
             <Command.Group heading={t("commandPalette.goto")}>
@@ -182,7 +181,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                     data-testid={`command-palette-item-${d.id}`}
                     className="flex items-center gap-2"
                   >
-                    <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <Icon className="h-4 w-4 shrink-0 text-ink-subtle" />
                     <span className="flex-1">{t(d.labelKey)}</span>
                   </Command.Item>
                 );

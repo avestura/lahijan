@@ -36,9 +36,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Suspense fallback={null}>
-        {isStandalone ? <Outlet /> : <AppShell />}
-      </Suspense>
+      <Suspense fallback={null}>{isStandalone ? <Outlet /> : <AppShell />}</Suspense>
     </QueryClientProvider>
   );
 }
