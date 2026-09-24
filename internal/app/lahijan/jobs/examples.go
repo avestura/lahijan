@@ -208,6 +208,18 @@ func RegisterExamples(r *Registry, log *slog.Logger) {
 		Description: "Periodic usage aggregation (filled in by WS-17).",
 		Tags:        []string{"billing", "metering"},
 	})
+	RegisterNonBillingExamples(r, log)
+}
+
+// RegisterNonBillingExamples adds the example workers that no domain module
+// has replaced yet (audit prune, email send). program.Start uses this instead
+// of RegisterExamples because billing.RegisterJobs registers the real WS-17
+// "billing.usage.rollup" worker, and registering the placeholder too panics
+// with a duplicate-kind error at boot.
+func RegisterNonBillingExamples(r *Registry, log *slog.Logger) {
+	if r == nil {
+		panic("jobs: RegisterNonBillingExamples: registry is nil")
+	}
 	Register(r, AuditLogPruneArgs{}, NewAuditLogPruneWorker(log), KindSpec{
 		Kind:        AuditLogPruneArgs{}.Kind(),
 		Queue:       "maintenance",

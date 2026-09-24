@@ -75,6 +75,10 @@ type Provider struct {
 	// bootstrap (see projects.go).
 	projectFeatures ProjectFeatures
 
+	// defaultNetwork is the managed network seeded as eth0 into tenant
+	// default profiles when projectFeatures.Networks is false.
+	defaultNetwork string
+
 	// bus is the optional WASM event bus the events listener fans Incus
 	// events into. Nil when events are disabled. The events listener is
 	// the only writer to the bus from inside this package.
@@ -184,6 +188,11 @@ type Config struct {
 	// bootstrap.
 	ProjectFeatures ProjectFeatures
 
+	// DefaultNetwork is the managed network seeded as eth0 into tenant
+	// default profiles when ProjectFeatures.Networks is false. Empty seeds
+	// no NIC.
+	DefaultNetwork string
+
 	// Bus is the optional WASM event bus for the events listener.
 	// Nil disables the events listener.
 	Bus EventBus
@@ -199,6 +208,11 @@ type Config struct {
 
 // defaultRequestTimeout is used when Config.RequestTimeout is zero.
 const defaultRequestTimeout = 30 * time.Second
+
+// defaultOperationWaitTimeout bounds one WaitOperation call when the caller
+// has no deadline. Instance creates pull images (hundreds of MB for VMs), so
+// this is deliberately much longer than defaultRequestTimeout.
+const defaultOperationWaitTimeout = 10 * time.Minute
 
 // defaultProjectPrefix is used when Config.ProjectPrefix is empty.
 const defaultProjectPrefix = "lahijan-tenant-"
@@ -234,6 +248,7 @@ func NewClient(cfg Config) (*Provider, error) {
 		timeout:         timeout,
 		projectPrefix:   prefix,
 		projectFeatures: cfg.ProjectFeatures,
+		defaultNetwork:  cfg.DefaultNetwork,
 		bus:             cfg.Bus,
 		wsDialer:        wsDialer,
 	}, nil
@@ -346,13 +361,20 @@ func buildTLSConfig(cfg TLSConfig) (*tls.Config, error) {
 // Every call opens an OTel span named "incus.http.<method>" so the upstream
 // area-specific spans have a child HTTP-level span.
 func (p *Provider) do(ctx context.Context, method, path string, body any) (json.RawMessage, error) {
+	return p.doWithTimeout(ctx, p.timeout, method, path, body)
+}
+
+// doWithTimeout is do with an explicit per-call timeout. WaitOperation uses
+// it: an operation wait legitimately blocks for as long as the operation
+// runs (image download, VM root disk), far beyond the per-request timeout.
+func (p *Provider) doWithTimeout(ctx context.Context, timeout time.Duration, method, path string, body any) (json.RawMessage, error) {
 	ctx, span := startSpan(ctx, "http."+strings.ToLower(method),
 		attribute.String("incus.path", path))
 	defer span.End()
 
 	// Apply the per-request timeout. We own the canceler via defer so the
 	// timer does not leak; the http.Client honors the derived deadline.
-	ctx, cancel := context.WithTimeout(ctx, p.timeout)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	req, err := p.buildRequest(ctx, method, path, body)

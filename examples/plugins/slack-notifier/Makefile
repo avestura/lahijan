@@ -2,7 +2,7 @@ TINYGO     := tinygo
 TARGET     := plugin.wasm
 SRC        := main.go
 
-.PHONY: build clean verify
+.PHONY: build clean verify package
 
 build: $(TARGET)
 
@@ -15,5 +15,12 @@ verify: build
 		|| (echo "FAIL: module imports WASI — Lahijan rejects WASI" && exit 1)
 	@echo "OK: $(TARGET) declares no WASI imports"
 
+# A .lahx is a ZIP with lahijan.manifest.yaml + plugin.wasm at its root.
+# `lahx pack` validates the manifest first. Outside the Lahijan repo, point
+# LAHIJAN_ROOT at a checkout, or use: zip -j my.lahx lahijan.manifest.yaml plugin.wasm
+LAHIJAN_ROOT ?= ../../..
+package: build
+	go run -C $(LAHIJAN_ROOT) ./cmd/lahx pack $(CURDIR)
+
 clean:
-	rm -f $(TARGET)
+	rm -f $(TARGET) *.lahx

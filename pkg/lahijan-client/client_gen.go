@@ -1543,6 +1543,18 @@ type ComputeInstance struct {
 // ComputeInstanceType Instance type. Defaults to container.
 type ComputeInstanceType string
 
+// ComputeInstanceAddress defines model for ComputeInstanceAddress.
+type ComputeInstanceAddress struct {
+	Address string `json:"address"`
+
+	// Family inet or inet6
+	Family  string  `json:"family"`
+	Netmask *string `json:"netmask,omitempty"`
+
+	// Scope global, link, local
+	Scope *string `json:"scope,omitempty"`
+}
+
 // ComputeInstanceCreateRequest defines model for ComputeInstanceCreateRequest.
 type ComputeInstanceCreateRequest struct {
 	Config      *map[string]string                `json:"config,omitempty"`
@@ -1556,6 +1568,53 @@ type ComputeInstanceCreateRequest struct {
 
 // ComputeInstanceCreateRequestType defines model for ComputeInstanceCreateRequest.Type.
 type ComputeInstanceCreateRequestType string
+
+// ComputeInstanceDiskUsage defines model for ComputeInstanceDiskUsage.
+type ComputeInstanceDiskUsage struct {
+	Total *int64 `json:"total,omitempty"`
+	Usage *int64 `json:"usage,omitempty"`
+}
+
+// ComputeInstanceInterface defines model for ComputeInstanceInterface.
+type ComputeInstanceInterface struct {
+	Addresses              []ComputeInstanceAddress `json:"addresses"`
+	BytesReceived          *int64                   `json:"bytesReceived,omitempty"`
+	BytesSent              *int64                   `json:"bytesSent,omitempty"`
+	ErrorsReceived         *int64                   `json:"errorsReceived,omitempty"`
+	ErrorsSent             *int64                   `json:"errorsSent,omitempty"`
+	HostName               *string                  `json:"hostName,omitempty"`
+	Hwaddr                 *string                  `json:"hwaddr,omitempty"`
+	Mtu                    *int                     `json:"mtu,omitempty"`
+	PacketsDroppedInbound  *int64                   `json:"packetsDroppedInbound,omitempty"`
+	PacketsDroppedOutbound *int64                   `json:"packetsDroppedOutbound,omitempty"`
+	PacketsReceived        *int64                   `json:"packetsReceived,omitempty"`
+	PacketsSent            *int64                   `json:"packetsSent,omitempty"`
+	State                  *string                  `json:"state,omitempty"`
+	Type                   *string                  `json:"type,omitempty"`
+}
+
+// ComputeInstanceLog defines model for ComputeInstanceLog.
+type ComputeInstanceLog struct {
+	Content string `json:"content"`
+	Name    string `json:"name"`
+
+	// Truncated True when only the tail of a larger log is returned.
+	Truncated bool `json:"truncated"`
+}
+
+// ComputeInstanceLogList defines model for ComputeInstanceLogList.
+type ComputeInstanceLogList struct {
+	Items []string `json:"items"`
+}
+
+// ComputeInstanceMemory defines model for ComputeInstanceMemory.
+type ComputeInstanceMemory struct {
+	SwapUsage     *int64 `json:"swapUsage,omitempty"`
+	SwapUsagePeak *int64 `json:"swapUsagePeak,omitempty"`
+	Total         *int64 `json:"total,omitempty"`
+	Usage         *int64 `json:"usage,omitempty"`
+	UsagePeak     *int64 `json:"usagePeak,omitempty"`
+}
 
 // ComputeInstanceMigrateRequest defines model for ComputeInstanceMigrateRequest.
 type ComputeInstanceMigrateRequest struct {
@@ -1579,6 +1638,43 @@ type ComputeInstancePage struct {
 	Limit  int               `json:"limit"`
 	Offset int               `json:"offset"`
 	Total  int               `json:"total"`
+}
+
+// ComputeInstanceRuntime defines model for ComputeInstanceRuntime.
+type ComputeInstanceRuntime struct {
+	Architecture *string `json:"architecture,omitempty"`
+
+	// Config The instance's own config keys (not inherited).
+	Config              map[string]string `json:"config"`
+	CpuUsageNanoseconds *int64            `json:"cpuUsageNanoseconds,omitempty"`
+	CreatedAt           *time.Time        `json:"createdAt,omitempty"`
+	Description         *string           `json:"description,omitempty"`
+
+	// Devices The instance's own devices (not inherited).
+	Devices map[string]map[string]string `json:"devices"`
+
+	// Disks Live usage per disk device (running instances only).
+	Disks     map[string]ComputeInstanceDiskUsage `json:"disks"`
+	Ephemeral *bool                               `json:"ephemeral,omitempty"`
+
+	// ExpandedConfig Effective config after profiles are applied.
+	ExpandedConfig map[string]string `json:"expandedConfig"`
+
+	// ExpandedDevices Effective devices after profiles are applied.
+	ExpandedDevices map[string]map[string]string `json:"expandedDevices"`
+	LastUsedAt      *time.Time                   `json:"lastUsedAt,omitempty"`
+	Location        *string                      `json:"location,omitempty"`
+	Memory          *ComputeInstanceMemory       `json:"memory,omitempty"`
+
+	// Networks Live state per network interface (running instances only).
+	Networks   map[string]ComputeInstanceInterface `json:"networks"`
+	Pid        *int64                              `json:"pid,omitempty"`
+	Processes  *int64                              `json:"processes,omitempty"`
+	Profiles   []string                            `json:"profiles"`
+	Stateful   *bool                               `json:"stateful,omitempty"`
+	Status     string                              `json:"status"`
+	StatusCode *int                                `json:"statusCode,omitempty"`
+	Type       *string                             `json:"type,omitempty"`
 }
 
 // ComputeInstanceUpdateRequest defines model for ComputeInstanceUpdateRequest.
@@ -2802,8 +2898,8 @@ type ListAdminPluginsParams struct {
 
 // UploadAdminPluginMultipartBody defines parameters for UploadAdminPlugin.
 type UploadAdminPluginMultipartBody struct {
-	Manifest string             `json:"manifest"`
-	Wasm     openapi_types.File `json:"wasm"`
+	// Package The `.lahx` extension package.
+	Package openapi_types.File `json:"package"`
 }
 
 // SetAdminPluginPermissionParamsAction defines parameters for SetAdminPluginPermission.
@@ -2833,14 +2929,17 @@ type ListAuditParams struct {
 	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Offset Number of items to skip for pagination.
-	Offset       *PageOffset               `form:"offset,omitempty" json:"offset,omitempty"`
-	ActorUserId  *openapi_types.UUID       `form:"actorUserId,omitempty" json:"actorUserId,omitempty"`
-	Action       *string                   `form:"action,omitempty" json:"action,omitempty"`
-	ResourceType *string                   `form:"resourceType,omitempty" json:"resourceType,omitempty"`
-	Status       *ListAuditParamsStatus    `form:"status,omitempty" json:"status,omitempty"`
-	ActorType    *ListAuditParamsActorType `form:"actorType,omitempty" json:"actorType,omitempty"`
-	FromTs       *time.Time                `form:"fromTs,omitempty" json:"fromTs,omitempty"`
-	ToTs         *time.Time                `form:"toTs,omitempty" json:"toTs,omitempty"`
+	Offset       *PageOffset         `form:"offset,omitempty" json:"offset,omitempty"`
+	ActorUserId  *openapi_types.UUID `form:"actorUserId,omitempty" json:"actorUserId,omitempty"`
+	Action       *string             `form:"action,omitempty" json:"action,omitempty"`
+	ResourceType *string             `form:"resourceType,omitempty" json:"resourceType,omitempty"`
+
+	// ResourceId Only events about this resource (e.g. one compute instance).
+	ResourceId *openapi_types.UUID       `form:"resourceId,omitempty" json:"resourceId,omitempty"`
+	Status     *ListAuditParamsStatus    `form:"status,omitempty" json:"status,omitempty"`
+	ActorType  *ListAuditParamsActorType `form:"actorType,omitempty" json:"actorType,omitempty"`
+	FromTs     *time.Time                `form:"fromTs,omitempty" json:"fromTs,omitempty"`
+	ToTs       *time.Time                `form:"toTs,omitempty" json:"toTs,omitempty"`
 }
 
 // ListAuditParamsStatus defines parameters for ListAudit.
@@ -3860,10 +3959,19 @@ type ClientInterface interface {
 	// GetComputeFloatingIPByInstance request
 	GetComputeFloatingIPByInstance(ctx context.Context, instanceId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListComputeInstanceLogs request
+	ListComputeInstanceLogs(ctx context.Context, instanceId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetComputeInstanceLog request
+	GetComputeInstanceLog(ctx context.Context, instanceId openapi_types.UUID, logFile string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// MigrateComputeInstanceWithBody request with any body
 	MigrateComputeInstanceWithBody(ctx context.Context, instanceId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	MigrateComputeInstance(ctx context.Context, instanceId openapi_types.UUID, body MigrateComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetComputeInstanceRuntime request
+	GetComputeInstanceRuntime(ctx context.Context, instanceId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListComputeSnapshots request
 	ListComputeSnapshots(ctx context.Context, instanceId openapi_types.UUID, params *ListComputeSnapshotsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -6041,6 +6149,30 @@ func (c *Client) GetComputeFloatingIPByInstance(ctx context.Context, instanceId 
 	return c.Client.Do(req)
 }
 
+func (c *Client) ListComputeInstanceLogs(ctx context.Context, instanceId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListComputeInstanceLogsRequest(c.Server, instanceId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetComputeInstanceLog(ctx context.Context, instanceId openapi_types.UUID, logFile string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetComputeInstanceLogRequest(c.Server, instanceId, logFile)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) MigrateComputeInstanceWithBody(ctx context.Context, instanceId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewMigrateComputeInstanceRequestWithBody(c.Server, instanceId, contentType, body)
 	if err != nil {
@@ -6055,6 +6187,18 @@ func (c *Client) MigrateComputeInstanceWithBody(ctx context.Context, instanceId 
 
 func (c *Client) MigrateComputeInstance(ctx context.Context, instanceId openapi_types.UUID, body MigrateComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewMigrateComputeInstanceRequest(c.Server, instanceId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetComputeInstanceRuntime(ctx context.Context, instanceId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetComputeInstanceRuntimeRequest(c.Server, instanceId)
 	if err != nil {
 		return nil, err
 	}
@@ -9863,6 +10007,22 @@ func NewListAuditRequest(server string, params *ListAuditParams) (*http.Request,
 
 		}
 
+		if params.ResourceId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "resourceId", runtime.ParamLocationQuery, *params.ResourceId); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		if params.Status != nil {
 
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "status", runtime.ParamLocationQuery, *params.Status); err != nil {
@@ -12732,6 +12892,81 @@ func NewGetComputeFloatingIPByInstanceRequest(server string, instanceId openapi_
 	return req, nil
 }
 
+// NewListComputeInstanceLogsRequest generates requests for ListComputeInstanceLogs
+func NewListComputeInstanceLogsRequest(server string, instanceId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "instanceId", runtime.ParamLocationPath, instanceId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/instances/%s/logs", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetComputeInstanceLogRequest generates requests for GetComputeInstanceLog
+func NewGetComputeInstanceLogRequest(server string, instanceId openapi_types.UUID, logFile string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "instanceId", runtime.ParamLocationPath, instanceId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "logFile", runtime.ParamLocationPath, logFile)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/instances/%s/logs/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewMigrateComputeInstanceRequest calls the generic MigrateComputeInstance builder with application/json body
 func NewMigrateComputeInstanceRequest(server string, instanceId openapi_types.UUID, body MigrateComputeInstanceJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -12775,6 +13010,40 @@ func NewMigrateComputeInstanceRequestWithBody(server string, instanceId openapi_
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetComputeInstanceRuntimeRequest generates requests for GetComputeInstanceRuntime
+func NewGetComputeInstanceRuntimeRequest(server string, instanceId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "instanceId", runtime.ParamLocationPath, instanceId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/compute/instances/%s/runtime", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -17340,10 +17609,19 @@ type ClientWithResponsesInterface interface {
 	// GetComputeFloatingIPByInstanceWithResponse request
 	GetComputeFloatingIPByInstanceWithResponse(ctx context.Context, instanceId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeFloatingIPByInstanceResponse, error)
 
+	// ListComputeInstanceLogsWithResponse request
+	ListComputeInstanceLogsWithResponse(ctx context.Context, instanceId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListComputeInstanceLogsResponse, error)
+
+	// GetComputeInstanceLogWithResponse request
+	GetComputeInstanceLogWithResponse(ctx context.Context, instanceId openapi_types.UUID, logFile string, reqEditors ...RequestEditorFn) (*GetComputeInstanceLogResponse, error)
+
 	// MigrateComputeInstanceWithBodyWithResponse request with any body
 	MigrateComputeInstanceWithBodyWithResponse(ctx context.Context, instanceId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MigrateComputeInstanceResponse, error)
 
 	MigrateComputeInstanceWithResponse(ctx context.Context, instanceId openapi_types.UUID, body MigrateComputeInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*MigrateComputeInstanceResponse, error)
+
+	// GetComputeInstanceRuntimeWithResponse request
+	GetComputeInstanceRuntimeWithResponse(ctx context.Context, instanceId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeInstanceRuntimeResponse, error)
 
 	// ListComputeSnapshotsWithResponse request
 	ListComputeSnapshotsWithResponse(ctx context.Context, instanceId openapi_types.UUID, params *ListComputeSnapshotsParams, reqEditors ...RequestEditorFn) (*ListComputeSnapshotsResponse, error)
@@ -20551,6 +20829,57 @@ func (r GetComputeFloatingIPByInstanceResponse) StatusCode() int {
 	return 0
 }
 
+type ListComputeInstanceLogsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeInstanceLogList
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r ListComputeInstanceLogsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListComputeInstanceLogsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetComputeInstanceLogResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeInstanceLog
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r GetComputeInstanceLogResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetComputeInstanceLogResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type MigrateComputeInstanceResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -20572,6 +20901,31 @@ func (r MigrateComputeInstanceResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r MigrateComputeInstanceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetComputeInstanceRuntimeResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ComputeInstanceRuntime
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r GetComputeInstanceRuntimeResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetComputeInstanceRuntimeResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -24174,6 +24528,24 @@ func (c *ClientWithResponses) GetComputeFloatingIPByInstanceWithResponse(ctx con
 	return ParseGetComputeFloatingIPByInstanceResponse(rsp)
 }
 
+// ListComputeInstanceLogsWithResponse request returning *ListComputeInstanceLogsResponse
+func (c *ClientWithResponses) ListComputeInstanceLogsWithResponse(ctx context.Context, instanceId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListComputeInstanceLogsResponse, error) {
+	rsp, err := c.ListComputeInstanceLogs(ctx, instanceId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListComputeInstanceLogsResponse(rsp)
+}
+
+// GetComputeInstanceLogWithResponse request returning *GetComputeInstanceLogResponse
+func (c *ClientWithResponses) GetComputeInstanceLogWithResponse(ctx context.Context, instanceId openapi_types.UUID, logFile string, reqEditors ...RequestEditorFn) (*GetComputeInstanceLogResponse, error) {
+	rsp, err := c.GetComputeInstanceLog(ctx, instanceId, logFile, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetComputeInstanceLogResponse(rsp)
+}
+
 // MigrateComputeInstanceWithBodyWithResponse request with arbitrary body returning *MigrateComputeInstanceResponse
 func (c *ClientWithResponses) MigrateComputeInstanceWithBodyWithResponse(ctx context.Context, instanceId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MigrateComputeInstanceResponse, error) {
 	rsp, err := c.MigrateComputeInstanceWithBody(ctx, instanceId, contentType, body, reqEditors...)
@@ -24189,6 +24561,15 @@ func (c *ClientWithResponses) MigrateComputeInstanceWithResponse(ctx context.Con
 		return nil, err
 	}
 	return ParseMigrateComputeInstanceResponse(rsp)
+}
+
+// GetComputeInstanceRuntimeWithResponse request returning *GetComputeInstanceRuntimeResponse
+func (c *ClientWithResponses) GetComputeInstanceRuntimeWithResponse(ctx context.Context, instanceId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetComputeInstanceRuntimeResponse, error) {
+	rsp, err := c.GetComputeInstanceRuntime(ctx, instanceId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetComputeInstanceRuntimeResponse(rsp)
 }
 
 // ListComputeSnapshotsWithResponse request returning *ListComputeSnapshotsResponse
@@ -30625,6 +31006,107 @@ func ParseGetComputeFloatingIPByInstanceResponse(rsp *http.Response) (*GetComput
 	return response, nil
 }
 
+// ParseListComputeInstanceLogsResponse parses an HTTP response from a ListComputeInstanceLogsWithResponse call
+func ParseListComputeInstanceLogsResponse(rsp *http.Response) (*ListComputeInstanceLogsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListComputeInstanceLogsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeInstanceLogList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetComputeInstanceLogResponse parses an HTTP response from a GetComputeInstanceLogWithResponse call
+func ParseGetComputeInstanceLogResponse(rsp *http.Response) (*GetComputeInstanceLogResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetComputeInstanceLogResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeInstanceLog
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseMigrateComputeInstanceResponse parses an HTTP response from a MigrateComputeInstanceWithResponse call
 func ParseMigrateComputeInstanceResponse(rsp *http.Response) (*MigrateComputeInstanceResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -30680,6 +31162,53 @@ func ParseMigrateComputeInstanceResponse(rsp *http.Response) (*MigrateComputeIns
 			return nil, err
 		}
 		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetComputeInstanceRuntimeResponse parses an HTTP response from a GetComputeInstanceRuntimeWithResponse call
+func ParseGetComputeInstanceRuntimeResponse(rsp *http.Response) (*GetComputeInstanceRuntimeResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetComputeInstanceRuntimeResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ComputeInstanceRuntime
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	}
 

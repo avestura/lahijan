@@ -3,6 +3,7 @@
 package marketplace
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -12,6 +13,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/avestura/lahijan/internal/app/lahijan/wasm/lahx"
 )
 
 // writePlugin writes a minimal plugin tree (manifest + wasm) into a
@@ -105,4 +108,24 @@ func TestHTTPAssetLoader_RejectsGitSource(t *testing.T) {
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "git-sourced plugins are not yet supported")
+}
+
+func TestLocalAssetLoader_PrefersExtensionPackage(t *testing.T) {
+	t.Parallel()
+	// Loose files hold stale content; the .lahx next to them must win.
+	root := writePlugin(t, "pkg-plugin", "name: stale\nversion: 0.0.1\n", []byte("stale"))
+	wasm := []byte("\x00asm\x01\x00\x00\x00packaged")
+	var buf bytes.Buffer
+	require.NoError(t, lahx.Write(&buf, lahx.Package{
+		ManifestYAML: []byte("name: pkg-plugin\nversion: 2.0.0\n"), WasmBytes: wasm,
+	}))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "pkg-plugin", "plugin"+lahx.Extension), buf.Bytes(), 0o644))
+
+	sum := sha256.Sum256(wasm)
+	asset, err := NewLocalAssetLoader(root).Fetch(context.Background(), Entry{
+		Name: "pkg-plugin", Source: Source{Repo: "local", Path: "pkg-plugin"}, SHA256: hex.EncodeToString(sum[:]),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, wasm, asset.WasmBytes)
+	assert.Contains(t, string(asset.ManifestYAML), "2.0.0")
 }

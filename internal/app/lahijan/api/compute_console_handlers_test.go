@@ -182,10 +182,12 @@ func TestPumpBrowserToIncusStdin_ResizeGoesToControlNotStdin(t *testing.T) {
 
 	select {
 	case data := <-controlGot:
-		// The control fd speaks Incus's width/height naming, not the
-		// browser's cols/rows.
-		assert.Contains(t, string(data), `"width":132`)
-		assert.Contains(t, string(data), `"height":50`)
+		// The control fd speaks Incus's api.InstanceExecControl shape
+		// (window-resize + string width/height), not the browser's
+		// cols/rows envelope.
+		assert.Contains(t, string(data), `"command":"window-resize"`)
+		assert.Contains(t, string(data), `"width":"132"`)
+		assert.Contains(t, string(data), `"height":"50"`)
 	case <-time.After(3 * time.Second):
 		t.Fatal("timed out waiting for the resize on the control fd")
 	}

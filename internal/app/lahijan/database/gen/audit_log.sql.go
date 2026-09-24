@@ -31,10 +31,11 @@ WHERE tenant_id = $1
   AND ($2::uuid IS NULL OR actor_user_id = $2::uuid)
   AND ($3::text IS NULL OR action = $3::text)
   AND ($4::text IS NULL OR resource_type = $4::text)
-  AND ($5::text IS NULL OR status = $5::text)
-  AND ($6::text IS NULL OR actor_type = $6::text)
-  AND ($7::timestamptz IS NULL OR created_at >= $7::timestamptz)
-  AND ($8::timestamptz IS NULL OR created_at <= $8::timestamptz)
+  AND ($5::uuid IS NULL OR resource_id = $5::uuid)
+  AND ($6::text IS NULL OR status = $6::text)
+  AND ($7::text IS NULL OR actor_type = $7::text)
+  AND ($8::timestamptz IS NULL OR created_at >= $8::timestamptz)
+  AND ($9::timestamptz IS NULL OR created_at <= $9::timestamptz)
 `
 
 type CountAuditLogForTenantFilteredParams struct {
@@ -42,6 +43,7 @@ type CountAuditLogForTenantFilteredParams struct {
 	ActorUserID  *uuid.UUID `json:"actor_user_id"`
 	Action       *string    `json:"action"`
 	ResourceType *string    `json:"resource_type"`
+	ResourceID   *uuid.UUID `json:"resource_id"`
 	Status       *string    `json:"status"`
 	ActorType    *string    `json:"actor_type"`
 	FromTs       *time.Time `json:"from_ts"`
@@ -55,6 +57,7 @@ func (q *Queries) CountAuditLogForTenantFiltered(ctx context.Context, arg CountA
 		arg.ActorUserID,
 		arg.Action,
 		arg.ResourceType,
+		arg.ResourceID,
 		arg.Status,
 		arg.ActorType,
 		arg.FromTs,
@@ -307,12 +310,13 @@ WHERE tenant_id = $1
   AND ($2::uuid IS NULL OR actor_user_id = $2::uuid)
   AND ($3::text IS NULL OR action = $3::text)
   AND ($4::text IS NULL OR resource_type = $4::text)
-  AND ($5::text IS NULL OR status = $5::text)
-  AND ($6::text IS NULL OR actor_type = $6::text)
-  AND ($7::timestamptz IS NULL OR created_at >= $7::timestamptz)
-  AND ($8::timestamptz IS NULL OR created_at <= $8::timestamptz)
+  AND ($5::uuid IS NULL OR resource_id = $5::uuid)
+  AND ($6::text IS NULL OR status = $6::text)
+  AND ($7::text IS NULL OR actor_type = $7::text)
+  AND ($8::timestamptz IS NULL OR created_at >= $8::timestamptz)
+  AND ($9::timestamptz IS NULL OR created_at <= $9::timestamptz)
 ORDER BY created_at DESC
-LIMIT $10 OFFSET $9
+LIMIT $11 OFFSET $10
 `
 
 type ListAuditLogForTenantFilteredParams struct {
@@ -320,6 +324,7 @@ type ListAuditLogForTenantFilteredParams struct {
 	ActorUserID  *uuid.UUID `json:"actor_user_id"`
 	Action       *string    `json:"action"`
 	ResourceType *string    `json:"resource_type"`
+	ResourceID   *uuid.UUID `json:"resource_id"`
 	Status       *string    `json:"status"`
 	ActorType    *string    `json:"actor_type"`
 	FromTs       *time.Time `json:"from_ts"`
@@ -338,6 +343,7 @@ func (q *Queries) ListAuditLogForTenantFiltered(ctx context.Context, arg ListAud
 		arg.ActorUserID,
 		arg.Action,
 		arg.ResourceType,
+		arg.ResourceID,
 		arg.Status,
 		arg.ActorType,
 		arg.FromTs,

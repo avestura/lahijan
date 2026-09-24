@@ -130,12 +130,12 @@ func (p *Provider) EnsureProject(ctx context.Context, tenantID uuid.UUID) error 
 // instance create inside the new project fails with "No root device
 // could be found" — a freshly-created project's default profile starts empty.
 //
-// NICs are intentionally NOT seeded: when features.networks=true (the Lahijan
-// default), each project gets its own network namespace and the daemon's
-// bridges are not visible. Seeding an eth0 against e.g. incusbr0 would be
-// rejected by the restricted.devices.nic=managed guard. Networking for
-// tenant instances is configured via the UI/API (instance create's devices
-// field or a separate profile).
+// An eth0 NIC is seeded only when features.networks is off (the default;
+// Incus requires OVN for per-project networks): the project then sees the
+// default project's managed networks, and eth0 attaches to defaultNetwork,
+// which restricted.devices.nic=managed permits. With features.networks=true
+// each project has its own network namespace, the daemon's bridges are not
+// visible, and networking is configured via the UI/API instead.
 //
 // Idempotent: re-running just overwrites the same device with the same value.
 // Called on both the create-new and update-existing paths of EnsureProject.
@@ -151,10 +151,19 @@ func (p *Provider) seedDefaultProfile(ctx context.Context, project string) error
 			"pool": pool,
 		},
 	}
+	desc := "Lahijan default profile (root disk)"
+	if !p.projectFeatures.Networks && p.defaultNetwork != "" {
+		devices["eth0"] = map[string]string{
+			"type":    "nic",
+			"name":    "eth0",
+			"network": p.defaultNetwork,
+		}
+		desc = "Lahijan default profile (root disk + eth0)"
+	}
 	return p.EnsureProfile(ctx, CreateProfileParams{
 		Project:     project,
 		Name:        "default",
-		Description: "Lahijan default profile (root disk)",
+		Description: desc,
 		Devices:     devices,
 	})
 }
@@ -301,9 +310,16 @@ func (p *Provider) featureConfig() map[string]string {
 //   - restricted.devices.disk=allow         — disks allowed (own storage)
 //   - restricted.networks.uplinks=block     — no direct uplink attachment
 //   - restricted.cluster.target=block       — no targeting specific cluster members
-//   - restricted.cluster.groups=block       — no managing cluster groups
+//   - restricted.snapshots=allow            — restricted=true blocks snapshots by default (WS-25)
+//   - restricted.backups=allow              — restricted=true blocks backups by default (WS-25)
 //   - restricted.containers.lowlevel=block  — no raw container config
 //   - restricted.virtual-machines.lowlevel=block — no raw VM config
+//
+// Note: restricted.cluster.groups is intentionally NOT set. It is the list
+// of cluster groups the project MAY target, so a real daemon reads "block"
+// as a group name and rejects the project ("Cluster group \"block\"
+// doesn't exist"). restricted.cluster.target=block already forbids any
+// explicit placement.
 //
 // Note: restricted.networks.subnets is intentionally NOT set. Incus 6.0
 // rejects "block" — the value must be a comma-separated list of
@@ -325,7 +341,8 @@ func RestrictedProjectDefaults() map[string]string {
 		"restricted.devices.disk":              "allow",
 		"restricted.networks.uplinks":          "block",
 		"restricted.cluster.target":            "block",
-		"restricted.cluster.groups":            "block",
+		"restricted.snapshots":                 "allow",
+		"restricted.backups":                   "allow",
 		"restricted.containers.lowlevel":       "block",
 		"restricted.virtual-machines.lowlevel": "block",
 	}

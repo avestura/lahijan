@@ -99,6 +99,15 @@ type Provider struct {
 	// adminSecretKey is the paired admin secret key. SENSITIVE.
 	adminSecretKey string
 
+	// corsOrigins are the browser origins written into each bucket's CORS
+	// configuration (Config.CORSAllowedOrigins).
+	corsOrigins []string
+
+	// iamMu serialises rebuilds of the SeaweedFS IAM document
+	// (/etc/iam/identity.json) so two concurrent mints cannot each
+	// publish a listing that misses the other's identity.
+	iamMu sync.Mutex
+
 	// timeout is the per-request timeout applied via context.
 	timeout time.Duration
 
@@ -137,6 +146,9 @@ type s3BucketAPI interface {
 	ListBuckets(ctx context.Context, params *awss3.ListBucketsInput, optFns ...func(*awss3.Options)) (*awss3.ListBucketsOutput, error)
 	PutObject(ctx context.Context, params *awss3.PutObjectInput, optFns ...func(*awss3.Options)) (*awss3.PutObjectOutput, error)
 	GetObject(ctx context.Context, params *awss3.GetObjectInput, optFns ...func(*awss3.Options)) (*awss3.GetObjectOutput, error)
+	// PutBucketCors lets browsers use presigned URLs from the dashboard
+	// origin (see bucket_cors.go).
+	PutBucketCors(ctx context.Context, params *awss3.PutBucketCorsInput, optFns ...func(*awss3.Options)) (*awss3.PutBucketCorsOutput, error)
 	// WS-29: bucket lifecycle + versioning + object lock. The lifecycle
 	// evaluator worker also uses DeleteObject / DeleteObjects /
 	// ListObjectVersions / AbortMultipartUpload / CopyObject (restore)
@@ -317,6 +329,13 @@ type Config struct {
 	// Required when S3 or Presign is nil.
 	S3Endpoint string
 
+	// PublicS3Endpoint is the S3 origin end users reach (e.g.
+	// https://s3.example.com). SigV4 signs the Host header, so presigned
+	// URLs must be generated against it rather than the internal
+	// S3Endpoint (http://seaweed-s3:8333), which no browser can resolve.
+	// Empty falls back to S3Endpoint.
+	PublicS3Endpoint string
+
 	// FilerURL is the Filer HTTP API origin. Required when Filer is
 	// nil.
 	FilerURL string
@@ -345,6 +364,12 @@ type Config struct {
 	// time when the caller does not override it. Zero means no backend
 	// quota (Lahijan enforces via metering instead).
 	DefaultQuota QuotaSpec
+
+	// CORSAllowedOrigins are the browser origins (the dashboard) allowed
+	// to call the S3 data plane with presigned URLs. Applied to every
+	// bucket at create time and backfilled by EnsureBucketCORS. Empty
+	// skips CORS entirely (browser uploads then fail the preflight).
+	CORSAllowedOrigins []string
 
 	// Bus is the optional WASM event bus for change-event synthesis.
 	// Nil disables event synthesis.
@@ -405,8 +430,11 @@ func NewClient(cfg Config) (*Provider, error) {
 	if presignClient == nil {
 		// If the caller injected an S3 client, derive the presign client
 		// from it via the SDK's PresignClient method. Otherwise build a
-		// fresh SDK client purely for presign.
-		if realS3, ok := s3Client.(*awss3.Client); ok {
+		// fresh SDK client purely for presign. A public endpoint always
+		// gets its own client so the signature covers the public Host.
+		if cfg.PublicS3Endpoint != "" {
+			presignClient = presignFromS3(buildS3Client(cfg.PublicS3Endpoint, region, cfg.AdminAccessKey, cfg.AdminSecretKey))
+		} else if realS3, ok := s3Client.(*awss3.Client); ok {
 			presignClient = presignFromS3(realS3)
 		} else {
 			presignClient = presignFromS3(buildS3Client(cfg.S3Endpoint, region, cfg.AdminAccessKey, cfg.AdminSecretKey))
@@ -434,6 +462,7 @@ func NewClient(cfg Config) (*Provider, error) {
 		timeout:           timeout,
 		defaultPresignTTL: presignTTL,
 		defaultQuota:      cfg.DefaultQuota,
+		corsOrigins:       append([]string(nil), cfg.CORSAllowedOrigins...),
 		bus:               cfg.Bus,
 	}, nil
 }
@@ -519,7 +548,9 @@ func (c *filerHTTPClient) GetMetadata(ctx context.Context, path string) ([]byte,
 
 // PutMetadata implements filerAPI.
 func (c *filerHTTPClient) PutMetadata(ctx context.Context, path string, body []byte) error {
-	_, err := c.doRawWithHeader(ctx, http.MethodPost, normalizeFilerPath(path), body, http.Header{
+	// PUT, not POST: the Filer stores a PUT body verbatim, while POST
+	// requires multipart/form-data and answers 500 to a raw JSON body.
+	_, err := c.doRawWithHeader(ctx, http.MethodPut, normalizeFilerPath(path), body, http.Header{
 		"Content-Type": []string{"application/json"},
 	})
 	return err

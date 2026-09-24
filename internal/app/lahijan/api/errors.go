@@ -9,6 +9,8 @@ package api
 
 import (
 	"errors"
+	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/gofiber/fiber/v2"
@@ -91,6 +93,19 @@ func SendNotFound(c *fiber.Ctx, message string) error {
 // generic message and log the real error server-side.
 func SendInternal(c *fiber.Ctx, message string) error {
 	return SendError(c, fiber.StatusInternalServerError, CodeInternal, message, nil)
+}
+
+// logUnexpectedError logs an error a map*Error catch-all is about to hide
+// behind a generic 500, with the fields the backend AGENTS.md requires
+// (error, type, path, method, request id). Call it right before
+// SendInternal so no 500 is ever silent.
+func logUnexpectedError(c *fiber.Ctx, area string, err error) {
+	slog.ErrorContext(c.UserContext(), area+": unexpected error",
+		"error", err.Error(),
+		"error_type", fmt.Sprintf("%T", err),
+		"path", c.Path(),
+		"method", c.Method(),
+		"request_id", c.Locals("request_id"))
 }
 
 // SendNotImplemented is a convenience wrapper for a 501 not_implemented response.

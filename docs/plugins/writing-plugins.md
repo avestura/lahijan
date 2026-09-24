@@ -109,14 +109,14 @@ The SDK handles everything.
 ```sh
 make build      # tinygo build -target wasm -o plugin.wasm main.go
 make verify     # assert no WASI imports leaked in
+make package    # pack manifest + module into <name>-<version>.lahx
 ```
 
 ### Step 5: Install
 
 ```sh
-# Upload
-curl -F 'wasm=@plugin.wasm;type=application/wasm' \
-     -F 'manifest=@lahijan.manifest.yaml;type=text/yaml' \
+# Upload the extension package (or use Admin -> Plugins -> Upload extension)
+curl -F 'package=@my-plugin-0.1.0.lahx' \
      -H 'Cookie: lahijan_session=...' \
      http://localhost:3000/api/v1/admin/plugins/upload
 

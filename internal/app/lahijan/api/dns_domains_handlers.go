@@ -56,6 +56,7 @@ func mapRegistrarError(c *fiber.Ctx, err error) error {
 		errors.Is(err, registrarsvc.ErrNoPricing):
 		return SendBadRequest(c, err.Error(), nil)
 	}
+	logUnexpectedError(c, "dns.registrar", err)
 	return SendInternal(c, i18n.T(c.UserContext(), "auth.err_internal", nil))
 }
 

@@ -37,6 +37,7 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/database/testutil"
 	notifyemail "github.com/avestura/lahijan/internal/app/lahijan/notify/email"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/installer"
+	"github.com/avestura/lahijan/internal/app/lahijan/wasm/lahx"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/permission"
 	wasmruntime "github.com/avestura/lahijan/internal/app/lahijan/wasm/runtime"
 	"github.com/gofiber/fiber/v2"
@@ -163,26 +164,24 @@ func pluginsRegisterPlatformAdmin(t *testing.T, ta *testApp) (string, string) {
 	return sess, tenant.ID.String()
 }
 
-// uploadMultipart builds a multipart/form-data body with the given wasm +
-// manifest parts. The manifest is sent as a file (not a form field) because
-// the handler reads both via c.FormFile.
+// uploadMultipart packs wasm + manifest into a .lahx extension package and
+// wraps it in the multipart/form-data body the upload handler expects (one
+// `package` file part).
 func uploadMultipart(t *testing.T, wasm []byte, manifest string) ([]byte, string) {
 	t.Helper()
+	pkg := &bytes.Buffer{}
+	require.NoError(t, lahx.Write(pkg, lahx.Package{ManifestYAML: []byte(manifest), WasmBytes: wasm}))
 	buf := &bytes.Buffer{}
 	mw := multipart.NewWriter(buf)
-	wasmWriter, err := mw.CreateFormFile("wasm", "plugin.wasm")
+	pw, err := mw.CreateFormFile("package", "plugin"+lahx.Extension)
 	require.NoError(t, err)
-	_, err = wasmWriter.Write(wasm)
-	require.NoError(t, err)
-	manifestWriter, err := mw.CreateFormFile("manifest", "lahijan.manifest.yaml")
-	require.NoError(t, err)
-	_, err = manifestWriter.Write([]byte(manifest))
+	_, err = pw.Write(pkg.Bytes())
 	require.NoError(t, err)
 	require.NoError(t, mw.Close())
 	return buf.Bytes(), mw.FormDataContentType()
 }
 
-// uploadPlugin posts the wasm + manifest to /admin/plugins/upload. Returns
+// uploadPlugin posts the wasm + manifest (as a .lahx) to /admin/plugins/upload. Returns
 // the parsed AdminPlugin response.
 func uploadPlugin(t *testing.T, ta *testApp, sess, tenantID, name, wasmBytes, manifestYAML string) map[string]any {
 	t.Helper()

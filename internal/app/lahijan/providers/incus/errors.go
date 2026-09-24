@@ -41,6 +41,12 @@ var (
 	// Usually indicates a project-restriction violation.
 	ErrForbidden = errors.New("incus: forbidden")
 
+	// ErrAsyncOperationFailed wraps an async operation the daemon reports
+	// as finished unsuccessfully (status Failure/Cancelled). Unlike a
+	// timeout or transport error it is definitive: the operation's side
+	// effect (e.g. the instance) does not exist, so callers may roll back.
+	ErrAsyncOperationFailed = errors.New("incus: async operation failed")
+
 	// ErrBadRequest is returned when the Incus REST API responds with 400.
 	ErrBadRequest = errors.New("incus: bad request")
 

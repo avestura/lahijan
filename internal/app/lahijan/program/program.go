@@ -280,9 +280,9 @@ func Start() error {
 		// the DNS module is built (see "WS-30 PTR publisher wire"
 		// below). The ForwardNetwork config is sourced from
 		// providers.incus.floatingIPs.forwardNetwork.
-		// Seed the featured-image catalog for every existing tenant. A
-		// future WS will hook this into the tenant-create path so a new
-		// tenant picks up the catalog automatically. Runs synchronously
+		// Seed the featured-image catalog for every existing tenant, and
+		// for every personal tenant created at signup from now on (without
+		// the hook a new user's image picker is empty). Runs synchronously
 		// at bootstrap so by the time the listener is up the catalog is
 		// consistent.
 		featuredAliases := incus.FeaturedImages(conf.GetProvidersIncusFeaturedImages())
@@ -290,6 +290,12 @@ func Start() error {
 			seedCtx, seedCancel := context.WithTimeout(context.Background(), 30*time.Second)
 			seedComputeFeaturedImagesForTenants(seedCtx, computeSvc, authDeps.repos.Tenants, featuredAliases)
 			seedCancel()
+			if authDeps.signup != nil {
+				svc := computeSvc
+				authDeps.signup.onTenantCreated(func(ctx context.Context, tenantID uuid.UUID) error {
+					return svc.SeedFeaturedImages(ctx, tenantID, featuredAliases)
+				})
+			}
 		}
 	}
 
@@ -601,10 +607,13 @@ type authDeps struct {
 	signer     *secrets.Signer
 	hasher     *password.Hasher
 	sessionSvc *session.Service
-	patSvc     *pat.Service
-	emailSvc   *email.Service
-	audit      audit.Emitter
-	cookies    api.CookieConfig
+	// signup is the personal-tenant provisioner; nil when
+	// auth.signup.personalTenant is off.
+	signup   *personalTenantProvisioner
+	patSvc   *pat.Service
+	emailSvc *email.Service
+	audit    audit.Emitter
+	cookies  api.CookieConfig
 }
 
 // buildAuthDeps opens the DB pool, builds the repositories, and wires the
@@ -654,6 +663,11 @@ func buildAuthDeps(ctx context.Context) (*authDeps, func(), error) {
 			RequireVerified: false, // WS-06 leaves email-required-login configurable later
 		},
 	)
+	var signup *personalTenantProvisioner
+	if conf.GetAuthSignupPersonalTenant() {
+		signup = &personalTenantProvisioner{repos: repos}
+		sessionSvc.SetSignupProvisioner(signup)
+	}
 
 	patSvc := pat.New(
 		repos.Tokens, signer, emitter,
@@ -681,6 +695,7 @@ func buildAuthDeps(ctx context.Context) (*authDeps, func(), error) {
 		signer:     signer,
 		hasher:     hasher,
 		sessionSvc: sessionSvc,
+		signup:     signup,
 		patSvc:     patSvc,
 		emailSvc:   emailSvc,
 		audit:      emitter,
@@ -957,7 +972,15 @@ func buildSamlDeps(ctx context.Context, a *authDeps, stateSigner *state.Signer) 
 	if stateSigner == nil {
 		stateSigner = state.NewSigner(a.signer)
 	}
-	names := conf.ListAuthSAMLProviderNames()
+	// The default YAML ships disabled presets (e.g. entra), so filter to the
+	// enabled ones before demanding SP credentials: a prod deploy with no
+	// SAML IdP must boot without an SP signing key.
+	var names []string
+	for _, name := range conf.ListAuthSAMLProviderNames() {
+		if conf.GetAuthSAMLProvider(name).Enabled {
+			names = append(names, name)
+		}
+	}
 	if len(names) == 0 {
 		return samlDeps{}, nil
 	}
@@ -971,9 +994,6 @@ func buildSamlDeps(ctx context.Context, a *authDeps, stateSigner *state.Signer) 
 	providers := make([]saml.Provider, 0, len(names))
 	for _, name := range names {
 		cfg := conf.GetAuthSAMLProvider(name)
-		if !cfg.Enabled {
-			continue
-		}
 		metadataURL := buildRedirectURL(redirectBase, "/api/v1/auth/saml/metadata")
 		acsURL := buildRedirectURL(redirectBase, "/api/v1/auth/saml/"+name+"/acs")
 		entityID := cfg.EntityID
@@ -1165,11 +1185,10 @@ func buildJobDeps(_ context.Context, _ *database.Repos) (jobDeps, error) {
 	}
 
 	registry := jobs.NewRegistry()
-	// Register the four WS-09 example workers so the queue has something
-	// to execute end-to-end before any domain module ships. Domain modules
-	// (WS-14, WS-17, ...) will add their own workers via jobs.Register in
-	// their own Setup functions.
-	jobs.RegisterExamples(registry, slog.Default())
+	// Register the WS-09 example workers that no domain module has replaced
+	// yet. The metering-rollup placeholder is skipped: billing.RegisterJobs
+	// registers the real WS-17 worker under the same kind.
+	jobs.RegisterNonBillingExamples(registry, slog.Default())
 
 	cfg := jobs.Config{
 		Logger:                    slog.Default(),

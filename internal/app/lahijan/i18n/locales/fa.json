@@ -381,6 +381,16 @@
   "plugins.err_manifest_too_large": {
     "other": "مانیفست از بیشینهٔ پذیرفته‌شده بزرگ‌تر است."
   },
+  "plugins.err_missing_package": {
+    "other": "بستهٔ افزونهٔ ‎.lahx‎ الزامی است."
+  },
+  "plugins.err_invalid_package": {
+    "other": "این پرونده یک بستهٔ افزونهٔ ‎.lahx‎ معتبر نیست (یک بایگانی ZIP شامل lahijan.manifest.yaml و plugin.wasm در ریشهٔ آن)."
+  },
+  "plugins.err_package_too_large": {
+    "description": "{{.Max}} بیشینهٔ پذیرفته‌شدهٔ اندازهٔ بسته به بایت است.",
+    "other": "بستهٔ افزونه از بیشینهٔ پذیرفته‌شده ({{.Max}} بایت) بزرگ‌تر است."
+  },
   "plugins.err_bad_action": {
     "description": "{{.Action}} عمل ناشناخته است.",
     "other": "عمل ناشناخته: {{.Action}}."

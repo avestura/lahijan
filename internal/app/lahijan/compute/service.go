@@ -114,6 +114,9 @@ const (
 // requests and via rbac.Require for non-HTTP entry points (websockets, jobs).
 type Service struct {
 	provider incusProvider
+	// consoles accumulates console output per instance (see runtime.go).
+	// A pointer so the With* copies share one buffer set; nil-safe.
+	consoles *consoleBuffers
 	repos    *database.Repos
 	audit    audit.Emitter
 	bus      eventBus
@@ -193,6 +196,9 @@ type incusInstanceOps interface {
 	GetInstanceState(ctx context.Context, project, name string) (*incus.InstanceState, error)
 	UpdateInstance(ctx context.Context, project, name string, body incus.InstancePut) (*incus.Operation, error)
 	DeleteInstance(ctx context.Context, project, name string) (*incus.Operation, error)
+	ListInstanceLogs(ctx context.Context, project, name string) ([]string, error)
+	GetInstanceLog(ctx context.Context, project, name, file string) ([]byte, bool, error)
+	GetInstanceConsoleLog(ctx context.Context, project, name string) ([]byte, bool, error)
 }
 
 // incusProfileOps covers profile CRUD.
@@ -350,6 +356,7 @@ func New(
 		placement = NewLocalPlacementDriver()
 	}
 	return &Service{
+		consoles:       newConsoleBuffers(),
 		provider:       provider,
 		repos:          r,
 		audit:          emitter,

@@ -50,6 +50,10 @@ const ExportRowCap = MaxAuditPageSize * 50 // 10_000
 func (s *Server) ListAudit(c *fiber.Ctx, params apigen.ListAuditParams) error {
 	f := parseAuditFilter(params.ActorUserId, params.Action, params.ResourceType,
 		params.Status, params.ActorType, params.FromTs, params.ToTs)
+	if params.ResourceId != nil && *params.ResourceId != (openapi_types.UUID{}) {
+		rid := *params.ResourceId
+		f.ResourceID = &rid
+	}
 	limit, offset := pageParams(params.Limit, params.Offset)
 	rows, err := s.audit.ListForTenantFiltered(c.UserContext(), f, limit, offset)
 	if err != nil {

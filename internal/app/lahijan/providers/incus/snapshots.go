@@ -122,9 +122,9 @@ func (p *Provider) RestoreSnapshot(
 		projectAttr(project), attribute.String("incus.instance", instance),
 		attribute.String("incus.snapshot", snapshot))
 	defer span.End()
-	op, err := p.doAsync(ctx, "POST",
-		snapshotPathSuffix(project, instance, snapshot, "restore"),
-		InstanceSnapshotRestorePost{Stateful: stateful})
+	op, err := p.doAsync(ctx, "PUT",
+		"instances/"+url.QueryEscape(instance)+"?project="+url.QueryEscape(project),
+		InstanceSnapshotRestorePost{Restore: snapshot, Stateful: stateful})
 	setStatus(span, err)
 	return op, err
 }

@@ -94,8 +94,11 @@ func mapComputeError(c *fiber.Ctx, err error) error {
 		errors.Is(err, compute.ErrImageNotFound),
 		errors.Is(err, compute.ErrProfileNotFound),
 		errors.Is(err, compute.ErrNetworkNotFound),
-		errors.Is(err, compute.ErrVolumeNotFound):
+		errors.Is(err, compute.ErrVolumeNotFound),
+		errors.Is(err, compute.ErrLogNotFound):
 		return SendNotFound(c, i18n.T(c.UserContext(), "compute.err_not_found", nil))
+	case errors.Is(err, compute.ErrInvalidLogName):
+		return SendBadRequest(c, i18n.T(c.UserContext(), "auth.err_bad_request", nil), nil)
 	case errors.Is(err, compute.ErrInstanceNameTaken) || errors.Is(err, compute.ErrNameTaken):
 		return SendError(c, fiber.StatusConflict, CodeConflict,
 			i18n.T(c.UserContext(), "compute.err_name_taken", nil), nil)

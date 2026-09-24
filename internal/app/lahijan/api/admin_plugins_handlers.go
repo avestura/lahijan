@@ -31,6 +31,7 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/database"
 	"github.com/avestura/lahijan/internal/app/lahijan/i18n"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/installer"
+	"github.com/avestura/lahijan/internal/app/lahijan/wasm/lahx"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/manifest"
 	"github.com/gofiber/fiber/v2"
 	openapi_types "github.com/oapi-codegen/runtime/types"
@@ -80,9 +81,11 @@ func (s *Server) ListAdminPlugins(c *fiber.Ctx, params apigen.ListAdminPluginsPa
 
 // UploadAdminPlugin handles POST /api/v1/admin/plugins/upload (multipart).
 //
-// Accepts two parts: `wasm` (binary) and `manifest` (YAML text). The
-// wasm.part is capped at conf.wasm.maxModuleSize; the manifest at
-// MaxManifestBytes. Returns the new plugin row in "pending" status.
+// Accepts one part, `package`: a `.lahx` extension package (a ZIP holding
+// lahijan.manifest.yaml + plugin.wasm, see wasm/lahx). The archive is
+// capped at the module cap plus the manifest cap; inside it plugin.wasm is
+// capped at conf.wasm.maxModuleSize and the manifest at MaxManifestBytes.
+// Returns the new plugin row in "pending" status.
 func (s *Server) UploadAdminPlugin(c *fiber.Ctx) error {
 	if s.pluginSvc == nil || s.pluginsRepo == nil {
 		return SendNotImplemented(c, i18n.T(c.UserContext(), "plugins.err_disabled", nil))
@@ -90,47 +93,45 @@ func (s *Server) UploadAdminPlugin(c *fiber.Ctx) error {
 	ctx, span := s.tracer.Start(c.UserContext(), "admin.plugins.upload")
 	defer span.End()
 
-	// wasm part: binary, capped at conf.wasm.maxModuleSize.
-	wasmFile, err := c.FormFile("wasm")
-	if err != nil {
-		return SendBadRequest(c, i18n.T(ctx, "plugins.err_missing_wasm", nil), nil)
-	}
-	if maxSz := conf.GetWasmMaxModuleSize(); maxSz > 0 && int(wasmFile.Size) > maxSz {
-		return SendError(c, fiber.StatusRequestEntityTooLarge, CodePayloadTooLarge,
-			i18n.T(ctx, "plugins.err_wasm_too_large", map[string]any{"Max": maxSz}), nil)
-	}
-	wasmSrc, err := wasmFile.Open()
-	if err != nil {
-		return SendInternal(c, i18n.T(ctx, "auth.err_internal", nil))
-	}
-	defer func() { _ = wasmSrc.Close() }()
 	maxWasm := int64(conf.GetWasmMaxModuleSize())
 	if maxWasm <= 0 {
 		maxWasm = 10 * 1024 * 1024 // 10 MiB fallback if conf is unset
 	}
-	wasmBytes, err := io.ReadAll(io.LimitReader(wasmSrc, maxWasm+1))
-	if err != nil {
-		return SendInternal(c, i18n.T(ctx, "auth.err_internal", nil))
-	}
+	// A deflated archive is never meaningfully larger than its contents;
+	// allow the two caps plus room for ZIP headers.
+	maxPackage := maxWasm + MaxManifestBytes + 64*1024
 
-	// manifest part: YAML text, capped at MaxManifestBytes.
-	manifestFile, err := c.FormFile("manifest")
+	pkgFile, err := c.FormFile("package")
 	if err != nil {
+		return SendBadRequest(c, i18n.T(ctx, "plugins.err_missing_package", nil), nil)
+	}
+	if pkgFile.Size > maxPackage {
+		return SendError(c, fiber.StatusRequestEntityTooLarge, CodePayloadTooLarge,
+			i18n.T(ctx, "plugins.err_package_too_large", map[string]any{"Max": maxPackage}), nil)
+	}
+	pkgSrc, err := pkgFile.Open()
+	if err != nil {
+		return SendInternal(c, i18n.T(ctx, "auth.err_internal", nil))
+	}
+	defer func() { _ = pkgSrc.Close() }()
+	pkgBytes, err := io.ReadAll(io.LimitReader(pkgSrc, maxPackage+1))
+	if err != nil {
+		return SendInternal(c, i18n.T(ctx, "auth.err_internal", nil))
+	}
+	pkg, err := lahx.Open(pkgBytes, lahx.Limits{MaxManifestBytes: MaxManifestBytes, MaxModuleBytes: maxWasm})
+	switch {
+	case errors.Is(err, lahx.ErrTooLarge):
+		return SendError(c, fiber.StatusRequestEntityTooLarge, CodePayloadTooLarge,
+			i18n.T(ctx, "plugins.err_wasm_too_large", map[string]any{"Max": maxWasm}), nil)
+	case errors.Is(err, lahx.ErrMissingManifest):
 		return SendBadRequest(c, i18n.T(ctx, "plugins.err_missing_manifest", nil), nil)
+	case errors.Is(err, lahx.ErrMissingModule):
+		return SendBadRequest(c, i18n.T(ctx, "plugins.err_missing_wasm", nil), nil)
+	case err != nil:
+		return SendBadRequest(c, i18n.T(ctx, "plugins.err_invalid_package", nil),
+			map[string]any{"reason": err.Error()})
 	}
-	if manifestFile.Size > MaxManifestBytes {
-		return SendBadRequest(c,
-			i18n.T(ctx, "plugins.err_manifest_too_large", nil), nil)
-	}
-	manifestSrc, err := manifestFile.Open()
-	if err != nil {
-		return SendInternal(c, i18n.T(ctx, "auth.err_internal", nil))
-	}
-	defer func() { _ = manifestSrc.Close() }()
-	manifestBytes, err := io.ReadAll(io.LimitReader(manifestSrc, MaxManifestBytes+1))
-	if err != nil {
-		return SendInternal(c, i18n.T(ctx, "auth.err_internal", nil))
-	}
+	wasmBytes, manifestBytes := pkg.WasmBytes, pkg.ManifestYAML
 	m, err := manifest.Parse(manifestBytes)
 	if err != nil {
 		return SendBadRequest(c, err.Error(), nil)

@@ -16,6 +16,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/netip"
 	"strings"
 	"time"
@@ -50,6 +51,22 @@ type Service struct {
 	mailer   *email.Service
 	audit    audit.Emitter
 	cfg      Config
+
+	// provisioner, when set, runs right after a self-service account is
+	// created (e.g. to give it a personal tenant). Optional.
+	provisioner SignupProvisioner
+}
+
+// SignupProvisioner sets up what a brand-new self-registered account needs
+// beyond its user row. program.Start wires the personal-tenant provisioner.
+type SignupProvisioner interface {
+	ProvisionSignup(ctx context.Context, userID uuid.UUID, email string) error
+}
+
+// SetSignupProvisioner installs the post-registration hook. Call once at
+// bootstrap, before serving traffic.
+func (s *Service) SetSignupProvisioner(p SignupProvisioner) {
+	s.provisioner = p
 }
 
 // Config carries the session/refresh lifetimes and token byte length. Build it
@@ -129,6 +146,15 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (Session, erro
 			return Session{}, ErrEmailTaken
 		}
 		return Session{}, fmt.Errorf("auth/session: create user: %w", err)
+	}
+
+	// Best-effort: the account exists either way, so a provisioning failure
+	// is logged rather than failing a registration that already happened.
+	if s.provisioner != nil {
+		if perr := s.provisioner.ProvisionSignup(ctx, user.ID, emailNorm); perr != nil {
+			slog.WarnContext(ctx, "auth/session: signup provisioning failed",
+				"user_id", user.ID, "error", perr.Error())
+		}
 	}
 
 	sess, err := s.openSession(ctx, user.ID, in.UserAgent, in.IPAddress)

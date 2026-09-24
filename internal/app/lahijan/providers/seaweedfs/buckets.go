@@ -76,6 +76,13 @@ func (p *Provider) CreateBucket(ctx context.Context, params CreateBucketParams) 
 		}
 	}
 
+	// Allow the dashboard origin to use presigned URLs from the browser.
+	// Best effort like the quota: the bucket is usable from S3 clients
+	// either way, and EnsureBucketCORS re-applies it at the next boot.
+	if cerr := p.applyBucketCORS(ctx, params.Bucket); cerr != nil {
+		setStatus(span, cerr)
+	}
+
 	created := &Bucket{
 		Name:      params.Bucket,
 		CreatedAt: time.Now().UTC(),

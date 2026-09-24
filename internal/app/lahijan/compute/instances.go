@@ -226,11 +226,17 @@ func (s *Service) CreateInstance(
 		Target:      target,
 	})
 	if err != nil {
-		// Mark the audit row failed; leave the compute_instances row
-		// in place so the user can see the failed create and retry.
 		_ = s.audit.MarkOutcome(ctx, auditID, audit.Outcome{Status: audit.StatusFailure, Details: map[string]any{
 			"error": err.Error(),
 		}})
+		// When the daemon definitively failed the create (bad image,
+		// restriction, ...) no instance exists: soft-delete the row so the
+		// name is free to retry (names are unique among live rows). On a
+		// timeout / transport error the daemon may still finish, so the
+		// row stays to track that instance.
+		if errors.Is(err, incus.ErrAsyncOperationFailed) {
+			_ = s.repos.ComputeInstances.SoftDelete(ctx, row.ID)
+		}
 		return database.ComputeInstance{}, fmt.Errorf("compute: incus create: %w", err)
 	}
 
@@ -614,13 +620,31 @@ func (s *Service) UpdateInstance(
 		Status:       audit.StatusPending,
 	})
 
+	// Incus PUT replaces config + devices wholesale, so a PATCH that omits
+	// a field must carry the instance's current value for it; otherwise
+	// changing one config key would silently wipe every local device (and
+	// an omitted description would clear it).
+	if live, errLive := s.provider.GetInstance(ctx, row.ProjectName, row.Name); errLive == nil {
+		if config == nil {
+			config = live.Config
+		}
+		if devices == nil {
+			devices = live.Devices
+		}
+		if profiles == nil {
+			profiles = live.Profiles
+		}
+		if description == "" {
+			description = live.Description
+		}
+	}
+	if profiles == nil {
+		profiles = row.Profiles
+	}
 	parsedConfig := InstanceConfig{
 		Config: config, Devices: devices, Profiles: profiles,
 	}
 	configJSON, _ := json.Marshal(parsedConfig)
-	if profiles == nil {
-		profiles = row.Profiles
-	}
 
 	// Incus update.
 	if _, err := s.provider.UpdateInstance(ctx, row.ProjectName, row.Name, incus.InstancePut{

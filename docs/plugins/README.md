@@ -32,10 +32,31 @@ cd my-plugin
 # Build
 make build
 make verify   # assert no WASI imports (plain-WASM mode)
+make package  # -> <name>-<version>.lahx (manifest + module, validated)
 
-# Install (admin session required)
-curl -F 'wasm=@plugin.wasm;type=application/wasm' \
-     -F 'manifest=@lahijan.manifest.yaml;type=text/yaml' \
+# Install (admin session required): upload the .lahx in the dashboard
+# (Admin -> Plugins -> Upload extension), or:
+curl -F 'package=@my-plugin-0.1.0.lahx' \
      -H 'Cookie: lahijan_session=...' \
      http://localhost:3000/api/v1/admin/plugins/upload
 ```
+
+## Extension packages (`.lahx`)
+
+Plugins are distributed and uploaded as one file: a **`.lahx` extension
+package**. It is a ZIP archive with exactly two entries at its root:
+
+| Entry | Content |
+|---|---|
+| `lahijan.manifest.yaml` | the plugin manifest |
+| `plugin.wasm` | the compiled WebAssembly module |
+
+Build one with `make package` (runs `go run ./cmd/lahx pack <dir>`, which
+validates the manifest first) or with any ZIP tool:
+`zip -j my-plugin.lahx lahijan.manifest.yaml plugin.wasm`. Inspect one with
+`go run ./cmd/lahx inspect my-plugin.lahx`.
+
+The server rejects packages with other entries, nested paths, duplicate or
+encrypted entries, or entries beyond the size caps (`wasm.maxModuleSize` for
+the module, 64 KiB for the manifest). Marketplace entries may ship a
+`plugin.lahx` too; it takes precedence over loose files.

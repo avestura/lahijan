@@ -14,6 +14,9 @@ package incus_test
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -359,36 +362,32 @@ func TestInteractiveExec_MalformedControlMessageDropped(t *testing.T) {
 	assert.Equal(t, 100, msgs[0].Width)
 }
 
-// controlMessageWireShape is the on-wire shape of a resize control
-// message. Used by TestControlResizeMessage_WireFormat to assert the
-// JSON the bridge sends to Incus matches the daemon's expected format.
-type controlMessageWireShape struct {
-	Type   string `json:"type"`
-	Width  int    `json:"width"`
-	Height int    `json:"height"`
-}
-
-// TestControlResizeMessage_WireFormat asserts the JSON shape of the
-// resize control message matches what the Incus daemon's control fd
-// parser expects (type=resize, width=cols, height=rows).
+// TestControlResizeMessage_WireFormat asserts WriteExecResize emits the
+// shape the real Incus control fd parses (api.InstanceExecControl:
+// command=window-resize, string width/height args). A real daemon
+// silently ignores any other shape, which left the PTY stuck at 80x25.
 func TestControlResizeMessage_WireFormat(t *testing.T) {
 	t.Parallel()
-	payload, err := json.Marshal(incus.ExecControlResize{
-		Type:   "resize",
-		Width:  132,
-		Height: 50,
-	})
+	got := make(chan []byte, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		up := websocket.Upgrader{}
+		conn, err := up.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer func() { _ = conn.Close() }()
+		_, data, _ := conn.ReadMessage()
+		got <- data
+	}))
+	defer srv.Close()
+
+	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(srv.URL, "http"), nil)
 	require.NoError(t, err)
+	defer func() { _ = conn.Close() }()
+	require.NoError(t, incus.WriteExecResize(conn, 132, 50))
 
-	var decoded controlMessageWireShape
-	require.NoError(t, json.Unmarshal(payload, &decoded))
-	assert.Equal(t, "resize", decoded.Type)
-	assert.Equal(t, 132, decoded.Width)
-	assert.Equal(t, 50, decoded.Height)
-
-	// The wire format must contain the canonical field names the
-	// daemon's control parser looks for.
-	assert.Contains(t, string(payload), `"type":"resize"`)
-	assert.Contains(t, string(payload), `"width":132`)
-	assert.Contains(t, string(payload), `"height":50`)
+	var decoded incus.ExecControl
+	require.NoError(t, json.Unmarshal(<-got, &decoded))
+	assert.Equal(t, "window-resize", decoded.Command)
+	assert.Equal(t, map[string]string{"width": "132", "height": "50"}, decoded.Args)
 }

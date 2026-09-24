@@ -147,6 +147,9 @@ func (s *Service) SeedFeaturedImages(
 	tenantID uuid.UUID,
 	aliases []string,
 ) error {
+	// Called from bootstrap with a bare context; the images repo is
+	// tenant-scoped and fails closed without a tenant in ctx.
+	ctx = database.WithTenant(ctx, tenantID)
 	for _, alias := range aliases {
 		if alias == "" {
 			continue

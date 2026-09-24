@@ -27,6 +27,7 @@ _template/
 
 ```sh
 make build
+make package  # -> <name>-<version>.lahx
 # -> plugin.wasm in this directory
 ```
 
@@ -45,8 +46,7 @@ WASI). The resulting module has the imports your `main.go` declares (e.g.
 Upload the `.wasm` + `lahijan.manifest.yaml` via the admin API:
 
 ```sh
-curl -F 'wasm=@plugin.wasm;type=application/wasm' \
-     -F 'manifest=@lahijan.manifest.yaml;type=text/yaml' \
+curl -F 'package=@my-plugin-0.1.0.lahx' \
      -H 'Cookie: lahijan_session=<your-admin-session>' \
      -H 'X-Tenant-Id: <tenant-uuid>' \
      http://localhost:3000/api/v1/admin/plugins/upload

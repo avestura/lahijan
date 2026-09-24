@@ -75,6 +75,7 @@ func buildIncusDeps(_ context.Context, bus *eventbus.Bus) (incusDeps, error) {
 	cfg := incus.Config{
 		RequestTimeout: time.Duration(conf.GetProvidersIncusRequestTimeoutSeconds()) * time.Second,
 		ProjectPrefix:  conf.GetProvidersIncusProjectPrefix(),
+		DefaultNetwork: conf.GetProvidersIncusDefaultNetwork(),
 		ProjectFeatures: incus.ProjectFeatures{
 			Images:         features.Images,
 			Profiles:       features.Profiles,

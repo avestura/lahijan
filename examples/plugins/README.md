@@ -1,8 +1,9 @@
 # Sample plugins shipped with Lahijan (WS-10c).
 
-Each subdirectory is a self-contained Lahijan plugin. Build it with
-`make build` (requires [TinyGo](https://tinygo.org) on PATH) and upload
-the resulting `plugin.wasm` via the admin API.
+Each subdirectory is a self-contained Lahijan plugin. Build and pack it
+with `make package` (requires [TinyGo](https://tinygo.org) on PATH) and
+upload the resulting `.lahx` extension package in the dashboard
+(Admin -> Plugins -> Upload extension) or via the admin API.
 
 | Plugin | Listens to | Calls | Used to demo |
 |--------|------------|-------|--------------|

@@ -136,6 +136,22 @@ type Instance struct {
 
 	// Location is the cluster member hosting the instance.
 	Location string `json:"location,omitempty"`
+
+	// ExpandedConfig is the effective config after profiles are applied
+	// (read-only; ignored on PUT).
+	ExpandedConfig map[string]string `json:"expanded_config,omitempty"`
+
+	// ExpandedDevices is the effective device map after profiles are
+	// applied (read-only; ignored on PUT).
+	ExpandedDevices map[string]map[string]string `json:"expanded_devices,omitempty"`
+
+	// CreatedAt / LastUsedAt are daemon timestamps (zero when unknown).
+	CreatedAt  time.Time `json:"created_at,omitempty"`
+	LastUsedAt time.Time `json:"last_used_at,omitempty"`
+
+	// Stateful / Ephemeral mirror the Incus flags of the same name.
+	Stateful  bool `json:"stateful,omitempty"`
+	Ephemeral bool `json:"ephemeral,omitempty"`
 }
 
 // InstancesPost is the body of POST /1.0/instances.
@@ -210,11 +226,14 @@ type InstanceSnapshotPut struct {
 	ExpiresAt   time.Time `json:"expires_at,omitempty"`
 }
 
-// InstanceSnapshotRestorePost is the body of
-// POST /1.0/instances/<name>/snapshots/<snap>/restore. Stateful=true
-// restores runtime state alongside the filesystem.
+// InstanceSnapshotRestorePost is the body of the snapshot restore call.
+// Incus has no per-snapshot restore endpoint: a restore is
+// PUT /1.0/instances/<name> with {"restore": "<snap>"}, which the daemon
+// handles as a restore and ignores the rest of the instance PUT body.
+// Stateful=true restores runtime state alongside the filesystem.
 type InstanceSnapshotRestorePost struct {
-	Stateful bool `json:"stateful,omitempty"`
+	Restore  string `json:"restore"`
+	Stateful bool   `json:"stateful,omitempty"`
 }
 
 // InstanceStatePut is the body of PUT /1.0/instances/<name>/state. Action is
@@ -226,15 +245,68 @@ type InstanceStatePut struct {
 	Stateful bool   `json:"stateful,omitempty"`
 }
 
-// InstanceState is the response from GET /1.0/instances/<name>/state.
+// InstanceState is the response from GET /1.0/instances/<name>/state
+// (api.InstanceState). Usage fields are populated for running instances.
 type InstanceState struct {
-	Status     string         `json:"status"`
-	StatusCode int            `json:"status_code"`
-	Pid        int64          `json:"pid,omitempty"`
-	CPU        map[string]any `json:"cpu,omitempty"`
-	Memory     map[string]any `json:"memory,omitempty"`
-	Disk       map[string]any `json:"disk,omitempty"`
-	Network    map[string]any `json:"network,omitempty"`
+	Status     string                          `json:"status"`
+	StatusCode int                             `json:"status_code"`
+	Pid        int64                           `json:"pid,omitempty"`
+	Processes  int64                           `json:"processes,omitempty"`
+	CPU        InstanceStateCPU                `json:"cpu"`
+	Memory     InstanceStateMemory             `json:"memory"`
+	Disk       map[string]InstanceStateDisk    `json:"disk,omitempty"`
+	Network    map[string]InstanceStateNetwork `json:"network,omitempty"`
+}
+
+// InstanceStateCPU is api.InstanceStateCPU (usage in nanoseconds).
+type InstanceStateCPU struct {
+	Usage int64 `json:"usage"`
+}
+
+// InstanceStateMemory is api.InstanceStateMemory (bytes).
+type InstanceStateMemory struct {
+	Usage         int64 `json:"usage"`
+	UsagePeak     int64 `json:"usage_peak"`
+	Total         int64 `json:"total"`
+	SwapUsage     int64 `json:"swap_usage"`
+	SwapUsagePeak int64 `json:"swap_usage_peak"`
+}
+
+// InstanceStateDisk is api.InstanceStateDisk (bytes).
+type InstanceStateDisk struct {
+	Usage int64 `json:"usage"`
+	Total int64 `json:"total"`
+}
+
+// InstanceStateNetwork is api.InstanceStateNetwork.
+type InstanceStateNetwork struct {
+	Addresses []InstanceStateNetworkAddress `json:"addresses"`
+	Counters  InstanceStateNetworkCounters  `json:"counters"`
+	Hwaddr    string                        `json:"hwaddr"`
+	HostName  string                        `json:"host_name"`
+	Mtu       int                           `json:"mtu"`
+	State     string                        `json:"state"`
+	Type      string                        `json:"type"`
+}
+
+// InstanceStateNetworkAddress is api.InstanceStateNetworkAddress.
+type InstanceStateNetworkAddress struct {
+	Family  string `json:"family"`
+	Address string `json:"address"`
+	Netmask string `json:"netmask"`
+	Scope   string `json:"scope"`
+}
+
+// InstanceStateNetworkCounters is api.InstanceStateNetworkCounters.
+type InstanceStateNetworkCounters struct {
+	BytesReceived          int64 `json:"bytes_received"`
+	BytesSent              int64 `json:"bytes_sent"`
+	PacketsReceived        int64 `json:"packets_received"`
+	PacketsSent            int64 `json:"packets_sent"`
+	ErrorsReceived         int64 `json:"errors_received"`
+	ErrorsSent             int64 `json:"errors_sent"`
+	PacketsDroppedOutbound int64 `json:"packets_dropped_outbound"`
+	PacketsDroppedInbound  int64 `json:"packets_dropped_inbound"`
 }
 
 // Image is an Incus image (template used to create instances).

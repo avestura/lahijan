@@ -6,6 +6,7 @@ package seaweedfs_test
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -242,4 +243,55 @@ func TestIAM_Mint_DistinctAccessKeys(t *testing.T) {
 		require.False(t, seen[cred.SecretKey], "duplicate secret key minted")
 		seen[cred.SecretKey] = true
 	}
+}
+
+// TestIAM_PublishesSeaweedIAMDocument guards the real-daemon contract:
+// `weed s3` only hot-reloads /etc/iam/identity.json, and that document
+// replaces its whole identity set — so every mint/revoke must re-publish
+// it with the admin identity plus each enabled minted identity.
+func TestIAM_PublishesSeaweedIAMDocument(t *testing.T) {
+	t.Parallel()
+	srv := newFake(t)
+	p := connectProvider(t, srv)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	bucket := mustBucketName(t, "iamdoc")
+	_, err := p.CreateBucket(ctx, seaweedfs.CreateBucketParams{Bucket: bucket, TenantID: validTenantUUID})
+	require.NoError(t, err)
+	cred, err := p.MintCredentials(ctx, seaweedfs.MintCredentialsParams{
+		TenantID: validTenantUUID,
+		Buckets:  []string{bucket},
+		Actions:  []seaweedfs.IAMAction{seaweedfs.IAMActionRead},
+	})
+	require.NoError(t, err)
+
+	type doc struct {
+		Identities []struct {
+			Credentials []struct {
+				AccessKey string `json:"accessKey"`
+			} `json:"credentials"`
+			Actions []string `json:"actions"`
+		} `json:"identities"`
+	}
+	load := func() map[string][]string {
+		raw, err := srv.GetMetadata(ctx, "/etc/iam/identity.json")
+		require.NoError(t, err)
+		var d doc
+		require.NoError(t, json.Unmarshal(raw, &d))
+		out := map[string][]string{}
+		for _, id := range d.Identities {
+			out[id.Credentials[0].AccessKey] = id.Actions
+		}
+		return out
+	}
+
+	ids := load()
+	assert.Contains(t, ids, "lahijan-dev-admin-key", "admin identity must survive every publish")
+	assert.Equal(t, []string{"Read:" + bucket}, ids[cred.AccessKey])
+
+	require.NoError(t, p.RevokeCredentials(ctx, cred.AccessKey))
+	ids = load()
+	assert.Contains(t, ids, "lahijan-dev-admin-key")
+	assert.NotContains(t, ids, cred.AccessKey, "revoked identity must drop out of the IAM document")
 }

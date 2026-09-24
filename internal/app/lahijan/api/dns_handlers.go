@@ -97,6 +97,7 @@ func mapDNSError(c *fiber.Ctx, err error) error {
 		// so the UI can render it.
 		return SendBadRequest(c, err.Error(), nil)
 	}
+	logUnexpectedError(c, "dns", err)
 	return SendInternal(c, i18n.T(c.UserContext(), "auth.err_internal", nil))
 }
 

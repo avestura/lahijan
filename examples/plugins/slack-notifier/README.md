@@ -19,6 +19,7 @@ the URL; it only POSTs the rendered message body to it.
 
 ```sh
 make build
+make package  # -> <name>-<version>.lahx
 ```
 
 Produces `plugin.wasm`. Upload via the admin API or copy into the
@@ -27,8 +28,7 @@ marketplace directory (see `examples/plugins/marketplace/`).
 ## Install
 
 ```sh
-curl -F 'wasm=@plugin.wasm;type=application/wasm' \
-     -F 'manifest=@lahijan.manifest.yaml;type=text/yaml' \
+curl -F 'package=@my-plugin-0.1.0.lahx' \
      -H 'Cookie: lahijan_session=<your-admin-session>' \
      -H 'X-Tenant-Id: <tenant-uuid>' \
      http://localhost:3000/api/v1/admin/plugins/upload

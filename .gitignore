@@ -90,3 +90,6 @@ $RECYCLE.BIN/
 
 # Playwright MCP tooling artifacts (console captures, screenshots, snapshots)
 .playwright-mcp/
+
+# Built Lahijan extension packages (make package / go run ./cmd/lahx pack).
+*.lahx

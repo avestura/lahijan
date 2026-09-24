@@ -19,9 +19,10 @@
 //	            keystrokes to it AND reads the shell's output from it on
 //	            the SAME websocket (gorilla/websocket allows one concurrent
 //	            reader + one writer). There is no separate stdout fd.
-//	"control" -> control channel for out-of-band JSON messages:
-//	             {"type":"resize","width":N,"height":N} resizes the
-//	             PTY; {"type":"signal",...} forwards signals.
+//	"control" -> control channel for out-of-band JSON messages
+//	             (api.InstanceExecControl): {"command":"window-resize",
+//	             "args":{"width":"N","height":"N"}} resizes the PTY;
+//	             {"command":"signal","signal":N} forwards signals.
 //
 // Stdout ("1") + stderr ("2") are ABSENT in interactive mode — the PTY
 // merges them onto fd "0". (The non-interactive path in exec.go is the
@@ -41,6 +42,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 
 	"github.com/gorilla/websocket"
 )
@@ -246,18 +248,25 @@ func (p *Provider) DialExecFD(ctx context.Context, opID, secret string) (*websoc
 	return conn, nil
 }
 
-// ExecControlResize is the JSON payload the Incus control fd accepts
-// for window-resize. The bridge sends one of these every time the
-// browser's ResizeObserver fires (debounced) so vim / htop / top
-// render at the right dimensions.
+// ExecControl is the on-wire message the Incus control fd accepts; it
+// mirrors the daemon's api.InstanceExecControl. Args values are strings
+// (the daemon strconv.Atoi's width/height), and a message with any other
+// shape is silently ignored by the daemon.
 //
-// Wire format (documented in the OpenAPI description + ADR-0044):
-//
-//	{"type":"resize","width":<cols>,"height":<rows>}
-//
-// Width is columns; Height is rows. The names match the Incus daemon's
-// own struct (lxd/instance_exec_control.go WindowsResize args) so the
-// daemon does not need a translation layer.
+//	{"command":"window-resize","args":{"width":"<cols>","height":"<rows>"}}
+//	{"command":"signal","signal":<signum>}
+type ExecControl struct {
+	Command string            `json:"command"`
+	Args    map[string]string `json:"args,omitempty"`
+	Signal  int               `json:"signal,omitempty"`
+}
+
+// ExecControlResize is the logical window-resize request. The bridge
+// produces one every time the browser's ResizeObserver fires (debounced)
+// so vim / htop / top render at the right dimensions; WriteExecResize
+// encodes it as an ExecControl "window-resize" message. Width is columns;
+// Height is rows. (The browser-facing envelope, {"type":"resize","cols",
+// "rows"}, is translated by the api layer — see ADR-0044.)
 type ExecControlResize struct {
 	Type   string `json:"type"`
 	Width  int    `json:"width"`
@@ -287,10 +296,12 @@ func WriteExecResize(conn *websocket.Conn, cols, rows int) error {
 		// rather than waste a round-trip on a guaranteed error.
 		return nil
 	}
-	payload, err := json.Marshal(ExecControlResize{
-		Type:   "resize",
-		Width:  cols,
-		Height: rows,
+	payload, err := json.Marshal(ExecControl{
+		Command: "window-resize",
+		Args: map[string]string{
+			"width":  strconv.Itoa(cols),
+			"height": strconv.Itoa(rows),
+		},
 	})
 	if err != nil {
 		return fmt.Errorf("incus: marshal resize control: %w", err)

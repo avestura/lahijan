@@ -77,6 +77,8 @@ type fakeBucket struct {
 	// Server.vs(); nil on the original WS-13 surface so existing tests
 	// do not pay the allocation.
 	vs *versioningState
+	// cors is the last CORS configuration written via PutBucketCors.
+	cors *awss3types.CORSConfiguration
 }
 
 // fakeIdentity is the per-identity in-memory state. Mirrors the
@@ -254,6 +256,32 @@ func (s *Server) CreateBucket(_ context.Context, params *awss3.CreateBucketInput
 	s.mu.Unlock()
 	s.emit("storage.bucket.created", name)
 	return &awss3.CreateBucketOutput{}, nil
+}
+
+// PutBucketCors implements seaweedfs.s3BucketAPI.
+func (s *Server) PutBucketCors(_ context.Context, params *awss3.PutBucketCorsInput, _ ...func(*awss3.Options)) (*awss3.PutBucketCorsOutput, error) {
+	if params == nil || params.Bucket == nil {
+		return nil, newFakeS3Error(400, "InvalidBucketName", "bucket is required")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	b, ok := s.buckets[*params.Bucket]
+	if !ok {
+		return nil, newFakeS3Error(404, "NoSuchBucket", "bucket %q does not exist", *params.Bucket)
+	}
+	b.cors = params.CORSConfiguration
+	return &awss3.PutBucketCorsOutput{}, nil
+}
+
+// BucketCORS returns the CORS configuration last written to bucket (nil
+// when none). Test helper.
+func (s *Server) BucketCORS(bucket string) *awss3types.CORSConfiguration {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if b, ok := s.buckets[bucket]; ok {
+		return b.cors
+	}
+	return nil
 }
 
 // DeleteBucket implements seaweedfs.s3BucketAPI.

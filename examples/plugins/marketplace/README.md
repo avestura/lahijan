@@ -18,8 +18,10 @@ entry declares:
 - `permissions` — the permission slugs the plugin requests. The admin
   sees this list before approving the install.
 - `source` — how the admin's server fetches the plugin on install:
-  - `repo: local` — the `.wasm` + manifest live alongside this index,
-    under `<name>/`. This is the default for the in-repo marketplace.
+  - `repo: local` — the plugin lives alongside this index under
+    `<name>/`, either as a `plugin.lahx` extension package (preferred) or
+    as loose `plugin.wasm` + `lahijan.manifest.yaml`. This is the default
+    for the in-repo marketplace.
   - `repo: git` — clone a git URL at a pinned ref; the repo must contain
     `plugin.wasm` + `lahijan.manifest.yaml` at its root. (Future WS:
     signature verification is required for git sources in marketplace
@@ -29,8 +31,9 @@ entry declares:
 
 ## Adding a plugin to the default marketplace
 
-1. Drop the plugin's `.wasm` (named `plugin.wasm`) and manifest (named
-   `lahijan.manifest.yaml`) into a `<name>/` subdirectory of this folder.
+1. Drop the plugin's extension package (named `plugin.lahx`, from
+   `make package`) into a `<name>/` subdirectory of this folder, or the
+   loose `plugin.wasm` + `lahijan.manifest.yaml` pair.
 2. Compute the sha256 of the `.wasm`:
 
    ```sh

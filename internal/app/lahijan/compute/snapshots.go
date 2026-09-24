@@ -145,7 +145,13 @@ func (s *Service) TakeSnapshot(
 		_ = s.audit.MarkOutcome(ctx, auditID, audit.Outcome{Status: audit.StatusFailure, Details: map[string]any{
 			"error": err.Error(),
 		}})
-		// The row stays in place so the user can see the failed take and retry.
+		// A definitive daemon failure means no snapshot exists: soft-delete
+		// the row so the name is free to retry (unique among live rows).
+		// The failed take stays visible in the audit trail. On a timeout
+		// the daemon may still finish, so the row stays.
+		if errors.Is(err, incus.ErrAsyncOperationFailed) {
+			_ = s.repos.ComputeSnapshots.SoftDelete(ctx, row.ID)
+		}
 		return database.ComputeSnapshot{}, fmt.Errorf("compute: incus create snapshot: %w", err)
 	}
 

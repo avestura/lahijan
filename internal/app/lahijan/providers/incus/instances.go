@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strings"
 
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -208,4 +209,74 @@ func instancePath(project, name string) string {
 // instanceStatePath builds the instance state REST path.
 func instanceStatePath(project, name string) string {
 	return "instances/" + url.QueryEscape(name) + "/state?project=" + url.QueryEscape(project)
+}
+
+// maxLogBytes caps a single log read; longer logs are tailed.
+const maxLogBytes = 1 << 20
+
+// ListInstanceLogs lists the log file names Incus keeps for an instance
+// (GET /1.0/instances/<name>/logs returns their URLs).
+func (p *Provider) ListInstanceLogs(ctx context.Context, project, name string) ([]string, error) {
+	ctx, span := startSpan(ctx, "instance.logs.list",
+		projectAttr(project), attribute.String("incus.instance", name))
+	defer span.End()
+	raw, err := p.do(ctx, "GET", "instances/"+url.QueryEscape(name)+"/logs?project="+url.QueryEscape(project), nil)
+	if err != nil {
+		setStatus(span, err)
+		return nil, err
+	}
+	var urls []string
+	if err := json.Unmarshal(raw, &urls); err != nil {
+		setStatus(span, err)
+		return nil, fmt.Errorf("incus: decode instance logs: %w", err)
+	}
+	out := make([]string, 0, len(urls))
+	for _, u := range urls {
+		if i := strings.LastIndex(u, "/"); i >= 0 {
+			u = u[i+1:]
+		}
+		if u != "" {
+			out = append(out, u)
+		}
+	}
+	setStatus(span, nil)
+	return out, nil
+}
+
+// GetInstanceLog reads one log file. Returns the last maxLogBytes and
+// truncated=true when the file is larger.
+func (p *Provider) GetInstanceLog(ctx context.Context, project, name, file string) ([]byte, bool, error) {
+	ctx, span := startSpan(ctx, "instance.logs.get",
+		projectAttr(project), attribute.String("incus.instance", name))
+	defer span.End()
+	raw, err := p.do(ctx, "GET",
+		"instances/"+url.QueryEscape(name)+"/logs/"+url.PathEscape(file)+"?project="+url.QueryEscape(project), nil)
+	setStatus(span, err)
+	if err != nil {
+		return nil, false, err
+	}
+	body, truncated := tailBytes(raw, maxLogBytes)
+	return body, truncated, nil
+}
+
+// GetInstanceConsoleLog reads the instance's console output buffer
+// (GET /1.0/instances/<name>/console).
+func (p *Provider) GetInstanceConsoleLog(ctx context.Context, project, name string) ([]byte, bool, error) {
+	ctx, span := startSpan(ctx, "instance.console.log",
+		projectAttr(project), attribute.String("incus.instance", name))
+	defer span.End()
+	raw, err := p.do(ctx, "GET", "instances/"+url.QueryEscape(name)+"/console?project="+url.QueryEscape(project), nil)
+	setStatus(span, err)
+	if err != nil {
+		return nil, false, err
+	}
+	body, truncated := tailBytes(raw, maxLogBytes)
+	return body, truncated, nil
+}
+
+func tailBytes(b []byte, limit int) ([]byte, bool) {
+	if len(b) <= limit {
+		return b, false
+	}
+	return b[len(b)-limit:], true
 }

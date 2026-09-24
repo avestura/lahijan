@@ -1,8 +1,11 @@
 // Package seaweedfs: iam.go mints per-user S3 credentials scoped to one or
-// more buckets, and revokes / rotates them. Per ADR-0011 the credentials
-// are stored in SeaweedFS' Filer metadata under
-// /etc/seaweedfs/identities/<access_key>.json; the `weed s3` server watches
-// this path and reloads on change.
+// more buckets, and revokes / rotates them. Per ADR-0011 each credential is
+// recorded in SeaweedFS' Filer metadata under
+// /etc/seaweedfs/identities/<access_key>.json (Lahijan's bookkeeping), and
+// every change re-publishes the SeaweedFS-native IAM document
+// /etc/iam/identity.json, which is the only path `weed s3` watches and
+// hot-reloads. The filer must run with -saveToFilerLimit so that document is
+// stored inline (the s3 watcher reads only inline content).
 //
 // The plaintext secret key is returned to the caller ONCE at mint / rotate
 // time. The storage service (WS-16) is responsible for storing the
@@ -306,7 +309,85 @@ func (p *Provider) writeIdentity(ctx context.Context, rec identityRecord) error 
 	if err != nil {
 		return fmt.Errorf("marshal identity: %w", err)
 	}
-	return p.filer.PutMetadata(ctx, identityPath(rec.AccessKey), body)
+	if err := p.filer.PutMetadata(ctx, identityPath(rec.AccessKey), body); err != nil {
+		return err
+	}
+	return p.syncIAMConfig(ctx)
+}
+
+// iamConfigPath is the SeaweedFS-native IAM document `weed s3` subscribes
+// to (filer.IamConfigDirectory + filer.IamIdentityFile upstream).
+const iamConfigPath = "/etc/iam/identity.json"
+
+// s3APIConfiguration mirrors SeaweedFS' iam_pb.S3ApiConfiguration JSON.
+type s3APIConfiguration struct {
+	Identities []s3Identity `json:"identities"`
+}
+
+type s3Identity struct {
+	Name        string         `json:"name"`
+	Credentials []s3Credential `json:"credentials"`
+	Actions     []string       `json:"actions"`
+}
+
+type s3Credential struct {
+	AccessKey string `json:"accessKey"`
+	SecretKey string `json:"secretKey"`
+}
+
+// SyncIAM re-publishes the S3 IAM document from the recorded identities.
+// program.Start calls it once at boot; mint/rotate/revoke call it
+// implicitly.
+func (p *Provider) SyncIAM(ctx context.Context) error {
+	ctx, span := startSpan(ctx, "credential.sync")
+	defer span.End()
+	err := p.syncIAMConfig(ctx)
+	setStatus(span, err)
+	if err != nil {
+		return fmt.Errorf("seaweedfs: credential.sync: %w", err)
+	}
+	return nil
+}
+
+// syncIAMConfig rebuilds /etc/iam/identity.json from the admin identity
+// plus every enabled Lahijan identity record. The document REPLACES the
+// s3 server's identity set on reload, so the admin identity must always
+// be included or Lahijan would lock itself out of the S3 control plane.
+func (p *Provider) syncIAMConfig(ctx context.Context) error {
+	p.iamMu.Lock()
+	defer p.iamMu.Unlock()
+
+	cfg := s3APIConfiguration{Identities: []s3Identity{}}
+	if p.adminAccessKey != "" {
+		cfg.Identities = append(cfg.Identities, s3Identity{
+			Name:        "lahijan_admin",
+			Credentials: []s3Credential{{AccessKey: p.adminAccessKey, SecretKey: p.adminSecretKey}},
+			Actions:     []string{"Admin", "Read", "Write", "List", "Tagging"},
+		})
+	}
+	records, err := p.filer.ListMetadata(ctx, identitiesPathPrefix)
+	if err != nil && !errors.Is(err, ErrNotFound) {
+		return fmt.Errorf("list identities: %w", err)
+	}
+	for _, body := range records {
+		var rec identityRecord
+		if uerr := unmarshalStrict(body, &rec); uerr != nil || rec.Disabled || rec.AccessKey == "" {
+			continue
+		}
+		cfg.Identities = append(cfg.Identities, s3Identity{
+			Name:        rec.Name,
+			Credentials: []s3Credential{{AccessKey: rec.AccessKey, SecretKey: rec.SecretKey}},
+			Actions:     rec.Actions,
+		})
+	}
+	body, err := marshalStrict(cfg)
+	if err != nil {
+		return fmt.Errorf("marshal iam config: %w", err)
+	}
+	if err := p.filer.PutMetadata(ctx, iamConfigPath, body); err != nil {
+		return fmt.Errorf("publish iam config: %w", err)
+	}
+	return nil
 }
 
 // readIdentity loads the identity at the given access key. Returns
@@ -325,7 +406,10 @@ func (p *Provider) readIdentity(ctx context.Context, accessKey string) (identity
 
 // deleteIdentity removes the identity record. Idempotent.
 func (p *Provider) deleteIdentity(ctx context.Context, accessKey string) error {
-	return p.filer.DeleteMetadata(ctx, identityPath(accessKey))
+	if err := p.filer.DeleteMetadata(ctx, identityPath(accessKey)); err != nil {
+		return err
+	}
+	return p.syncIAMConfig(ctx)
 }
 
 // validateMintParams checks the precondition for a Mint call.

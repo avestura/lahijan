@@ -1076,6 +1076,10 @@ paths:
         - name: resourceType
           in: query
           schema: { type: string }
+        - name: resourceId
+          in: query
+          description: Only events about this resource (e.g. one compute instance).
+          schema: { type: string, format: uuid }
         - name: status
           in: query
           schema: { type: string, enum: [success, failure, pending] }
@@ -1351,12 +1355,19 @@ paths:
     post:
       tags: [admin]
       operationId: uploadAdminPlugin
-      summary: Upload a new plugin (.wasm + manifest)
+      summary: Upload a new plugin as a .lahx extension package
       description: |
-        Accepts multipart/form-data with two parts:
+        Accepts multipart/form-data with one part, `package`: a Lahijan
+        extension package (`.lahx`). A `.lahx` file is a ZIP archive holding
+        exactly two root-level entries:
 
-          * `wasm`     — the compiled .wasm bytes (binary).
-          * `manifest` — the lahijan.manifest.yaml text.
+          * `lahijan.manifest.yaml` — the plugin manifest.
+          * `plugin.wasm`           — the compiled WebAssembly module.
+
+        Build one with any ZIP tool
+        (`zip -j my-plugin.lahx lahijan.manifest.yaml plugin.wasm`) or with
+        `go run ./cmd/lahx pack <dir>`. Archives with other entries, nested
+        paths, or entries over the size caps are rejected with 400/413.
 
         The server parses + validates the manifest, compiles the wasm bytes
         under the configured memory cap (rejecting modules that declare more
@@ -1371,13 +1382,12 @@ paths:
           multipart/form-data:
             schema:
               type: object
-              required: [wasm, manifest]
+              required: [package]
               properties:
-                wasm:
+                package:
                   type: string
                   format: binary
-                manifest:
-                  type: string
+                  description: The `.lahx` extension package.
       responses:
         "201":
           description: The plugin was uploaded; the new row is returned.
@@ -1393,7 +1403,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
         "413":
-          description: The .wasm module exceeds the configured max upload size.
+          description: The package (or its plugin.wasm) exceeds the configured max upload size.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
@@ -2058,6 +2068,83 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/compute/instances/{instanceId}/runtime:
+    get:
+      tags: [compute]
+      operationId: getComputeInstanceRuntime
+      summary: Live runtime view of an instance (state, usage, effective config)
+      description: |
+        Reads the instance straight from the compute backend: power state,
+        PID + process count, CPU time, memory, per-disk usage, per-interface
+        addresses and counters, plus the instance's own config/devices and the
+        effective ("expanded") config/devices after profiles are applied. The
+        stored instance row only holds what the user set at create time, so
+        profile-provided NICs/disks and runtime data come from here.
+      parameters:
+        - name: instanceId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The live runtime view.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeInstanceRuntime" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/compute/instances/{instanceId}/logs:
+    get:
+      tags: [compute]
+      operationId: listComputeInstanceLogs
+      summary: List the instance's log files
+      description: |
+        Log files the backend keeps for the instance (e.g. the runtime log
+        and the boot/console log). `console.log` is always offered: it is the
+        instance's console output buffer.
+      parameters:
+        - name: instanceId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The available log files.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeInstanceLogList" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/compute/instances/{instanceId}/logs/{logFile}:
+    get:
+      tags: [compute]
+      operationId: getComputeInstanceLog
+      summary: Read one log file of the instance
+      parameters:
+        - name: instanceId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: logFile
+          in: path
+          required: true
+          description: A name from the logs listing (letters, digits, dot, dash, underscore).
+          schema: { type: string, pattern: "^[A-Za-z0-9._-]{1,128}$" }
+      responses:
+        "200":
+          description: The log content (the tail when larger than 1 MiB).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComputeInstanceLog" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /api/v1/compute/images:
     get:
@@ -6563,6 +6650,126 @@ components:
         profiles:
           type: array
           items: { type: string }
+
+    ComputeInstanceRuntime:
+      type: object
+      required: [status, config, devices, expandedConfig, expandedDevices, profiles, disks, networks]
+      additionalProperties: false
+      properties:
+        status: { type: string }
+        statusCode: { type: integer }
+        type: { type: string }
+        architecture: { type: string }
+        location: { type: string }
+        description: { type: string }
+        createdAt: { type: string, format: date-time }
+        lastUsedAt: { type: string, format: date-time }
+        stateful: { type: boolean }
+        ephemeral: { type: boolean }
+        profiles:
+          type: array
+          items: { type: string }
+        pid: { type: integer, format: int64 }
+        processes: { type: integer, format: int64 }
+        cpuUsageNanoseconds: { type: integer, format: int64 }
+        memory: { $ref: "#/components/schemas/ComputeInstanceMemory" }
+        config:
+          type: object
+          additionalProperties: { type: string }
+          description: The instance's own config keys (not inherited).
+        devices:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties: { type: string }
+          description: The instance's own devices (not inherited).
+        expandedConfig:
+          type: object
+          additionalProperties: { type: string }
+          description: Effective config after profiles are applied.
+        expandedDevices:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties: { type: string }
+          description: Effective devices after profiles are applied.
+        disks:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/ComputeInstanceDiskUsage" }
+          description: Live usage per disk device (running instances only).
+        networks:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/ComputeInstanceInterface" }
+          description: Live state per network interface (running instances only).
+
+    ComputeInstanceMemory:
+      type: object
+      additionalProperties: false
+      properties:
+        usage: { type: integer, format: int64 }
+        usagePeak: { type: integer, format: int64 }
+        total: { type: integer, format: int64 }
+        swapUsage: { type: integer, format: int64 }
+        swapUsagePeak: { type: integer, format: int64 }
+
+    ComputeInstanceDiskUsage:
+      type: object
+      additionalProperties: false
+      properties:
+        usage: { type: integer, format: int64 }
+        total: { type: integer, format: int64 }
+
+    ComputeInstanceInterface:
+      type: object
+      required: [addresses]
+      additionalProperties: false
+      properties:
+        type: { type: string }
+        state: { type: string }
+        hwaddr: { type: string }
+        hostName: { type: string }
+        mtu: { type: integer }
+        addresses:
+          type: array
+          items: { $ref: "#/components/schemas/ComputeInstanceAddress" }
+        bytesReceived: { type: integer, format: int64 }
+        bytesSent: { type: integer, format: int64 }
+        packetsReceived: { type: integer, format: int64 }
+        packetsSent: { type: integer, format: int64 }
+        errorsReceived: { type: integer, format: int64 }
+        errorsSent: { type: integer, format: int64 }
+        packetsDroppedInbound: { type: integer, format: int64 }
+        packetsDroppedOutbound: { type: integer, format: int64 }
+
+    ComputeInstanceAddress:
+      type: object
+      required: [family, address]
+      additionalProperties: false
+      properties:
+        family: { type: string, description: "inet or inet6" }
+        address: { type: string }
+        netmask: { type: string }
+        scope: { type: string, description: "global, link, local" }
+
+    ComputeInstanceLogList:
+      type: object
+      required: [items]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { type: string }
+
+    ComputeInstanceLog:
+      type: object
+      required: [name, content, truncated]
+      additionalProperties: false
+      properties:
+        name: { type: string }
+        content: { type: string }
+        truncated:
+          type: boolean
+          description: True when only the tail of a larger log is returned.
 
     ComputeExecRequest:
       type: object

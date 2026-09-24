@@ -962,11 +962,18 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Upload a new plugin (.wasm + manifest)
-         * @description Accepts multipart/form-data with two parts:
+         * Upload a new plugin as a .lahx extension package
+         * @description Accepts multipart/form-data with one part, `package`: a Lahijan
+         *     extension package (`.lahx`). A `.lahx` file is a ZIP archive holding
+         *     exactly two root-level entries:
          *
-         *       * `wasm`     — the compiled .wasm bytes (binary).
-         *       * `manifest` — the lahijan.manifest.yaml text.
+         *       * `lahijan.manifest.yaml` — the plugin manifest.
+         *       * `plugin.wasm`           — the compiled WebAssembly module.
+         *
+         *     Build one with any ZIP tool
+         *     (`zip -j my-plugin.lahx lahijan.manifest.yaml plugin.wasm`) or with
+         *     `go run ./cmd/lahx pack <dir>`. Archives with other entries, nested
+         *     paths, or entries over the size caps are rejected with 400/413.
          *
          *     The server parses + validates the manifest, compiles the wasm bytes
          *     under the configured memory cap (rejecting modules that declare more
@@ -1406,6 +1413,70 @@ export interface paths {
          *     internal/app/lahijan/api/compute_console_handlers.go.
          */
         get: operations["openConsoleComputeInstance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compute/instances/{instanceId}/runtime": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Live runtime view of an instance (state, usage, effective config)
+         * @description Reads the instance straight from the compute backend: power state,
+         *     PID + process count, CPU time, memory, per-disk usage, per-interface
+         *     addresses and counters, plus the instance's own config/devices and the
+         *     effective ("expanded") config/devices after profiles are applied. The
+         *     stored instance row only holds what the user set at create time, so
+         *     profile-provided NICs/disks and runtime data come from here.
+         */
+        get: operations["getComputeInstanceRuntime"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compute/instances/{instanceId}/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the instance's log files
+         * @description Log files the backend keeps for the instance (e.g. the runtime log
+         *     and the boot/console log). `console.log` is always offered: it is the
+         *     instance's console output buffer.
+         */
+        get: operations["listComputeInstanceLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compute/instances/{instanceId}/logs/{logFile}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read one log file of the instance */
+        get: operations["getComputeInstanceLog"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4217,6 +4288,115 @@ export interface components {
             };
             profiles?: string[];
         };
+        ComputeInstanceRuntime: {
+            status: string;
+            statusCode?: number;
+            type?: string;
+            architecture?: string;
+            location?: string;
+            description?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            lastUsedAt?: string;
+            stateful?: boolean;
+            ephemeral?: boolean;
+            profiles: string[];
+            /** Format: int64 */
+            pid?: number;
+            /** Format: int64 */
+            processes?: number;
+            /** Format: int64 */
+            cpuUsageNanoseconds?: number;
+            memory?: components["schemas"]["ComputeInstanceMemory"];
+            /** @description The instance's own config keys (not inherited). */
+            config: {
+                [key: string]: string;
+            };
+            /** @description The instance's own devices (not inherited). */
+            devices: {
+                [key: string]: {
+                    [key: string]: string;
+                };
+            };
+            /** @description Effective config after profiles are applied. */
+            expandedConfig: {
+                [key: string]: string;
+            };
+            /** @description Effective devices after profiles are applied. */
+            expandedDevices: {
+                [key: string]: {
+                    [key: string]: string;
+                };
+            };
+            /** @description Live usage per disk device (running instances only). */
+            disks: {
+                [key: string]: components["schemas"]["ComputeInstanceDiskUsage"];
+            };
+            /** @description Live state per network interface (running instances only). */
+            networks: {
+                [key: string]: components["schemas"]["ComputeInstanceInterface"];
+            };
+        };
+        ComputeInstanceMemory: {
+            /** Format: int64 */
+            usage?: number;
+            /** Format: int64 */
+            usagePeak?: number;
+            /** Format: int64 */
+            total?: number;
+            /** Format: int64 */
+            swapUsage?: number;
+            /** Format: int64 */
+            swapUsagePeak?: number;
+        };
+        ComputeInstanceDiskUsage: {
+            /** Format: int64 */
+            usage?: number;
+            /** Format: int64 */
+            total?: number;
+        };
+        ComputeInstanceInterface: {
+            type?: string;
+            state?: string;
+            hwaddr?: string;
+            hostName?: string;
+            mtu?: number;
+            addresses: components["schemas"]["ComputeInstanceAddress"][];
+            /** Format: int64 */
+            bytesReceived?: number;
+            /** Format: int64 */
+            bytesSent?: number;
+            /** Format: int64 */
+            packetsReceived?: number;
+            /** Format: int64 */
+            packetsSent?: number;
+            /** Format: int64 */
+            errorsReceived?: number;
+            /** Format: int64 */
+            errorsSent?: number;
+            /** Format: int64 */
+            packetsDroppedInbound?: number;
+            /** Format: int64 */
+            packetsDroppedOutbound?: number;
+        };
+        ComputeInstanceAddress: {
+            /** @description inet or inet6 */
+            family: string;
+            address: string;
+            netmask?: string;
+            /** @description global, link, local */
+            scope?: string;
+        };
+        ComputeInstanceLogList: {
+            items: string[];
+        };
+        ComputeInstanceLog: {
+            name: string;
+            content: string;
+            /** @description True when only the tail of a larger log is returned. */
+            truncated: boolean;
+        };
         ComputeExecRequest: {
             /** @description The argv to execute. Must be non-empty. */
             command: string[];
@@ -6912,6 +7092,8 @@ export interface operations {
                 actorUserId?: string;
                 action?: string;
                 resourceType?: string;
+                /** @description Only events about this resource (e.g. one compute instance). */
+                resourceId?: string;
                 status?: "success" | "failure" | "pending";
                 actorType?: "user" | "system" | "plugin";
                 fromTs?: string;
@@ -7162,9 +7344,11 @@ export interface operations {
         requestBody: {
             content: {
                 "multipart/form-data": {
-                    /** Format: binary */
-                    wasm: string;
-                    manifest: string;
+                    /**
+                     * Format: binary
+                     * @description The `.lahx` extension package.
+                     */
+                    package: string;
                 };
             };
         };
@@ -7190,7 +7374,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description The .wasm module exceeds the configured max upload size. */
+            /** @description The package (or its plugin.wasm) exceeds the configured max upload size. */
             413: {
                 headers: {
                     [name: string]: unknown;
@@ -7858,6 +8042,84 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+        };
+    };
+    getComputeInstanceRuntime: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instanceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The live runtime view. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeInstanceRuntime"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listComputeInstanceLogs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instanceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The available log files. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeInstanceLogList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getComputeInstanceLog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instanceId: string;
+                /** @description A name from the logs listing (letters, digits, dot, dash, underscore). */
+                logFile: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The log content (the tail when larger than 1 MiB). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComputeInstanceLog"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     listComputeImages: {

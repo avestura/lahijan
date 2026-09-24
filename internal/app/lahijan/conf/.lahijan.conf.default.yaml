@@ -72,6 +72,12 @@ database:
 # non-dev environment; an empty key falls back to a derived dev value (see
 # conf/computeddefault) and is rejected when environment != dev.
 auth:
+  signup:
+    # give every self-registered user a personal tenant they own
+    # (tenant.owner). Without a membership a new account can see the
+    # dashboard but cannot create anything. Turn off to onboard users into
+    # tenants out of band.
+    personalTenant: true
   # argon2id password hashing parameters (OWASP-recommended baseline).
   password:
     argon2:
@@ -427,17 +433,27 @@ providers:
     projectFeatures:
       images: true
       profiles: true
-      networks: true
+      # Per-project networks. Incus only allows features.networks=true when
+      # OVN is configured, so it is off by default: tenant instances attach
+      # to defaultNetwork below instead. Turn on only on OVN-backed daemons.
+      networks: false
       storageVolumes: true
       storageBuckets: true
+    # Managed network seeded as eth0 into every tenant project's default
+    # profile when projectFeatures.networks is false (the project then sees
+    # the default project's networks). "lahijanbr" is the bridge created by
+    # deployments/incus/preseed.yaml. Empty = seed no NIC.
+    defaultNetwork: "lahijanbr"
     # Featured image aliases advertised by the compute module's image catalog
     # (WS-14). These are the images Incus is expected to have available via
     # its image server; Lahijan does not host them itself.
     featuredImages:
+      # images.linuxcontainers.org prunes old releases (alpine/3.20 and
+      # fedora/40 are gone), so keep these to currently published aliases.
       - "ubuntu/24.04"
       - "debian/12"
-      - "alpine/3.20"
-      - "fedora/40"
+      - "alpine/3.22"
+      - "fedora/43"
     # Events stream (websocket /1.0/events). When enabled, the driver opens
     # a long-lived websocket to Incus and fans events into the WASM event
     # bus (see internal/app/lahijan/wasm/eventbus). Disable for dev runs
@@ -576,6 +592,15 @@ providers:
     # addressing (SeaweedFS does not support virtual-hosted style), set
     # usePathStyle=true (the default).
     s3Endpoint: "http://seaweedfs:8333"
+    # User-facing S3 origin (what end users' S3 clients and browsers reach,
+    # e.g. "https://s3.example.com"). Presigned URLs are signed for this
+    # host; empty falls back to s3Endpoint, which only works in-cluster.
+    publicEndpoint: ""
+    # browser origins allowed to use presigned URLs against the S3 data
+    # plane (the dashboard origin, e.g. "https://app.example.com"). Written
+    # into every bucket's CORS configuration; empty = browser uploads and
+    # downloads fail the CORS preflight.
+    corsAllowedOrigins: [] # !!str
     # toggles path-style S3 addressing (https://<host>/<bucket>/...).
     # SeaweedFS requires path-style; setting this false breaks the driver.
     usePathStyle: true

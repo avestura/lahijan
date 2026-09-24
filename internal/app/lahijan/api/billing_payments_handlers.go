@@ -66,6 +66,7 @@ func mapPaymentsError(c *fiber.Ctx, err error) error {
 	case errors.Is(err, billing.ErrInvalidCurrency):
 		return SendBadRequest(c, i18n.T(c.UserContext(), "billing.err_invalid_currency", nil), nil)
 	}
+	logUnexpectedError(c, "billing.payments", err)
 	return SendInternal(c, i18n.T(c.UserContext(), "auth.err_internal", nil))
 }
 

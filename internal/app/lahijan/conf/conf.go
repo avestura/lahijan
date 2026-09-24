@@ -182,6 +182,12 @@ func GetAuthPasswordArgon2() Argon2Params {
 	}
 }
 
+// GetAuthSignupPersonalTenant reports whether self-registration creates a
+// personal tenant owned by the new user.
+func GetAuthSignupPersonalTenant() bool {
+	return viper.GetBool("auth.signup.personalTenant")
+}
+
 // GetAuthPasswordMinLength returns the minimum password length.
 func GetAuthPasswordMinLength() int {
 	return viper.GetInt("auth.password.minLength")
@@ -690,6 +696,12 @@ func GetProvidersIncusProjectFeatures() IncusProjectFeatures {
 	}
 }
 
+// GetProvidersIncusDefaultNetwork returns the managed network seeded as eth0
+// into tenant default profiles when per-project networks are disabled.
+func GetProvidersIncusDefaultNetwork() string {
+	return viper.GetString("providers.incus.defaultNetwork")
+}
+
 // GetProvidersIncusFeaturedImages returns the list of image aliases
 // advertised as "featured" by the compute module's image catalog.
 func GetProvidersIncusFeaturedImages() []string {
@@ -909,6 +921,18 @@ func GetProvidersSeaweedFSEnabled() bool {
 // client targets. Default targets the compose service on port 8333.
 func GetProvidersSeaweedFSS3Endpoint() string {
 	return viper.GetString("providers.seaweedfs.s3Endpoint")
+}
+
+// GetProvidersSeaweedFSCORSAllowedOrigins returns the browser origins
+// written into every bucket's CORS configuration.
+func GetProvidersSeaweedFSCORSAllowedOrigins() []string {
+	return viper.GetStringSlice("providers.seaweedfs.corsAllowedOrigins")
+}
+
+// GetProvidersSeaweedFSPublicEndpoint returns the user-facing S3 origin
+// presigned URLs are signed for. Empty = use s3Endpoint.
+func GetProvidersSeaweedFSPublicEndpoint() string {
+	return viper.GetString("providers.seaweedfs.publicEndpoint")
 }
 
 // GetProvidersSeaweedFSUsePathStyle reports whether the S3 client should

@@ -101,6 +101,7 @@ func mapStorageError(c *fiber.Ctx, err error) error {
 		// Surface the validator's message verbatim so the UI can render it.
 		return SendBadRequest(c, err.Error(), nil)
 	}
+	logUnexpectedError(c, "storage", err)
 	return SendInternal(c, i18n.T(c.UserContext(), "auth.err_internal", nil))
 }
 

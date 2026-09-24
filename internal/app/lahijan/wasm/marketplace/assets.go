@@ -12,7 +12,29 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/avestura/lahijan/internal/app/lahijan/wasm/lahx"
 )
+
+// packageFile is the extension package a marketplace entry directory may
+// ship instead of the two loose files. Preferred when present.
+const packageFile = "plugin" + lahx.Extension
+
+// packageLimits caps what a marketplace package may unpack to (the
+// installer re-applies the configured module cap).
+var packageLimits = lahx.Limits{MaxManifestBytes: 64 << 10, MaxModuleBytes: 50 << 20}
+
+// assetFromPackage unpacks a .lahx and applies the index's wasm pin.
+func assetFromPackage(e Entry, data []byte) (Asset, error) {
+	pkg, err := lahx.Open(data, packageLimits)
+	if err != nil {
+		return Asset{}, fmt.Errorf("marketplace: %s: %w", e.Name, err)
+	}
+	if err := verifySHA256(pkg.WasmBytes, e.SHA256); err != nil {
+		return Asset{}, fmt.Errorf("marketplace: %s: %w", e.Name, err)
+	}
+	return Asset{ManifestYAML: pkg.ManifestYAML, WasmBytes: pkg.WasmBytes}, nil
+}
 
 // Asset is the bundle of bytes the installer needs to persist a plugin.
 // Manifest is the raw YAML (unparsed); the installer parses + validates
@@ -29,8 +51,9 @@ type AssetLoader interface {
 	Fetch(ctx context.Context, e Entry) (Asset, error)
 }
 
-// LocalAssetLoader fetches plugin.wasm + lahijan.manifest.yaml from a
-// directory on the local filesystem. Used for the in-repo marketplace
+// LocalAssetLoader fetches an entry from a directory on the local
+// filesystem: plugin.lahx when present, else plugin.wasm +
+// lahijan.manifest.yaml. Used for the in-repo marketplace
 // (Source.Repo == "local", Source.Path == "<subdir>").
 type LocalAssetLoader struct {
 	rootDir string
@@ -50,6 +73,11 @@ func (l *LocalAssetLoader) Fetch(ctx context.Context, e Entry) (Asset, error) {
 		sub = e.Name
 	}
 	dir := filepath.Join(l.rootDir, sub)
+	if data, err := os.ReadFile(filepath.Join(dir, packageFile)); err == nil {
+		return assetFromPackage(e, data)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return Asset{}, fmt.Errorf("marketplace: read package %s: %w", dir, err)
+	}
 	manifest, err := os.ReadFile(filepath.Join(dir, "lahijan.manifest.yaml"))
 	if err != nil {
 		return Asset{}, fmt.Errorf("marketplace: read manifest %s: %w", dir, err)
@@ -64,8 +92,9 @@ func (l *LocalAssetLoader) Fetch(ctx context.Context, e Entry) (Asset, error) {
 	return Asset{ManifestYAML: manifest, WasmBytes: wasm}, nil
 }
 
-// HTTPAssetLoader fetches plugin.wasm + lahijan.manifest.yaml from a
-// remote base URL. Used when the marketplace index is served over HTTP
+// HTTPAssetLoader fetches an entry from a remote base URL: plugin.lahx when
+// the server has it (404 falls back), else plugin.wasm +
+// lahijan.manifest.yaml. Used when the marketplace index is served over HTTP
 // (Source.Repo == "local" + a marketplace URL); the URL pattern is
 // `<base>/<source.path>/{plugin.wasm,lahijan.manifest.yaml}`.
 //
@@ -95,6 +124,11 @@ func (l *HTTPAssetLoader) Fetch(ctx context.Context, e Entry) (Asset, error) {
 	if sub == "" {
 		sub = e.Name
 	}
+	if data, err := l.fetchURL(ctx, l.baseURL+"/"+sub+"/"+packageFile); err == nil {
+		return assetFromPackage(e, data)
+	} else if !errors.Is(err, errNotFound) {
+		return Asset{}, err
+	}
 	manifest, err := l.fetchURL(ctx, l.baseURL+"/"+sub+"/lahijan.manifest.yaml")
 	if err != nil {
 		return Asset{}, err
@@ -119,6 +153,9 @@ func (l *HTTPAssetLoader) fetchURL(ctx context.Context, url string) ([]byte, err
 		return nil, fmt.Errorf("fetch %s: %w", url, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("%s: %w", url, errNotFound)
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("%s returned %s", url, resp.Status)
 	}
@@ -128,6 +165,10 @@ func (l *HTTPAssetLoader) fetchURL(ctx context.Context, url string) ([]byte, err
 	}
 	return body, nil
 }
+
+// errNotFound marks a 404 so Fetch can fall back from plugin.lahx to the
+// two loose files.
+var errNotFound = errors.New("not found")
 
 // ErrHashMismatch is returned by verifySHA256 when the downloaded bytes
 // do not match the index's pinned hash. The installer surfaces this as

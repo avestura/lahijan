@@ -40,9 +40,8 @@ func (p *Provider) WaitOperation(ctx context.Context, opID string) (*Operation, 
 	defer span.End()
 
 	// Compute a wait timeout from the caller's deadline (if any). Fall back
-	// to 5 minutes when the caller has no deadline — Incus-side timeouts
-	// typically fire first.
-	waitSecs := 300
+	// to defaultOperationWaitTimeout when the caller has no deadline.
+	waitSecs := int(defaultOperationWaitTimeout.Seconds())
 	if dl, ok := ctx.Deadline(); ok {
 		// Reserve a small grace period so the wait returns before the caller
 		// context expires; the daemon-side wait then surfaces a useful
@@ -53,7 +52,10 @@ func (p *Provider) WaitOperation(ctx context.Context, opID string) (*Operation, 
 	}
 
 	path := fmt.Sprintf("operations/%s/wait?timeout=%d", opID, waitSecs)
-	raw, err := p.do(ctx, "GET", path, nil)
+	// Not p.do: its per-request timeout (30s default) would cut the wait
+	// off long before the daemon-side timeout, failing every slow create.
+	// Allow the daemon-side wait plus a little slack to deliver the result.
+	raw, err := p.doWithTimeout(ctx, time.Duration(waitSecs)*time.Second+10*time.Second, "GET", path, nil)
 	if err != nil {
 		setStatus(span, err)
 		return nil, err
@@ -75,26 +77,41 @@ func (p *Provider) WaitOperation(ctx context.Context, opID string) (*Operation, 
 	}
 	if err := json.Unmarshal(raw, &probe); err == nil && probe.Type == "error" && probe.Error != "" {
 		setStatus(span, fmt.Errorf("incus: %s", probe.Error))
-		return nil, fmt.Errorf("incus: operation %s: %s", opID, probe.Error)
+		return nil, fmt.Errorf("%w: %s: %s", ErrAsyncOperationFailed, opID, probe.Error)
 	}
 
 	// WaitOperation returns a Response whose Metadata is the Operation. Some
 	// Incus versions wrap an extra Response envelope around it.
 	var op Operation
-	if err := json.Unmarshal(raw, &op); err == nil && op.ID != "" {
-		setStatus(span, nil)
-		return &op, nil
-	}
-	// Fall back: try to unwrap a nested envelope.
-	var inner Response
-	if err := json.Unmarshal(raw, &inner); err == nil && inner.Metadata != nil {
-		if err := json.Unmarshal(inner.Metadata, &op); err == nil && op.ID != "" {
-			setStatus(span, nil)
-			return &op, nil
+	if err := json.Unmarshal(raw, &op); err != nil || op.ID == "" {
+		// Fall back: try to unwrap a nested envelope.
+		var inner Response
+		if err := json.Unmarshal(raw, &inner); err == nil && inner.Metadata != nil {
+			_ = json.Unmarshal(inner.Metadata, &op)
 		}
+	}
+	// p.do already stripped the response envelope, so a failed operation
+	// arrives here as metadata with status "Failure" (400) or "Cancelled"
+	// (401) and the reason in err — surface it instead of returning the
+	// operation as if it had succeeded.
+	if err := operationError(&op); err != nil {
+		setStatus(span, err)
+		return &op, err
 	}
 	setStatus(span, nil)
 	return &op, nil
+}
+
+// operationError returns a non-nil error when op finished unsuccessfully.
+func operationError(op *Operation) error {
+	if op.StatusCode < 400 && op.Status != "Failure" && op.Status != "Cancelled" {
+		return nil
+	}
+	reason := op.Err
+	if reason == "" {
+		reason = op.Status
+	}
+	return fmt.Errorf("%w: %s: %s", ErrAsyncOperationFailed, op.ID, reason)
 }
 
 // CancelOperation requests that the daemon cancel a running async operation.

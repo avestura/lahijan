@@ -18,6 +18,7 @@ package fake
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -335,15 +336,21 @@ func (s *Server) handleInteractiveExec(
 			if err != nil {
 				return
 			}
-			var msg incus.ExecControlResize
-			if err := json.Unmarshal(data, &msg); err != nil {
+			// Decode the real daemon wire shape (api.InstanceExecControl);
+			// anything else is ignored, exactly as Incus does.
+			var ctl incus.ExecControl
+			if err := json.Unmarshal(data, &ctl); err != nil || ctl.Command != "window-resize" {
 				continue
 			}
-			if msg.Type == "resize" {
-				s.mu.Lock()
-				*s.interactiveResizes[opID] = append(*s.interactiveResizes[opID], msg)
-				s.mu.Unlock()
+			width, errW := strconv.Atoi(ctl.Args["width"])
+			height, errH := strconv.Atoi(ctl.Args["height"])
+			if errW != nil || errH != nil {
+				continue
 			}
+			msg := incus.ExecControlResize{Type: "resize", Width: width, Height: height}
+			s.mu.Lock()
+			*s.interactiveResizes[opID] = append(*s.interactiveResizes[opID], msg)
+			s.mu.Unlock()
 		}
 	}()
 

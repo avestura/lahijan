@@ -151,6 +151,7 @@ type AuditLogFilter struct {
 	ActorUserID  *uuid.UUID
 	Action       *string
 	ResourceType *string
+	ResourceID   *uuid.UUID // honored only by the tenant-scoped variant
 	Status       *string
 	ActorType    *string
 	TenantID     *uuid.UUID // honored only by the global (admin) variant
@@ -174,6 +175,7 @@ func (r *AuditLogRepository) ListForTenantFiltered(
 		ActorUserID:  f.ActorUserID,
 		Action:       f.Action,
 		ResourceType: f.ResourceType,
+		ResourceID:   f.ResourceID,
 		Status:       f.Status,
 		ActorType:    f.ActorType,
 		FromTs:       f.FromTS,
@@ -195,6 +197,7 @@ func (r *AuditLogRepository) CountForTenantFiltered(ctx context.Context, f Audit
 		ActorUserID:  f.ActorUserID,
 		Action:       f.Action,
 		ResourceType: f.ResourceType,
+		ResourceID:   f.ResourceID,
 		Status:       f.Status,
 		ActorType:    f.ActorType,
 		FromTs:       f.FromTS,

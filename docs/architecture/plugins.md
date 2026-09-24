@@ -28,8 +28,7 @@ unapproved calls fail closed.
 cd examples/plugins/_template && make build
 
 # Install (admin session required)
-curl -F 'wasm=@plugin.wasm;type=application/wasm' \
-     -F 'manifest=@lahijan.manifest.yaml;type=text/yaml' \
+curl -F 'package=@my-plugin-0.1.0.lahx' \
      -H 'Cookie: lahijan_session=...' \
      -H 'X-Tenant-Id: ...' \
      http://localhost:3000/api/v1/admin/plugins/upload
@@ -641,8 +640,7 @@ make verify   # assert no WASI imports
 ### Step 5: install
 
 ```sh
-curl -F 'wasm=@plugin.wasm;type=application/wasm' \
-     -F 'manifest=@lahijan.manifest.yaml;type=text/yaml' \
+curl -F 'package=@my-plugin-0.1.0.lahx' \
      -H 'Cookie: lahijan_session=...' \
      -H 'X-Tenant-Id: ...' \
      http://localhost:3000/api/v1/admin/plugins/upload

@@ -6,6 +6,7 @@ import (
 	"bytes"
 	_ "embed"
 	"errors"
+	"strings"
 
 	"github.com/spf13/viper"
 )
@@ -45,6 +46,11 @@ func SetupConfig() (*configSetupInfo, error) {
 		}
 	}
 	viper.SetEnvPrefix("lahijan")
+	// Map nested keys onto flat env names (providers.seaweedfs.enabled →
+	// LAHIJAN_PROVIDERS_SEAWEEDFS_ENABLED). Without the replacer Viper looks
+	// up LAHIJAN_PROVIDERS.SEAWEEDFS.ENABLED, which no shell can set, so every
+	// nested env override in the compose stacks would be silently ignored.
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 	return info, nil
 }

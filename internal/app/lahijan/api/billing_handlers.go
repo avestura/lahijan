@@ -107,6 +107,7 @@ func mapBillingError(c *fiber.Ctx, err error) error {
 		errors.Is(err, billing.ErrInvalidResource):
 		return SendBadRequest(c, i18n.T(c.UserContext(), "billing.err_bad_request", nil), nil)
 	}
+	logUnexpectedError(c, "billing", err)
 	return SendInternal(c, i18n.T(c.UserContext(), "auth.err_internal", nil))
 }
 

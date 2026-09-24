@@ -93,13 +93,15 @@ func buildSeaweedfsDeps(_ context.Context, bus *eventbus.Bus) (seaweedfsDeps, er
 		HTTPClient: &http.Client{
 			Timeout: time.Duration(conf.GetProvidersSeaweedFSRequestTimeoutSeconds()) * time.Second,
 		},
-		S3Endpoint:        conf.GetProvidersSeaweedFSS3Endpoint(),
-		FilerURL:          conf.GetProvidersSeaweedFSFilerURL(),
-		Region:            conf.GetProvidersSeaweedFSRegion(),
-		AdminAccessKey:    accessKey,
-		AdminSecretKey:    secretKey,
-		RequestTimeout:    time.Duration(conf.GetProvidersSeaweedFSRequestTimeoutSeconds()) * time.Second,
-		DefaultPresignTTL: time.Duration(conf.GetProvidersSeaweedFSDefaultPresignTTLSeconds()) * time.Second,
+		S3Endpoint:         conf.GetProvidersSeaweedFSS3Endpoint(),
+		PublicS3Endpoint:   conf.GetProvidersSeaweedFSPublicEndpoint(),
+		CORSAllowedOrigins: conf.GetProvidersSeaweedFSCORSAllowedOrigins(),
+		FilerURL:           conf.GetProvidersSeaweedFSFilerURL(),
+		Region:             conf.GetProvidersSeaweedFSRegion(),
+		AdminAccessKey:     accessKey,
+		AdminSecretKey:     secretKey,
+		RequestTimeout:     time.Duration(conf.GetProvidersSeaweedFSRequestTimeoutSeconds()) * time.Second,
+		DefaultPresignTTL:  time.Duration(conf.GetProvidersSeaweedFSDefaultPresignTTLSeconds()) * time.Second,
 		DefaultQuota: seaweedfs.QuotaSpec{
 			SizeMiB:   conf.GetProvidersSeaweedFSDefaultQuotaMiB(),
 			FileCount: 0,
@@ -125,6 +127,18 @@ func buildSeaweedfsDeps(_ context.Context, bus *eventbus.Bus) (seaweedfsDeps, er
 			"cluster_mode", caps.ClusterMode,
 			"server_version", caps.ServerVersion,
 			"quotas_enforced", caps.QuotasEnforced)
+		// Re-publish the S3 IAM document so the admin identity (which
+		// may have been rotated in .env) and every minted credential are
+		// live, whatever state the filer was left in.
+		if err := provider.SyncIAM(pingCtx); err != nil {
+			fiberlog.Warn("seaweedfs IAM sync failed at startup; minted credentials may be stale",
+				"error", err.Error())
+		}
+		// Backfill the dashboard CORS rule onto existing buckets.
+		if err := provider.EnsureBucketCORS(pingCtx); err != nil {
+			fiberlog.Warn("seaweedfs bucket CORS backfill failed; browser uploads may fail",
+				"error", err.Error())
+		}
 	}
 
 	return seaweedfsDeps{provider: provider}, nil
