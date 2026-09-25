@@ -1,0 +1,71 @@
+# GitHub Pages - the marketing website and the user documentation
+#
+# Builds website/ (the landing pages plus /docs, compiled from
+# website/src/content/docs) and publishes it to GitHub Pages. The Vite base
+# and canonical URL come from the Pages configuration, so the same build
+# works for https://<owner>.github.io/<repo>/ and for a custom domain.
+#
+# Repository setting required once: Settings > Pages > Source: GitHub Actions.
+
+name: Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - website/**
+      - internal/app/lahijan/conf/.lahijan.conf.default.yaml
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build website and docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - name: Read Pages settings
+        id: pages
+        uses: actions/configure-pages@v5
+      - name: Install
+        working-directory: website
+        run: npm ci
+      - name: Test
+        working-directory: website
+        run: npm test
+      - name: Build
+        working-directory: website
+        env:
+          # e.g. "/lahijan" for a project site, "" for a custom domain.
+          VITE_BASE: ${{ steps.pages.outputs.base_path }}/
+          VITE_SITE_URL: ${{ steps.pages.outputs.base_url }}
+        run: npm run build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: website/dist
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
