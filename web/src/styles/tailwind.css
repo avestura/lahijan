@@ -75,8 +75,8 @@
     color: var(--bx-ink-subtle);
   }
 
-  /* Command palette rows (cmdk): 40px rows, selected = surface-active + a
-     2px accent inset bar; group headings are mono labels on sunken strips. */
+  /* Command palette rows (cmdk): 40px rows, selected = the raised hover fill
+     + a 2px accent inset bar; group headings are mono labels on sunken strips. */
   [cmdk-group-heading] {
     display: flex;
     align-items: center;
@@ -85,10 +85,14 @@
     background: var(--bx-surface-sunken);
     border-block: var(--bx-border) solid var(--bx-line-subtle);
     font-family: var(--bx-font-mono);
-    font-size: var(--bx-text-xs);
+    font-size: var(--bx-text-2xs);
+    font-weight: var(--bx-weight-medium);
     letter-spacing: var(--bx-track-label);
     text-transform: uppercase;
     color: var(--bx-ink-subtle);
+  }
+  [cmdk-group]:first-child [cmdk-group-heading] {
+    border-block-start: 0;
   }
   [cmdk-item] {
     height: 40px;
@@ -97,14 +101,160 @@
     color: var(--bx-ink);
     cursor: pointer;
   }
+  [cmdk-item] svg {
+    color: var(--bx-ink-subtle);
+    transition: color var(--bx-dur-1) var(--bx-ease);
+  }
+  /* One selection, two inputs: cmdk moves data-selected with the arrows and
+     the pointer alike, so there is never a separate hover highlight. The
+     palette is a raised scope, so surface-hover is the visible step up. */
   [cmdk-item][data-selected="true"] {
-    background: var(--bx-surface-active);
+    background: var(--bx-surface-hover);
     box-shadow: inset 2px 0 0 0 var(--bx-accent);
   }
+  [dir="rtl"] [cmdk-item][data-selected="true"] {
+    box-shadow: inset -2px 0 0 0 var(--bx-accent);
+  }
+  [cmdk-item][data-selected="true"] svg {
+    color: var(--bx-ink);
+  }
 
-  /* Lucide icons: Boxy's 1.5px stroke. */
+  /* Lucide icons adapted to the Boxy set (icons.md): a 1.5px stroke at any
+     render size, square caps, mitred joins. */
   svg.lucide {
     stroke-width: 1.5;
+    stroke-linecap: square;
+    stroke-linejoin: miter;
+  }
+  svg.lucide * {
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* Floating layers are a raised scope (components-overlays.md). In dark
+     mode --bx-surface-hover equals --bx-surface-raised, so an ordinary hover
+     fill vanishes on a menu; inside every menu, popover, dialog and toast the
+     hover steps up to --bx-surface-active instead. */
+  .bx-raised {
+    --bx-surface: var(--bx-surface-raised);
+    --bx-surface-hover: var(--bx-surface-active);
+  }
+
+  /* Menu keyboard focus: the highlight plus a 2px accent bar on the inline
+     start - the palette's selected-row mark - only when the keyboard is
+     driving (lib/input-modality.ts). Pointer highlight is the fill alone. */
+  [data-input="keyboard"] .bx-menu-item[data-highlighted] {
+    box-shadow: inset 2px 0 0 0 var(--bx-accent);
+  }
+  [data-input="keyboard"] .bx-menu-item--danger[data-highlighted] {
+    box-shadow: inset 2px 0 0 0 var(--bx-danger);
+  }
+  [dir="rtl"][data-input="keyboard"] .bx-menu-item[data-highlighted] {
+    box-shadow: inset -2px 0 0 0 var(--bx-accent);
+  }
+  [dir="rtl"][data-input="keyboard"] .bx-menu-item--danger[data-highlighted] {
+    box-shadow: inset -2px 0 0 0 var(--bx-danger);
+  }
+
+  /* Menu check: a drawn stroke used as a mask. The mask is permanent and only
+     the fill toggles - adding both together lets a browser paint one frame of
+     fill without the mask, a solid square flashing on uncheck. */
+  .bx-menu-check {
+    inline-size: 16px;
+    block-size: 16px;
+    flex-shrink: 0;
+    background-color: transparent;
+    -webkit-mask: var(--bx-check) center / 16px 16px no-repeat;
+    mask: var(--bx-check) center / 16px 16px no-repeat;
+  }
+  [data-state="checked"] > .bx-menu-check {
+    background-color: var(--bx-ink);
+  }
+  /* Radio mark: a 6px square in the same reserved 16px slot. */
+  .bx-menu-radio {
+    inline-size: 16px;
+    block-size: 16px;
+    flex-shrink: 0;
+  }
+  [data-state="checked"] > .bx-menu-radio {
+    background: linear-gradient(var(--bx-ink), var(--bx-ink)) center / 6px 6px no-repeat;
+  }
+
+  /* Submenu chevron: two 1.5px borders turned 45deg - the one rotation allowed. */
+  .bx-chevron {
+    inline-size: 6px;
+    block-size: 6px;
+    flex-shrink: 0;
+    border-block-start: 1.5px solid var(--bx-ink-subtle);
+    border-inline-end: 1.5px solid var(--bx-ink-subtle);
+    transform: translateX(-2px) rotate(45deg);
+  }
+  [dir="rtl"] .bx-chevron {
+    transform: translateX(2px) rotate(-45deg);
+  }
+  [data-state="open"] > .bx-chevron {
+    border-color: var(--bx-ink);
+  }
+
+  /* Spinner: a 4px square stepping round a 16px box. No arcs, no rotation. */
+  .bx-spinner {
+    display: inline-block;
+    position: relative;
+    flex-shrink: 0;
+    inline-size: 16px;
+    block-size: 16px;
+    box-shadow: inset 0 0 0 1px var(--bx-line-strong);
+  }
+  .bx-spinner::after {
+    content: "";
+    position: absolute;
+    inset-block-start: 2px;
+    inset-inline-start: 2px;
+    inline-size: 4px;
+    block-size: 4px;
+    background: var(--bx-accent);
+    animation: bx-orbit 0.8s steps(1, end) infinite;
+  }
+  .bx-spinner--sm {
+    inline-size: 12px;
+    block-size: 12px;
+  }
+  .bx-spinner--sm::after {
+    inline-size: 2px;
+    block-size: 2px;
+    animation-name: bx-orbit-sm;
+  }
+  @keyframes bx-orbit {
+    0% {
+      transform: translate(0, 0);
+    }
+    25% {
+      transform: translate(8px, 0);
+    }
+    50% {
+      transform: translate(8px, 8px);
+    }
+    75% {
+      transform: translate(0, 8px);
+    }
+  }
+  @keyframes bx-orbit-sm {
+    0% {
+      transform: translate(0, 0);
+    }
+    25% {
+      transform: translate(6px, 0);
+    }
+    50% {
+      transform: translate(6px, 6px);
+    }
+    75% {
+      transform: translate(0, 6px);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bx-spinner::after {
+      animation: none;
+    }
   }
 
   /* Stepped skeleton pulse (no shimmer gradient). */

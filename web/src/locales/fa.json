@@ -52,7 +52,11 @@
     "label": "ناوبری سراسری",
     "placeholder": "جست‌وجوی مقاصد…",
     "empty": "هیچ مقصدی یافت نشد.",
-    "goto": "رفتن به"
+    "goto": "رفتن به",
+    "noResults": "نتیجه‌ای برای «{{query}}» یافت نشد",
+    "hintNavigate": "پیمایش",
+    "hintSelect": "انتخاب",
+    "hintClose": "بستن"
   },
   "auth": {
     "login": {

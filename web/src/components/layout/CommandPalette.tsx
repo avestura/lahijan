@@ -16,9 +16,13 @@
  */
 import { Command } from "cmdk";
 import {
+  ArrowDownIcon,
+  ArrowUpIcon,
   CloudIcon,
+  CornerDownLeftIcon,
   DatabaseIcon,
   DollarSignIcon,
+  GlobeIcon,
   LayoutDashboardIcon,
   ScrollTextIcon,
   SearchIcon,
@@ -26,6 +30,7 @@ import {
   ShieldIcon,
   SparklesIcon,
 } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "@tanstack/react-router";
 
@@ -52,7 +57,7 @@ const DESTINATIONS: Destination[] = [
     id: "dns",
     labelKey: "nav.dns",
     to: "/dns",
-    icon: GlobeWrapper,
+    icon: GlobeIcon,
     keywords: "zones records",
   },
   {
@@ -116,24 +121,34 @@ const DESTINATIONS: Destination[] = [
   // { id: "admin.jobs", labelKey: "nav.admin.jobs", to: "/admin/jobs", icon: BoxesIcon },
 ];
 
-// Wrap lucide's GlobeIcon so we can swap it for a project-local icon later
-// without churning every nav item. Mirrors the Sidebar's GlobeWrapper.
-function GlobeWrapper({ className }: { className?: string }) {
+// Key names are symbols, not translatable copy. Arrow keys are drawn with
+// icons: arrow characters fall back to a colour emoji font (icons.md).
+const KEY_ESC = "esc";
+
+/** Wraps the first case-insensitive match of `query` in an inverted block. */
+function Highlight({ text, query }: { text: string; query: string }) {
+  const q = query.trim();
+  const at = q ? text.toLowerCase().indexOf(q.toLowerCase()) : -1;
+  if (at < 0) return <>{text}</>;
   return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <path d="M2 12h20" />
-      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-    </svg>
+    <>
+      {text.slice(0, at)}
+      <mark className="bg-surface-inverse px-px text-ink-inverse">
+        {text.slice(at, at + q.length)}
+      </mark>
+      {text.slice(at + q.length)}
+    </>
+  );
+}
+
+function KeyHint({ keys, label }: { keys: React.ReactNode; label: string }) {
+  return (
+    <span className="flex items-center gap-1 font-mono text-2xs uppercase tracking-[0.08em] text-ink-subtle">
+      <kbd className="flex h-4 items-center border border-line bg-surface px-1 font-mono text-2xs text-ink-muted [&>svg]:size-3">
+        {keys}
+      </kbd>
+      {label}
+    </span>
   );
 }
 
@@ -145,49 +160,80 @@ interface CommandPaletteProps {
 export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [query, setQuery] = useState("");
+
+  const setOpen = (next: boolean) => {
+    if (!next) setQuery("");
+    onOpenChange(next);
+  };
 
   const go = async (to: string) => {
-    onOpenChange(false);
+    setOpen(false);
     await navigate({ to });
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={setOpen}>
       {/* 640px, 96px from the top (not centred), heavy border + hard shadow
           from DialogContent (components-forms.md command palette). */}
       <DialogContent className="top-24 max-w-[640px] translate-y-0 gap-0 overflow-hidden p-0">
         <Command label={t("commandPalette.label")} className="flex flex-col overflow-hidden">
-          <div className="flex items-center border-b border-line px-4">
-            <SearchIcon className="me-2 h-4 w-4 shrink-0 text-ink-subtle" />
+          <div className="flex h-12 items-center gap-3 border-b border-line px-4">
+            <SearchIcon className="h-4 w-4 shrink-0 text-ink-subtle" />
             <Command.Input
               autoFocus
+              value={query}
+              onValueChange={setQuery}
               placeholder={t("commandPalette.placeholder")}
               data-testid="command-palette-input"
-              className="flex h-12 w-full bg-transparent text-base outline-none placeholder:text-ink-subtle"
+              className="flex h-full w-full bg-transparent text-base outline-none placeholder:text-ink-subtle"
             />
           </div>
-          <Command.List className="max-h-80 overflow-y-auto">
-            <Command.Empty className="p-6 font-mono text-label uppercase tracking-[0.08em] text-ink-subtle">
-              {t("commandPalette.empty")}
+          <Command.List className="max-h-[min(360px,calc(100vh-240px))] overflow-y-auto">
+            <Command.Empty className="px-4 py-8 font-mono text-label uppercase tracking-[0.08em] text-ink-subtle">
+              {t("commandPalette.noResults", { query: query.trim() })}
             </Command.Empty>
             <Command.Group heading={t("commandPalette.goto")}>
               {DESTINATIONS.map((d) => {
                 const Icon = d.icon;
+                const label = t(d.labelKey);
                 return (
                   <Command.Item
                     key={d.id}
-                    value={`${t(d.labelKey)} ${d.keywords ?? ""}`}
+                    value={`${label} ${d.keywords ?? ""}`}
                     onSelect={() => go(d.to)}
                     data-testid={`command-palette-item-${d.id}`}
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-3"
                   >
-                    <Icon className="h-4 w-4 shrink-0 text-ink-subtle" />
-                    <span className="flex-1">{t(d.labelKey)}</span>
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span className="min-w-0 flex-1 truncate">
+                      <Highlight text={label} query={query} />
+                    </span>
+                    {/* Real meta only: the route the row opens. */}
+                    <span className="ms-auto font-mono text-label text-ink-subtle" dir="ltr">
+                      {d.to}
+                    </span>
                   </Command.Item>
                 );
               })}
             </Command.Group>
           </Command.List>
+          <div className="flex h-8 items-center gap-4 border-t border-line bg-surface-sunken px-4">
+            <KeyHint
+              keys={
+                <>
+                  <ArrowUpIcon aria-hidden="true" />
+                  <ArrowDownIcon aria-hidden="true" />
+                </>
+              }
+              label={t("commandPalette.hintNavigate")}
+            />
+            <KeyHint
+              keys={<CornerDownLeftIcon aria-hidden="true" />}
+              label={t("commandPalette.hintSelect")}
+            />
+            <KeyHint keys={KEY_ESC} label={t("commandPalette.hintClose")} />
+          </div>
         </Command>
       </DialogContent>
     </Dialog>

@@ -7,7 +7,7 @@
  * rather than the destructive ErrorState look — a disabled feature is
  * an expected state, not a failure.
  */
-import { BanIcon } from "lucide-react";
+import { SquareSlashIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -28,7 +28,7 @@ export function FeatureDisabledState({ title, description, className }: FeatureD
       )}
     >
       <div className="flex h-12 w-12 items-center justify-center border border-line-strong text-ink-subtle">
-        <BanIcon className="h-6 w-6" aria-hidden="true" />
+        <SquareSlashIcon className="h-6 w-6" aria-hidden="true" />
       </div>
       <div className="space-y-1">
         <p className="text-base font-semibold text-ink">{title}</p>

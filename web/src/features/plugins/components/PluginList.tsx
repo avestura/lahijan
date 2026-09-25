@@ -4,7 +4,7 @@
  */
 import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
-import { MoreHorizontalIcon, Trash2Icon, PlugIcon } from "lucide-react";
+import { EyeIcon, MoreHorizontalIcon, PlugIcon, Trash2Icon } from "lucide-react";
 import type { components } from "@api-schema";
 
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -150,21 +149,23 @@ export function PluginList({ plugins, isLoading, error, onRetry }: Props) {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>{t("plugins.title")}</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
                       <DropdownMenuItem asChild>
                         <Link to="/admin/plugins/$pluginId" params={{ pluginId: p.id }}>
+                          <EyeIcon />
                           {t("plugins.actions.viewDetail")}
                         </Link>
                       </DropdownMenuItem>
                       {canUninstall && (
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={() => destroy.mutate({ pluginId: p.id })}
-                        >
-                          <Trash2Icon className="me-2 h-4 w-4" />
-                          {t("plugins.actions.delete")}
-                        </DropdownMenuItem>
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => destroy.mutate({ pluginId: p.id })}
+                          >
+                            <Trash2Icon />
+                            {t("plugins.actions.delete")}
+                          </DropdownMenuItem>
+                        </>
                       )}
                     </DropdownMenuContent>
                   </DropdownMenu>

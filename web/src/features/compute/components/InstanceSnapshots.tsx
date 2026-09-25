@@ -13,11 +13,12 @@
  * properties (ms-*, me-*) so RTL flips correctly.
  */
 import { useState } from "react";
-import { CameraIcon, Loader2Icon, RotateCcwIcon, Trash2Icon } from "lucide-react";
+import { CameraIcon, RotateCcwIcon, Trash2Icon } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -125,9 +126,7 @@ export function InstanceSnapshots({ instanceId, tenantId }: InstanceSnapshotsPro
               </Label>
             </div>
             <Button type="submit" disabled={createMut.isPending} className="ms-auto block">
-              {createMut.isPending && (
-                <Loader2Icon className="me-2 h-4 w-4 animate-spin" aria-hidden="true" />
-              )}
+              {createMut.isPending && <Spinner className="me-2" />}
               {t("compute.snapshots.create")}
             </Button>
           </form>
@@ -135,7 +134,7 @@ export function InstanceSnapshots({ instanceId, tenantId }: InstanceSnapshotsPro
 
         {isLoading ? (
           <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">
-            <Loader2Icon className="me-2 h-4 w-4 animate-spin" aria-hidden="true" />
+            <Spinner className="me-2" />
             {t("common.loading")}
           </div>
         ) : !snapshots || snapshots.length === 0 ? (
@@ -198,12 +197,7 @@ export function InstanceSnapshots({ instanceId, tenantId }: InstanceSnapshotsPro
                             }}
                             disabled={restoreMut.isPending}
                           >
-                            {restoreMut.isPending && (
-                              <Loader2Icon
-                                className="me-2 h-3 w-3 animate-spin"
-                                aria-hidden="true"
-                              />
-                            )}
+                            {restoreMut.isPending && <Spinner size="sm" className="me-2" />}
                             {t("common.confirm")}
                           </Button>
                           <Button
@@ -238,12 +232,7 @@ export function InstanceSnapshots({ instanceId, tenantId }: InstanceSnapshotsPro
                             }}
                             disabled={deleteMut.isPending}
                           >
-                            {deleteMut.isPending && (
-                              <Loader2Icon
-                                className="me-2 h-3 w-3 animate-spin"
-                                aria-hidden="true"
-                              />
-                            )}
+                            {deleteMut.isPending && <Spinner size="sm" className="me-2" />}
                             {t("common.confirm")}
                           </Button>
                           <Button

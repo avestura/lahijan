@@ -52,7 +52,11 @@
     "label": "Global navigation",
     "placeholder": "Search destinations…",
     "empty": "No matching destination.",
-    "goto": "Go to"
+    "goto": "Go to",
+    "noResults": "No results for \"{{query}}\"",
+    "hintNavigate": "navigate",
+    "hintSelect": "select",
+    "hintClose": "close"
   },
   "auth": {
     "login": {

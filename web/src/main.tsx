@@ -21,6 +21,7 @@ import { applyThemeToDocument, useThemeStore } from "@/lib/stores/theme-store";
 import "@/lib/i18n";
 import { isRTL } from "@/lib/i18n";
 import { useSessionStore } from "@/lib/stores/session-store";
+import { setupInputModality } from "@/lib/input-modality";
 import { createRouter } from "./router";
 
 // Sync <html class> with the persisted theme on the very first paint so we
@@ -33,6 +34,9 @@ if (typeof document !== "undefined") {
   document.documentElement.lang = initialLocale;
   document.documentElement.dir = isRTL(initialLocale) ? "rtl" : "ltr";
 }
+
+// Keyboard vs pointer, for the menus' keyboard-only focus bar.
+setupInputModality();
 
 // Mark the session as loading until /auth/me resolves; the auth layout will
 // react when the bootstrap query lands.

@@ -188,6 +188,11 @@ const config: Config = {
           from: { opacity: "0", transform: "translateY(4px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
+        // Floating surfaces drop in from 4px above (components-overlays.md).
+        drop: {
+          from: { opacity: "0", transform: "translateY(-4px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
         "slide-in-right": {
           from: { transform: "translateX(100%)" },
           to: { transform: "translateX(0)" },
@@ -195,6 +200,9 @@ const config: Config = {
       },
       animation: {
         "fade-in": "fade-in 120ms linear",
+        // Submenus: opacity only, 80ms, no translate.
+        "fade-fast": "fade-in 80ms linear",
+        drop: "drop 120ms var(--bx-ease-sharp)",
         "enter-up": "enter-up 160ms var(--bx-ease-sharp)",
         "slide-in-right": "slide-in-right 160ms var(--bx-ease-sharp)",
       },

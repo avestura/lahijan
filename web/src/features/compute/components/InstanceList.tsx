@@ -10,14 +10,15 @@ import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
 import {
+  CloudIcon,
+  EyeIcon,
+  FlameIcon,
   MoreHorizontalIcon,
   PlayIcon,
   RotateCwIcon,
-  SquareIcon,
   SnowflakeIcon,
-  FlameIcon,
+  SquareIcon,
   Trash2Icon,
-  CloudIcon,
 } from "lucide-react";
 import type { components } from "@api-schema";
 
@@ -36,7 +37,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -269,10 +269,9 @@ export function InstanceList({ instances, isLoading, error, onRetry }: Props) {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>{t("compute.title")}</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
                           <DropdownMenuItem asChild>
                             <Link to="/compute/$id" params={{ id: inst.id }}>
+                              <EyeIcon />
                               {t("compute.actions.viewDetails")}
                             </Link>
                           </DropdownMenuItem>
@@ -282,7 +281,7 @@ export function InstanceList({ instances, isLoading, error, onRetry }: Props) {
                                 lifecycle.mutate({ instanceId: inst.id, action: "restart" })
                               }
                             >
-                              <RotateCwIcon className="me-2 h-4 w-4" />
+                              <RotateCwIcon />
                               {t("compute.actions.restart")}
                             </DropdownMenuItem>
                           )}
@@ -292,7 +291,7 @@ export function InstanceList({ instances, isLoading, error, onRetry }: Props) {
                                 lifecycle.mutate({ instanceId: inst.id, action: "freeze" })
                               }
                             >
-                              <SnowflakeIcon className="me-2 h-4 w-4" />
+                              <SnowflakeIcon />
                               {t("compute.actions.freeze")}
                             </DropdownMenuItem>
                           )}
@@ -302,19 +301,23 @@ export function InstanceList({ instances, isLoading, error, onRetry }: Props) {
                                 lifecycle.mutate({ instanceId: inst.id, action: "unfreeze" })
                               }
                             >
-                              <FlameIcon className="me-2 h-4 w-4" />
+                              <FlameIcon />
                               {t("compute.actions.unfreeze")}
                             </DropdownMenuItem>
                           )}
-                          <DropdownMenuSeparator />
                           {canDelete && (
-                            <DropdownMenuItem
-                              className="text-destructive focus:text-destructive"
-                              onClick={() => destroy.mutate({ instanceId: inst.id, force: false })}
-                            >
-                              <Trash2Icon className="me-2 h-4 w-4" />
-                              {t("compute.actions.delete")}
-                            </DropdownMenuItem>
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                variant="destructive"
+                                onClick={() =>
+                                  destroy.mutate({ instanceId: inst.id, force: false })
+                                }
+                              >
+                                <Trash2Icon />
+                                {t("compute.actions.delete")}
+                              </DropdownMenuItem>
+                            </>
                           )}
                         </DropdownMenuContent>
                       </DropdownMenu>

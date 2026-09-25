@@ -10,11 +10,18 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTheme } from "@/hooks/useTheme";
 import type { Theme } from "@/lib/stores/theme-store";
+
+const OPTIONS: { value: Theme; Icon: typeof SunIcon; labelKey: string }[] = [
+  { value: "light", Icon: SunIcon, labelKey: "theme.light" },
+  { value: "dark", Icon: MoonIcon, labelKey: "theme.dark" },
+  { value: "system", Icon: MonitorIcon, labelKey: "theme.system" },
+];
 
 export function ThemeToggle() {
   const { t } = useTranslation();
@@ -35,30 +42,20 @@ export function ThemeToggle() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem
-          onClick={() => setTheme("light" as Theme)}
-          data-active={theme === "light"}
-          data-testid="theme-option-light"
-        >
-          <SunIcon className="me-2 h-4 w-4" />
-          {t("theme.light")}
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => setTheme("dark" as Theme)}
-          data-active={theme === "dark"}
-          data-testid="theme-option-dark"
-        >
-          <MoonIcon className="me-2 h-4 w-4" />
-          {t("theme.dark")}
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => setTheme("system" as Theme)}
-          data-active={theme === "system"}
-          data-testid="theme-option-system"
-        >
-          <MonitorIcon className="me-2 h-4 w-4" />
-          {t("theme.system")}
-        </DropdownMenuItem>
+        {/* A picker: radio items reserve the mark slot; choosing closes it. */}
+        <DropdownMenuRadioGroup value={theme} onValueChange={(v) => setTheme(v as Theme)}>
+          {OPTIONS.map(({ value, Icon, labelKey }) => (
+            <DropdownMenuRadioItem
+              key={value}
+              value={value}
+              data-active={theme === value}
+              data-testid={`theme-option-${value}`}
+            >
+              <Icon />
+              {t(labelKey)}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

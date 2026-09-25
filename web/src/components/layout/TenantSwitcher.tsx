@@ -9,19 +9,18 @@
  *   - changes every tenant-scoped query key, so TanStack Query refetches
  *     the new tenant's data automatically.
  */
-import { Building2Icon, CheckIcon } from "lucide-react";
+import { Building2Icon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
 import { useSessionStore } from "@/lib/stores/session-store";
 
 export function TenantSwitcher() {
@@ -45,7 +44,7 @@ export function TenantSwitcher() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="sm" className="gap-2" aria-label={t("tenant.switch")}>
-          <Building2Icon className="h-4 w-4 text-muted-foreground" />
+          <Building2Icon className="h-4 w-4 text-ink-subtle" />
           <span className="hidden text-sm font-medium sm:inline">
             {/* The membership has no tenant-name field today; show the role + id suffix for orientation. */}
             {label} · {current.tenantId.slice(0, 8)}
@@ -54,26 +53,16 @@ export function TenantSwitcher() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
         <DropdownMenuLabel>{t("tenant.switch")}</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        {memberships.map((m) => {
-          const isCurrent = m.tenantId === currentTenantId;
-          return (
-            <DropdownMenuItem
-              key={m.tenantId}
-              onClick={() => setTenant(m.tenantId)}
-              className="flex items-center justify-between gap-2"
-            >
-              <span className="flex flex-col">
-                <span className="font-mono text-xs">{m.tenantId}</span>
-                <span className="text-xs text-muted-foreground">{m.role}</span>
+        <DropdownMenuRadioGroup value={current.tenantId} onValueChange={setTenant}>
+          {memberships.map((m) => (
+            <DropdownMenuRadioItem key={m.tenantId} value={m.tenantId} className="h-auto py-2">
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate font-mono text-xs">{m.tenantId}</span>
+                <span className="text-xs text-ink-subtle">{m.role}</span>
               </span>
-              <CheckIcon
-                className={cn("h-4 w-4", isCurrent ? "opacity-100" : "opacity-0")}
-                aria-hidden={isCurrent ? "false" : "true"}
-              />
-            </DropdownMenuItem>
-          );
-        })}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

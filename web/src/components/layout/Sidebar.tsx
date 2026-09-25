@@ -12,6 +12,7 @@ import {
   CloudIcon,
   DatabaseIcon,
   DollarSignIcon,
+  GlobeIcon,
   KeyIcon,
   LayoutDashboardIcon,
   LinkIcon,
@@ -41,7 +42,7 @@ interface NavItem {
 const PRIMARY_NAV: NavItem[] = [
   { to: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboardIcon },
   { to: "/compute", labelKey: "nav.compute", icon: CloudIcon },
-  { to: "/dns", labelKey: "nav.dns", icon: GlobeWrapper },
+  { to: "/dns", labelKey: "nav.dns", icon: GlobeIcon },
   { to: "/storage", labelKey: "nav.storage", icon: DatabaseIcon },
   { to: "/billing", labelKey: "nav.billing", icon: DollarSignIcon },
   // WS-31: AI agent chat — natural-language control of Lahijan.
@@ -79,27 +80,6 @@ const ADMIN_NAV: NavItem[] = [
   // WS-31: tenant agent policy (allowlist / caps / denylist).
   { to: "/admin/agent", labelKey: "nav.admin.agent", icon: ShieldIcon },
 ];
-
-// Wrap lucide's GlobeIcon so we can swap it for a project-local icon later
-// without churning every nav item. Keeps the import site tidy too.
-function GlobeWrapper({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <path d="M2 12h20" />
-      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-    </svg>
-  );
-}
 
 export function Sidebar() {
   const { t } = useTranslation();

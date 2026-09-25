@@ -5,7 +5,7 @@
  */
 import * as React from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
-import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -69,33 +69,41 @@ SelectScrollDownButton.displayName = SelectPrimitive.ScrollDownButton.displayNam
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
->(({ className, children, position = "popper", ...props }, ref) => (
-  <SelectPrimitive.Portal>
-    <SelectPrimitive.Content
-      ref={ref}
-      className={cn(
-        "relative z-50 max-h-96 min-w-32 overflow-hidden border border-line bg-popover text-popover-foreground shadow-hard-2",
-        "data-[state=open]:animate-fade-in",
-        position === "popper" && "data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1",
-        className,
-      )}
-      position={position}
-      {...props}
-    >
-      <SelectScrollUpButton />
-      <SelectPrimitive.Viewport
+>(
+  (
+    { className, children, position = "popper", sideOffset = 4, collisionPadding = 8, ...props },
+    ref,
+  ) => (
+    <SelectPrimitive.Portal>
+      <SelectPrimitive.Content
+        ref={ref}
         className={cn(
-          "p-0",
-          position === "popper" &&
-            "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]",
+          // The floating surface (components-overlays.md), as a raised scope.
+          "bx-raised relative z-50 max-h-[264px] min-w-32 overflow-hidden border border-line-heavy bg-popover text-popover-foreground shadow-hard-2",
+          "data-[state=open]:animate-drop",
+          className,
         )}
+        position={position}
+        // 4px from the trigger, 8px from every viewport edge.
+        sideOffset={position === "popper" ? sideOffset : undefined}
+        collisionPadding={collisionPadding}
+        {...props}
       >
-        {children}
-      </SelectPrimitive.Viewport>
-      <SelectScrollDownButton />
-    </SelectPrimitive.Content>
-  </SelectPrimitive.Portal>
-));
+        <SelectScrollUpButton />
+        <SelectPrimitive.Viewport
+          className={cn(
+            "py-1",
+            position === "popper" &&
+              "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]",
+          )}
+        >
+          {children}
+        </SelectPrimitive.Viewport>
+        <SelectScrollDownButton />
+      </SelectPrimitive.Content>
+    </SelectPrimitive.Portal>
+  ),
+);
 SelectContent.displayName = SelectPrimitive.Content.displayName;
 
 const SelectLabel = React.forwardRef<
@@ -105,7 +113,7 @@ const SelectLabel = React.forwardRef<
   <SelectPrimitive.Label
     ref={ref}
     className={cn(
-      "bg-surface-sunken px-3 py-1 font-mono text-label uppercase tracking-[0.08em] text-ink-subtle",
+      "flex h-7 items-center px-3 font-mono text-2xs font-medium uppercase tracking-[0.08em] text-ink-subtle",
       className,
     )}
     {...props}
@@ -120,21 +128,19 @@ const SelectItem = React.forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      // 32px options; hover = surface-hover; selected = accent surface +
-      // 2px accent inline-start bar (components-core.md listbox).
-      "relative flex h-8 w-full cursor-default select-none items-center pe-8 ps-3 text-sm outline-none",
-      "focus:bg-surface-hover focus:text-ink data-[disabled]:pointer-events-none data-[disabled]:text-ink-faint",
-      "data-[state=checked]:bg-surface-accent data-[state=checked]:shadow-[inset_2px_0_0_0_var(--bx-accent)]",
+      // Listbox option (components-forms.md): 32px, highlighted = the raised
+      // hover fill (+ the 2px accent bar when the keyboard drives, via
+      // bx-menu-item); selected = 500 weight + a trailing check.
+      "bx-menu-item relative flex h-8 w-full cursor-default select-none items-center gap-3 whitespace-nowrap pe-3 ps-3 text-sm text-ink outline-none",
+      "transition-[background-color,box-shadow] duration-75 ease-linear",
+      "data-[highlighted]:bg-surface-hover",
+      "data-[disabled]:pointer-events-none data-[state=checked]:font-medium data-[disabled]:text-ink-faint",
       className,
     )}
     {...props}
   >
-    <span className="absolute end-2 flex h-4 w-4 items-center justify-center">
-      <SelectPrimitive.ItemIndicator>
-        <CheckIcon className="h-4 w-4" />
-      </SelectPrimitive.ItemIndicator>
-    </span>
     <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+    <span className="bx-menu-check ms-auto" aria-hidden="true" />
   </SelectPrimitive.Item>
 ));
 SelectItem.displayName = SelectPrimitive.Item.displayName;
@@ -145,7 +151,7 @@ const SelectSeparator = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SelectPrimitive.Separator
     ref={ref}
-    className={cn("h-px bg-line-subtle", className)}
+    className={cn("my-1 h-px bg-line-subtle", className)}
     {...props}
   />
 ));

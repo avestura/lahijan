@@ -7,7 +7,7 @@
  */
 import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
-import { MoreHorizontalIcon, Trash2Icon, DatabaseIcon } from "lucide-react";
+import { DatabaseIcon, EyeIcon, MoreHorizontalIcon, Trash2Icon } from "lucide-react";
 import type { components } from "@api-schema";
 
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -118,21 +117,23 @@ export function StorageBucketList({ buckets, isLoading, error, onRetry }: Props)
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>{t("storage.title")}</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
                       <Link to="/storage/$bucketId" params={{ bucketId: b.id }}>
+                        <EyeIcon />
                         {t("storage.detail.tabs.overview")}
                       </Link>
                     </DropdownMenuItem>
                     {canDelete && (
-                      <DropdownMenuItem
-                        className="text-destructive focus:text-destructive"
-                        onClick={() => destroy.mutate({ bucketId: b.id })}
-                      >
-                        <Trash2Icon className="me-2 h-4 w-4" />
-                        {t("common.delete")}
-                      </DropdownMenuItem>
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() => destroy.mutate({ bucketId: b.id })}
+                        >
+                          <Trash2Icon />
+                          {t("common.delete")}
+                        </DropdownMenuItem>
+                      </>
                     )}
                   </DropdownMenuContent>
                 </DropdownMenu>

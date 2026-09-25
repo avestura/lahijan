@@ -5,7 +5,7 @@
  */
 import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
-import { HistoryIcon } from "lucide-react";
+import { ActivityIcon } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +24,7 @@ export function RecentActivityCard() {
   } else if (items.length === 0) {
     body = (
       <EmptyState
-        icon={HistoryIcon}
+        icon={ActivityIcon}
         title={t("audit.list.empty.title")}
         description={t("audit.list.empty.body")}
       />

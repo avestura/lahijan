@@ -6,7 +6,7 @@
  * `data-testid` instead of matching on localized copy.
  */
 import { useTranslation } from "react-i18next";
-import { CompassIcon } from "lucide-react";
+import { MapIcon } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ export function NotFoundState() {
       className="flex flex-col items-center justify-center gap-4 p-16 text-center"
     >
       <div className="flex h-12 w-12 items-center justify-center border border-line-strong text-ink-subtle">
-        <CompassIcon className="h-6 w-6" aria-hidden="true" />
+        <MapIcon className="h-6 w-6" aria-hidden="true" />
       </div>
       <div className="space-y-1">
         <p className="text-lg font-semibold">{t("common.notFound.title")}</p>

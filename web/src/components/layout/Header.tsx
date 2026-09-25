@@ -7,7 +7,15 @@
  * logout mutation. When the session is anonymous the bar shows a Sign
  * in link instead.
  */
-import { BellIcon, ChevronDownIcon, LogOutIcon, SearchIcon, UserIcon } from "lucide-react";
+import {
+  BellIcon,
+  ChevronDownIcon,
+  KeyRoundIcon,
+  LogOutIcon,
+  SearchIcon,
+  ShieldIcon,
+  UserIcon,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -16,8 +24,8 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuHead,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -85,8 +93,9 @@ export function Header() {
         <div className="flex items-center gap-1">
           <TenantSwitcher />
           <Button variant="ghost" size="icon" aria-label={t("common.actions")} className="relative">
+            {/* No unread badge: the count square is hidden at zero
+                (components-overlays.md notification inbox). */}
             <BellIcon className="h-4 w-4" />
-            <span className="absolute end-2 top-2 h-2 w-2 bg-destructive" />
           </Button>
           <LocaleToggle />
           <ThemeToggle />
@@ -105,34 +114,42 @@ export function Header() {
                 <ChevronDownIcon className="h-4 w-4 text-ink-subtle" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>{t("nav.settingsSub.label")}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
+            <DropdownMenuContent align="end" className="w-64">
+              {/* Account head strip: who is signed in (components-overlays.md). */}
+              <DropdownMenuHead data-testid="user-menu-head">
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback>{initials}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  {user?.displayName && (
+                    <p className="truncate text-sm font-medium text-ink">{user.displayName}</p>
+                  )}
+                  {user?.email && (
+                    <p className="truncate font-mono text-label text-ink-subtle">{user.email}</p>
+                  )}
+                </div>
+              </DropdownMenuHead>
               <DropdownMenuItem asChild>
                 <Link to="/settings/profile">
-                  <UserIcon className="me-2 h-4 w-4" />
+                  <UserIcon />
                   {t("nav.settingsSub.profile")}
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link to="/settings/security">
-                  <BellIcon className="me-2 h-4 w-4" />
+                  <ShieldIcon />
                   {t("nav.settingsSub.security")}
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link to="/settings/tokens">
-                  <SearchIcon className="me-2 h-4 w-4" />
+                  <KeyRoundIcon />
                   {t("nav.settingsSub.tokens")}
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={onSignOut}
-                className="text-destructive-ink focus:text-destructive-ink"
-                data-testid="user-menu-logout"
-              >
-                <LogOutIcon className="me-2 h-4 w-4" />
+              <DropdownMenuItem onClick={onSignOut} data-testid="user-menu-logout">
+                <LogOutIcon />
                 {t("auth.logout")}
               </DropdownMenuItem>
             </DropdownMenuContent>

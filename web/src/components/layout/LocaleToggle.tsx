@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useLocale } from "@/hooks/useLocale";
@@ -31,20 +32,23 @@ export function LocaleToggle() {
           aria-label={t("locale.label")}
           data-testid="locale-toggle"
         >
-          <GlobeIcon className="h-5 w-5" />
+          <GlobeIcon className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {SUPPORTED_LOCALES.map((code) => (
-          <DropdownMenuItem
-            key={code}
-            onClick={() => setLocale(code)}
-            data-active={locale === code}
-            data-testid={`locale-option-${code}`}
-          >
-            {LOCALE_LABELS[code]}
-          </DropdownMenuItem>
-        ))}
+        {/* A picker: radio items reserve the mark slot; choosing closes it. */}
+        <DropdownMenuRadioGroup value={locale} onValueChange={(v) => setLocale(v as typeof locale)}>
+          {SUPPORTED_LOCALES.map((code) => (
+            <DropdownMenuRadioItem
+              key={code}
+              value={code}
+              data-active={locale === code}
+              data-testid={`locale-option-${code}`}
+            >
+              {LOCALE_LABELS[code]}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

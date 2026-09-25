@@ -44,7 +44,7 @@ const DialogContent = React.forwardRef<
         ref={ref}
         className={cn(
           // Raised surface, heavy 1px border, 4px hard offset shadow.
-          "fixed start-1/2 top-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-5 border border-line-heavy bg-popover p-5 shadow-hard-3 rtl:translate-x-1/2",
+          "bx-raised fixed start-1/2 top-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-5 border border-line-heavy bg-popover p-5 shadow-hard-3 rtl:translate-x-1/2",
           "data-[state=open]:animate-enter-up",
           className,
         )}

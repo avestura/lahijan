@@ -8,7 +8,7 @@
  */
 import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
-import { MoreHorizontalIcon, Trash2Icon, GlobeIcon } from "lucide-react";
+import { EyeIcon, GlobeIcon, MoreHorizontalIcon, Trash2Icon } from "lucide-react";
 import type { components } from "@api-schema";
 
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -118,21 +117,23 @@ export function DNSZoneList({ zones, isLoading, error, onRetry }: Props) {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>{t("dns.title")}</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
                       <DropdownMenuItem asChild>
                         <Link to="/dns/$zoneId" params={{ zoneId: zone.id }}>
+                          <EyeIcon />
                           {t("dns.detail.tabs.records")}
                         </Link>
                       </DropdownMenuItem>
                       {canDelete && (
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={() => destroy.mutate({ zoneId: zone.id })}
-                        >
-                          <Trash2Icon className="me-2 h-4 w-4" />
-                          {t("common.delete")}
-                        </DropdownMenuItem>
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => destroy.mutate({ zoneId: zone.id })}
+                          >
+                            <Trash2Icon />
+                            {t("common.delete")}
+                          </DropdownMenuItem>
+                        </>
                       )}
                     </DropdownMenuContent>
                   </DropdownMenu>

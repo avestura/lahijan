@@ -85,7 +85,7 @@ describe("<TenantSwitcher />", () => {
     await user.click(screen.getByRole("button", { name: "Switch tenant" }));
 
     // Find the dropdown item for tenant B (the row that contains its id).
-    const tenantBRadio = screen.getAllByText(TENANT_B)[0]!.closest('[role="menuitem"]');
+    const tenantBRadio = screen.getAllByText(TENANT_B)[0]!.closest('[role="menuitemradio"]');
     expect(tenantBRadio).not.toBeNull();
     await user.click(tenantBRadio!);
 
