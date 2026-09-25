@@ -102,6 +102,35 @@
 }
 
 @layer components {
+  /* Lucide icons adapted to the Boxy set (icons.md): a 1.5px stroke at any
+     render size, square caps, mitred joins. */
+  svg.lucide {
+    stroke-width: 1.5;
+    stroke-linecap: square;
+    stroke-linejoin: miter;
+  }
+  svg.lucide * {
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* Floating layers are a raised scope (components-overlays.md): in dark
+     mode the ordinary hover fill equals the raised surface, so hover steps
+     up to --bx-surface-active inside menus, dialogs and drawers. */
+  .bx-raised {
+    --bx-surface: var(--bx-surface-raised);
+    --bx-surface-hover: var(--bx-surface-active);
+  }
+
+  /* Menu radio mark: a 6px square in a reserved 16px slot. */
+  .bx-menu-radio {
+    inline-size: 16px;
+    block-size: 16px;
+    flex-shrink: 0;
+  }
+  [data-state="checked"] > .bx-menu-radio {
+    background: linear-gradient(var(--bx-ink), var(--bx-ink)) center / 6px 6px no-repeat;
+  }
+
   /* Page container with the rail: two vertical hairlines at the container
      edges that every section hangs off. */
   .site-rail {

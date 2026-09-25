@@ -12,7 +12,7 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import { Button, ButtonGroup } from "@/components/ui/button";
-import { DOCS_URL } from "@/lib/site";
+import { DOCS_PATH, INSTALL_PATH } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 interface CTASectionProps {
@@ -48,10 +48,10 @@ export function CTASection({ compact = false }: CTASectionProps) {
         </div>
         <ButtonGroup className="shrink-0">
           <Button asChild size="lg" variant="contrast">
-            <a href={`${DOCS_URL}quickstart`}>{t("finalCta.primary")}</a>
+            <Link to={INSTALL_PATH}>{t("finalCta.primary")}</Link>
           </Button>
           <Button asChild size="lg" variant="outline">
-            <Link to="/docs">{t("finalCta.secondary")}</Link>
+            <Link to={DOCS_PATH}>{t("finalCta.secondary")}</Link>
           </Button>
         </ButtonGroup>
       </div>

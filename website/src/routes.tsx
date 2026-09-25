@@ -9,10 +9,10 @@
 import type { RouteObject } from "react-router-dom";
 
 import { SiteLayout } from "@/components/layout/SiteLayout";
+import { DOCS_STATIC_PATHS, docsRoute } from "@/docs/routes";
 import { AboutPage } from "@/pages/AboutPage";
 import { BlogListPage } from "@/pages/BlogListPage";
 import { BlogPostPage } from "@/pages/BlogPostPage";
-import { DocsPage } from "@/pages/DocsPage";
 import { FeaturesPage } from "@/pages/FeaturesPage";
 import { LandingPage } from "@/pages/LandingPage";
 import { LegalPrivacyPage } from "@/pages/LegalPrivacyPage";
@@ -34,11 +34,13 @@ export const routes: RouteObject[] = [
       { path: "features", element: <FeaturesPage /> },
       { path: "pricing", element: <PricingPage /> },
       { path: "about", element: <AboutPage /> },
-      { path: "docs", element: <DocsPage /> },
+      docsRoute,
       { path: "blog", element: <BlogListPage /> },
       { path: "blog/:slug", element: <BlogPostPage /> },
       { path: "legal/privacy", element: <LegalPrivacyPage /> },
       { path: "legal/terms", element: <LegalTermsPage /> },
+      // Prerendered so static hosts can serve it as 404.html (scripts/pages-404.mjs).
+      { path: "not-found", element: <NotFoundPage /> },
     ],
   },
 ];
@@ -54,8 +56,9 @@ export const STATIC_PATHS: readonly string[] = [
   "/features",
   "/pricing",
   "/about",
-  "/docs",
+  ...DOCS_STATIC_PATHS,
   "/blog",
   "/legal/privacy",
   "/legal/terms",
-] as const;
+  "/not-found",
+];

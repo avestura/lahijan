@@ -13,7 +13,8 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -40,16 +41,14 @@ export function ThemeToggle() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>{t("theme.label")}</DropdownMenuLabel>
-        {OPTIONS.map(({ value, icon: Icon, labelKey }) => (
-          <DropdownMenuItem
-            key={value}
-            onClick={() => setTheme(value)}
-            data-active={theme === value}
-          >
-            <Icon className="h-4 w-4" aria-hidden="true" />
-            {t(labelKey)}
-          </DropdownMenuItem>
-        ))}
+        <DropdownMenuRadioGroup value={theme} onValueChange={(v) => setTheme(v as Theme)}>
+          {OPTIONS.map(({ value, icon: Icon, labelKey }) => (
+            <DropdownMenuRadioItem key={value} value={value} data-active={theme === value}>
+              <Icon aria-hidden="true" />
+              {t(labelKey)}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

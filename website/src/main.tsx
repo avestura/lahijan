@@ -24,6 +24,7 @@ import "@fontsource-variable/inter-tight";
 import "@fontsource-variable/jetbrains-mono";
 import "@fontsource-variable/vazirmatn";
 import "@/styles/tailwind.css";
+import "@/styles/docs.css";
 
 import { initI18n, isRTL } from "@/lib/i18n";
 import { applyThemeToDocument, useThemeStore } from "@/lib/stores/theme-store";
@@ -44,7 +45,9 @@ if (typeof document !== "undefined") {
 }
 
 export const createRoot = ViteReactSSG(
-  { routes },
+  // basename follows Vite's base (VITE_BASE), so the site works both at the
+  // domain root and under a path such as a GitHub Pages project site.
+  { routes, basename: import.meta.env.BASE_URL },
   // Setup fn: initialize i18next once before any route mounts. The shared
   // default instance is what react-i18next's useTranslation() reads from,
   // so no provider is required.

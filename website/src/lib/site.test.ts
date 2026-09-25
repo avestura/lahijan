@@ -4,8 +4,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  DASHBOARD_BASE_URL,
-  DOCS_URL,
+  DASHBOARD_URL,
+  DOCS_PATH,
+  INSTALL_PATH,
+  QUICKSTART_PATH,
   SITE_URL,
   absoluteUrl,
   LEGAL_ENTRIES,
@@ -17,12 +19,13 @@ describe("site config", () => {
     expect(SITE_URL.endsWith("/")).toBe(false);
   });
 
-  it("DASHBOARD_BASE_URL ends with a slash", () => {
-    expect(DASHBOARD_BASE_URL.endsWith("/")).toBe(true);
+  it("has no dashboard link unless the build sets one", () => {
+    expect(DASHBOARD_URL).toBeNull();
   });
 
-  it("DOCS_URL ends with a slash (deep links append cleanly)", () => {
-    expect(DOCS_URL.endsWith("/")).toBe(true);
+  it("points the calls to action at pages inside the docs", () => {
+    for (const p of [QUICKSTART_PATH, INSTALL_PATH])
+      expect(p.startsWith(`${DOCS_PATH}/`)).toBe(true);
   });
 
   it("absoluteUrl builds correct URLs for paths", () => {

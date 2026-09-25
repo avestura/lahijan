@@ -72,11 +72,12 @@ describe("PricingTable", () => {
 });
 
 describe("Header", () => {
-  it("renders a Sign-in CTA that deep-links to the dashboard", () => {
+  it("links the docs instead of a dashboard when the build sets no dashboard URL", () => {
     render(<Header />);
     const t = en();
-    const link = screen.getByRole("link", { name: t("cta.signIn") });
-    expect(link).toHaveAttribute("href", "/web/");
+    expect(screen.queryByRole("link", { name: t("cta.signIn") })).toBeNull();
+    const docs = screen.getAllByRole("link", { name: t("cta.readDocs") });
+    expect(docs[0]).toHaveAttribute("href", "/docs");
   });
 });
 

@@ -2,10 +2,14 @@
  * DropdownMenu — shadcn/ui primitive (wraps @radix-ui/react-dropdown-menu).
  *
  * Mirrors web/src/components/ui/dropdown-menu.tsx but only the subset used
- * by the marketing site (Theme + Language toggles).
+ * by the marketing site (Theme + Language pickers), in this app's Tailwind
+ * names (text-base = 14px, shadow-2).
  *
- * Boxy listbox: raised surface, 1px line, hard 2px offset shadow, 32px rows
- * with no gaps, and the selected row marked by a 2px accent inline-start bar.
+ * Boxy menu (components-overlays.md): a raised floating surface with a 1px
+ * heavy line and a hard 2px offset, 4px drop-in; full-bleed 32px items with
+ * a 12px icon gap, icons subtle at rest and ink when highlighted; keyboard
+ * focus adds a 2px accent bar. Pickers use radio items: a reserved 16px slot
+ * with a 6px square on the chosen option.
  *
  * Docs: https://ui.shadcn.com/docs/components/dropdown-menu
  */
@@ -18,17 +22,28 @@ const DropdownMenu = DropdownMenuPrimitive.Root;
 const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
 const DropdownMenuGroup = DropdownMenuPrimitive.Group;
 const DropdownMenuPortal = DropdownMenuPrimitive.Portal;
+const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup;
+
+const ITEM = cn(
+  "relative flex h-8 w-full cursor-default select-none items-center gap-3 whitespace-nowrap px-3 text-base text-ink outline-none",
+  "transition-[background-color,color,box-shadow] duration-80 ease-linear",
+  "[&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-ink-subtle",
+  "data-[highlighted]:bg-surface-hover data-[highlighted]:[&>svg]:text-ink",
+  "focus-visible:shadow-[inset_2px_0_0_0_var(--bx-accent)] rtl:focus-visible:shadow-[inset_-2px_0_0_0_var(--bx-accent)]",
+  "data-[disabled]:pointer-events-none data-[disabled]:text-ink-faint",
+);
 
 const DropdownMenuContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>
->(({ className, sideOffset = 4, ...props }, ref) => (
+>(({ className, sideOffset = 4, collisionPadding = 8, ...props }, ref) => (
   <DropdownMenuPrimitive.Portal>
     <DropdownMenuPrimitive.Content
       ref={ref}
       sideOffset={sideOffset}
+      collisionPadding={collisionPadding}
       className={cn(
-        "z-20 min-w-40 overflow-hidden border border-line bg-popover text-popover-foreground shadow-2",
+        "bx-raised z-20 min-w-[216px] overflow-hidden border border-line-heavy bg-popover py-1 text-popover-foreground shadow-2",
         "data-[state=open]:animate-fade-in-down",
         className,
       )}
@@ -46,18 +61,28 @@ const DropdownMenuItem = React.forwardRef<
 >(({ className, inset, ...props }, ref) => (
   <DropdownMenuPrimitive.Item
     ref={ref}
-    className={cn(
-      "relative flex h-8 cursor-default select-none items-center gap-2 border-s-2 border-transparent px-3 text-base text-ink-muted outline-none transition-colors duration-80 ease-linear",
-      "focus:bg-surface-hover focus:text-ink data-[disabled]:pointer-events-none data-[disabled]:text-ink-faint",
-      "data-[active=true]:border-line-accent data-[active=true]:bg-surface-accent data-[active=true]:text-ink",
-      inset && "ps-8",
-      className,
-    )}
+    className={cn(ITEM, inset && "ps-10", className)}
     {...props}
   />
 ));
 DropdownMenuItem.displayName = DropdownMenuPrimitive.Item.displayName;
 
+const DropdownMenuRadioItem = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.RadioItem>,
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.RadioItem>
+>(({ className, children, ...props }, ref) => (
+  <DropdownMenuPrimitive.RadioItem
+    ref={ref}
+    className={cn(ITEM, "data-[state=checked]:font-medium", className)}
+    {...props}
+  >
+    <span className="bx-menu-radio" aria-hidden="true" />
+    {children}
+  </DropdownMenuPrimitive.RadioItem>
+));
+DropdownMenuRadioItem.displayName = DropdownMenuPrimitive.RadioItem.displayName;
+
+/** Group label: mono 10px uppercase on a 28px row, no fill. */
 const DropdownMenuLabel = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Label>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Label> & {
@@ -67,8 +92,8 @@ const DropdownMenuLabel = React.forwardRef<
   <DropdownMenuPrimitive.Label
     ref={ref}
     className={cn(
-      "flex h-8 items-center border-b border-line-subtle bg-surface-sunken px-3 font-mono text-xs font-medium uppercase tracking-label text-ink-subtle",
-      inset && "ps-8",
+      "flex h-7 items-center px-3 font-mono text-2xs font-medium uppercase tracking-label text-ink-subtle",
+      inset && "ps-10",
       className,
     )}
     {...props}
@@ -76,13 +101,14 @@ const DropdownMenuLabel = React.forwardRef<
 ));
 DropdownMenuLabel.displayName = DropdownMenuPrimitive.Label.displayName;
 
+/** Separator: separates groups, not items; 4px clear above and below. */
 const DropdownMenuSeparator = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Separator>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Separator>
 >(({ className, ...props }, ref) => (
   <DropdownMenuPrimitive.Separator
     ref={ref}
-    className={cn("h-px bg-line-subtle", className)}
+    className={cn("my-1 h-px bg-line-subtle", className)}
     {...props}
   />
 ));
@@ -93,6 +119,8 @@ export {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuGroup,

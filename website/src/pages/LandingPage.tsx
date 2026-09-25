@@ -2,19 +2,18 @@
  * Landing page (`/`).
  *
  * The marketing site's front door. Composes the Hero, Facts, FeatureGrid,
- * HowItWorks, ArchitectureDiagram, PricingTable, Testimonials, FAQ, and
  * the inverted CTA band into one scrollable page. Each section has a stable
  * id so the hero's anchor CTAs and the sitemap's deep links work.
  */
 import { ArchitectureDiagram } from "@/components/marketing/ArchitectureDiagram";
 import { CTASection } from "@/components/marketing/CTASection";
+import { DocsSection } from "@/components/marketing/DocsSection";
 import { Facts } from "@/components/marketing/Facts";
 import { FAQ } from "@/components/marketing/FAQ";
 import { FeatureGrid } from "@/components/marketing/FeatureGrid";
 import { Hero } from "@/components/marketing/Hero";
 import { HowItWorks } from "@/components/marketing/HowItWorks";
 import { PricingTable } from "@/components/marketing/PricingTable";
-import { Testimonials } from "@/components/marketing/Testimonials";
 import { SeoHead } from "@/components/seo/SeoHead";
 
 export function LandingPage() {
@@ -27,7 +26,7 @@ export function LandingPage() {
       <HowItWorks />
       <ArchitectureDiagram />
       <PricingTable />
-      <Testimonials />
+      <DocsSection />
       <FAQ />
       <CTASection />
     </>

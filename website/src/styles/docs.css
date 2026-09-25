@@ -1,0 +1,578 @@
+/*
+ * Documentation components, ported from Boxy's component layer
+ * (boxy-design-skill assets/boxy-components.css, v1.1): tree navigation,
+ * on-this-page list, breadcrumb, prose, inline code, code blocks, lists,
+ * callouts, tables, kbd. Role tokens only; the values live in boxy.css.
+ *
+ * Plain CSS rather than Tailwind utilities because the page HTML is
+ * compiled from Markdown at build time (scripts/docs/markdown.ts) and
+ * carries these class names directly.
+ */
+
+:root {
+  /* The drawn check, used as a mask so it takes any ink colour. */
+  --bx-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 8.5l3 3 7-7' fill='none' stroke='black' stroke-width='2' stroke-linecap='square'/%3E%3C/svg%3E");
+}
+
+/* ---- Tree navigation ---- */
+.bx-tree {
+  font-size: var(--bx-text-base);
+}
+.bx-tree ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.bx-tree__heading {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  margin: 0;
+  padding-inline: var(--bx-space-3);
+  font-family: var(--bx-font-mono);
+  font-size: var(--bx-text-xs);
+  font-weight: var(--bx-weight-medium);
+  letter-spacing: var(--bx-track-label);
+  text-transform: uppercase;
+  color: var(--bx-ink-subtle);
+  background: var(--bx-surface-sunken);
+  border-block: var(--bx-border) solid var(--bx-line-subtle);
+}
+.bx-tree__heading:first-child {
+  border-block-start: 0;
+}
+.bx-tree__item {
+  display: flex;
+  align-items: center;
+  gap: var(--bx-space-2);
+  min-block-size: 32px;
+  padding-inline: var(--bx-space-3);
+  color: var(--bx-ink-muted);
+  text-decoration: none;
+  cursor: pointer;
+  list-style: none;
+  transition:
+    background-color var(--bx-dur-1) var(--bx-ease),
+    color var(--bx-dur-1) var(--bx-ease);
+}
+.bx-tree__item::-webkit-details-marker {
+  display: none;
+}
+.bx-tree__item:hover {
+  background: var(--bx-surface-hover);
+  color: var(--bx-ink);
+  text-decoration: none;
+}
+.bx-tree__item:focus-visible {
+  outline-offset: calc(var(--bx-focus-width) * -1);
+}
+.bx-tree__item[aria-current="page"] {
+  color: var(--bx-ink);
+  font-weight: var(--bx-weight-medium);
+  background: var(--bx-surface-active);
+  box-shadow: inset 2px 0 0 0 var(--bx-accent);
+}
+/* Group toggles: a chevron that turns a quarter - the one rotation allowed. */
+summary.bx-tree__item::after {
+  content: "";
+  margin-inline-start: auto;
+  inline-size: 6px;
+  block-size: 6px;
+  border-block-start: 1.5px solid var(--bx-ink-subtle);
+  border-inline-end: 1.5px solid var(--bx-ink-subtle);
+  transform: rotate(45deg);
+  transition: transform var(--bx-dur-2) var(--bx-ease);
+}
+[dir="rtl"] summary.bx-tree__item::after {
+  transform: rotate(-45deg);
+}
+details[open] > summary.bx-tree__item::after {
+  transform: rotate(135deg);
+}
+details[open] > summary.bx-tree__item {
+  color: var(--bx-ink);
+}
+/* Nested levels indent 16px and hang off a literal tree rule; the active mark
+   recolours that rule's segment so it reads as one 2px bar. */
+.bx-tree ul ul {
+  margin-inline-start: var(--bx-space-4);
+  border-inline-start: var(--bx-border) solid var(--bx-line-subtle);
+}
+.bx-tree ul ul .bx-tree__item[aria-current="page"] {
+  box-shadow:
+    -1px 0 0 0 var(--bx-accent),
+    inset 1px 0 0 0 var(--bx-accent);
+}
+[dir="rtl"] .bx-tree ul ul .bx-tree__item[aria-current="page"] {
+  box-shadow:
+    1px 0 0 0 var(--bx-accent),
+    inset -1px 0 0 0 var(--bx-accent);
+}
+[dir="rtl"] .bx-tree__item[aria-current="page"] {
+  box-shadow: inset -2px 0 0 0 var(--bx-accent);
+}
+
+/* ---- On-this-page ---- */
+.bx-toc {
+  display: grid;
+  border-inline-start: var(--bx-border) solid var(--bx-line-subtle);
+}
+.bx-toc a {
+  display: flex;
+  align-items: center;
+  min-block-size: 24px;
+  padding-inline-start: var(--bx-space-3);
+  font-size: var(--bx-text-sm);
+  line-height: var(--bx-lh-sm);
+  color: var(--bx-ink-subtle);
+  text-decoration: none;
+}
+.bx-toc a:hover {
+  color: var(--bx-ink);
+  text-decoration: none;
+}
+.bx-toc a.sub {
+  padding-inline-start: var(--bx-space-6);
+}
+.bx-toc a[aria-current] {
+  color: var(--bx-ink);
+  box-shadow:
+    -1px 0 0 0 var(--bx-accent),
+    inset 1px 0 0 0 var(--bx-accent);
+}
+[dir="rtl"] .bx-toc a[aria-current] {
+  box-shadow:
+    1px 0 0 0 var(--bx-accent),
+    inset -1px 0 0 0 var(--bx-accent);
+}
+
+/* ---- Breadcrumb ---- */
+.bx-breadcrumb ol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-family: var(--bx-font-mono);
+  font-size: var(--bx-text-sm);
+  line-height: var(--bx-lh-sm);
+  color: var(--bx-ink-subtle);
+}
+.bx-breadcrumb li {
+  display: flex;
+  align-items: center;
+}
+.bx-breadcrumb li + li::before {
+  content: "/";
+  margin-inline: var(--bx-space-2);
+  color: var(--bx-ink-faint);
+}
+.bx-breadcrumb a {
+  color: var(--bx-ink-subtle);
+  text-decoration: none;
+}
+.bx-breadcrumb a:hover {
+  color: var(--bx-ink);
+}
+.bx-breadcrumb [aria-current="page"] {
+  color: var(--bx-ink);
+}
+
+/* ---- Kbd ---- */
+.bx-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 20px;
+  block-size: 20px;
+  padding-inline: var(--bx-space-1);
+  border: var(--bx-border) solid var(--bx-line);
+  border-block-end-width: var(--bx-border-strong);
+  background: var(--bx-surface-sunken);
+  font-family: var(--bx-font-mono);
+  font-size: var(--bx-text-2xs);
+  color: var(--bx-ink-muted);
+}
+
+/* ---- Prose ---- */
+.bx-prose {
+  max-inline-size: var(--bx-container-prose);
+  font-size: var(--bx-text-md);
+  line-height: var(--bx-lh-md);
+  color: var(--bx-ink-muted);
+}
+.bx-prose > * + * {
+  margin-block-start: var(--bx-space-4);
+}
+.bx-prose h2 {
+  margin-block-start: var(--bx-space-8);
+  padding-block-start: var(--bx-space-5);
+  border-block-start: var(--bx-border) solid var(--bx-line);
+  font-size: var(--bx-text-2xl);
+  line-height: var(--bx-lh-2xl);
+  color: var(--bx-ink);
+  scroll-margin-block-start: var(--bx-space-10);
+}
+.bx-prose h3 {
+  margin-block-start: var(--bx-space-6);
+  font-size: var(--bx-text-lg);
+  line-height: var(--bx-lh-lg);
+  color: var(--bx-ink);
+  scroll-margin-block-start: var(--bx-space-10);
+}
+.bx-prose h4 {
+  margin-block-start: var(--bx-space-5);
+  font-size: var(--bx-text-md);
+  color: var(--bx-ink);
+}
+.bx-prose strong {
+  color: var(--bx-ink);
+  font-weight: var(--bx-weight-semibold);
+}
+.bx-prose a {
+  color: var(--bx-ink);
+  text-decoration: underline;
+  text-decoration-color: var(--bx-line-strong);
+  text-underline-offset: 3px;
+}
+.bx-prose a:hover {
+  text-decoration-color: currentColor;
+}
+.bx-prose :not(pre) > code {
+  padding: var(--bx-space-half) var(--bx-space-1);
+  background: var(--bx-surface-sunken);
+  border: var(--bx-border) solid var(--bx-line-subtle);
+  font-family: var(--bx-font-mono);
+  font-size: 0.875em;
+  color: var(--bx-ink);
+  overflow-wrap: anywhere;
+}
+.bx-prose hr {
+  border: 0;
+  border-block-start: var(--bx-border) solid var(--bx-line);
+}
+/* Wide blocks may use the full article width, past the 68ch measure. */
+.bx-prose > .bx-codeblock,
+.bx-prose > .bx-table-wrap {
+  max-inline-size: none;
+}
+
+/* ---- Lists ---- */
+.bx-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: var(--bx-space-2);
+}
+.bx-list > li {
+  position: relative;
+  padding-inline-start: var(--bx-space-5);
+}
+ul.bx-list > li::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: var(--bx-space-1);
+  inset-block-start: 0.6lh;
+  inline-size: 6px;
+  block-size: 6px;
+  margin-block-start: calc(var(--bx-space-half) * -1.5);
+  background: var(--bx-ink-subtle);
+}
+.bx-list .bx-list {
+  margin-block-start: var(--bx-space-2);
+}
+ul.bx-list ul.bx-list > li::before {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--bx-ink-subtle);
+}
+ol.bx-list {
+  counter-reset: bx-ol;
+}
+ol.bx-list > li {
+  counter-increment: bx-ol;
+  padding-inline-start: var(--bx-space-7);
+}
+ol.bx-list > li::before {
+  content: counter(bx-ol, decimal-leading-zero);
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-start: 0;
+  font-family: var(--bx-font-mono);
+  font-size: 0.8125em;
+  font-variant-numeric: tabular-nums;
+  color: var(--bx-ink-subtle);
+  line-height: inherit;
+}
+.bx-list > li > p + p {
+  margin-block-start: var(--bx-space-2);
+}
+
+/* ---- Blockquote ---- */
+.bx-quote {
+  border-inline-start: var(--bx-border-strong) solid var(--bx-line-heavy);
+  padding: var(--bx-space-1) 0 var(--bx-space-1) var(--bx-space-5);
+  margin: 0;
+  color: var(--bx-ink);
+}
+
+/* ---- Callout ---- */
+.bx-callout {
+  display: flex;
+  gap: var(--bx-space-3);
+  padding: var(--bx-space-4);
+  border: var(--bx-border) solid var(--bx-line);
+  border-inline-start-width: 3px;
+  background: var(--bx-surface-sunken);
+  font-size: var(--bx-text-base);
+  line-height: var(--bx-lh-base);
+}
+.bx-callout__body {
+  min-inline-size: 0;
+}
+.bx-callout__body > * + * {
+  margin-block-start: var(--bx-space-2);
+}
+.bx-callout__label {
+  color: var(--bx-ink);
+}
+.bx-callout--info {
+  border-color: var(--bx-line-accent);
+  background: var(--bx-accent-soft);
+}
+.bx-callout--info .bx-callout__label {
+  color: var(--bx-ink-accent);
+}
+.bx-callout--danger {
+  border-color: var(--bx-danger);
+  background: var(--bx-danger-soft);
+}
+.bx-callout--danger .bx-callout__label {
+  color: var(--bx-ink-danger);
+}
+.bx-callout--warning {
+  border-color: var(--bx-warning);
+  background: var(--bx-warning-soft);
+}
+.bx-callout--warning .bx-callout__label {
+  color: var(--bx-ink-warning);
+}
+.bx-callout--success {
+  border-color: var(--bx-success);
+  background: var(--bx-success-soft);
+}
+.bx-callout--success .bx-callout__label {
+  color: var(--bx-ink-success);
+}
+
+/* ---- Table ---- */
+.bx-table-wrap {
+  border: var(--bx-border) solid var(--bx-line);
+  overflow-x: auto;
+}
+.bx-table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  background: var(--bx-surface);
+}
+.bx-table th {
+  height: 32px;
+  padding-inline: var(--bx-space-3);
+  background: var(--bx-surface-sunken);
+  border-block-end: var(--bx-border) solid var(--bx-line);
+  font-family: var(--bx-font-mono);
+  font-size: var(--bx-text-xs);
+  font-weight: var(--bx-weight-medium);
+  letter-spacing: var(--bx-track-label);
+  text-transform: uppercase;
+  text-align: start;
+  color: var(--bx-ink-subtle);
+  white-space: nowrap;
+}
+.bx-table td {
+  height: 40px;
+  padding: var(--bx-space-2) var(--bx-space-3);
+  border-block-end: var(--bx-border) solid var(--bx-line-subtle);
+  font-size: var(--bx-text-base);
+  line-height: var(--bx-lh-base);
+  vertical-align: top;
+}
+.bx-table tbody tr:last-child td {
+  border-block-end: 0;
+}
+.bx-table tbody tr {
+  transition: background-color var(--bx-dur-1) var(--bx-ease);
+}
+.bx-table tbody tr:hover {
+  background: var(--bx-surface-hover);
+}
+.bx-table td code {
+  white-space: nowrap;
+}
+
+/* ---- Code block ---- */
+.bx-codeblock {
+  border: var(--bx-border) solid var(--bx-line);
+  background: var(--bx-surface-sunken);
+  min-inline-size: 0;
+}
+.bx-codeblock__head {
+  display: flex;
+  align-items: center;
+  gap: var(--bx-space-3);
+  height: 32px;
+  padding-inline: var(--bx-space-3) 0;
+  background: var(--bx-surface);
+  border-block-end: var(--bx-border) solid var(--bx-line);
+}
+.bx-codeblock__file {
+  color: var(--bx-ink);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.bx-codeblock__spacer {
+  flex: 1;
+}
+.bx-codeblock__btn {
+  appearance: none;
+  border: 0;
+  border-inline-start: var(--bx-border) solid var(--bx-line);
+  background: transparent;
+  height: 100%;
+  padding-inline: var(--bx-space-3);
+  font-family: var(--bx-font-mono);
+  font-size: var(--bx-text-2xs);
+  letter-spacing: var(--bx-track-label);
+  text-transform: uppercase;
+  color: var(--bx-ink-subtle);
+  cursor: pointer;
+  transition:
+    background-color var(--bx-dur-1) var(--bx-ease),
+    color var(--bx-dur-1) var(--bx-ease);
+}
+.bx-codeblock__btn:hover {
+  background: var(--bx-surface-hover);
+  color: var(--bx-ink);
+}
+.bx-codeblock__btn:focus-visible {
+  outline-offset: calc(var(--bx-focus-width) * -1);
+}
+.bx-codeblock pre {
+  margin: 0;
+  padding-block: var(--bx-space-3);
+  overflow-x: auto;
+  font-family: var(--bx-font-mono);
+  font-size: var(--bx-text-sm);
+  line-height: var(--bx-lh-base);
+  color: var(--bx-ink-muted);
+  direction: ltr;
+  text-align: start;
+}
+.bx-codeblock .ln {
+  display: block;
+  padding-inline: var(--bx-space-4);
+  min-inline-size: fit-content;
+  white-space: pre;
+}
+.bx-codeblock--term .ln--cmd::before {
+  content: "$ ";
+  color: var(--bx-ink-subtle);
+  user-select: none;
+}
+.bx-codeblock--term .ln--cmd {
+  color: var(--bx-ink);
+}
+.bx-codeblock--term .ln--out {
+  color: var(--bx-ink-subtle);
+}
+.tk-k {
+  color: var(--bx-ink);
+  font-weight: var(--bx-weight-medium);
+}
+.tk-s {
+  color: var(--bx-ink-accent);
+}
+.tk-c {
+  color: var(--bx-ink-subtle);
+}
+.tk-n {
+  color: var(--bx-ink-success);
+}
+.tk-f {
+  color: var(--bx-ink);
+}
+.tk-e {
+  color: var(--bx-ink-danger);
+}
+
+/* ---- Search match: an inverted inline block, never a colour wash ---- */
+.bx-mark {
+  background: var(--bx-surface-inverse);
+  color: var(--bx-ink-inverse);
+  padding-inline: 1px;
+}
+
+/* ---- Accordion (also used by the landing page FAQ) ----
+   Native <details>, so it works without script. The container draws the
+   outer box, items draw only the line between visible neighbours. The
+   indicator is a drawn plus / minus in a 16px square, no glyph font. */
+.bx-accordion {
+  border: var(--bx-border) solid var(--bx-line);
+  background: var(--bx-surface);
+}
+.bx-accordion > details:not([hidden]) ~ details:not([hidden]) {
+  border-block-start: var(--bx-border) solid var(--bx-line);
+}
+.bx-accordion summary {
+  display: flex;
+  align-items: center;
+  gap: var(--bx-space-4);
+  min-block-size: 48px;
+  padding: var(--bx-space-3) var(--bx-space-4);
+  font-weight: var(--bx-weight-medium);
+  color: var(--bx-ink);
+  list-style: none;
+  cursor: pointer;
+  transition: background-color var(--bx-dur-1) var(--bx-ease);
+}
+.bx-accordion summary::-webkit-details-marker {
+  display: none;
+}
+.bx-accordion summary:hover {
+  background: var(--bx-surface-hover);
+}
+.bx-accordion summary:focus-visible {
+  outline-offset: calc(var(--bx-focus-width) * -1);
+}
+.bx-accordion summary::after {
+  content: "";
+  margin-inline-start: auto;
+  flex-shrink: 0;
+  inline-size: 16px;
+  block-size: 16px;
+  border: var(--bx-border) solid var(--bx-line-strong);
+  background:
+    linear-gradient(var(--bx-ink), var(--bx-ink)) center / 8px 1.5px no-repeat,
+    linear-gradient(var(--bx-ink), var(--bx-ink)) center / 1.5px 8px no-repeat;
+}
+.bx-accordion details[open] > summary::after {
+  background: linear-gradient(var(--bx-ink), var(--bx-ink)) center / 8px 1.5px no-repeat;
+}
+.bx-accordion__n {
+  font-family: var(--bx-font-mono);
+  font-size: var(--bx-text-xs);
+  font-weight: var(--bx-weight-normal);
+  color: var(--bx-ink-subtle);
+}
+.bx-accordion__body {
+  padding: 0 var(--bx-space-4) var(--bx-space-5);
+  color: var(--bx-ink-muted);
+  font-size: var(--bx-text-base);
+  line-height: var(--bx-lh-base);
+  animation: bx-accordion-fade var(--bx-dur-2) var(--bx-ease);
+}
+@keyframes bx-accordion-fade {
+  from {
+    opacity: 0;
+  }
+}

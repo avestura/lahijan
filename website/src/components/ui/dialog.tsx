@@ -46,7 +46,9 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed inset-y-0 end-0 z-40 flex w-full max-w-sm flex-col border-s border-line-heavy bg-popover text-popover-foreground shadow-3",
+        // Drawer (components-overlays.md): 400px, heavy inline-start rule, no
+        // shadow - it would point off-screen. A raised scope for hover.
+        "bx-raised fixed inset-y-0 end-0 z-40 flex w-full max-w-[400px] flex-col border-s border-line-heavy bg-popover text-popover-foreground",
         "data-[state=open]:animate-drawer-in rtl:data-[state=open]:animate-drawer-in-rtl",
         className,
       )}

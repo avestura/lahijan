@@ -26,7 +26,7 @@ import { LanguageToggle } from "@/components/layout/LanguageToggle";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { Button, ButtonGroup } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { DASHBOARD_BASE_URL, NAV_ENTRIES } from "@/lib/site";
+import { DASHBOARD_URL, DOCS_PATH, NAV_ENTRIES } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 const NAV_ACTIVE_BAR =
@@ -66,7 +66,11 @@ export function Header() {
           <LanguageToggle />
           <ThemeToggle />
           <Button asChild variant="outline" className="hidden md:inline-flex">
-            <Link to={DASHBOARD_BASE_URL}>{t("cta.signIn")}</Link>
+            {DASHBOARD_URL ? (
+              <a href={DASHBOARD_URL}>{t("cta.signIn")}</a>
+            ) : (
+              <Link to={DOCS_PATH}>{t("cta.readDocs")}</Link>
+            )}
           </Button>
 
           <Dialog open={mobileOpen} onOpenChange={setMobileOpen}>
@@ -103,7 +107,13 @@ export function Header() {
               </nav>
               <div className="p-4">
                 <Button asChild variant="outline" size="lg" className="w-full">
-                  <Link to={DASHBOARD_BASE_URL}>{t("cta.signIn")}</Link>
+                  {DASHBOARD_URL ? (
+                    <a href={DASHBOARD_URL}>{t("cta.signIn")}</a>
+                  ) : (
+                    <Link to={DOCS_PATH} onClick={() => setMobileOpen(false)}>
+                      {t("cta.readDocs")}
+                    </Link>
+                  )}
                 </Button>
               </div>
             </DialogContent>

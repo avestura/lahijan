@@ -13,18 +13,11 @@ interface ImportMetaEnv {
   readonly VITE_SITE_URL?: string;
 
   /**
-   * Base path where the dashboard SPA is mounted. The marketing site's
-   * "Sign in" CTA links here. Defaults to "/web/".
+   * Optional URL of a Lahijan dashboard. When set, the header and footer show
+   * a "Sign in" link to it. Leave unset for a site that only presents the
+   * project (for example the GitHub Pages build).
    */
   readonly VITE_DASHBOARD_BASE_URL?: string;
-
-  /**
-   * Base URL of the separate Docusaurus docs site. The marketing /docs page
-   * deep-links here for the full docs. Defaults to "/docs/" (sibling
-   * deploy); production deployments override this to the canonical docs
-   * URL (e.g. "https://docs.lahijan.dev").
-   */
-  readonly VITE_DOCS_URL?: string;
 
   /**
    * Optional Plausible domain (e.g. "lahijan.dev"). When set, the Plausible
@@ -41,4 +34,27 @@ interface ImportMetaEnv {
 
 interface ImportMeta {
   readonly env: ImportMetaEnv;
+}
+
+/** A documentation page compiled by scripts/docs/plugin.ts. */
+declare module "*.md" {
+  const doc: {
+    title: string;
+    description: string;
+    html: string;
+    headings: { id: string; text: string; depth: 2 | 3 }[];
+  };
+  export default doc;
+}
+
+/** Search data for every docs page (scripts/docs/plugin.ts). */
+declare module "virtual:docs-index" {
+  const index: {
+    slug: string;
+    title: string;
+    description: string;
+    headings: string[];
+    text: string;
+  }[];
+  export default index;
 }

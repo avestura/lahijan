@@ -13,7 +13,7 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import { BrandMark } from "@/components/layout/BrandMark";
-import { APP_VERSION, LEGAL_ENTRIES, NAV_ENTRIES, DASHBOARD_BASE_URL } from "@/lib/site";
+import { APP_VERSION, DASHBOARD_URL, LEGAL_ENTRIES, NAV_ENTRIES, REPO_URL } from "@/lib/site";
 
 export function Footer() {
   const { t } = useTranslation();
@@ -36,7 +36,8 @@ export function Footer() {
                 {t(entry.i18nKey)}
               </FooterLink>
             ))}
-            <FooterLink to={DASHBOARD_BASE_URL}>{t("cta.signIn")}</FooterLink>
+            {DASHBOARD_URL && <FooterLink to={DASHBOARD_URL}>{t("cta.signIn")}</FooterLink>}
+            <FooterLink to={REPO_URL}>{t("cta.viewOnGithub")}</FooterLink>
           </FooterColumn>
 
           <FooterColumn heading={t("footer.resources")}>
@@ -85,9 +86,9 @@ function FooterColumn({ heading, children }: { heading: string; children: React.
 }
 
 function FooterLink({ to, children }: { to: string; children: React.ReactNode }) {
-  // External-ish link (absolute URL or different SPA root): use <a>. Otherwise
+  // External link (absolute URL or the separate dashboard app): use <a>. Otherwise
   // use react-router's <Link> for client-side nav.
-  const isExternal = to.startsWith("http") || to.startsWith("/web");
+  const isExternal = to.startsWith("http") || to === DASHBOARD_URL;
   const cls =
     "inline-flex h-7 items-center text-base text-ink-muted no-underline transition-colors duration-80 ease-linear hover:text-ink hover:underline";
   if (isExternal) {

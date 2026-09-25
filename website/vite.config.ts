@@ -4,15 +4,26 @@ import path from "node:path";
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
-// The marketing site is statically prerendered (vite-react-ssg) and shipped
-// behind any CDN/static host, so we default to a relative base. The build
-// emits one `index.html` per route plus shared assets under dist/.
+import { docsPlugin } from "./scripts/docs/plugin";
+
+// The marketing site and its documentation are statically prerendered
+// (vite-react-ssg) and shipped behind any static host. The build emits one
+// `index.html` per route plus shared assets under dist/. VITE_BASE sets the
+// public path prefix, e.g. "/lahijan/" for a GitHub Pages project site.
 const pkg = JSON.parse(readFileSync(path.resolve(__dirname, "package.json"), "utf8")) as {
   version: string;
 };
 
+const base = normalizeBase(process.env.VITE_BASE ?? "/");
+
+function normalizeBase(b: string): string {
+  const withLead = b.startsWith("/") ? b : `/${b}`;
+  return withLead.endsWith("/") ? withLead : `${withLead}/`;
+}
+
 export default defineConfig({
-  plugins: [react()],
+  base,
+  plugins: [docsPlugin(path.resolve(__dirname, "src/content/docs")), react()],
   define: {
     // Build string shown in the footer (see src/lib/site.ts).
     __APP_VERSION__: JSON.stringify(pkg.version),
@@ -41,6 +52,11 @@ export default defineConfig({
         entryFileNames: "assets/[name].[hash].js",
       },
     },
+  },
+  ssgOptions: {
+    // docs/index.html rather than docs.html beside a docs/ folder: static
+    // hosts such as GitHub Pages resolve /docs to the folder.
+    dirStyle: "nested",
   },
   test: {
     globals: true,

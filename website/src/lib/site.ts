@@ -8,8 +8,7 @@
  */
 
 const RAW_SITE_URL = (import.meta.env.VITE_SITE_URL ?? "http://localhost:4173").trim();
-const RAW_DASHBOARD_BASE_URL = (import.meta.env.VITE_DASHBOARD_BASE_URL ?? "/web/").trim();
-const RAW_DOCS_URL = (import.meta.env.VITE_DOCS_URL ?? "/docs/").trim();
+const RAW_DASHBOARD_URL = (import.meta.env.VITE_DASHBOARD_BASE_URL ?? "").trim();
 
 /** Normalize a base URL to its canonical form (no trailing slash). */
 function normalizeUrl(url: string): string {
@@ -19,17 +18,23 @@ function normalizeUrl(url: string): string {
 /** Canonical site URL (no trailing slash). Used for sitemap + OpenGraph. */
 export const SITE_URL = normalizeUrl(RAW_SITE_URL);
 
-/** Dashboard base path or URL (always ends in `/`). */
-export const DASHBOARD_BASE_URL: string = RAW_DASHBOARD_BASE_URL.endsWith("/")
-  ? RAW_DASHBOARD_BASE_URL
-  : `${RAW_DASHBOARD_BASE_URL}/`;
-
 /**
- * Docs site base URL (always ends in `/`). Either an absolute URL
- * (`https://docs.lahijan.dev/`) or a sibling-deploy path (`/docs/`). Deep
- * links from the marketing /docs page append a section anchor to this.
+ * URL of a Lahijan dashboard, or null when the build has none (the "Sign in"
+ * links are hidden then). Absolute URLs and paths on the same host both work.
  */
-export const DOCS_URL: string = RAW_DOCS_URL.endsWith("/") ? RAW_DOCS_URL : `${RAW_DOCS_URL}/`;
+export const DASHBOARD_URL: string | null = RAW_DASHBOARD_URL || null;
+
+/** Router path of the documentation home. */
+export const DOCS_PATH = "/docs";
+
+/** Router path of the quickstart guide. */
+export const QUICKSTART_PATH = "/docs/getting-started/quickstart";
+
+/** Router path of the server install guide, the target of "Self-host" calls to action. */
+export const INSTALL_PATH = "/docs/getting-started/installation";
+
+/** Source repository. */
+export const REPO_URL = "https://github.com/avestura/lahijan";
 
 /** Build version shown in the footer's mono build string. */
 export const APP_VERSION: string = __APP_VERSION__;

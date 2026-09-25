@@ -11,11 +11,13 @@
  * Per pillar 1 the services are "compute / DNS / object storage", never the
  * underlying backends' names.
  */
+import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import { CodeSnippet } from "@/components/marketing/CodeSnippet";
 import { Button, ButtonGroup } from "@/components/ui/button";
 import { useFormatNumber } from "@/lib/format";
+import { DOCS_PATH, INSTALL_PATH } from "@/lib/site";
 
 const STACK = [
   { titleKey: "features.compute.title", bodyKey: "hero.stack.compute" },
@@ -44,10 +46,10 @@ export function Hero() {
 
             <ButtonGroup className="mt-10">
               <Button asChild size="lg">
-                <a href="#how-it-works">{t("hero.primary")}</a>
+                <Link to={INSTALL_PATH}>{t("hero.primary")}</Link>
               </Button>
               <Button asChild size="lg" variant="outline">
-                <a href="#features">{t("hero.secondary")}</a>
+                <Link to={DOCS_PATH}>{t("cta.readDocs")}</Link>
               </Button>
             </ButtonGroup>
 

@@ -89,7 +89,7 @@
     },
     "agent": {
       "title": "Built-in AI agent",
-      "body": "A natural-language assistant that runs your cloud for you — list instances, inspect zones and buckets, and act on your behalf, scoped to exactly what you're allowed to do.",
+      "body": "A chat assistant in the dashboard. Ask it to list instances, inspect zones and buckets, or make changes for you. It can only do what your own permissions allow.",
       "tag": "Natural language"
     },
     "learnMore": "Learn more",
@@ -178,7 +178,7 @@
     "items": {
       "selfhost": {
         "q": "Can I self-host Lahijan?",
-        "a": "Yes. The whole stack — Lahijan, its database, and the three backends — runs from one docker compose file."
+        "a": "Yes. The whole stack (Lahijan, its database and the three backends) runs from one docker compose file."
       },
       "backends": {
         "q": "Which backends does Lahijan use?",
@@ -202,28 +202,6 @@
       }
     },
     "eyebrow": "FAQ"
-  },
-  "testimonials": {
-    "sectionTitle": "From the people running it",
-    "sectionSubtitle": "Operators and early users on what Lahijan replaces for them. (Placeholder copy — operators customize this section on their own deployment.)",
-    "items": {
-      "t1": {
-        "quote": "We replaced three separate control panels with one Lahijan deploy.",
-        "name": "Operator",
-        "role": "Early deployer"
-      },
-      "t2": {
-        "quote": "The audit trail alone was worth the migration. The billing is a bonus.",
-        "name": "Platform engineer",
-        "role": "SRE team"
-      },
-      "t3": {
-        "quote": "Our users finally stop asking us to open tickets for every DNS change.",
-        "name": "Hostmaster",
-        "role": "Managed hosting"
-      }
-    },
-    "eyebrow": "Operators"
   },
   "finalCta": {
     "title": "Run your own cloud today.",
@@ -254,7 +232,7 @@
     "features": {
       "title": "Features",
       "subtitle": "A complete cloud stack behind one API.",
-      "lead": "Lahijan unifies the three biggest operational concerns — compute, DNS, and object storage — under a single API and UI, with the audit log and billing you need to run it for real users.",
+      "lead": "Lahijan puts compute, DNS and object storage behind one API and one dashboard, with the audit log and billing you need to run it for real users.",
       "detailTitle": "What each service does",
       "detail": {
         "compute": {
@@ -329,22 +307,6 @@
         "body": "Lahijan is named after the city of Lahijan in northern Iran. The project's voice is bilingual from day one: English and Persian."
       }
     },
-    "docs": {
-      "title": "Documentation",
-      "subtitle": "Everything you need to run Lahijan.",
-      "lead": "The full docs live in the project's docs site. The links below take you straight to the most-read sections.",
-      "links": {
-        "quickstart": "Quickstart",
-        "quickstartBody": "Self-host Lahijan in under five minutes with docker compose.",
-        "concepts": "Concepts",
-        "conceptsBody": "Tenants, users, instances, zones, buckets — what each term means.",
-        "api": "API reference",
-        "apiBody": "The REST API, generated client libraries, and OpenAPI spec.",
-        "operators": "Operator guide",
-        "operatorsBody": "Config, backups, monitoring, and upgrades."
-      },
-      "visitDocsSite": "Open the full docs site"
-    },
     "blog": {
       "title": "Blog",
       "subtitle": "Updates, deep dives, and release notes.",
@@ -417,5 +379,49 @@
     "services": "Core services: compute, DNS and object storage.",
     "metering": "Seconds per metering tick. Every resource bills by the minute.",
     "locales": "Languages from day one, right-to-left included."
+  },
+  "docs": {
+    "title": "Documentation",
+    "home": "docs",
+    "navLabel": "Documentation",
+    "menu": "Contents",
+    "search": "Search docs",
+    "searchPlaceholder": "Search the documentation",
+    "results": "Results",
+    "startHere": "Start here",
+    "loading": "Loading the search index",
+    "noResults": "No results for \"{{query}}\"",
+    "hintNavigate": "navigate",
+    "hintSelect": "open",
+    "hintClose": "close",
+    "onThisPage": "On this page",
+    "breadcrumb": "Breadcrumb",
+    "pager": "More pages",
+    "previous": "Previous",
+    "next": "Next",
+    "editPage": "Edit this page on GitHub",
+    "copied": "copied",
+    "englishOnly": "The documentation is written in English."
+  },
+  "docsSection": {
+    "eyebrow": "Documentation",
+    "title": "Everything is written down.",
+    "subtitle": "Guides for the people using a Lahijan deployment, and references for the operators who run one. Every setting, endpoint and permission is listed.",
+    "quickstart": {
+      "title": "Quickstart",
+      "body": "Run the whole stack on your machine and try it out."
+    },
+    "install": {
+      "title": "Install on a server",
+      "body": "Put Lahijan into production with Docker Compose, TLS and your own domains."
+    },
+    "configuration": {
+      "title": "Configuration",
+      "body": "All server settings with their defaults, environment variables and flags."
+    },
+    "api": {
+      "title": "REST API",
+      "body": "Authentication, tenants, errors and every endpoint group."
+    }
   }
 }
