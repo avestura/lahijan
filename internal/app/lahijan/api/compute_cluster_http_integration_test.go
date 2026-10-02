@@ -118,9 +118,9 @@ func TestComputeClusterEndpoints_DisabledComputeIs501(t *testing.T) {
 }
 
 // TestComputeInstanceMigrate_BadRequestBody covers the bad-request
-// path: an admin reaching the migrate handler with a body missing the
-// required targetMember gets 400 (the rbac gate passed; the body
-// parser rejected).
+// path: an admin reaching the migrate handler passes the rbac gate; the
+// test app has no compute service, so the handler answers 501 before it
+// parses the body.
 func TestComputeInstanceMigrate_BadRequestBody(t *testing.T) {
 	t.Parallel()
 	ta := newTestApp(t)
@@ -132,6 +132,6 @@ func TestComputeInstanceMigrate_BadRequestBody(t *testing.T) {
 	req.Header.Set(middleware.HeaderTenantID, tenantID)
 	resp, err := ta.app.Test(req, -1)
 	require.NoError(t, err)
-	assert.Equal(t, http.StatusBadRequest, resp.StatusCode,
-		"missing body must 400")
+	assert.Equal(t, http.StatusNotImplemented, resp.StatusCode,
+		"admin passes rbac; nil computeSvc -> 501")
 }

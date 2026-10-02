@@ -277,7 +277,7 @@ func TestRecordUsage_IdempotencyKeyDedup(t *testing.T) {
 	f := newFixture(t)
 
 	key := "test-usage-key"
-	started := time.Date(2026, 7, 19, 12, 0, 0, 0, time.UTC)
+	started := time.Now().UTC().Truncate(time.Minute)
 	ended := started.Add(time.Minute)
 	first, err := f.svc.RecordUsage(f.tctx, f.tenantID, billing.RecordUsageParams{
 		UserID:         f.userID,
@@ -459,7 +459,7 @@ func TestRollup_JoinsUsageWithPrice(t *testing.T) {
 	require.NoError(t, err)
 
 	// Record 60 core-minutes (= 1 core-hour) of usage.
-	started := time.Date(2026, 7, 19, 12, 0, 0, 0, time.UTC)
+	started := time.Now().UTC().Truncate(time.Minute)
 	for i := 0; i < 60; i++ {
 		minute := started.Add(time.Duration(i) * time.Minute)
 		key := "minute-" + minute.Format("150405")
@@ -522,8 +522,10 @@ func TestGenerateReceipt_ProducesPDF(t *testing.T) {
 	require.NoError(t, err)
 
 	// Charge 2500 cents within the period.
-	periodStart := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
-	periodEnd := time.Date(2026, 7, 31, 23, 59, 59, 0, time.UTC)
+	// The charge is stamped with the DB clock, so the period must
+	// bracket "now" rather than a fixed calendar month.
+	periodStart := time.Now().UTC().Add(-time.Hour)
+	periodEnd := time.Now().UTC().Add(time.Hour)
 	chargeKey := "july-charge"
 	_, err = f.svc.PostCharge(f.tctx, f.tenantID, billing.PostChargeParams{
 		UserID:         f.userID,

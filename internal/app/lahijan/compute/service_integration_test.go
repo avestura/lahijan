@@ -901,3 +901,19 @@ func TestOpenExecConsole_AuditEmittedBeforeIncusCall(t *testing.T) {
 	assert.Equal(t, audit.StatusSuccess, rows[0].Status,
 		"audit row stays at success — daemon failure is operational, not denied")
 }
+
+// ListInstanceLogs returns no log files; the service-level integration
+// tests do not exercise instance logs.
+func (f *fakeIncus) ListInstanceLogs(_ context.Context, _, _ string) ([]string, error) {
+	return nil, nil
+}
+
+// GetInstanceLog reports the file as missing.
+func (f *fakeIncus) GetInstanceLog(_ context.Context, _, _, _ string) ([]byte, bool, error) {
+	return nil, false, nil
+}
+
+// GetInstanceConsoleLog reports an empty console buffer.
+func (f *fakeIncus) GetInstanceConsoleLog(_ context.Context, _, _ string) ([]byte, bool, error) {
+	return nil, false, nil
+}

@@ -51,10 +51,10 @@ type computeListArgs struct {
 }
 
 type computeSetStateArgs struct {
-	ID           string `json:"id"`
-	Action       string `json:"action"`
-	Force        bool   `json:"force"`
-	TimeoutSecs  int    `json:"timeout_secs"`
+	ID          string `json:"id"`
+	Action      string `json:"action"`
+	Force       bool   `json:"force"`
+	TimeoutSecs int    `json:"timeout_secs"`
 }
 
 func (r *registrar) buildComputeModule(ctx context.Context, rt wazero.Runtime) error {

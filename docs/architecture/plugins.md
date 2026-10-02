@@ -526,7 +526,7 @@ The marketplace is an index of plugins + a content root. The index is
 a single YAML file named `plugins-marketplace.yaml`; the content root
 holds the `.wasm` + manifest for each entry. The default in-repo
 marketplace lives at
-[`examples/plugins/marketplace/`](../../examples/plugins/marketplace/).
+[`examples/plugins/marketplace/`](https://github.com/avestura/lahijan/tree/main/examples/plugins/marketplace/).
 
 Operators configure the marketplace via:
 
@@ -673,10 +673,10 @@ it back from the admin API (or a sibling plugin with `kv.read:state`).
 
 ## Reference
 
-- [`internal/app/lahijan/wasm/`](../../internal/app/lahijan/wasm/) —
+- [`internal/app/lahijan/wasm/`](https://github.com/avestura/lahijan/tree/main/internal/app/lahijan/wasm/) —
   the runtime, host functions, manifest parser, enforcer, installer,
   and marketplace.
-- [`examples/plugins/`](../../examples/plugins/) — the three sample
+- [`examples/plugins/`](https://github.com/avestura/lahijan/tree/main/examples/plugins/) — the three sample
   plugins + the template + the marketplace index.
 - [ADR-0012](../adr/0012-wasm-full-mvp.md) — WASM plugin system in
   MVP scope.

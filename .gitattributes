@@ -32,3 +32,6 @@
 *.ico     binary
 *.woff    binary
 *.woff2   binary
+
+# Shell scripts must stay LF so they run on Linux runners.
+*.sh     text eol=lf

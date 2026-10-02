@@ -310,7 +310,7 @@ func (r *Runtime) Instantiate(ctx context.Context, hash string, pluginID uuid.UU
 		compiled: c,
 		rt:       r,
 		pluginID: pluginID,
-	}	, nil
+	}, nil
 }
 
 // buildModuleConfig returns the wazero.ModuleConfig for instantiating a

@@ -49,6 +49,9 @@ const config: Config = {
   ],
 
   markdown: {
+    // Engineering docs are plain Markdown (they contain `<Decision>`-style text);
+    // only .mdx files are compiled as MDX.
+    format: "detect",
     mermaid: true,
   },
   themes: ["@docusaurus/theme-mermaid"],

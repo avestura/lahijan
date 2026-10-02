@@ -81,12 +81,12 @@ const (
 	// .console.vnc permission. Audit action is
 	// compute.instance.console.exec.connect.
 	PermComputeInstanceConsoleExec = "compute.instance.console.exec"
-	PermComputeProfileRead        = "compute.profile.read"
-	PermComputeProfileApply       = "compute.profile.apply"
-	PermComputeImageRead          = "compute.image.read"
-	PermComputeNetworkRead        = "compute.network.read"
-	PermComputeNetworkCreate      = "compute.network.create"
-	PermComputeStoragePoolRead    = "compute.storage_pool.read"
+	PermComputeProfileRead         = "compute.profile.read"
+	PermComputeProfileApply        = "compute.profile.apply"
+	PermComputeImageRead           = "compute.image.read"
+	PermComputeNetworkRead         = "compute.network.read"
+	PermComputeNetworkCreate       = "compute.network.create"
+	PermComputeStoragePoolRead     = "compute.storage_pool.read"
 
 	// --- compute snapshots / backups / schedules (WS-25) ---
 	// Snapshots: a tenant member can create + read + delete snapshots of

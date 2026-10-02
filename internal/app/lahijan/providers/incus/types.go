@@ -532,14 +532,14 @@ type LifecycleEvent struct {
 
 // serverInfo is the body of GET /1.0 — used by Ping + Capabilities.
 type serverInfo struct {
-	APIStatus       string            `json:"api_status"`
-	APIVersion      string            `json:"api_version"`
-	Auth            string            `json:"auth"`
-	Server          string            `json:"server"` // "incus"
-	ServerClustered bool              `json:"server_clustered"`
-	ServerName      string            `json:"server_name"`
-	ServerPID       int               `json:"server_pid"`
-	ServerVersion   string         `json:"server_version"`
+	APIStatus       string `json:"api_status"`
+	APIVersion      string `json:"api_version"`
+	Auth            string `json:"auth"`
+	Server          string `json:"server"` // "incus"
+	ServerClustered bool   `json:"server_clustered"`
+	ServerName      string `json:"server_name"`
+	ServerPID       int    `json:"server_pid"`
+	ServerVersion   string `json:"server_version"`
 	// Environment is the daemon's runtime environment (architectures, driver,
 	// kernel, ...). Real Incus returns MIXED value types here — `architectures`
 	// is a []string while `driver`/`kernel` are strings — so the value must be
