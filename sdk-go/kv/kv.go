@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	initialBufSize = 1024             // start at 1 KiB
-	maxBufSize     = 256 * 1024       // matches MaxKVValueLen on the host
+	initialBufSize = 1024       // start at 1 KiB
+	maxBufSize     = 256 * 1024 // matches MaxKVValueLen on the host
 )
 
 // Get reads the value for key from the plugin's KV namespace. Returns the

@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	initialBufSize = 1024        // start at 1 KiB
-	maxBufSize     = 64 * 1024   // matches MaxConfigValueLen on the host
+	initialBufSize = 1024      // start at 1 KiB
+	maxBufSize     = 64 * 1024 // matches MaxConfigValueLen on the host
 )
 
 // Get reads the raw JSON value for key from the plugin's admin-set config.

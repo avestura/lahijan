@@ -302,7 +302,6 @@ func (f *fakeIncus) OpenInteractiveExec(_ context.Context, params incus.Interact
 	return incus.InteractiveExecSession{
 		OperationID:   uuid.NewString(),
 		StdinSecret:   uuid.NewString(),
-		StdoutSecret:  uuid.NewString(),
 		ControlSecret: uuid.NewString(),
 	}, nil
 }

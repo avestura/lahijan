@@ -268,8 +268,10 @@ jobs:
       - name: Verify prerendered HTML
         working-directory: website
         run: |
-          for route in index features pricing about docs blog legal/privacy legal/terms; do
-            test -f "dist/${route}.html" || { echo "::error::missing prerendered dist/${route}.html"; exit 1; }
+          # vite-react-ssg writes each route as <route>/index.html.
+          test -f dist/index.html || { echo "::error::missing prerendered dist/index.html"; exit 1; }
+          for route in features pricing about docs blog legal/privacy legal/terms; do
+            test -f "dist/${route}/index.html" || { echo "::error::missing prerendered dist/${route}/index.html"; exit 1; }
           done
           test -f dist/sitemap.xml || { echo "::error::missing dist/sitemap.xml"; exit 1; }
           test -f dist/robots.txt  || { echo "::error::missing dist/robots.txt";  exit 1; }

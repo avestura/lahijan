@@ -17,14 +17,14 @@ import (
 
 // Instance represents a compute instance row returned by the host.
 type Instance struct {
-	ID           string   `json:"id"`
-	Name         string   `json:"name"`
-	Type         string   `json:"type"`
-	Status       string   `json:"status"`
-	StatusCode   int32    `json:"status_code"`
-	ImageAlias   string   `json:"image_alias"`
-	Profiles     []string `json:"profiles"`
-	Description  string   `json:"description"`
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	Type        string   `json:"type"`
+	Status      string   `json:"status"`
+	StatusCode  int32    `json:"status_code"`
+	ImageAlias  string   `json:"image_alias"`
+	Profiles    []string `json:"profiles"`
+	Description string   `json:"description"`
 }
 
 // CreateInstanceParams carries the user-controlled fields for creating

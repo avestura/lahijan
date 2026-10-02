@@ -116,9 +116,11 @@ func (s *Server) handleExec(w http.ResponseWriter, r *http.Request, instance str
 	// closes. Signals doneWG when finished.
 	doneWG := sync.WaitGroup{}
 	doneWG.Add(2)
+	// Register before the goroutine starts so the driver cannot dial first.
+	acceptStdoutSecret := s.expectExecWS(opID, stdoutSecret)
 	go func() {
 		defer doneWG.Done()
-		conn := s.acceptExecWS(opID, stdoutSecret)
+		conn := acceptStdoutSecret()
 		if conn == nil {
 			return
 		}
@@ -130,9 +132,11 @@ func (s *Server) handleExec(w http.ResponseWriter, r *http.Request, instance str
 	}()
 	// Stderr pump: just accept + close so the driver's stderr read loop
 	// unblocks. The default handler emits nothing on stderr.
+	// Register before the goroutine starts so the driver cannot dial first.
+	acceptStderrSecret := s.expectExecWS(opID, stderrSecret)
 	go func() {
 		defer doneWG.Done()
-		conn := s.acceptExecWS(opID, stderrSecret)
+		conn := acceptStderrSecret()
 		if conn == nil {
 			return
 		}
@@ -141,8 +145,10 @@ func (s *Server) handleExec(w http.ResponseWriter, r *http.Request, instance str
 	// Stdin pump: read until the client closes (the driver writes its input
 	// then sends a close frame). We do not consume the input here; the
 	// handler ignores it.
+	// Register before the goroutine starts so the driver cannot dial first.
+	acceptStdinSecret := s.expectExecWS(opID, stdinSecret)
 	go func() {
-		conn := s.acceptExecWS(opID, stdinSecret)
+		conn := acceptStdinSecret()
 		if conn == nil {
 			return
 		}
@@ -184,27 +190,31 @@ func (s *Server) handleExec(w http.ResponseWriter, r *http.Request, instance str
 	writeIncusAsyncWithMeta(w, opID, envelopeJSON)
 }
 
-// acceptExecWS blocks until a client connects to the per-fd websocket route
-// for the given (opID, secret). Returns nil on timeout (5 seconds) or if the
-// server is shutting down.
-func (s *Server) acceptExecWS(opID, secret string) *websocket.Conn {
+// expectExecWS registers interest in the per-fd websocket for (opID, secret)
+// and returns a func that blocks until a client connects. Registration is
+// synchronous, so callers must invoke expectExecWS before the driver can
+// learn the secret; the returned func is then safe to call from a goroutine.
+// The func returns nil on timeout (5 seconds).
+func (s *Server) expectExecWS(opID, secret string) func() *websocket.Conn {
 	ch := make(chan *websocket.Conn, 1)
 	key := acceptKey(opID, secret)
 	s.execAcceptMu.Lock()
 	s.execAccept[key] = ch
 	s.execAcceptMu.Unlock()
 
-	defer func() {
-		s.execAcceptMu.Lock()
-		delete(s.execAccept, key)
-		s.execAcceptMu.Unlock()
-	}()
+	return func() *websocket.Conn {
+		defer func() {
+			s.execAcceptMu.Lock()
+			delete(s.execAccept, key)
+			s.execAcceptMu.Unlock()
+		}()
 
-	select {
-	case conn := <-ch:
-		return conn
-	case <-time.After(5 * time.Second):
-		return nil
+		select {
+		case conn := <-ch:
+			return conn
+		case <-time.After(5 * time.Second):
+			return nil
+		}
 	}
 }
 
@@ -312,8 +322,10 @@ func (s *Server) handleInteractiveExec(
 	// input frame back (a minimal PTY round-trip stand-in) on this SAME
 	// conn — reading keystrokes and writing output go over one websocket,
 	// exactly like the real daemon's PTY master.
+	// Register before the goroutine starts so the driver cannot dial first.
+	acceptDataSecret := s.expectExecWS(opID, dataSecret)
 	go func() {
-		conn := s.acceptExecWS(opID, dataSecret)
+		conn := acceptDataSecret()
 		if conn == nil {
 			return
 		}
@@ -325,8 +337,10 @@ func (s *Server) handleInteractiveExec(
 	// (matching the real daemon's "control fd is fire-and-forget"
 	// behaviour — the daemon does not ack on success, but writing
 	// nothing keeps the conn open for the next message).
+	// Register before the goroutine starts so the driver cannot dial first.
+	acceptControlSecret := s.expectExecWS(opID, controlSecret)
 	go func() {
-		conn := s.acceptExecWS(opID, controlSecret)
+		conn := acceptControlSecret()
 		if conn == nil {
 			return
 		}

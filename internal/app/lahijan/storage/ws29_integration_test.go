@@ -431,7 +431,7 @@ func TestWS29_TenantIsolation_LifecycleRule(t *testing.T) {
 	assert.ErrorIs(t, err, storage.ErrLifecycleRuleNotFound)
 
 	// Cross-tenant rule access via ID is also blocked.
-	_, err = f.svc.repos.StorageLifecycleRules.GetByID(otherCtx, rule.ID)
+	_, err = database.NewRepos(testutil.Pool()).StorageLifecycleRules.GetByID(otherCtx, rule.ID)
 	require.Error(t, err, "repo-level cross-tenant lookup must fail")
 }
 

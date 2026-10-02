@@ -277,7 +277,9 @@ func TestRecordUsage_IdempotencyKeyDedup(t *testing.T) {
 	f := newFixture(t)
 
 	key := "test-usage-key"
-	started := time.Now().UTC().Truncate(time.Minute)
+	// The price lookup uses the rollup start, and a price is effective from
+	// its creation time, so start the usage window after "now".
+	started := time.Now().UTC().Add(time.Minute).Truncate(time.Minute)
 	ended := started.Add(time.Minute)
 	first, err := f.svc.RecordUsage(f.tctx, f.tenantID, billing.RecordUsageParams{
 		UserID:         f.userID,
@@ -459,7 +461,9 @@ func TestRollup_JoinsUsageWithPrice(t *testing.T) {
 	require.NoError(t, err)
 
 	// Record 60 core-minutes (= 1 core-hour) of usage.
-	started := time.Now().UTC().Truncate(time.Minute)
+	// The price lookup uses the rollup start, and a price is effective from
+	// its creation time, so start the usage window after "now".
+	started := time.Now().UTC().Add(time.Minute).Truncate(time.Minute)
 	for i := 0; i < 60; i++ {
 		minute := started.Add(time.Duration(i) * time.Minute)
 		key := "minute-" + minute.Format("150405")

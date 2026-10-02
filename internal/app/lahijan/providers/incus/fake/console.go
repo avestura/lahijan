@@ -26,7 +26,7 @@ import (
 // handleConsole services POST /1.0/instances/<name>/console?type=vga. It
 // validates the project + instance exist, mints an operation id + per-fd
 // secret, parks a goroutine that waits for the driver to dial the WS route
-// (handing off via the shared acceptExecWS mechanism), and returns the
+// (handing off via the shared expectExecWS mechanism), and returns the
 // async operation envelope carrying the secret.
 func (s *Server) handleConsole(w http.ResponseWriter, r *http.Request, instance string) {
 	project := queryProject(r)
@@ -108,8 +108,10 @@ func (s *Server) handleConsole(w http.ResponseWriter, r *http.Request, instance 
 
 	// Wait for the driver to dial the WS route, then hand the conn off to
 	// the configured handler. The handler owns the conn's lifetime.
+	// Register before the goroutine starts so the driver cannot dial first.
+	acceptSecret := s.expectExecWS(opID, secret)
 	go func() {
-		conn := s.acceptExecWS(opID, secret)
+		conn := acceptSecret()
 		if conn == nil {
 			return
 		}

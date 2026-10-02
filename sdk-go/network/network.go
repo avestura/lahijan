@@ -28,17 +28,17 @@ type Request struct {
 
 // Response holds the full HTTP response.
 type Response struct {
-	StatusCode int                // HTTP status code (100-599)
+	StatusCode int               // HTTP status code (100-599)
 	Headers    map[string]string // response headers
 	Body       []byte            // response body
 }
 
 const (
-	initialHdrBufSize  = 1024            // 1 KiB start for response headers
-	initialBodyBufSize = 4 * 1024        // 4 KiB start for response body
-	maxHdrBufSize      = 8 * 1024        // matches MaxHTTPHeaderLen on the host
-	maxBodyBufSize     = 1024 * 1024     // matches MaxHTTPBodyLen on the host (1 MiB)
-	lenPrefixSize      = 4               // 4-byte LE uint32 length prefix per buffer
+	initialHdrBufSize  = 1024        // 1 KiB start for response headers
+	initialBodyBufSize = 4 * 1024    // 4 KiB start for response body
+	maxHdrBufSize      = 8 * 1024    // matches MaxHTTPHeaderLen on the host
+	maxBodyBufSize     = 1024 * 1024 // matches MaxHTTPBodyLen on the host (1 MiB)
+	lenPrefixSize      = 4           // 4-byte LE uint32 length prefix per buffer
 )
 
 // Do performs an outbound HTTP request and returns the full response
