@@ -35,4 +35,15 @@
 // Incus operation id (when present) is recorded as the "incus.operation_id"
 // attribute so a slow Incus-side operation can be cross-referenced with the
 // Incus daemon's own logs.
+//
+// # Incus version compatibility
+//
+// Lahijan passes instance, network, volume and project config through as
+// opaque key/value maps, so keys introduced by newer Incus releases work
+// without a code change. Incus 7.5 added, among others, OVN networks with a
+// parent network (network_ovn_parent), bridge dns.include_hosts, the
+// security.tags instance key and the initial.copy disk property. One
+// behaviour change: OCI image environment variables are no longer copied
+// into the instance config at creation; they only act as defaults for exec
+// sessions, so Lahijan must not read them from instance config.
 package incus
