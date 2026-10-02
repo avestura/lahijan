@@ -1,7 +1,8 @@
 /**
  * /admin/billing — admin billing overview with prices tab + users tab.
  *
- * Prices tab embeds AdminPricesCard (CRUD). Users tab embeds a
+ * Prices tab embeds AdminPricesCard (CRUD). Users tab lists every user in a
+ * paginated, searchable table; "Manage billing" on a row opens
  * AdminUserActionsCard (top-up + refund + link to per-user ledger).
  *
  * Only platform admins reach this page (the _admin layout guard
@@ -12,9 +13,10 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { AdminUser } from "@/features/admin/api";
+import { UsersTable } from "@/features/admin/components/UsersTable";
 import { AdminPricesCard } from "@/features/billing/components/AdminPricesCard";
 import { AdminUserActionsCard } from "@/features/billing/components/AdminUserActionsCard";
 
@@ -27,7 +29,7 @@ type AdminTab = (typeof TABS)[number];
 
 function AdminBillingPage() {
   const { t } = useTranslation();
-  const [userId, setUserId] = useState("");
+  const [selected, setSelected] = useState<AdminUser | null>(null);
 
   const renderTab = (tab: AdminTab) => {
     switch (tab) {
@@ -40,23 +42,27 @@ function AdminBillingPage() {
               <CardTitle className="text-base">{t("billing.admin.users.title")}</CardTitle>
               <p className="text-xs text-muted-foreground">{t("billing.admin.users.subtitle")}</p>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-end gap-2">
-                <div className="flex-1 space-y-2">
-                  <label className="text-xs uppercase tracking-wider text-muted-foreground">
-                    {t("billing.admin.users.topup.userId.label")}
-                  </label>
-                  <Input
-                    value={userId}
-                    onChange={(e) => setUserId(e.target.value)}
-                    aria-label={t("billing.admin.users.topup.userId.label")}
-                  />
+            <CardContent className="space-y-4">
+              {selected && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2 text-sm">
+                    <span className="font-medium">{selected.email}</span>
+                    <Button size="sm" variant="ghost" onClick={() => setSelected(null)}>
+                      {t("common.close")}
+                    </Button>
+                  </div>
+                  <AdminUserActionsCard userId={selected.id} />
                 </div>
-                <Button size="sm" variant="outline" disabled={!userId}>
-                  {t("common.confirm")}
-                </Button>
-              </div>
-              {userId && <AdminUserActionsCard userId={userId} />}
+              )}
+              <UsersTable
+                selectedId={selected?.id}
+                actionsLabel={t("billing.admin.users.columns.actions")}
+                renderActions={(u) => (
+                  <Button size="sm" variant="outline" onClick={() => setSelected(u)}>
+                    {t("billing.admin.users.manage")}
+                  </Button>
+                )}
+              />
             </CardContent>
           </Card>
         );

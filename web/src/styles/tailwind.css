@@ -271,3 +271,44 @@
     animation: bx-pulse 1s var(--bx-ease-step) infinite;
   }
 }
+
+/*
+ * xterm.js isolation. The terminal lays out a fixed character grid and
+ * measures glyph cells itself, so inherited typography from the page (letter
+ * spacing, ligatures, text transforms, the proportional UI font) and the
+ * global form-control rules must not reach it. The helper textarea is the
+ * hidden input xterm uses to capture keystrokes and IME text; it has to stay
+ * invisible and out of layout regardless of the global textarea styles.
+ */
+.xterm {
+  letter-spacing: normal;
+  word-spacing: normal;
+  text-transform: none;
+  font-feature-settings: normal;
+  font-variant-ligatures: none;
+  font-kerning: none;
+  text-rendering: auto;
+}
+
+.xterm .xterm-rows,
+.xterm .xterm-char-measure-element {
+  letter-spacing: normal;
+}
+
+.xterm textarea.xterm-helper-textarea {
+  position: absolute;
+  top: 0;
+  left: -9999em;
+  width: 0;
+  height: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  overflow: hidden;
+  resize: none;
+  outline: none;
+  z-index: -5;
+  white-space: nowrap;
+}

@@ -182,6 +182,34 @@ export function useSaveAgentProvider(tenantId: string | null) {
   });
 }
 
+/** The outcome of a provider connection test. */
+export type AgentProviderTestResult = components["schemas"]["AgentProviderTestResult"];
+
+/**
+ * useTestAgentProvider — probe a provider with a draft key (or a saved config
+ * via providerId) without saving anything. A failed probe resolves with
+ * ok=false; the promise only rejects on a transport / validation error.
+ */
+export function useTestAgentProvider() {
+  return useMutation({
+    mutationFn: async (input: {
+      provider: string;
+      model?: string;
+      baseUrl?: string;
+      apiKey?: string;
+      providerId?: string;
+    }): Promise<AgentProviderTestResult> => {
+      const { data, error, response } = await apiClient.POST("/api/v1/agent/providers/test", {
+        body: input,
+      });
+      if (error || !data) {
+        throw new Error(`agent.providers.test: ${response?.status ?? "network"}`);
+      }
+      return data;
+    },
+  });
+}
+
 /** useDeleteAgentProvider — remove a BYOK provider config. */
 export function useDeleteAgentProvider(tenantId: string | null) {
   const qc = useQueryClient();

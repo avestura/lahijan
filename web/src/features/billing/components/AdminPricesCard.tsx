@@ -6,13 +6,20 @@
  */
 import * as React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { PlusIcon, TagIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -35,6 +42,7 @@ import { LoadingState } from "@/components/layout/LoadingState";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { usePerm } from "@/lib/perm";
 import { useAdminPrices, useUpsertAdminPrice } from "../api";
+import { BILLING_RESOURCE_TYPES, suggestedUnit } from "../resourceTypes";
 import { formatMoney, priceUpsertSchema, type PriceUpsertValues } from "../schemas";
 
 export function AdminPricesCard() {
@@ -135,6 +143,8 @@ function UpsertPriceDialog({
     mode: "onChange",
   });
 
+  const resourceType = form.watch("resourceType");
+
   const onSubmit = form.handleSubmit(async (values) => {
     await upsert.mutateAsync(values);
     onOpenChange(false);
@@ -157,17 +167,48 @@ function UpsertPriceDialog({
         <form onSubmit={onSubmit} className="space-y-3">
           <div className="space-y-2">
             <Label htmlFor="price-rt">{t("billing.admin.prices.upsert.resourceType.label")}</Label>
-            <Input
-              id="price-rt"
-              placeholder={t("billing.admin.prices.upsert.resourceType.placeholder")}
-              {...form.register("resourceType")}
+            <Controller
+              control={form.control}
+              name="resourceType"
+              render={({ field }) => (
+                <Select
+                  value={field.value}
+                  onValueChange={(v) => {
+                    // Fill the unit with the conventional one unless the admin
+                    // already typed something of their own.
+                    const current = form.getValues("unit");
+                    if (!current || current === suggestedUnit(field.value)) {
+                      form.setValue("unit", suggestedUnit(v), { shouldValidate: true });
+                    }
+                    field.onChange(v);
+                  }}
+                >
+                  <SelectTrigger
+                    id="price-rt"
+                    aria-label={t("billing.admin.prices.upsert.resourceType.label")}
+                  >
+                    <SelectValue
+                      placeholder={t("billing.admin.prices.upsert.resourceType.placeholder")}
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BILLING_RESOURCE_TYPES.map((r) => (
+                      <SelectItem key={r.value} value={r.value}>
+                        <span className="font-mono text-xs">{r.value}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="price-unit">{t("billing.admin.prices.upsert.unit.label")}</Label>
             <Input
               id="price-unit"
-              placeholder={t("billing.admin.prices.upsert.unit.placeholder")}
+              placeholder={
+                suggestedUnit(resourceType) || t("billing.admin.prices.upsert.unit.placeholder")
+              }
               {...form.register("unit")}
             />
           </div>

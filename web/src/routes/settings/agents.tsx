@@ -9,7 +9,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { KeyRoundIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import {
+  CheckCircle2Icon,
+  KeyRoundIcon,
+  PlugZapIcon,
+  PlusIcon,
+  Trash2Icon,
+  XCircleIcon,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +35,8 @@ import {
   useAgentProviders,
   useDeleteAgentProvider,
   useSaveAgentProvider,
+  useTestAgentProvider,
+  type AgentProviderTestResult,
 } from "@/features/agent/api";
 
 export const Route = createFileRoute("/settings/agents")({
@@ -78,6 +87,24 @@ function AgentSettingsPage() {
   const providers = useAgentProviders(tenantId);
   const save = useSaveAgentProvider(tenantId);
   const del = useDeleteAgentProvider(tenantId);
+  const test = useTestAgentProvider();
+  // Latest test outcome for the add form ("draft") and for each saved provider.
+  const [results, setResults] = useState<Record<string, AgentProviderTestResult | "error">>({});
+  const [testingKey, setTestingKey] = useState<string | null>(null);
+
+  function runTest(key: string, input: Parameters<typeof test.mutate>[0]) {
+    setTestingKey(key);
+    setResults((r) => {
+      const next = { ...r };
+      delete next[key];
+      return next;
+    });
+    test.mutate(input, {
+      onSuccess: (res) => setResults((r) => ({ ...r, [key]: res })),
+      onError: () => setResults((r) => ({ ...r, [key]: "error" })),
+      onSettled: () => setTestingKey(null),
+    });
+  }
 
   const [provider, setProvider] = useState<string>("openai");
   const [model, setModel] = useState("");
@@ -165,10 +192,31 @@ function AgentSettingsPage() {
               />
             </div>
             <div className="sm:col-span-2">
-              <Button type="submit" disabled={!canManage.hasPerm || save.isPending || !apiKey}>
-                <PlusIcon className="h-4 w-4" />
-                {t("agent.settings.save")}
-              </Button>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button type="submit" disabled={!canManage.hasPerm || save.isPending || !apiKey}>
+                  <PlusIcon className="h-4 w-4" />
+                  {t("agent.settings.save")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!canManage.hasPerm || !apiKey || testingKey === "draft"}
+                  onClick={() =>
+                    runTest("draft", {
+                      provider,
+                      apiKey,
+                      model: model || undefined,
+                      baseUrl: baseUrl || undefined,
+                    })
+                  }
+                >
+                  <PlugZapIcon className="h-4 w-4" />
+                  {testingKey === "draft"
+                    ? t("agent.settings.test.testing")
+                    : t("agent.settings.test.button")}
+                </Button>
+                <TestOutcome result={results.draft} />
+              </div>
             </div>
           </form>
         </CardContent>
@@ -203,6 +251,26 @@ function AgentSettingsPage() {
                       {t("agent.settings.keySet")}
                     </span>
                   )}
+                  <TestOutcome result={results[p.id]} />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={!canManage.hasPerm || testingKey === p.id}
+                    onClick={() =>
+                      runTest(p.id, {
+                        provider: p.provider,
+                        model: p.model || undefined,
+                        baseUrl: p.baseUrl || undefined,
+                        providerId: p.id,
+                      })
+                    }
+                  >
+                    <PlugZapIcon className="h-4 w-4" />
+                    {testingKey === p.id
+                      ? t("agent.settings.test.testing")
+                      : t("agent.settings.test.button")}
+                  </Button>
                   <button
                     type="button"
                     aria-label={t("agent.settings.delete")}
@@ -218,5 +286,30 @@ function AgentSettingsPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+/** TestOutcome renders the result of a provider connection test, if any. */
+function TestOutcome({ result }: { result: AgentProviderTestResult | "error" | undefined }) {
+  const { t } = useTranslation();
+  if (!result) return null;
+  if (result === "error") {
+    return (
+      <span role="status" className="flex items-center gap-1 text-xs text-destructive">
+        <XCircleIcon className="h-4 w-4" />
+        {t("agent.settings.test.requestFailed")}
+      </span>
+    );
+  }
+  const ok = result.ok;
+  return (
+    <span
+      role="status"
+      className={`flex items-center gap-1 text-xs ${ok ? "text-success" : "text-destructive"}`}
+    >
+      {ok ? <CheckCircle2Icon className="h-4 w-4" /> : <XCircleIcon className="h-4 w-4" />}
+      {t(`agent.settings.test.status.${result.status}`)}
+      {ok ? ` · ${t("agent.settings.test.latency", { ms: result.latencyMs })}` : null}
+    </span>
   );
 }

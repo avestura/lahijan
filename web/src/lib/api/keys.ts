@@ -82,6 +82,20 @@ export const queryKeys = {
     providers: (tenantId: string) => ["agent", tenantId, "providers"] as const,
     policy: (tenantId: string) => ["agent", tenantId, "policy"] as const,
   },
+  permissions: {
+    catalog: () => ["permissions", "catalog"] as const,
+  },
+  admin: {
+    users: (filters?: Record<string, unknown>) =>
+      ["admin", "users", "list", filters ?? {}] as const,
+    usersAll: () => ["admin", "users"] as const,
+    user: (id: string) => ["admin", "users", "detail", id] as const,
+    directory: () => ["admin", "directory"] as const,
+    connections: () => ["admin", "directory", "connections"] as const,
+    connection: (id: string) => ["admin", "directory", "connections", id] as const,
+    groups: (id: string, page: Record<string, unknown>) =>
+      ["admin", "directory", "connections", id, "groups", page] as const,
+  },
   my: {
     tokens: () => ["me", "tokens"] as const,
     identities: () => ["me", "identities"] as const,

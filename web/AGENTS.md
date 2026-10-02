@@ -35,6 +35,8 @@ system (Tailwind + shadcn/ui + design tokens).
 - `.opencode/skills/frontend-foundations/SKILL.md`
 - `.opencode/skills/ui-styling/SKILL.md` — shadcn/ui patterns
 - `.opencode/skills/design-system/SKILL.md` — token architecture
+- `.opencode/skills/known-choice-inputs/SKILL.md` — checkboxes / selects instead of
+  typed lists when the options are known
 - ADR-0014 (Vite SPA for both apps)
 - ADR-0017 (Full i18n from day one)
 
@@ -87,6 +89,10 @@ The `website/` folder mirrors this layout but without `features/`.
   with the OpenAPI types (generated to `lib/api/schema.ts`).
 - **Every privileged UI action** must check `usePerm("scope.action")` before
   rendering the trigger. Server enforces too; this is defense in depth.
+- **Known options are chosen, never typed.** Where the valid values are known
+  (permissions, tools, roles, resource types, ...), use `CheckboxGroup` (many)
+  or `Select` (one), not a comma-separated text input. See the
+  `known-choice-inputs` skill.
 - **Both `en` and `fa` locales must stay in sync.** A PR that adds an English
   string without the Persian counterpart fails CI.
 - **RTL must work.** Use logical properties (`ms-`, `me-`, `ps-`, `pe-`) not

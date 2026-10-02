@@ -100,13 +100,19 @@ export function InstanceLogs({ instanceId, tenantId }: Props) {
               {t("compute.logs.truncated")}
             </p>
           )}
-          <pre
-            data-testid="instance-log-content"
-            dir="ltr"
-            className="max-h-[32rem] overflow-auto bg-black p-3 font-mono text-xs leading-5 text-neutral-200"
-          >
-            {log.data?.content.trim() ? log.data.content : t("compute.logs.empty")}
-          </pre>
+          {log.data?.content.trim() ? (
+            <pre
+              data-testid="instance-log-content"
+              dir="ltr"
+              className="max-h-[32rem] overflow-auto bg-black p-3 font-mono text-xs leading-5 text-neutral-200"
+            >
+              {log.data.content}
+            </pre>
+          ) : (
+            <p data-testid="instance-log-empty" className="p-3 text-sm text-muted-foreground">
+              {t("compute.logs.empty")}
+            </p>
+          )}
         </div>
       )}
     </RuntimeSection>

@@ -14,12 +14,14 @@ import { ShieldIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { CheckboxGroup } from "@/components/ui/checkbox-group";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTenant } from "@/hooks/useTenant";
 import { usePerm } from "@/lib/perm";
 import { useAgentPolicy, useUpdateAgentPolicy } from "@/features/agent/api";
 import type { AgentPolicy } from "@/features/agent/api";
+import { AGENT_TOOLS } from "@/features/agent/tools";
 
 export const Route = createFileRoute("/admin/agent")({
   component: AdminAgentPolicyPage,
@@ -39,7 +41,7 @@ function AdminAgentPolicyPage() {
   const [maxMessages, setMaxMessages] = useState("0");
   const [windowSeconds, setWindowSeconds] = useState("60");
   const [spendCap, setSpendCap] = useState("0");
-  const [denyTools, setDenyTools] = useState("");
+  const [denyTools, setDenyTools] = useState<string[]>([]);
 
   // Seed the form from the server value once it loads. useAgentPolicy
   // returns the permissive default when no row is set, so the form is
@@ -52,7 +54,7 @@ function AdminAgentPolicyPage() {
     setMaxMessages(String(policy.data.maxMessagesPerWindow));
     setWindowSeconds(String(policy.data.windowSeconds));
     setSpendCap(String(policy.data.spendCapCredits));
-    setDenyTools((policy.data.denyTools ?? []).join(", "));
+    setDenyTools(policy.data.denyTools ?? []);
   }, [policy.data]);
 
   function onSubmit(e: React.FormEvent) {
@@ -64,7 +66,7 @@ function AdminAgentPolicyPage() {
       maxMessagesPerWindow: Number(maxMessages) || 0,
       windowSeconds: Number(windowSeconds) || 60,
       spendCapCredits: Number(spendCap) || 0,
-      denyTools: splitCsv(denyTools),
+      denyTools,
     };
     update.mutate(next);
   }
@@ -132,14 +134,19 @@ function AdminAgentPolicyPage() {
               />
             </div>
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="ap-deny">{t("agent.policy.denyTools")}</Label>
-              <Input
+              <Label>{t("agent.policy.denyTools")}</Label>
+              <CheckboxGroup
                 id="ap-deny"
+                options={AGENT_TOOLS.map((tool) => ({
+                  value: tool.value,
+                  label: t(`agent.policy.tools.${tool.i18nKey}.label`),
+                  description: t(`agent.policy.tools.${tool.i18nKey}.description`),
+                }))}
                 value={denyTools}
-                onChange={(e) => setDenyTools(e.target.value)}
-                placeholder={t("agent.policy.denyToolsPlaceholder")}
+                onChange={setDenyTools}
                 disabled={!canManage.hasPerm}
               />
+              <p className="text-xs text-muted-foreground">{t("agent.policy.denyToolsHint")}</p>
             </div>
 
             <div className="flex items-center gap-2 sm:col-span-2">

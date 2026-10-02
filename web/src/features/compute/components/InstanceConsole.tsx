@@ -50,6 +50,16 @@ type ConnectionState = "disconnected" | "connecting" | "connected";
 /** Debounce window for ResizeObserver-driven fits (ms). */
 const RESIZE_DEBOUNCE_MS = 80;
 
+/**
+ * The terminal's font stack, spelled out literally. It is deliberately not
+ * read from a CSS variable (xterm.js cannot resolve one) and omits the UI
+ * mono stack's Persian fallback, which is proportional and would break the
+ * fixed-width grid.
+ */
+const TERMINAL_FONT_FAMILY =
+  '"JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+const TERMINAL_FONT_SIZE = 13;
+
 /** Resize control envelope sent on the same WS as stdin. */
 interface ResizeControlMessage {
   type: "resize";
@@ -225,8 +235,12 @@ export function InstanceConsole({ instanceId, status }: Props) {
   useEffect(() => {
     if (!container) return;
     const termInst = new Terminal({
-      fontFamily: "var(--font-mono), ui-monospace, monospace",
-      fontSize: 13,
+      // xterm.js measures glyph cells with this exact string, so it must be a
+      // literal font stack: a CSS variable reference is not resolved on its
+      // canvas, and an unresolved one falls back to the proportional UI font,
+      // which breaks the character grid (uneven letter spacing).
+      fontFamily: TERMINAL_FONT_FAMILY,
+      fontSize: TERMINAL_FONT_SIZE,
       // convertEol is off: the PTY already speaks \r\n. Turning it on
       // would double-translate and break cursor positioning for vim
       // and other screen-oriented programs.
@@ -253,6 +267,20 @@ export function InstanceConsole({ instanceId, status }: Props) {
     term.current = termInst;
     fit.current = fitAddon;
 
+    // The web font loads asynchronously. If xterm measured the cell before it
+    // arrived, every column is sized for the fallback font. Once the font is
+    // ready, re-apply the option (forces a re-measure) and refit.
+    let disposed = false;
+    void document.fonts
+      ?.load(`${TERMINAL_FONT_SIZE}px ${TERMINAL_FONT_FAMILY.split(",")[0]}`)
+      .then(() => {
+        if (disposed) return;
+        termInst.options.fontFamily = TERMINAL_FONT_FAMILY;
+        const { cols, rows } = doFit();
+        sendResize(cols, rows);
+      })
+      .catch(() => undefined);
+
     // term.onData fires on every keystroke the user types into the
     // terminal (including paste). Forward verbatim to the WS as a
     // text frame; the backend routes it to Incus' stdin fd.
@@ -273,12 +301,13 @@ export function InstanceConsole({ instanceId, status }: Props) {
     }
 
     return () => {
+      disposed = true;
       dataDisposable.dispose();
       termInst.dispose();
       term.current = null;
       fit.current = null;
     };
-  }, [container]);
+  }, [container, doFit, sendResize]);
 
   // ResizeObserver on the terminal's container. This catches every
   // layout change (sidebar collapse, devtools dock, window resize,
@@ -366,14 +395,21 @@ export function InstanceConsole({ instanceId, status }: Props) {
           </span>
         </div>
       )}
+      {/* Padding lives on this frame, not on the element xterm fits itself
+          to: FitAddon sizes the terminal from its parent's computed size, so
+          padding there would make it overshoot and clip the last columns. */}
       <div
-        ref={setContainer}
         hidden={!usable}
-        className="h-80 overflow-hidden border border-border bg-black p-2"
-        aria-label={t("compute.console.title")}
-        role="region"
+        className="border border-border bg-black p-2"
         onClick={() => term.current?.focus()}
-      />
+      >
+        <div
+          ref={setContainer}
+          className="h-72 overflow-hidden"
+          aria-label={t("compute.console.title")}
+          role="region"
+        />
+      </div>
     </div>
   );
 }

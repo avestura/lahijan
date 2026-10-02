@@ -28,7 +28,9 @@
       "jobs": "Jobs",
       "plugins": "Plugins",
       "marketplace": "Marketplace",
-      "agent": "Agent Policy"
+      "agent": "Agent Policy",
+      "users": "Users",
+      "directory": "Directories"
     }
   },
   "theme": {
@@ -154,7 +156,11 @@
     "none": "None",
     "optional": "optional",
     "required": "required",
-    "selectAll": "Select all"
+    "selectAll": "Select all",
+    "clearAll": "Clear all",
+    "pagination": {
+      "range": "{{from}}–{{to}} of {{total}}"
+    }
   },
   "permission": {
     "denied": "You do not have permission to perform this action."
@@ -264,7 +270,7 @@
       "file": "Log file",
       "refresh": "Refresh",
       "truncated": "Showing the last 1 MiB of this log.",
-      "empty": "(empty)"
+      "empty": "This log is empty. The console log only holds what the instance writes to its console, and containers rarely print anything there. Use the Console tab for a live shell, or read application logs from inside the instance."
     },
     "title": "Instances",
     "subtitle": "Compute units you have provisioned in this tenant.",
@@ -662,18 +668,18 @@
           "label": "Name",
           "placeholder": "ci-deploy"
         },
-        "scopes": {
-          "label": "Scopes",
-          "placeholder": "compute.instance.start",
-          "hint": "Comma-separated permission slugs (scope.action)."
-        },
         "expiry": {
           "label": "Expires at",
           "placeholder": "YYYY-MM-DD",
           "never": "Never"
         },
         "submit": "Create",
-        "submitting": "Creating…"
+        "submitting": "Creating…",
+        "scopes": {
+          "label": "Scopes",
+          "hint": "Select the permissions this token may use. With nothing selected, the token can do everything your account can.",
+          "loadFailed": "Could not load the permission list."
+        }
       },
       "reveal": {
         "title": "Token created",
@@ -1242,23 +1248,21 @@
         },
         "upsert": {
           "title": "Set price",
-          "resourceType": { "label": "Resource type", "placeholder": "compute.cpu" },
           "unit": { "label": "Unit", "placeholder": "vCPU-hour" },
           "priceCents": { "label": "Price (¢)" },
           "currency": { "label": "Currency" },
           "effectiveFrom": { "label": "Effective from" },
           "submit": "Save",
-          "submitting": "Saving…"
+          "submitting": "Saving…",
+          "resourceType": {
+            "label": "Resource type",
+            "placeholder": "Select a resource type"
+          }
         }
       },
       "users": {
         "title": "User balances",
         "subtitle": "Top up a user's balance or refund a charge.",
-        "columns": {
-          "user": "User",
-          "balance": "Balance",
-          "actions": "Actions"
-        },
         "topup": {
           "title": "Top up user",
           "userId": { "label": "User id" },
@@ -1279,6 +1283,12 @@
         "ledger": {
           "title": "User ledger",
           "back": "Back to users"
+        },
+        "manage": "Manage billing",
+        "columns": {
+          "user": "User",
+          "balance": "Balance",
+          "actions": "Actions"
         }
       }
     },
@@ -1426,7 +1436,20 @@
       "configuredTitle": "Configured providers",
       "noneConfigured": "No provider configured yet. Add one above to enable the agent.",
       "keySet": "key saved",
-      "delete": "Delete provider"
+      "delete": "Delete provider",
+      "test": {
+        "button": "Test connection",
+        "testing": "Testing…",
+        "requestFailed": "Test failed. Try again.",
+        "latency": "{{ms}} ms",
+        "status": {
+          "ok": "Connection works",
+          "auth_failed": "The provider rejected the API key",
+          "model_not_found": "Connected, but the model is not available",
+          "unreachable": "Could not reach the provider",
+          "bad_response": "The provider answered unexpectedly"
+        }
+      }
     },
     "policy": {
       "title": "Agent Policy",
@@ -1440,9 +1463,214 @@
       "windowSeconds": "Window seconds",
       "spendCap": "Spend cap (credits)",
       "denyTools": "Denied tools",
-      "denyToolsPlaceholder": "sample.destructive, compute.instance.delete",
       "forceAdmin": "Force admin-provided models (disable user keys)",
-      "save": "Save policy"
+      "save": "Save policy",
+      "denyToolsHint": "Checked tools are hidden from the agent entirely.",
+      "tools": {
+        "compute_list_instances": {
+          "label": "List compute instances",
+          "description": "Read-only. Names, types, status and images of instances."
+        },
+        "dns_list_zones": {
+          "label": "List DNS zones",
+          "description": "Read-only. Zones with their DNSSEC and transfer flags."
+        },
+        "storage_list_buckets": {
+          "label": "List object storage buckets",
+          "description": "Read-only. Buckets with quota, usage and versioning."
+        },
+        "billing_list_usage": {
+          "label": "List usage events",
+          "description": "Read-only. Recent metered usage and its units."
+        },
+        "audit_list_events": {
+          "label": "List audit events",
+          "description": "Read-only. Recent audit entries in the tenant."
+        }
+      }
+    }
+  },
+  "admin": {
+    "roles": {
+      "platform_admin": "Platform administrator",
+      "tenant_owner": "Owner",
+      "tenant_admin": "Admin",
+      "tenant_member": "Member",
+      "tenant_viewer": "Viewer"
+    },
+    "users": {
+      "title": "Users",
+      "subtitle": "Everyone who can sign in to this platform. Create users, change roles, disable or remove accounts.",
+      "new": "New user",
+      "directories": "Directories",
+      "search": "Search by email or name",
+      "active": "Active",
+      "disabled": "Disabled",
+      "sourceLocal": "Local",
+      "sourceNoPassword": "No password",
+      "created": "User created",
+      "saved": "User saved",
+      "deleted": "User deleted",
+      "empty": {
+        "title": "No users found",
+        "body": "There are no users yet.",
+        "search": "No user matches your search."
+      },
+      "columns": {
+        "user": "User",
+        "status": "Status",
+        "roles": "Roles",
+        "source": "Source",
+        "created": "Created",
+        "actions": "Actions"
+      },
+      "fields": {
+        "email": "Email",
+        "displayName": "Display name",
+        "password": "Password",
+        "passwordHint": "Optional. Without a password the user can only sign in through single sign-on, a directory or a password reset.",
+        "locale": "Language",
+        "active": "Allow this user to sign in"
+      },
+      "create": {
+        "title": "Create user",
+        "description": "The email address is marked verified and the user gets a personal workspace.",
+        "submit": "Create user",
+        "failed": "Could not create the user. Check the email address and password, and that the email is not already in use."
+      },
+      "edit": {
+        "button": "Edit",
+        "title": "Edit user",
+        "memberships": "Role in each workspace",
+        "noMemberships": "This user is not a member of any workspace.",
+        "roleIn": "Role in {{tenant}}",
+        "selfHint": "You cannot disable your own account.",
+        "failed": "Could not save the changes."
+      },
+      "delete": {
+        "title": "Delete user",
+        "body": "Delete {{email}}? They are signed out immediately and can no longer sign in.",
+        "confirm": "Delete user",
+        "failed": "Could not delete the user."
+      }
+    },
+    "directory": {
+      "title": "Directories",
+      "subtitle": "Connect an LDAP server to import users and groups, or a SAML identity provider for single sign-on.",
+      "new": "New connection",
+      "backToUsers": "Users",
+      "dialogDescription": "Use Test connection to check the settings before saving.",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "noSync": "Not applicable",
+      "neverSynced": "Never synced",
+      "saved": "Connection saved",
+      "deleted": "Connection deleted",
+      "saveFailed": "Could not save the connection. Check the fields and that the name is not already in use.",
+      "kind": {
+        "ldap": "LDAP",
+        "saml": "SAML"
+      },
+      "empty": {
+        "title": "No connections yet",
+        "body": "Add an LDAP server to import users and groups, or a SAML provider for single sign-on."
+      },
+      "columns": {
+        "name": "Name",
+        "kind": "Type",
+        "status": "Status",
+        "lastSync": "Last sync",
+        "actions": "Actions"
+      },
+      "create": {
+        "title": "New connection"
+      },
+      "edit": {
+        "title": "Edit connection"
+      },
+      "sections": {
+        "server": "Server",
+        "users": "Users",
+        "groups": "Groups",
+        "idp": "Identity provider"
+      },
+      "fields": {
+        "kind": "Type",
+        "name": "Name",
+        "nameHint": "Lowercase letters, digits, - and _. For SAML it is part of the sign-in URL.",
+        "enabled": "Enabled",
+        "url": "Server URL",
+        "urlHint": "ldap:// or ldaps://. Prefer ldaps:// or STARTTLS so the bind password is encrypted in transit.",
+        "startTls": "Upgrade with STARTTLS",
+        "insecureSkipVerify": "Skip TLS certificate verification",
+        "insecureWarning": "Certificate verification is off. Anyone on the network path can impersonate the server. Use this only on a test network.",
+        "bindDn": "Bind DN",
+        "bindPassword": "Bind password",
+        "bindPasswordKeep": "A password is stored. Leave empty to keep it.",
+        "userBaseDn": "User base DN",
+        "userFilter": "User filter",
+        "emailAttr": "Email attribute",
+        "nameAttr": "Display name attribute",
+        "groupBaseDn": "Group base DN",
+        "groupBaseDnHint": "Leave empty to skip groups.",
+        "groupFilter": "Group filter",
+        "groupNameAttr": "Group name attribute",
+        "groupMemberAttr": "Group member attribute",
+        "idpMetadataUrl": "IdP metadata URL",
+        "idpMetadataXml": "IdP metadata XML",
+        "idpMetadataXmlHint": "Optional. Pasted metadata is used instead of the URL.",
+        "entityId": "Service provider entity ID",
+        "entityIdHint": "Optional. Defaults to the metadata URL below.",
+        "emailAttribute": "Email attribute",
+        "nameAttribute": "Display name attribute",
+        "groupsAttribute": "Groups attribute",
+        "allowIdpInitiated": "Accept IdP-initiated sign-in (less secure)"
+      },
+      "spInfo": {
+        "title": "Register Lahijan in your identity provider",
+        "body": "Give your IdP these service provider URLs.",
+        "acs": "ACS URL",
+        "metadata": "Metadata URL"
+      },
+      "test": {
+        "button": "Test connection",
+        "testing": "Testing…",
+        "requestFailed": "The test could not be run. Try again.",
+        "found": "Found {{users}} users and {{groups}} groups (sampled).",
+        "code": {
+          "ok": "Connection works",
+          "connect_failed": "Could not connect or sign in to the server",
+          "search_failed": "Connected, but a search failed",
+          "metadata_failed": "Could not read the IdP metadata"
+        }
+      },
+      "sync": {
+        "button": "Sync now",
+        "done": "Sync finished",
+        "failed": "Sync failed",
+        "summary": "{{users}} users ({{created}} new, {{linked}} existing), {{groups}} groups, {{skipped}} skipped without an email.",
+        "counts": "{{users}} users, {{groups}} groups"
+      },
+      "syncStatus": {
+        "ok": "OK",
+        "error": "Failed"
+      },
+      "groups": {
+        "button": "Groups",
+        "title": "Groups in {{name}}",
+        "description": "Groups imported by the last sync, with their member counts.",
+        "name": "Group",
+        "members": "Members",
+        "empty": "No groups yet. For LDAP, set a group base DN and run a sync. For SAML, set the groups attribute; groups appear as users sign in."
+      },
+      "delete": {
+        "title": "Delete connection",
+        "body": "Delete {{name}}? Its imported groups are removed. Users it created stay and can be managed under Users.",
+        "confirm": "Delete connection",
+        "failed": "Could not delete the connection."
+      },
+      "inactive": "Not active",
+      "savedInactive": "Saved, but the connection is not active"
     }
   }
 }

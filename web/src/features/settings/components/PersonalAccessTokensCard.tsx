@@ -11,6 +11,7 @@ import { KeyIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CheckboxGroup } from "@/components/ui/checkbox-group";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -34,6 +35,7 @@ import { EmptyState } from "@/components/layout/EmptyState";
 import { LoadingState } from "@/components/layout/LoadingState";
 import { ErrorState } from "@/components/layout/ErrorState";
 import { useToast } from "@/hooks/useToast";
+import { usePermissionCatalog } from "@/features/permissions/api";
 import {
   useCreatePersonalAccessToken,
   usePersonalAccessTokens,
@@ -49,23 +51,20 @@ export function PersonalAccessTokensCard() {
   const [createOpen, setCreateOpen] = useState(false);
   const [revealOpen, setRevealOpen] = useState(false);
   const [name, setName] = useState("");
-  const [scopes, setScopes] = useState("");
+  const [scopes, setScopes] = useState<string[]>([]);
+  const catalog = usePermissionCatalog(createOpen);
 
   const onCreate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    const scopeList = scopes
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
     create.mutate(
-      { name: name.trim(), scopes: scopeList },
+      { name: name.trim(), scopes },
       {
         onSuccess: () => {
           setCreateOpen(false);
           setRevealOpen(true);
           setName("");
-          setScopes("");
+          setScopes([]);
         },
       },
     );
@@ -174,13 +173,28 @@ export function PersonalAccessTokensCard() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="pat-scopes">{t("settings.tokens.create.scopes.label")}</Label>
-              <Input
-                id="pat-scopes"
-                placeholder={t("settings.tokens.create.scopes.placeholder")}
-                value={scopes}
-                onChange={(e) => setScopes(e.target.value)}
-              />
+              <Label>{t("settings.tokens.create.scopes.label")}</Label>
+              {catalog.isLoading ? (
+                <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
+              ) : catalog.error ? (
+                <p className="text-sm text-destructive">
+                  {t("settings.tokens.create.scopes.loadFailed")}
+                </p>
+              ) : (
+                <div className="max-h-64 overflow-y-auto border border-border p-3">
+                  <CheckboxGroup
+                    id="pat-scopes"
+                    options={(catalog.data ?? []).map((p) => ({
+                      value: p.slug,
+                      label: p.slug,
+                      description: p.description,
+                      group: p.slug.split(".")[0],
+                    }))}
+                    value={scopes}
+                    onChange={setScopes}
+                  />
+                </div>
+              )}
               <p className="text-xs text-muted-foreground">
                 {t("settings.tokens.create.scopes.hint")}
               </p>
