@@ -1,12 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Lahijan mark">
   <rect width="64" height="64" fill="#23282d" />
-  <g fill="#ffffff">
-    <circle cx="20" cy="26" r="8" />
-    <circle cx="31" cy="20" r="11" />
-    <circle cx="42" cy="27" r="7" />
-    <path d="M12 26H49V38Q49 50 37 50H24Q12 50 12 38Z" />
-  </g>
-  <path d="M49 30H52Q57 30 57 36Q57 42 51 42H48" fill="none" stroke="#ffffff" stroke-width="3" />
-  <rect x="12" y="34" width="37" height="2" fill="#23282d" />
-  <rect x="8" y="53" width="46" height="3" fill="#0f62fe" />
+  <path d="M8 8H56V53L42 39L34 47L24 37L8 53Z" fill="#0f62fe" />
+  <path d="M8 56L24 40L34 50L42 42L56 56Z" fill="#ffffff" />
 </svg>
