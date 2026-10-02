@@ -102,6 +102,7 @@ export const DOCS_NAV: DocsSection[] = [
     title: "Administration",
     items: [
       { slug: "admin/users-and-tenants", title: "Users and tenants" },
+      { slug: "admin/directories", title: "Directories (LDAP and SAML)" },
       { slug: "admin/roles-and-permissions", title: "Roles and permissions" },
       { slug: "admin/billing", title: "Billing administration" },
       { slug: "admin/plugins", title: "Plugin administration" },

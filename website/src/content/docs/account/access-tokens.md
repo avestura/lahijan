@@ -12,15 +12,18 @@ A personal access token lets a script, CI job or command-line tool call the Lahi
 - Tokens start with the prefix `lah_pat_` (your operator can change it with `auth.pat.prefix`), which makes them easy to spot in logs and secret scanners.
 - Each token records when it was last used, and every use is written to the audit log as `auth.pat.use`.
 
+- **Scopes limit what a token may do.** A token with scopes can only use those permissions, even if your role allows more: a request that needs any other permission is refused with `403`. A token with **no** scopes can do everything your role allows. Scopes can only narrow a token; they never grant more than your role has.
+- A token stops working as soon as its owner is disabled or deleted.
+
 > [!WARNING]
-> Scopes are recorded on the token but are not enforced in the current release. A token can do everything your role allows in any tenant you belong to, including creating more tokens. Treat every token like your password, give it an expiry, and revoke it when you no longer need it.
+> A token without scopes can do everything your role allows in any tenant you belong to, including creating more tokens. Give tokens the narrowest scopes they need, set an expiry, and revoke them when you no longer need them.
 
 ## Create a token in the dashboard
 
 1. Open **Settings > Access Tokens**.
 2. Select **New token**.
 3. Enter a **Name** that says where the token is used, for example `ci-deploy`.
-4. Optionally enter **Scopes** as comma-separated permission slugs, for example `compute.instance.read, compute.instance.start`. See [Permissions](/docs/reference/permissions) for the slugs.
+4. Under **Scopes**, tick the permissions the token may use, for example `compute.instance.read` and `compute.instance.start`. The list is grouped by area, and **Select all** and **Clear all** are available. Leave everything unticked for a token with the same access as your account. See [Permissions](/docs/reference/permissions) for what each one allows.
 5. Select **Create**.
 6. In the **Token created** dialog, select **Copy token**, store it somewhere safe, then select **I've saved it**.
 

@@ -174,6 +174,9 @@ These are non-negotiable. Details live in
   for theme.
 - Server state via TanStack Query; client state via Zustand.
 - Forms via react-hook-form + zod schemas shared with the OpenAPI types.
+- Where the valid values are known (permissions, tools, roles, resource types),
+  users pick from checkboxes / a select; never a comma-separated text input
+  (see `.opencode/skills/known-choice-inputs/SKILL.md`).
 
 ### Security
 

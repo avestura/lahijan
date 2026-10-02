@@ -23,6 +23,8 @@ In the current release the Agent can only **read**. It cannot create, change or 
 
 The provider list contains services that offer an OpenAI-compatible chat API: `openai`, `openrouter`, `302ai`, `groq`, `together`, `deepseek`, `cerebras`, `deepinfra`, `fireworks`, `moonshot`, `minimax`, `nvidia`, `venice`, `xai`, `zai`, `zai-coding-plan`, and the local servers `ollama`, `lmstudio` and `llamacpp`. Providers with a different API are not supported.
 
+Select **Test connection** to check the provider before you save it, or on a saved provider to check it again. Lahijan asks the provider for its model list (or sends a one-token request when the provider has no list) and tells you whether the key works, whether the model is available, or why it could not connect. Nothing is saved by a test, and only a short result is shown, never the provider's reply.
+
 Your key is encrypted before it is stored and is never sent back to the browser; the list only shows "key saved". You can add one configuration per provider in each tenant. To replace a key, delete the provider with **Delete provider** and add it again.
 
 When you send a message, the Agent uses the first enabled provider in your list whose model is allowed by the tenant's policy. If none qualifies, it replies "No model provider is configured. Add an API key in Agent Settings (under Settings)."

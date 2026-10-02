@@ -28,8 +28,8 @@ As environment variables: `LAHIJAN_WASM_MARKETPLACE_PATH`, `LAHIJAN_WASM_MARKETP
 
 The marketplace is only active when `wasm.enabled` is `true`. When both `path` and `url` are empty, the marketplace endpoints return `501 not_implemented`.
 
-> [!WARNING]
-> The production container image does not include the repository's `examples/` directory, so the default `path` points at nothing and listing the marketplace fails with `500 internal`. In the Docker Compose deployment, mount an index directory into the container and set `LAHIJAN_WASM_MARKETPLACE_PATH`, or set `LAHIJAN_WASM_MARKETPLACE_URL`.
+> [!NOTE]
+> The production container image does not include the repository's `examples/` directory, so the default `path` points at nothing. When the index file is not found at startup, Lahijan logs `wasm marketplace disabled: index not found` and the marketplace is off: the endpoints answer `501 not_implemented` and the dashboard shows "This feature is not enabled". In the Docker Compose deployment, mount an index directory into the container and set `LAHIJAN_WASM_MARKETPLACE_PATH`, or set `LAHIJAN_WASM_MARKETPLACE_URL`, then restart.
 
 ### Local directory
 

@@ -15,6 +15,9 @@ Load this whenever you touch `web/` or `website/`.
 
 No substitutions. If you need a thing this stack doesn't have, write an ADR.
 
+> Choosing from a known set of values (scopes, tools, roles, ...)? Use the
+> `known-choice-inputs` skill: checkboxes or a select, never typed lists.
+
 ## File layout
 
 ```

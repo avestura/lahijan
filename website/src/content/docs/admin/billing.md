@@ -33,7 +33,7 @@ Lahijan does not check that the user id you top up is a member of the tenant.
 
 1. Switch to the tenant whose balance you want to change.
 2. Open **Administration > Billing** and select the **Users** tab.
-3. Paste the user's id into **User id**. Users can find their id in `GET /api/v1/auth/me`; you can also look it up in the database (see [Users and tenants](/docs/admin/users-and-tenants#manage-members-in-the-database)).
+3. Find the user in the list. It is paginated, and you can search by email or name. Select **Manage billing** on their row.
 4. The card shows the user's current balance. Select **Top up** or **Refund**.
 5. Enter **Amount (¢)** in cents, a **Currency** and an optional **Reference** (for example an invoice number), then confirm.
 6. Select **User ledger** to see every entry for that user.
@@ -62,7 +62,7 @@ Currency defaults to `USD`, the only currency in this release. Each top-up, refu
 
 ## Price catalog
 
-The price catalog holds a price per resource type and unit, for example `compute.cpu` per `vCPU-hour`. In the dashboard it is the **Price catalog** tab; select **Set price** and fill in **Resource type**, **Unit**, **Price (¢)**, **Currency** and **Effective from**.
+The price catalog holds a price per resource type and unit, for example `compute.cpu` per `vCPU-hour`. In the dashboard it is the **Price catalog** tab; select **Set price**, choose a **Resource type** from the list, check the **Unit**, and fill in **Price (¢)**, **Currency** and **Effective from**. The list offers `compute.cpu`, `compute.ram`, `compute.disk`, `storage.size`, `storage.requests`, `dns.queries` and `network.egress`. Choosing a type suggests its usual unit (for example `core-hours` for `compute.cpu`); you can change the unit.
 
 With the API, `GET /api/v1/admin/billing/prices` lists prices (needs `billing.price_catalog.read`, which every tenant role has) and `POST /api/v1/admin/billing/prices` sets one:
 

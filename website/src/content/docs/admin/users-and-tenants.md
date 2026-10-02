@@ -55,25 +55,35 @@ Accounts created by signing in with an external identity provider (OAuth or OIDC
 
 `platform.admin` is not a global flag. It is a role on a membership, and like any role it applies only in the tenant where it is held. The bootstrap administrator therefore has full powers in the default tenant and none in other tenants unless you give them a membership there.
 
-Within that tenant, `platform.admin` passes every permission check. It is also the only role that holds the `platform.*` permissions, which gate the background job pages.
+Within that tenant, `platform.admin` passes every permission check. It is also the only role that holds the `platform.*` permissions, which gate the background job pages, user management and directory connections.
 
-The dashboard shows the **Administration** section of the sidebar (**Billing**, **Plugins**, **Marketplace**, **Agent Policy**) only while the current tenant's role is `platform.admin`. The job queue's own web page is at `/admin/jobs/ui` when jobs are enabled; see [Background jobs](/docs/admin/jobs).
+The dashboard shows the **Administration** section of the sidebar (**Users**, **Directories**, **Billing**, **Plugins**, **Marketplace**, **Agent Policy**) only while the current tenant's role is `platform.admin`. The job queue's own web page is at `/admin/jobs/ui` when jobs are enabled; see [Background jobs](/docs/admin/jobs).
 
-## What the API does not cover yet
+## Manage users in the dashboard
 
-The permission catalog already contains `tenant.member.invite`, `tenant.member.remove`, `tenant.member.role.update`, `platform.user.list`, `platform.tenant.create` and similar permissions, but no endpoints use them yet. In the current release there is no API or dashboard page to:
+Platform administrators manage accounts at **Administration > Users** (`/admin/users`). The page lists every user on the platform, 15 per page, and you can search by email or display name. Each row shows the user's status, role in each tenant, where the account came from (a local account, or the name of the [directory](/docs/admin/directories) it was imported from) and when it was created.
 
-- list users,
+| Action       | What it does                                                                                                                                                                                                                                           |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **New user** | Creates an account. The email address is marked verified and the user gets a personal tenant (when `auth.signup.personalTenant` is on). A password is optional; without one the user signs in through single sign-on, a directory or a password reset. |
+| **Edit**     | Changes the display name, turns sign-in on or off, and changes the user's role in each tenant they belong to.                                                                                                                                          |
+| **Delete**   | Removes the account (soft delete). The user is signed out at once and cannot sign in again.                                                                                                                                                            |
+
+Disabling or deleting a user ends their open sessions and stops their [access tokens](/docs/account/access-tokens). You cannot disable or delete your own account.
+
+The same actions are available in the API under `/api/v1/admin/users` (needs `platform.user.list` to read and `platform.user.manage` to change). Every change is written to the [audit log](/docs/audit/overview).
+
+## What the dashboard does not cover yet
+
+In the current release there is no API or dashboard page to:
+
 - create or delete tenants (other than the personal tenant made at registration),
-- invite a user into a tenant, remove a member or change a member's role,
-- deactivate a user,
+- add a user to a tenant, invite one, or remove a member (you can change the role of an existing membership),
 - require a second factor for a tenant.
-
-The only endpoints under `/api/v1/admin/users/{userId}` are the billing ones described in [Billing administration](/docs/admin/billing).
 
 ## Manage members in the database
 
-Until those endpoints exist, you make these changes directly in PostgreSQL. Open a shell on the Lahijan database (the user and database names come from `LAHIJAN_DATABASE_USER` and `LAHIJAN_DATABASE_NAME` in your [environment file](/docs/operations/environment); both are `lahijan` by default):
+For the changes the dashboard does not cover, you work directly in PostgreSQL. Open a shell on the Lahijan database (the user and database names come from `LAHIJAN_DATABASE_USER` and `LAHIJAN_DATABASE_NAME` in your [environment file](/docs/operations/environment); both are `lahijan` by default):
 
 ```sh
 docker compose -f docker-compose.prod.yml exec postgres psql -U lahijan -d lahijan
@@ -111,13 +121,13 @@ UPDATE memberships SET deleted_at = now()
 WHERE tenant_id = '<tenant id>' AND user_id = '<user id>' AND deleted_at IS NULL;
 ```
 
-Stop a user from signing in:
+Stop a user from signing in (prefer **Edit** in the dashboard, which also ends their open sessions):
 
 ```sql
 UPDATE users SET is_active = false, updated_at = now() WHERE id = '<user id>';
 ```
 
-An inactive user cannot sign in with a password or an external identity, but sessions that are already open and personal access tokens keep working until they expire or are revoked.
+An inactive user cannot sign in with a password or an external identity and their access tokens stop working, but sessions that are already open keep working until they expire or are revoked.
 
 Require a second factor for everyone in a tenant:
 

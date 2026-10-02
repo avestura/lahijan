@@ -51,7 +51,7 @@ The limit is per user. Lahijan counts the messages the user sent in the last `wi
 
 ### Denied tools
 
-Enter tool names separated by commas; matching is exact and ignores case. A denied tool is not offered to the model, and if the model asks for it anyway the call is refused. The tools available today are all read-only:
+Tick the tools the Agent may not use. A denied tool is not offered to the model, and if the model asks for it anyway the call is refused. The tools available today are all read-only:
 
 | Tool                     | Reads                             |
 | ------------------------ | --------------------------------- |
