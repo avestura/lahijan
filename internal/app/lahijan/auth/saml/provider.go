@@ -325,3 +325,35 @@ func parseCert(pemBytes []byte) (*x509.Certificate, error) {
 	}
 	return x509.ParseCertificate(block.Bytes)
 }
+
+// IDPMetadataInfo summarises parsed IdP metadata for admin-facing validation.
+type IDPMetadataInfo struct {
+	// EntityID is the IdP's entity id.
+	EntityID string
+	// SSOURL is the first single-sign-on endpoint the IdP advertises.
+	SSOURL string
+	// Certificates is the number of signing/encryption certificates published.
+	Certificates int
+}
+
+// CheckIDPMetadata loads IdP metadata (inline XML wins over the URL, as in
+// NewProvider) and reports what it contains. It is used by the admin "test
+// connection" action so a bad metadata URL or document is caught before the
+// provider is switched on. It returns ErrMetadata wrapping the cause.
+func CheckIDPMetadata(xmlInline, urlStr string) (IDPMetadataInfo, error) {
+	desc, err := loadIDPMetadata(xmlInline, urlStr)
+	if err != nil {
+		return IDPMetadataInfo{}, err
+	}
+	if len(desc.IDPSSODescriptors) == 0 {
+		return IDPMetadataInfo{}, fmt.Errorf("%w: document has no IDPSSODescriptor", ErrMetadata)
+	}
+	info := IDPMetadataInfo{EntityID: desc.EntityID}
+	for _, d := range desc.IDPSSODescriptors {
+		info.Certificates += len(d.KeyDescriptors)
+		if info.SSOURL == "" && len(d.SingleSignOnServices) > 0 {
+			info.SSOURL = d.SingleSignOnServices[0].Location
+		}
+	}
+	return info, nil
+}

@@ -55,6 +55,7 @@ sql:
       - "queries/compute_ip_pools.sql"
       - "queries/compute_floating_ips.sql"
       - "queries/agent.sql"
+      - "queries/directory.sql"
     schema:
       - "migrations/*.up.sql"
     gen:

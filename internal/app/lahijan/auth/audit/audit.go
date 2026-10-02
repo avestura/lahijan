@@ -111,6 +111,18 @@ const (
 	ActionAgentProviderDelete     = "agent.provider.delete"
 	ActionAgentPolicyUpdate       = "agent.policy.update"
 
+	// Platform user management + directory connections (admin). Emitted by
+	// the admin users handlers and the directory service.
+	ActionAdminUserCreate           = "admin.user.create"
+	ActionAdminUserUpdate           = "admin.user.update"
+	ActionAdminUserDelete           = "admin.user.delete"
+	ActionAdminUserRoleUpdate       = "admin.user.role.update"
+	ActionDirectoryConnectionCreate = "directory.connection.create"
+	ActionDirectoryConnectionUpdate = "directory.connection.update"
+	ActionDirectoryConnectionDelete = "directory.connection.delete"
+	ActionDirectoryConnectionTest   = "directory.connection.test"
+	ActionDirectoryConnectionSync   = "directory.connection.sync"
+
 	// Object storage module actions (WS-16). Emitted by the storage service
 	// on every state-changing privileged action across buckets +
 	// credentials + quotas + presign. Each row carries the bucket_id (or
@@ -220,15 +232,16 @@ const (
 // resources (instance, zone, bucket, ...) live in their own packages and are
 // passed in as strings when those modules ship.
 const (
-	ResourceUser    = "user"
-	ResourceSession = "session"
-	ResourcePAT     = "personal_access_token"
-	ResourceEmail   = "email"
-	ResourceAudit   = "audit_log"
-	ResourceRole    = "role"
-	ResourceTenant  = "tenant"
-	ResourceJob     = "job"
-	ResourcePlugin  = "plugin"
+	ResourceUser                = "user"
+	ResourceDirectoryConnection = "directory_connection"
+	ResourceSession             = "session"
+	ResourcePAT                 = "personal_access_token"
+	ResourceEmail               = "email"
+	ResourceAudit               = "audit_log"
+	ResourceRole                = "role"
+	ResourceTenant              = "tenant"
+	ResourceJob                 = "job"
+	ResourcePlugin              = "plugin"
 	// ResourceBucket / ResourceCredential are the object-storage resource
 	// types (WS-16). Emitted by the storage service.
 	ResourceBucket     = "storage_bucket"

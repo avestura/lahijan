@@ -3647,6 +3647,238 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the permission catalogue
+         * @description Returns every permission slug Lahijan knows, with a short description.
+         *     Used by the dashboard to offer a checklist where a permission set is
+         *     chosen (personal access token scopes, role editors). Any authenticated
+         *     user may read it.
+         */
+        get: operations["listPermissions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agent/providers/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test a model-provider connection
+         * @description Probes the provider endpoint with the supplied (or stored) API key
+         *     without saving anything and without starting an agent turn. Lists the
+         *     provider's models first and falls back to a one-token completion when
+         *     the endpoint has no model list. The upstream response body is never
+         *     returned. Pass `providerId` and omit `apiKey` to test a saved config.
+         */
+        post: operations["testAgentProvider"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List users (platform admin)
+         * @description Paginated list of every user on the platform. Requires platform.user.list.
+         */
+        get: operations["listAdminUsers"];
+        put?: never;
+        /**
+         * Create a user (platform admin)
+         * @description Creates a user. Without a password the user cannot sign in with a
+         *     password (use password reset, SSO or a directory). Requires
+         *     platform.user.manage.
+         */
+        post: operations["createAdminUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        /** Get a user (platform admin) */
+        get: operations["getAdminUser"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a user (platform admin)
+         * @description Soft-deletes the user and ends their sign-in. An administrator cannot
+         *     delete their own account. Requires platform.user.manage.
+         */
+        delete: operations["deleteAdminUser"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a user (platform admin)
+         * @description Edit the display name or enable / disable sign-in. Requires platform.user.manage.
+         */
+        patch: operations["updateAdminUser"];
+        trace?: never;
+    };
+    "/api/v1/admin/users/{userId}/memberships/{tenantId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Change a user's role in a tenant (platform admin)
+         * @description Requires platform.user.manage. The user must already be a member of the tenant.
+         */
+        put: operations["setAdminUserRole"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/directory/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List directory connections (platform admin)
+         * @description LDAP and SAML connections. Requires platform.directory.manage. Secrets are never returned.
+         */
+        get: operations["listDirectoryConnections"];
+        put?: never;
+        /** Create a directory connection (platform admin) */
+        post: operations["createDirectoryConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/directory/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test a directory connection (platform admin)
+         * @description Checks a saved connection (`connectionId`) or an unsaved draft
+         *     (`connection`) without changing anything. LDAP: connects, binds and
+         *     runs the user / group searches. SAML: fetches and parses the IdP
+         *     metadata. A failed check is a 200 with ok=false.
+         */
+        post: operations["testDirectoryConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/directory/connections/{connectionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connectionId: string;
+            };
+            cookie?: never;
+        };
+        /** Get a directory connection (platform admin) */
+        get: operations["getDirectoryConnection"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a directory connection (platform admin)
+         * @description Removes the connection and its imported groups. Imported users are kept.
+         */
+        delete: operations["deleteDirectoryConnection"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a directory connection (platform admin)
+         * @description Omit `bindPassword` to keep the stored one. The kind cannot change.
+         */
+        patch: operations["updateDirectoryConnection"];
+        trace?: never;
+    };
+    "/api/v1/admin/directory/connections/{connectionId}/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sync users and groups from an LDAP connection (platform admin)
+         * @description Imports users and groups. Existing users are matched by email and
+         *     linked, never overwritten; new users are created without a password.
+         *     Users that disappeared from the directory are left as they are.
+         *     SAML connections do not support sync (409).
+         */
+        post: operations["syncDirectoryConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/directory/connections/{connectionId}/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List groups imported from a connection (platform admin) */
+        get: operations["listDirectoryGroups"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -5980,6 +6212,191 @@ export interface components {
             spendCapCredits: number;
             /** @description Tool names the agent may not call in this tenant. */
             denyTools: string[];
+        };
+        PermissionInfo: {
+            /** @example compute.instance.start */
+            slug: string;
+            description: string;
+        };
+        PermissionList: {
+            items: components["schemas"]["PermissionInfo"][];
+        };
+        AgentProviderTestRequest: {
+            provider: string;
+            model?: string;
+            baseUrl?: string;
+            /**
+             * Format: password
+             * @description Omit to use the stored key of `providerId`.
+             */
+            apiKey?: string;
+            /**
+             * Format: uuid
+             * @description A saved config whose key and settings fill in omitted fields.
+             */
+            providerId?: string;
+        };
+        AgentProviderTestResult: {
+            ok: boolean;
+            /** @enum {string} */
+            status: "ok" | "auth_failed" | "model_not_found" | "unreachable" | "bad_response";
+            /** @description HTTP status the provider answered with; absent when it did not answer. */
+            httpStatus?: number;
+            /** Format: int64 */
+            latencyMs: number;
+        };
+        AdminUserMembership: {
+            /** Format: uuid */
+            tenantId: string;
+            tenantSlug: string;
+            tenantName: string;
+            /** @description Role slug */
+            role: string;
+        };
+        AdminUserDirectorySource: {
+            /** Format: uuid */
+            connectionId: string;
+            name: string;
+            /** @enum {string} */
+            kind: "ldap" | "saml";
+        };
+        AdminUser: {
+            /** Format: uuid */
+            id: string;
+            email: string;
+            displayName?: string;
+            locale: string;
+            isActive: boolean;
+            emailVerified: boolean;
+            hasPassword?: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            memberships: components["schemas"]["AdminUserMembership"][];
+            directorySource?: components["schemas"]["AdminUserDirectorySource"];
+        };
+        AdminUserPage: {
+            items: components["schemas"]["AdminUser"][];
+            /** Format: int64 */
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        AdminUserCreateRequest: {
+            email: string;
+            displayName?: string;
+            /** Format: password */
+            password?: string;
+            /** @enum {string} */
+            locale?: "en" | "fa";
+            /** @default true */
+            isActive: boolean;
+        };
+        AdminUserUpdateRequest: {
+            displayName?: string;
+            isActive?: boolean;
+        };
+        AdminUserRoleRequest: {
+            /** @description Role slug to assign (see GET roles). */
+            role: string;
+        };
+        DirectoryConnection: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "ldap" | "saml";
+            name: string;
+            enabled: boolean;
+            /**
+             * @description True when the connection is live. An enabled LDAP connection is
+             *     always active; an enabled SAML connection is active once it is
+             *     registered for sign-in (it can fail to, e.g. unreachable IdP
+             *     metadata or no service-provider signing key).
+             */
+            active: boolean;
+            /** @description Why a SAML connection could not be activated by the create / update that just ran. */
+            activationError?: string;
+            /** @description Kind-specific settings (see the dashboard form). Never contains secrets. */
+            config: {
+                [key: string]: unknown;
+            };
+            /** @description True when a bind password is stored. */
+            hasSecret: boolean;
+            /** Format: date-time */
+            lastSyncAt?: string;
+            /** @enum {string} */
+            lastSyncStatus?: "ok" | "error";
+            lastSyncMessage?: string;
+            lastSyncUsers?: number;
+            lastSyncGroups?: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        DirectoryConnectionList: {
+            items: components["schemas"]["DirectoryConnection"][];
+        };
+        DirectoryConnectionRequest: {
+            /** @enum {string} */
+            kind: "ldap" | "saml";
+            /** @description Unique name. For SAML it is also the provider key in the sign-in URL. */
+            name: string;
+            /** @default true */
+            enabled: boolean;
+            config: {
+                [key: string]: unknown;
+            };
+            /**
+             * Format: password
+             * @description LDAP bind password. Encrypted at rest; omit on update to keep it.
+             */
+            bindPassword?: string;
+        };
+        DirectoryTestRequest: {
+            /** Format: uuid */
+            connectionId?: string;
+            connection?: components["schemas"]["DirectoryConnectionRequest"];
+        };
+        DirectoryTestResult: {
+            ok: boolean;
+            /** @enum {string} */
+            code: "ok" | "connect_failed" | "search_failed" | "metadata_failed";
+            /** @description Underlying error text when ok is false. */
+            detail?: string;
+            /** @description LDAP: users matched by the filter (sampled). */
+            users?: number;
+            /** @description LDAP: groups matched by the filter (sampled). */
+            groups?: number;
+            /** @description SAML: the IdP entity id from its metadata. */
+            entityId?: string;
+            /** @description SAML: the IdP single sign-on URL. */
+            ssoUrl?: string;
+        };
+        DirectorySyncResult: {
+            /** @description Directory entries processed. */
+            users: number;
+            /** @description New Lahijan users created. */
+            created: number;
+            /** @description Existing users matched and linked. */
+            linked: number;
+            /** @description Entries without an email address. */
+            skipped: number;
+            groups: number;
+        };
+        DirectoryGroup: {
+            /** Format: uuid */
+            id: string;
+            externalId: string;
+            name: string;
+            description?: string;
+            memberCount: number;
+        };
+        DirectoryGroupPage: {
+            items: components["schemas"]["DirectoryGroup"][];
+            /** Format: int64 */
+            total: number;
+            limit: number;
+            offset: number;
         };
     };
     responses: {
@@ -12174,6 +12591,443 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    listPermissions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The permission catalogue, sorted by slug. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PermissionList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    testAgentProvider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentProviderTestRequest"];
+            };
+        };
+        responses: {
+            /** @description The probe outcome (a failed probe is still a 200 with ok=false). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentProviderTestResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listAdminUsers: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of items to return (1..200). */
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Number of items to skip for pagination. */
+                offset?: components["parameters"]["PageOffset"];
+                /** @description Case-insensitive substring match on email or display name. */
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of users. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserPage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createAdminUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminUserCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description The created user. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUser"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getAdminUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The user. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUser"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteAdminUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description User deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    updateAdminUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminUserUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description The updated user. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUser"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setAdminUserRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+                tenantId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminUserRoleRequest"];
+            };
+        };
+        responses: {
+            /** @description The updated user. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUser"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listDirectoryConnections: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description All connections. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectoryConnectionList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createDirectoryConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DirectoryConnectionRequest"];
+            };
+        };
+        responses: {
+            /** @description The created connection. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectoryConnection"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    testDirectoryConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DirectoryTestRequest"];
+            };
+        };
+        responses: {
+            /** @description The check outcome. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectoryTestResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getDirectoryConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connectionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The connection. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectoryConnection"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteDirectoryConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connectionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Connection deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateDirectoryConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connectionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DirectoryConnectionRequest"];
+            };
+        };
+        responses: {
+            /** @description The updated connection. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectoryConnection"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    syncDirectoryConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connectionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sync summary. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectorySyncResult"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description The directory server could not be reached or searched. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listDirectoryGroups: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of items to return (1..200). */
+                limit?: components["parameters"]["PageLimit"];
+                /** @description Number of items to skip for pagination. */
+                offset?: components["parameters"]["PageOffset"];
+            };
+            header?: never;
+            path: {
+                connectionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of groups with member counts. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectoryGroupPage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
 }

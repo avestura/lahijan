@@ -11,6 +11,7 @@ import (
 )
 
 type Querier interface {
+	AddDirectoryGroupMember(ctx context.Context, arg AddDirectoryGroupMemberParams) error
 	//: user-scoped (cross-tenant; the login flow calls this to decide whether
 	//: the user must complete an MFA challenge before the real session is
 	//: issued, per the per-tenant MFA policy in WS-07c).
@@ -19,6 +20,7 @@ type Querier interface {
 	// MFA. Joining through memberships means a soft-deleted membership or
 	// tenant is excluded automatically.
 	AnyTenantRequiresMFAForUser(ctx context.Context, userID uuid.UUID) (bool, error)
+	ClearDirectoryGroupMembers(ctx context.Context, groupID uuid.UUID) error
 	ConfirmTOTPSecret(ctx context.Context, userID uuid.UUID) error
 	// Single-use: stamp used_at. The app layer checks used_at IS NULL before
 	// consuming, then runs this UPDATE and uses the returned row count to detect
@@ -79,6 +81,7 @@ type Querier interface {
 	CountDNSRecordsInZone(ctx context.Context, arg CountDNSRecordsInZoneParams) (int64, error)
 	//: tenant-scoped
 	CountDNSZones(ctx context.Context, tenantID uuid.UUID) (int64, error)
+	CountDirectoryGroups(ctx context.Context, connectionID uuid.UUID) (int64, error)
 	//: tenant-scoped
 	CountFloatingIPs(ctx context.Context, tenantID uuid.UUID) (int64, error)
 	//: tenant-scoped
@@ -101,6 +104,7 @@ type Querier interface {
 	//: tenant-scoped.
 	CountReceiptsForUser(ctx context.Context, arg CountReceiptsForUserParams) (int64, error)
 	CountSAMLIdentitiesForUser(ctx context.Context, userID uuid.UUID) (int64, error)
+	CountSearchUsers(ctx context.Context, dollar_1 string) (int64, error)
 	//: tenant-scoped
 	CountStorageBuckets(ctx context.Context, tenantID uuid.UUID) (int64, error)
 	//: tenant-scoped
@@ -237,6 +241,9 @@ type Querier interface {
 	// "canonical id -> row" lookup which is global.
 	//: tenant-scoped
 	CreateDNSZone(ctx context.Context, arg CreateDNSZoneParams) (DnsZone, error)
+	// Directory connections (LDAP / SAML) and the users + groups imported from
+	// them. Global (platform-level) tables; see migration 0050.
+	CreateDirectoryConnection(ctx context.Context, arg CreateDirectoryConnectionParams) (DirectoryConnection, error)
 	// Email tokens: single-use, expiring tokens for email verification, password
 	// reset, and email change (WS-06). Global; only the SHA-256 hash is stored.
 	CreateEmailToken(ctx context.Context, arg CreateEmailTokenParams) (EmailToken, error)
@@ -426,6 +433,7 @@ type Querier interface {
 	DeleteDNSRecord(ctx context.Context, arg DeleteDNSRecordParams) error
 	//: tenant-scoped
 	DeleteDNSZone(ctx context.Context, arg DeleteDNSZoneParams) error
+	DeleteDirectoryConnection(ctx context.Context, id uuid.UUID) error
 	// Bulk-delete every expired row. The cleanup job (post-MVP) calls this
 	// periodically; the rowsize is small so a single bulk delete is fine.
 	DeleteExpiredPluginKV(ctx context.Context) (int64, error)
@@ -458,6 +466,8 @@ type Querier interface {
 	// password_hash + OAuth/OIDC identities + other SAML identities before
 	// calling this).
 	DeleteSAMLIdentity(ctx context.Context, arg DeleteSAMLIdentityParams) error
+	// Drop groups of a connection that were not seen in the latest sync.
+	DeleteStaleDirectoryGroups(ctx context.Context, arg DeleteStaleDirectoryGroupsParams) error
 	//: tenant-scoped
 	DeleteStorageLifecycleRule(ctx context.Context, arg DeleteStorageLifecycleRuleParams) error
 	DeleteTOTPSecret(ctx context.Context, userID uuid.UUID) error
@@ -587,6 +597,9 @@ type Querier interface {
 	// (program/compute_ip_ptrs.go) to look up the operator-owned reverse
 	// zone by id without knowing which tenant owns it.
 	GetDNSZoneByIDGlobal(ctx context.Context, id uuid.UUID) (DnsZone, error)
+	GetDirectoryConnection(ctx context.Context, id uuid.UUID) (DirectoryConnection, error)
+	GetDirectoryConnectionByName(ctx context.Context, name string) (DirectoryConnection, error)
+	GetDirectoryUserLinkByExternalID(ctx context.Context, arg GetDirectoryUserLinkByExternalIDParams) (DirectoryUserLink, error)
 	GetEmailTokenByHash(ctx context.Context, tokenHash string) (EmailToken, error)
 	//: tenant-scoped
 	// Used by the service layer to detect "this address is already
@@ -841,6 +854,11 @@ type Querier interface {
 	ListDNSRecordsInZone(ctx context.Context, arg ListDNSRecordsInZoneParams) ([]DnsRecord, error)
 	//: tenant-scoped
 	ListDNSZones(ctx context.Context, arg ListDNSZonesParams) ([]DnsZone, error)
+	ListDirectoryConnections(ctx context.Context) ([]DirectoryConnection, error)
+	ListDirectoryGroups(ctx context.Context, arg ListDirectoryGroupsParams) ([]ListDirectoryGroupsRow, error)
+	ListDirectoryGroupsForUser(ctx context.Context, userID uuid.UUID) ([]ListDirectoryGroupsForUserRow, error)
+	// Which directory connection (if any) each user in a page was imported from.
+	ListDirectorySourcesForUsers(ctx context.Context, dollar_1 []uuid.UUID) ([]ListDirectorySourcesForUsersRow, error)
 	//: cross-tenant; the take worker scans the whole table for due rows.
 	//: Tenant scoping is enforced at the worker level (WithTenant is set per
 	//: row before any DB write). Returns at most $1 rows so the worker
@@ -865,6 +883,8 @@ type Querier interface {
 	ListIPPools(ctx context.Context, arg ListIPPoolsParams) ([]IpPool, error)
 	//: tenant-scoped; paginated list of a single user's entries, newest first.
 	ListLedgerEntriesForUser(ctx context.Context, arg ListLedgerEntriesForUserParams) ([]LedgerEntry, error)
+	// Tenant + role summary for a page of users (admin user list / detail).
+	ListMembershipDetailsForUsers(ctx context.Context, dollar_1 []uuid.UUID) ([]ListMembershipDetailsForUsersRow, error)
 	//: tenant-scoped
 	ListMembershipsForTenant(ctx context.Context, arg ListMembershipsForTenantParams) ([]Membership, error)
 	//: user-scoped (cross-tenant; used to list the tenants a user belongs to)
@@ -941,6 +961,9 @@ type Querier interface {
 	//: tenant-scoped; sets is_default=true on the supplied id. Pair with
 	//: ClearDefaultBillingPaymentMethod inside a tx.
 	MarkDefaultBillingPaymentMethod(ctx context.Context, arg MarkDefaultBillingPaymentMethodParams) error
+	// Clears a user's membership in every group of one connection (used before
+	// re-recording the groups a SAML assertion carries).
+	RemoveUserFromConnectionGroups(ctx context.Context, arg RemoveUserFromConnectionGroupsParams) error
 	RevokeAllRefreshTokensForUser(ctx context.Context, userID uuid.UUID) error
 	RevokeAllSessionsForUser(ctx context.Context, userID uuid.UUID) error
 	//: tenant-scoped
@@ -969,6 +992,9 @@ type Querier interface {
 	// separately by the storage service via the provider's RevokeCredentials
 	// so the access key stops signing requests immediately.
 	RevokeStorageCredential(ctx context.Context, arg RevokeStorageCredentialParams) error
+	// Admin user list: optional case-insensitive match on email / display name.
+	// An empty pattern ('') matches every user.
+	SearchUsers(ctx context.Context, arg SearchUsersParams) ([]User, error)
 	SetAgentConversationStatus(ctx context.Context, arg SetAgentConversationStatusParams) error
 	SetAgentConversationTitle(ctx context.Context, arg SetAgentConversationTitleParams) error
 	// Finalizes a streamed assistant message with the concatenated tokens.
@@ -1044,6 +1070,7 @@ type Querier interface {
 	//: new default. Two statements inside a tx; the service layer wraps
 	//: both in a single transaction.
 	SetDefaultBillingPaymentMethod(ctx context.Context, arg SetDefaultBillingPaymentMethodParams) error
+	SetDirectoryConnectionSyncResult(ctx context.Context, arg SetDirectoryConnectionSyncResultParams) error
 	//: tenant-scoped
 	// Convenience update for the best-effort forward push path so the
 	// audit trail + the operator UI can render the push outcome without
@@ -1094,6 +1121,7 @@ type Querier interface {
 	// shortcuts so the audit row metadata can show only the changed field.
 	SetStorageLifecycleRuleStatus(ctx context.Context, arg SetStorageLifecycleRuleStatusParams) error
 	SetTenantActive(ctx context.Context, arg SetTenantActiveParams) error
+	SetUserActive(ctx context.Context, arg SetUserActiveParams) error
 	//: tenant-scoped; marks the row deleted_at=now() after the worker has
 	//: removed the remote bytes. The row is retained for historical audit.
 	SoftDeleteComputeBackup(ctx context.Context, arg SoftDeleteComputeBackupParams) error
@@ -1191,6 +1219,8 @@ type Querier interface {
 	UpdateDNSZoneDescription(ctx context.Context, arg UpdateDNSZoneDescriptionParams) error
 	//: tenant-scoped
 	UpdateDNSZoneKind(ctx context.Context, arg UpdateDNSZoneKindParams) error
+	// The secret is only replaced when a new one is supplied ($5 IS NOT NULL).
+	UpdateDirectoryConnection(ctx context.Context, arg UpdateDirectoryConnectionParams) (DirectoryConnection, error)
 	// Replaces the mutable fields. The name is immutable (other tables may
 	// reference the pool by id, but operators identify pools by name and
 	// renaming would break operator automation that scrapes by name).
@@ -1225,6 +1255,8 @@ type Querier interface {
 	//: path seeds rows with fingerprint='' and the provider resolves them
 	//: lazily on first use).
 	UpsertComputeImageFingerprint(ctx context.Context, arg UpsertComputeImageFingerprintParams) error
+	UpsertDirectoryGroup(ctx context.Context, arg UpsertDirectoryGroupParams) (DirectoryGroup, error)
+	UpsertDirectoryUserLink(ctx context.Context, arg UpsertDirectoryUserLinkParams) error
 	// plugin_config (WS-10b). One row per (plugin_id, key); the admin sets
 	// these via the admin plugin API and the plugin reads them through the
 	// config_get host function. Rows flagged is_secret = true are NEVER

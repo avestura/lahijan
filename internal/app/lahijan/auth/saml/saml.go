@@ -31,6 +31,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sort"
+	"sync"
 
 	crewjam "github.com/crewjam/saml"
 
@@ -235,7 +237,11 @@ var _ stateVerifier = (*state.Signer)(nil).Verify
 // Registry resolves a SAML provider by its stable key. Mirrors oauth.Registry
 // / oidc.Registry so the api handler can look up any IdP type through the
 // same shape.
+//
+// The registry is safe for concurrent use: admin-defined providers are added
+// and removed at runtime (Set / Remove) while sign-in requests Lookup.
 type Registry struct {
+	mu        sync.RWMutex
 	providers map[string]Provider
 }
 
@@ -255,6 +261,8 @@ func NewRegistry(providers ...Provider) *Registry {
 // through; the SP-initiated start path uses the raw form, the callback
 // resolves the namespaced form stored on user_saml_identities.
 func (r *Registry) Lookup(key string) (Provider, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	if p, ok := r.providers[key]; ok {
 		return p, nil
 	}
@@ -272,11 +280,36 @@ func (r *Registry) Lookup(key string) (Provider, error) {
 
 // Keys returns the configured provider keys.
 func (r *Registry) Keys() []string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	out := make([]string, 0, len(r.providers))
 	for k := range r.providers {
 		out = append(out, k)
 	}
+	sort.Strings(out)
 	return out
+}
+
+// Set adds a provider, replacing any provider with the same key.
+func (r *Registry) Set(p Provider) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.providers[p.Key()] = p
+}
+
+// Remove drops the provider with the given key (a no-op when absent).
+func (r *Registry) Remove(key string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.providers, key)
+}
+
+// Has reports whether a provider with the given key is registered.
+func (r *Registry) Has(key string) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	_, ok := r.providers[key]
+	return ok
 }
 
 // noopVerifier is a stateVerifier that always returns nil. Useful for tests

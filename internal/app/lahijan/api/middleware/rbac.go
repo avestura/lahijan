@@ -24,6 +24,8 @@
 package middleware
 
 import (
+	"slices"
+
 	"github.com/avestura/lahijan/internal/app/lahijan/auth/rbac"
 	"github.com/avestura/lahijan/internal/app/lahijan/i18n"
 	"github.com/gofiber/fiber/v2"
@@ -86,6 +88,12 @@ func RequirePerm(policy PolicyResolver, permissionSlug string) fiber.Handler {
 		uid, ok := userIDFromLocals(c)
 		if !ok {
 			return sendUnauthenticated(c)
+		}
+		// A scoped personal access token may only exercise the permissions it
+		// was issued with, even if its owner holds more. No scopes = unrestricted.
+		if scopes, scoped := c.Locals(LocalsPATScopes).([]string); scoped && len(scopes) > 0 &&
+			!slices.Contains(scopes, permissionSlug) {
+			return sendForbidden(c, permissionSlug)
 		}
 		// 2) Tenant scope must be set (Tenant middleware).
 		tenantID, ok := tenantIDFromLocals(c)

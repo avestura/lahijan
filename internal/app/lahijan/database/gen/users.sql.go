@@ -11,6 +11,19 @@ import (
 	"github.com/google/uuid"
 )
 
+const countSearchUsers = `-- name: CountSearchUsers :one
+SELECT count(*) FROM users
+WHERE deleted_at IS NULL
+  AND ($1::text = '' OR email ILIKE '%' || $1 || '%' OR display_name ILIKE '%' || $1 || '%')
+`
+
+func (q *Queries) CountSearchUsers(ctx context.Context, dollar_1 string) (int64, error) {
+	row := q.db.QueryRow(ctx, countSearchUsers, dollar_1)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countUsers = `-- name: CountUsers :one
 SELECT count(*) FROM users WHERE deleted_at IS NULL
 `
@@ -108,6 +121,91 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 	return i, err
 }
 
+const listDirectorySourcesForUsers = `-- name: ListDirectorySourcesForUsers :many
+SELECT l.user_id, c.id AS connection_id, c.name AS connection_name, c.kind
+FROM directory_user_links l
+JOIN directory_connections c ON c.id = l.connection_id
+WHERE l.user_id = ANY($1::uuid[])
+`
+
+type ListDirectorySourcesForUsersRow struct {
+	UserID         uuid.UUID `json:"user_id"`
+	ConnectionID   uuid.UUID `json:"connection_id"`
+	ConnectionName string    `json:"connection_name"`
+	Kind           string    `json:"kind"`
+}
+
+// Which directory connection (if any) each user in a page was imported from.
+func (q *Queries) ListDirectorySourcesForUsers(ctx context.Context, dollar_1 []uuid.UUID) ([]ListDirectorySourcesForUsersRow, error) {
+	rows, err := q.db.Query(ctx, listDirectorySourcesForUsers, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListDirectorySourcesForUsersRow{}
+	for rows.Next() {
+		var i ListDirectorySourcesForUsersRow
+		if err := rows.Scan(
+			&i.UserID,
+			&i.ConnectionID,
+			&i.ConnectionName,
+			&i.Kind,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listMembershipDetailsForUsers = `-- name: ListMembershipDetailsForUsers :many
+SELECT m.user_id, m.tenant_id, t.slug AS tenant_slug, t.name AS tenant_name,
+       r.slug AS role_slug
+FROM memberships m
+JOIN tenants t ON t.id = m.tenant_id AND t.deleted_at IS NULL
+JOIN roles r   ON r.id = m.role_id
+WHERE m.user_id = ANY($1::uuid[]) AND m.deleted_at IS NULL
+ORDER BY t.name
+`
+
+type ListMembershipDetailsForUsersRow struct {
+	UserID     uuid.UUID `json:"user_id"`
+	TenantID   uuid.UUID `json:"tenant_id"`
+	TenantSlug string    `json:"tenant_slug"`
+	TenantName string    `json:"tenant_name"`
+	RoleSlug   string    `json:"role_slug"`
+}
+
+// Tenant + role summary for a page of users (admin user list / detail).
+func (q *Queries) ListMembershipDetailsForUsers(ctx context.Context, dollar_1 []uuid.UUID) ([]ListMembershipDetailsForUsersRow, error) {
+	rows, err := q.db.Query(ctx, listMembershipDetailsForUsers, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListMembershipDetailsForUsersRow{}
+	for rows.Next() {
+		var i ListMembershipDetailsForUsersRow
+		if err := rows.Scan(
+			&i.UserID,
+			&i.TenantID,
+			&i.TenantSlug,
+			&i.TenantName,
+			&i.RoleSlug,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listUsers = `-- name: ListUsers :many
 SELECT id, email, password_hash, is_active, created_at, updated_at, deleted_at, display_name, email_verified_at, locale FROM users
 WHERE deleted_at IS NULL
@@ -149,6 +247,69 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 		return nil, err
 	}
 	return items, nil
+}
+
+const searchUsers = `-- name: SearchUsers :many
+SELECT id, email, password_hash, is_active, created_at, updated_at, deleted_at, display_name, email_verified_at, locale FROM users
+WHERE deleted_at IS NULL
+  AND ($1::text = '' OR email ILIKE '%' || $1 || '%' OR display_name ILIKE '%' || $1 || '%')
+ORDER BY created_at DESC, id
+LIMIT $2 OFFSET $3
+`
+
+type SearchUsersParams struct {
+	Column1 string `json:"column_1"`
+	Limit   int32  `json:"limit"`
+	Offset  int32  `json:"offset"`
+}
+
+// Admin user list: optional case-insensitive match on email / display name.
+// An empty pattern (”) matches every user.
+func (q *Queries) SearchUsers(ctx context.Context, arg SearchUsersParams) ([]User, error) {
+	rows, err := q.db.Query(ctx, searchUsers, arg.Column1, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []User{}
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.PasswordHash,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.DisplayName,
+			&i.EmailVerifiedAt,
+			&i.Locale,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setUserActive = `-- name: SetUserActive :exec
+UPDATE users
+SET is_active = $2, updated_at = now()
+WHERE id = $1 AND deleted_at IS NULL
+`
+
+type SetUserActiveParams struct {
+	ID       uuid.UUID `json:"id"`
+	IsActive bool      `json:"is_active"`
+}
+
+func (q *Queries) SetUserActive(ctx context.Context, arg SetUserActiveParams) error {
+	_, err := q.db.Exec(ctx, setUserActive, arg.ID, arg.IsActive)
+	return err
 }
 
 const softDeleteUser = `-- name: SoftDeleteUser :exec

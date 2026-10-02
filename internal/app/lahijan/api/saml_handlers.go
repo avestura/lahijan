@@ -166,6 +166,10 @@ func (s *Server) AssertionConsumerServiceSAML(c *fiber.Ctx, provider string) err
 		return s.mapSAMLError(c, lErr)
 	}
 
+	// Directory-defined SAML connections record the user's source and groups.
+	if s.directorySvc != nil {
+		s.directorySvc.RecordSAMLLogin(c.UserContext(), p.Key(), res.UserID, prof.Subject, prof.Attributes)
+	}
 	if res.Session != nil {
 		setSessionCookie(c, s.cookies, res.Session.CookieValue, res.Session.Refresh.Raw)
 	}

@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"testing"
 	"time"
@@ -39,6 +40,19 @@ var (
 	connPort  string
 )
 
+// envTestDSN, when set, points the harness at an already-running Postgres
+// instead of starting a testcontainers one. Use it where container port
+// mappings are unreachable from the host (some Docker Desktop / WSL setups):
+//
+//	LAHIJAN_TEST_DSN=postgres://user:pass@host:5432/dbname?sslmode=disable
+//
+// The database must be empty (or already migrated); migrations are applied up,
+// and nothing is rolled back or torn down afterwards.
+const envTestDSN = "LAHIJAN_TEST_DSN"
+
+// externalDSN is the DSN from envTestDSN, or "" when a container is used.
+var externalDSN string
+
 // Setup wires the package-wide Postgres container + migrations. Call it
 // exactly once from a test package's TestMain:
 //
@@ -47,6 +61,10 @@ var (
 // It starts the container, applies all migrations up, runs the package's tests,
 // then terminates the container and exits the process. Setup owns os.Exit.
 func Setup(m *testing.M) {
+	if dsn := os.Getenv(envTestDSN); dsn != "" {
+		setupExternal(m, dsn)
+		return
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
@@ -82,6 +100,26 @@ func Setup(m *testing.M) {
 	os.Exit(code)
 }
 
+// setupExternal runs the package's tests against an existing Postgres.
+func setupExternal(m *testing.M, dsn string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	externalDSN = dsn
+
+	p, err := database.NewPoolFromDSN(ctx, dsn)
+	if err != nil {
+		log.Fatalf("testutil: connect to %s: %v", envTestDSN, err)
+	}
+	pool = p
+	if err := applyMigrations(dsn); err != nil {
+		p.Close()
+		log.Fatalf("testutil: apply migrations: %v", err)
+	}
+	code := m.Run()
+	pool.Close()
+	os.Exit(code)
+}
+
 // Pool returns the package-wide pool wired by Setup. Panics if Setup was not
 // called (which is always a TestMain wiring bug).
 func Pool() *pgxpool.Pool {
@@ -103,6 +141,14 @@ func Repos() *database.Repos {
 // a second container.
 func DatabaseDSN(dbName string) string {
 	ensureStarted()
+	if externalDSN != "" {
+		u, err := url.Parse(externalDSN)
+		if err != nil {
+			panic(fmt.Sprintf("testutil: bad %s: %v", envTestDSN, err))
+		}
+		u.Path = "/" + dbName
+		return u.String()
+	}
 	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		pgUser, pgPassword, connHost, connPort, dbName)
 }

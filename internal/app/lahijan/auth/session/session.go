@@ -549,3 +549,60 @@ func isUniqueViolationEmail(err error) bool {
 	msg := err.Error()
 	return strings.Contains(msg, "23505") || strings.Contains(msg, "uq_users_email")
 }
+
+// AdminCreateUserInput carries the fields an administrator supplies when
+// creating a user on someone's behalf.
+type AdminCreateUserInput struct {
+	Email       string
+	Password    string // optional; empty creates a user with no password
+	DisplayName *string
+	Locale      string
+	IsActive    *bool
+}
+
+// AdminCreateUser creates a user without opening a session. The address is
+// marked verified (the administrator vouches for it) and signup provisioning
+// (personal tenant + membership) runs exactly as for self-registration. An
+// empty Password creates a user who can only sign in via SSO, a directory or
+// password reset.
+func (s *Service) AdminCreateUser(ctx context.Context, in AdminCreateUserInput) (database.User, error) {
+	emailNorm := normalizeEmail(in.Email)
+	if !isValidEmail(emailNorm) {
+		return database.User{}, ErrEmailInvalid
+	}
+	var hash *string
+	if in.Password != "" {
+		if err := password.Validate(in.Password, s.cfg.MinPasswordLen); err != nil {
+			return database.User{}, err
+		}
+		h, err := s.hasher.Hash(in.Password)
+		if err != nil {
+			return database.User{}, fmt.Errorf("auth/session: hash password: %w", err)
+		}
+		hash = &h
+	}
+	user, err := s.users.Create(ctx, database.CreateUserParams{
+		Email:        emailNorm,
+		PasswordHash: hash,
+		IsActive:     in.IsActive,
+		DisplayName:  in.DisplayName,
+		Locale:       in.Locale,
+	})
+	if err != nil {
+		if isUniqueViolationEmail(err) {
+			return database.User{}, ErrEmailTaken
+		}
+		return database.User{}, fmt.Errorf("auth/session: create user: %w", err)
+	}
+	if err := s.users.VerifyEmail(ctx, user.ID); err != nil {
+		slog.WarnContext(ctx, "auth/session: verify admin-created user failed",
+			"user_id", user.ID, "error", err.Error())
+	}
+	if s.provisioner != nil {
+		if perr := s.provisioner.ProvisionSignup(ctx, user.ID, emailNorm); perr != nil {
+			slog.WarnContext(ctx, "auth/session: signup provisioning failed",
+				"user_id", user.ID, "error", perr.Error())
+		}
+	}
+	return user, nil
+}

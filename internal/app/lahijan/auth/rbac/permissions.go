@@ -216,9 +216,13 @@ const (
 	PermAgentPolicyManage       = "agent.policy.manage"
 
 	// --- platform-level (superuser only) ---
-	PermPlatformUserList     = "platform.user.list"
-	PermPlatformTenantCreate = "platform.tenant.create"
-	PermPlatformTenantDelete = "platform.tenant.delete"
+	PermPlatformUserList   = "platform.user.list"
+	PermPlatformUserManage = "platform.user.manage"
+	// PermPlatformDirectoryManage covers LDAP / SAML directory connections:
+	// create, edit, delete, test and sync (platform admin).
+	PermPlatformDirectoryManage = "platform.directory.manage"
+	PermPlatformTenantCreate    = "platform.tenant.create"
+	PermPlatformTenantDelete    = "platform.tenant.delete"
 
 	// --- platform jobs (WS-09) — admin-only River queue inspection/control.
 	// Granted to platform.admin via allPermissionSlugs(); every other role
@@ -359,12 +363,14 @@ var allPermissions = []Permission{
 	{Slug: PermAgentToolConfirm, Description: "Approve or decline a pending agent tool call (HITL)."},
 
 	// platform
+	{Slug: PermPlatformDirectoryManage, Description: "Manage LDAP / SAML directory connections (platform admin)."},
 	{Slug: PermPlatformJobsCancel, Description: "Cancel any queued or running job (platform admin)."},
 	{Slug: PermPlatformJobsRead, Description: "Inspect every queued/running/failed job across tenants (platform admin)."},
 	{Slug: PermPlatformJobsRetry, Description: "Manually retry a discarded/DLQ'd job (platform admin)."},
 	{Slug: PermPlatformTenantCreate, Description: "Create a tenant (platform admin)."},
 	{Slug: PermPlatformTenantDelete, Description: "Delete any tenant (platform admin)."},
 	{Slug: PermPlatformUserList, Description: "List all users (platform admin)."},
+	{Slug: PermPlatformUserManage, Description: "Create, edit, disable and delete users (platform admin)."},
 }
 
 // AllPermissions returns a copy of the registry. Callers must not mutate the

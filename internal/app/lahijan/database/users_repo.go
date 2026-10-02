@@ -103,3 +103,31 @@ func EmailVerifiedAt(u gen.User) *time.Time { return u.EmailVerifiedAt }
 func (r *UsersRepository) SoftDelete(ctx context.Context, id uuid.UUID) error {
 	return r.q.SoftDeleteUser(ctx, id)
 }
+
+// Search returns a page of non-deleted users whose email or display name
+// contains q (case-insensitive); an empty q matches everyone. Newest first.
+func (r *UsersRepository) Search(ctx context.Context, q string, limit, offset int32) ([]gen.User, error) {
+	return r.q.SearchUsers(ctx, gen.SearchUsersParams{Column1: q, Limit: limit, Offset: offset})
+}
+
+// CountSearch returns the number of users matching q (see Search).
+func (r *UsersRepository) CountSearch(ctx context.Context, q string) (int64, error) {
+	return r.q.CountSearchUsers(ctx, q)
+}
+
+// SetActive enables or disables sign-in for a user.
+func (r *UsersRepository) SetActive(ctx context.Context, id uuid.UUID, active bool) error {
+	return r.q.SetUserActive(ctx, gen.SetUserActiveParams{ID: id, IsActive: active})
+}
+
+// MembershipDetails returns the tenant + role summary for the given users.
+// It is cross-tenant by design (platform-admin user management).
+func (r *UsersRepository) MembershipDetails(ctx context.Context, userIDs []uuid.UUID) ([]gen.ListMembershipDetailsForUsersRow, error) {
+	return r.q.ListMembershipDetailsForUsers(ctx, userIDs)
+}
+
+// DirectorySources returns the directory connection each given user was
+// imported from, if any.
+func (r *UsersRepository) DirectorySources(ctx context.Context, userIDs []uuid.UUID) ([]gen.ListDirectorySourcesForUsersRow, error) {
+	return r.q.ListDirectorySourcesForUsers(ctx, userIDs)
+}

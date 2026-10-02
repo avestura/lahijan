@@ -26,6 +26,10 @@ const (
 	LocalsTenantID = "tenant_id"
 	// LocalsUserID is the authenticated user id set by the auth middleware.
 	LocalsUserID = "user_id"
+	// LocalsPATScopes holds the scopes of the personal access token that
+	// authenticated the request ([]string). It is only set for PAT requests; an
+	// empty list means the token is unrestricted (the owner's full permissions).
+	LocalsPATScopes = "pat_scopes"
 )
 
 // SetTenantID stores the resolved tenant id in the request scope and propagates

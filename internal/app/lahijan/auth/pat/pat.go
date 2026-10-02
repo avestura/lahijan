@@ -34,6 +34,20 @@ type Service struct {
 	signer *secrets.Signer
 	audit  audit.Emitter
 	cfg    Config
+	// userOK, when set, vets the token owner on every authentication.
+	userOK UserChecker
+}
+
+// UserChecker reports whether a token's owner may still authenticate (the
+// account exists, is not deleted and is active).
+type UserChecker func(ctx context.Context, userID uuid.UUID) bool
+
+// WithUserChecker makes Authenticate reject tokens whose owner is disabled or
+// deleted, so disabling an account also stops its tokens. It returns the
+// service for chaining.
+func (s *Service) WithUserChecker(c UserChecker) *Service {
+	s.userOK = c
+	return s
 }
 
 // Config carries the PAT prefix and entropy length.
@@ -161,6 +175,9 @@ func (s *Service) Authenticate(ctx context.Context, displayToken string) (Authen
 		return AuthenticateResult{}, ErrNotFound
 	}
 	if row.ExpiresAt != nil && time.Now().After(*row.ExpiresAt) {
+		return AuthenticateResult{}, ErrNotFound
+	}
+	if s.userOK != nil && !s.userOK(ctx, row.UserID) {
 		return AuthenticateResult{}, ErrNotFound
 	}
 	_ = s.tokens.TouchPersonalAccessToken(ctx, hash)

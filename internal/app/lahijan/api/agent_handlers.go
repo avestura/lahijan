@@ -276,6 +276,51 @@ func (s *Server) CreateAgentProvider(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(toAgentProviderConfigDTO(row))
 }
 
+// TestAgentProvider handles POST /api/v1/agent/providers/test. It probes the
+// provider with the supplied (or stored) key without saving anything.
+func (s *Server) TestAgentProvider(c *fiber.Ctx) error {
+	if s.agentDisabled(c) {
+		return nil
+	}
+	uid, ok := s.agentUser(c)
+	if !ok {
+		return nil
+	}
+	var req apigen.AgentProviderTestRequest
+	if err := c.BodyParser(&req); err != nil || req.Provider == "" {
+		return SendBadRequest(c, i18n.T(c.UserContext(), "agent.err_bad_request", nil), nil)
+	}
+	in := agent.ProviderCheckInput{Provider: req.Provider}
+	if req.Model != nil {
+		in.Model = *req.Model
+	}
+	if req.BaseUrl != nil {
+		in.BaseURL = *req.BaseUrl
+	}
+	if req.ApiKey != nil {
+		in.APIKey = *req.ApiKey
+	}
+	if req.ProviderId != nil {
+		id := *req.ProviderId
+		in.ProviderID = &id
+	}
+	res, err := s.agentSvc.CheckProvider(c.UserContext(), uid, in)
+	if err != nil {
+		if errors.Is(err, agent.ErrProviderCheckInvalid) {
+			return SendBadRequest(c, i18n.T(c.UserContext(), "agent.err_bad_request", nil), nil)
+		}
+		return mapAgentError(c, err)
+	}
+	out := apigen.AgentProviderTestResult{
+		Ok: res.OK, Status: apigen.AgentProviderTestResultStatus(res.Status), LatencyMs: res.LatencyMs,
+	}
+	if res.HTTPStatus != 0 {
+		hs := res.HTTPStatus
+		out.HttpStatus = &hs
+	}
+	return c.JSON(out)
+}
+
 // DeleteAgentProvider handles DELETE /api/v1/agent/providers/{providerID}.
 func (s *Server) DeleteAgentProvider(c *fiber.Ctx, providerID apigen.ProviderId) error {
 	if s.agentDisabled(c) {

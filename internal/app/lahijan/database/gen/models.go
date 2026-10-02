@@ -438,6 +438,44 @@ type ComputeStorageVolume struct {
 	DeletedAt   *time.Time      `json:"deleted_at"`
 }
 
+type DirectoryConnection struct {
+	ID              uuid.UUID       `json:"id"`
+	Kind            string          `json:"kind"`
+	Name            string          `json:"name"`
+	Enabled         bool            `json:"enabled"`
+	Config          json.RawMessage `json:"config"`
+	SecretEncrypted []byte          `json:"secret_encrypted"`
+	LastSyncAt      *time.Time      `json:"last_sync_at"`
+	LastSyncStatus  *string         `json:"last_sync_status"`
+	LastSyncMessage *string         `json:"last_sync_message"`
+	LastSyncUsers   *int32          `json:"last_sync_users"`
+	LastSyncGroups  *int32          `json:"last_sync_groups"`
+	CreatedBy       *uuid.UUID      `json:"created_by"`
+	CreatedAt       time.Time       `json:"created_at"`
+	UpdatedAt       time.Time       `json:"updated_at"`
+}
+
+type DirectoryGroup struct {
+	ID           uuid.UUID `json:"id"`
+	ConnectionID uuid.UUID `json:"connection_id"`
+	ExternalID   string    `json:"external_id"`
+	Name         string    `json:"name"`
+	Description  string    `json:"description"`
+	SyncedAt     time.Time `json:"synced_at"`
+}
+
+type DirectoryGroupMember struct {
+	GroupID uuid.UUID `json:"group_id"`
+	UserID  uuid.UUID `json:"user_id"`
+}
+
+type DirectoryUserLink struct {
+	ConnectionID uuid.UUID `json:"connection_id"`
+	UserID       uuid.UUID `json:"user_id"`
+	ExternalID   string    `json:"external_id"`
+	SyncedAt     time.Time `json:"synced_at"`
+}
+
 // Per-tenant domain registrations through Lahijan registrar resale (WS-28).
 type DnsDomain struct {
 	ID       uuid.UUID `json:"id"`

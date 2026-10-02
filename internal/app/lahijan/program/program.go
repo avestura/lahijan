@@ -20,7 +20,10 @@ import (
 	"log/slog"
 	"math/big"
 	"net/netip"
+	"os"
+	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	_ "go.uber.org/automaxprocs"
@@ -48,6 +51,7 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/conf"
 	"github.com/avestura/lahijan/internal/app/lahijan/conf/computeddefault"
 	"github.com/avestura/lahijan/internal/app/lahijan/database"
+	"github.com/avestura/lahijan/internal/app/lahijan/directory"
 	"github.com/avestura/lahijan/internal/app/lahijan/dns"
 	"github.com/avestura/lahijan/internal/app/lahijan/jobs"
 	notifyemail "github.com/avestura/lahijan/internal/app/lahijan/notify/email"
@@ -495,6 +499,14 @@ func Start() error {
 	}
 	agentSvc := buildAgentService(authDeps.repos, authDeps.audit, agentCrypto, billingSvc, slog.Default())
 
+	// Platform user management + external directories (LDAP / SAML). SAML
+	// connections defined here are activated in the sign-in registry at
+	// runtime; the ones already stored are activated in the background so a
+	// slow or unreachable IdP cannot delay startup.
+	directorySvc := directory.New(authDeps.repos, agentCrypto, authDeps.audit, slog.Default())
+	directorySvc.SetSAMLActivator(samlDeps.activator)
+	go directorySvc.ActivateSAML(context.Background())
+
 	// Seed the RBAC catalog (permissions + default roles + grants). Idempotent
 	// so it is safe to run on every bootstrap. Fail-fast on error: without the
 	// seed, every privileged route returns 403.
@@ -581,6 +593,7 @@ func Start() error {
 		PaymentsSvc:    paymentsSvc,
 		RegistrarSvc:   registrarSvc,
 		AgentSvc:       agentSvc,
+		DirectorySvc:   directorySvc,
 	}), policy)
 
 	// WS-09: mount River's built-in web UI (admin-only). The UI ships its
@@ -675,7 +688,10 @@ func buildAuthDeps(ctx context.Context) (*authDeps, func(), error) {
 			Prefix:  conf.GetAuthPATPrefix(),
 			ByteLen: conf.GetAuthPATByteLength(),
 		},
-	)
+	).WithUserChecker(func(ctx context.Context, id uuid.UUID) bool {
+		u, err := repos.Users.GetByID(ctx, id)
+		return err == nil && u.IsActive && u.DeletedAt == nil
+	})
 
 	cookies := api.CookieConfig{
 		SessionName:   conf.GetAuthSessionCookieName(),
@@ -954,74 +970,155 @@ func (a *mfaSessionOpenerAdapter) OpenForExistingUser(
 }
 
 // samlDeps bundles the SAML SP (WS-07b) dependencies built at bootstrap. The
-// registry is nil when no SAML provider is enabled, so the api handlers can
-// short-circuit cleanly.
+// registry is always non-nil: it starts with the providers defined in the
+// config file and gains / loses the admin-defined ones (directory connections)
+// at runtime through the activator.
 type samlDeps struct {
-	registry *saml.Registry
+	registry  *saml.Registry
+	activator *samlActivator
 }
 
-// buildSamlDeps wires the SAML ServiceProvider registry from config. Returns
-// an empty samlDeps when no provider is enabled, so the api handlers can
-// short-circuit cleanly. The shared stateSigner from WS-07a is reused so the
-// SAML state-token carries the same HMAC signing key as OAuth/OIDC.
+// spCredentials loads the process-wide SAML service-provider signing key and
+// certificate once, on first use. Sharing one memoised value keeps the SP
+// metadata identical for config-defined and admin-defined providers (in dev
+// the credentials are generated, so two separate loads would differ), and it
+// avoids generating a dev keypair at boot when SAML is not used at all.
+type spCredentials struct {
+	once  sync.Once
+	creds saml.SPCredentials
+	err   error
+}
+
+func (c *spCredentials) get() (saml.SPCredentials, error) {
+	c.once.Do(func() { c.creds, c.err = buildSAMLCredentials() })
+	return c.creds, c.err
+}
+
+// samlActivator makes admin-defined SAML connections live in the registry. It
+// implements directory.SAMLActivator.
+type samlActivator struct {
+	registry     *saml.Registry
+	creds        *spCredentials
+	verify       func(token, cookieNonce, provider, linkUserID string) error
+	redirectBase string
+	// reserved holds the names of providers defined in the config file, which
+	// an admin-defined connection may not shadow.
+	reserved map[string]bool
+}
+
+var _ directory.SAMLActivator = (*samlActivator)(nil)
+
+// Activate builds and registers the provider for a connection.
+func (a *samlActivator) Activate(name string, cfg directory.SAMLConfig) error {
+	if a.reserved[name] {
+		return fmt.Errorf("the name %q is used by a provider defined in the config file", name)
+	}
+	creds, err := a.creds.get()
+	if err != nil {
+		a.registry.Remove(name)
+		return err
+	}
+	metadataURL := buildRedirectURL(a.redirectBase, "/api/v1/auth/saml/metadata")
+	entityID := cfg.EntityID
+	if entityID == "" {
+		entityID = metadataURL
+	}
+	p, err := saml.NewProvider(saml.ProviderConfig{
+		Key:               name,
+		EntityID:          entityID,
+		ACSURL:            buildRedirectURL(a.redirectBase, "/api/v1/auth/saml/"+name+"/acs"),
+		MetadataURL:       metadataURL,
+		IDPMetadataXML:    cfg.IDPMetadataXML,
+		IDPMetadataURL:    cfg.IDPMetadataURL,
+		AllowIDPInitiated: cfg.AllowIDPInitiated,
+		AttributeMap:      saml.AttributeMap{Email: cfg.EmailAttribute, Name: cfg.NameAttribute},
+	}, creds, a.verify)
+	if err != nil {
+		// Do not keep serving a previous version of a connection whose saved
+		// settings no longer build.
+		a.registry.Remove(name)
+		return fmt.Errorf("saml provider %s: %w", name, err)
+	}
+	a.registry.Set(p)
+	return nil
+}
+
+// Deactivate removes the provider registered under name.
+func (a *samlActivator) Deactivate(name string) { a.registry.Remove(name) }
+
+// IsActive reports whether a provider is registered under name.
+func (a *samlActivator) IsActive(name string) bool { return a.registry.Has(name) }
+
+// buildSamlDeps wires the SAML ServiceProvider registry from config and
+// prepares the activator for admin-defined connections. The shared stateSigner
+// from WS-07a is reused so the SAML state-token carries the same HMAC signing
+// key as OAuth/OIDC.
 //
-// Failures here are loud (log.Fatalf) because a misconfigured SAML provider
-// that the deployer turned on should not silently degrade to "no SAML" at
-// runtime.
-func buildSamlDeps(ctx context.Context, a *authDeps, stateSigner *state.Signer) (samlDeps, error) {
+// Failures building a config-file provider are loud (log.Fatalf upstream)
+// because a misconfigured SAML provider that the deployer turned on should not
+// silently degrade to "no SAML" at runtime. Admin-defined connections never
+// fail the boot: they are activated later and report their own errors.
+func buildSamlDeps(_ context.Context, a *authDeps, stateSigner *state.Signer) (samlDeps, error) {
 	if stateSigner == nil {
 		stateSigner = state.NewSigner(a.signer)
 	}
-	// The default YAML ships disabled presets (e.g. entra), so filter to the
-	// enabled ones before demanding SP credentials: a prod deploy with no
-	// SAML IdP must boot without an SP signing key.
+	creds := &spCredentials{}
+	redirectBase := conf.GetAuthSAMLRedirectBase()
+
+	// The default YAML ships disabled presets (e.g. entra), so only the
+	// enabled ones are built, and only then are SP credentials demanded: a
+	// prod deploy with no SAML IdP must boot without an SP signing key.
+	reserved := map[string]bool{}
 	var names []string
 	for _, name := range conf.ListAuthSAMLProviderNames() {
+		reserved[name] = true
 		if conf.GetAuthSAMLProvider(name).Enabled {
 			names = append(names, name)
 		}
 	}
-	if len(names) == 0 {
-		return samlDeps{}, nil
-	}
 
-	creds, err := buildSAMLCredentials()
-	if err != nil {
-		return samlDeps{}, err
-	}
-
-	redirectBase := conf.GetAuthSAMLRedirectBase()
 	providers := make([]saml.Provider, 0, len(names))
-	for _, name := range names {
-		cfg := conf.GetAuthSAMLProvider(name)
-		metadataURL := buildRedirectURL(redirectBase, "/api/v1/auth/saml/metadata")
-		acsURL := buildRedirectURL(redirectBase, "/api/v1/auth/saml/"+name+"/acs")
-		entityID := cfg.EntityID
-		if entityID == "" {
-			entityID = metadataURL
-		}
-		p, err := saml.NewProvider(saml.ProviderConfig{
-			Key:               name,
-			EntityID:          entityID,
-			ACSURL:            acsURL,
-			MetadataURL:       metadataURL,
-			IDPMetadataXML:    cfg.IDPMetadataXML,
-			IDPMetadataURL:    cfg.IDPMetadataURL,
-			AllowIDPInitiated: cfg.AllowIDPInitiated,
-			AttributeMap: saml.AttributeMap{
-				Email: cfg.EmailAttribute,
-				Name:  cfg.NameAttribute,
-			},
-		}, creds, stateSigner.Verify)
+	if len(names) > 0 {
+		spCreds, err := creds.get()
 		if err != nil {
-			return samlDeps{}, errors.Join(errors.New("saml provider "+name), err)
+			return samlDeps{}, err
 		}
-		providers = append(providers, p)
+		for _, name := range names {
+			cfg := conf.GetAuthSAMLProvider(name)
+			metadataURL := buildRedirectURL(redirectBase, "/api/v1/auth/saml/metadata")
+			acsURL := buildRedirectURL(redirectBase, "/api/v1/auth/saml/"+name+"/acs")
+			entityID := cfg.EntityID
+			if entityID == "" {
+				entityID = metadataURL
+			}
+			p, err := saml.NewProvider(saml.ProviderConfig{
+				Key:               name,
+				EntityID:          entityID,
+				ACSURL:            acsURL,
+				MetadataURL:       metadataURL,
+				IDPMetadataXML:    cfg.IDPMetadataXML,
+				IDPMetadataURL:    cfg.IDPMetadataURL,
+				AllowIDPInitiated: cfg.AllowIDPInitiated,
+				AttributeMap: saml.AttributeMap{
+					Email: cfg.EmailAttribute,
+					Name:  cfg.NameAttribute,
+				},
+			}, spCreds, stateSigner.Verify)
+			if err != nil {
+				return samlDeps{}, errors.Join(errors.New("saml provider "+name), err)
+			}
+			providers = append(providers, p)
+		}
 	}
-	if len(providers) == 0 {
-		return samlDeps{}, nil
-	}
-	return samlDeps{registry: saml.NewRegistry(providers...)}, nil
+
+	registry := saml.NewRegistry(providers...)
+	return samlDeps{
+		registry: registry,
+		activator: &samlActivator{
+			registry: registry, creds: creds, verify: stateSigner.Verify,
+			redirectBase: redirectBase, reserved: reserved,
+		},
+	}, nil
 }
 
 // buildSAMLCredentials loads the SP signing key + cert from conf. In dev an
@@ -1434,7 +1531,12 @@ func buildWasmDeps(_ context.Context, a *authDeps, j *jobDeps) (wasmDeps, error)
 			svc, a.repos.Plugins, a.audit, slog.Default(),
 		)
 		fiberlog.Info("wasm marketplace enabled", "url", url)
-	} else if path := conf.GetWasmMarketplacePath(); path != "" {
+	} else if path := conf.GetWasmMarketplacePath(); path != "" && !marketplaceIndexExists(path) {
+		// The default path is relative to the working dir and is absent in
+		// the container image. Leave the service nil so the API answers
+		// 501 "feature disabled" instead of a 500 on every list call.
+		fiberlog.Warn("wasm marketplace disabled: index not found", "path", path)
+	} else if path != "" {
 		mktSvc = marketplace.New(
 			marketplace.NewLocalIndexLoader(path, ttl),
 			marketplace.NewLocalAssetLoader(path),
@@ -1453,4 +1555,10 @@ func buildWasmDeps(_ context.Context, a *authDeps, j *jobDeps) (wasmDeps, error)
 		bus:         bus,
 		marketplace: mktSvc,
 	}, nil
+}
+
+// marketplaceIndexExists reports whether dir holds a plugins-marketplace.yaml.
+func marketplaceIndexExists(dir string) bool {
+	info, err := os.Stat(filepath.Join(dir, "plugins-marketplace.yaml"))
+	return err == nil && !info.IsDir()
 }

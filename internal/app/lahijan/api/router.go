@@ -528,6 +528,21 @@ func AuditGate(policy middleware.PolicyResolver) apigen.MiddlewareFunc {
 			return middleware.RequirePerm(policy, rbac.PermAgentConversationDelete)(c)
 		case isAgentConversationItemPath(path) && method == "GET":
 			return middleware.RequirePerm(policy, rbac.PermAgentConversationRead)(c)
+		// Platform user management + directory connections. The billing
+		// per-user paths (topup/refund/ledger/balance) are matched above by
+		// their own helpers; these cases only match the exact user paths.
+		case path == "/api/v1/admin/users" && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermPlatformUserList)(c)
+		case path == "/api/v1/admin/users" && method == "POST":
+			return middleware.RequirePerm(policy, rbac.PermPlatformUserManage)(c)
+		case isAdminUserItemPath(path) && method == "GET":
+			return middleware.RequirePerm(policy, rbac.PermPlatformUserList)(c)
+		case isAdminUserItemPath(path) && (method == "PATCH" || method == "DELETE"):
+			return middleware.RequirePerm(policy, rbac.PermPlatformUserManage)(c)
+		case isAdminUserMembershipPath(path) && method == "PUT":
+			return middleware.RequirePerm(policy, rbac.PermPlatformUserManage)(c)
+		case path == "/api/v1/admin/directory" || strings.HasPrefix(path, "/api/v1/admin/directory/"):
+			return middleware.RequirePerm(policy, rbac.PermPlatformDirectoryManage)(c)
 		case isAgentProviderPath(path) && (method == "POST" || method == "GET" || method == "DELETE"):
 			return middleware.RequirePerm(policy, rbac.PermAgentProviderManage)(c)
 		case isAgentPolicyPath(path) && method == "PUT":
@@ -1213,4 +1228,22 @@ func isAgentProviderPath(path string) bool {
 // isAgentPolicyPath reports whether path is the tenant policy endpoint.
 func isAgentPolicyPath(path string) bool {
 	return path == "/api/v1/agent/policy"
+}
+
+// isAdminUserItemPath reports whether path is exactly /api/v1/admin/users/{id}
+// (no sub-resource), so the billing sub-paths keep their own permissions.
+func isAdminUserItemPath(path string) bool {
+	rest, ok := strings.CutPrefix(path, "/api/v1/admin/users/")
+	return ok && rest != "" && !strings.Contains(rest, "/")
+}
+
+// isAdminUserMembershipPath reports whether path is
+// /api/v1/admin/users/{id}/memberships/{tenantId}.
+func isAdminUserMembershipPath(path string) bool {
+	rest, ok := strings.CutPrefix(path, "/api/v1/admin/users/")
+	if !ok {
+		return false
+	}
+	parts := strings.Split(rest, "/")
+	return len(parts) == 3 && parts[1] == "memberships" && parts[0] != "" && parts[2] != ""
 }

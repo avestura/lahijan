@@ -132,3 +132,39 @@ func TestRequirePerm_PolicyError_FailsClosed(t *testing.T) {
 	assert.Equal(t, fiber.StatusInternalServerError, resp.StatusCode,
 		"DB errors must surface as 500, not silently deny")
 }
+
+func TestRequirePerm_PATScopes(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name   string
+		scopes []string
+		want   int
+	}{
+		{"no pat (session)", nil, fiber.StatusOK},
+		{"empty scopes are unrestricted", []string{}, fiber.StatusOK},
+		{"scope grants the permission", []string{"audit.read", "dns.zone.read"}, fiber.StatusOK},
+		{"scope does not grant the permission", []string{"dns.zone.read"}, fiber.StatusForbidden},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			policy := &fakePolicy{allowed: true}
+			app := newPermApp(policy, true, true)
+			app.Use(func(c *fiber.Ctx) error {
+				if tc.scopes != nil {
+					c.Locals(LocalsPATScopes, tc.scopes)
+				}
+				return c.Next()
+			})
+			app.Get("/p", RequirePerm(policy, "audit.read"), func(c *fiber.Ctx) error {
+				return c.SendString("ok")
+			})
+			resp, err := app.Test(httptest.NewRequest("GET", "/p", nil), -1)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, resp.StatusCode)
+			if tc.want == fiber.StatusForbidden {
+				assert.Zero(t, policy.calls, "a scope denial must short-circuit before the policy lookup")
+			}
+		})
+	}
+}

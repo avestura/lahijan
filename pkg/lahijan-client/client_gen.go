@@ -44,6 +44,18 @@ const (
 	AdminPluginStatusPending  AdminPluginStatus = "pending"
 )
 
+// Defines values for AdminUserCreateRequestLocale.
+const (
+	AdminUserCreateRequestLocaleEn AdminUserCreateRequestLocale = "en"
+	AdminUserCreateRequestLocaleFa AdminUserCreateRequestLocale = "fa"
+)
+
+// Defines values for AdminUserDirectorySourceKind.
+const (
+	AdminUserDirectorySourceKindLdap AdminUserDirectorySourceKind = "ldap"
+	AdminUserDirectorySourceKindSaml AdminUserDirectorySourceKind = "saml"
+)
+
 // Defines values for AgentConversationStatus.
 const (
 	AgentConversationStatusActive   AgentConversationStatus = "active"
@@ -55,6 +67,15 @@ const (
 	AgentMessageRoleAssistant AgentMessageRole = "assistant"
 	AgentMessageRoleTool      AgentMessageRole = "tool"
 	AgentMessageRoleUser      AgentMessageRole = "user"
+)
+
+// Defines values for AgentProviderTestResultStatus.
+const (
+	AgentProviderTestResultStatusAuthFailed    AgentProviderTestResultStatus = "auth_failed"
+	AgentProviderTestResultStatusBadResponse   AgentProviderTestResultStatus = "bad_response"
+	AgentProviderTestResultStatusModelNotFound AgentProviderTestResultStatus = "model_not_found"
+	AgentProviderTestResultStatusOk            AgentProviderTestResultStatus = "ok"
+	AgentProviderTestResultStatusUnreachable   AgentProviderTestResultStatus = "unreachable"
 )
 
 // Defines values for AgentToolCallStatus.
@@ -297,6 +318,32 @@ const (
 	DNSZoneUpdateRequestKindMaster DNSZoneUpdateRequestKind = "Master"
 	DNSZoneUpdateRequestKindNative DNSZoneUpdateRequestKind = "Native"
 	DNSZoneUpdateRequestKindSlave  DNSZoneUpdateRequestKind = "Slave"
+)
+
+// Defines values for DirectoryConnectionKind.
+const (
+	DirectoryConnectionKindLdap DirectoryConnectionKind = "ldap"
+	DirectoryConnectionKindSaml DirectoryConnectionKind = "saml"
+)
+
+// Defines values for DirectoryConnectionLastSyncStatus.
+const (
+	DirectoryConnectionLastSyncStatusError DirectoryConnectionLastSyncStatus = "error"
+	DirectoryConnectionLastSyncStatusOk    DirectoryConnectionLastSyncStatus = "ok"
+)
+
+// Defines values for DirectoryConnectionRequestKind.
+const (
+	DirectoryConnectionRequestKindLdap DirectoryConnectionRequestKind = "ldap"
+	DirectoryConnectionRequestKindSaml DirectoryConnectionRequestKind = "saml"
+)
+
+// Defines values for DirectoryTestResultCode.
+const (
+	DirectoryTestResultCodeConnectFailed  DirectoryTestResultCode = "connect_failed"
+	DirectoryTestResultCodeMetadataFailed DirectoryTestResultCode = "metadata_failed"
+	DirectoryTestResultCodeOk             DirectoryTestResultCode = "ok"
+	DirectoryTestResultCodeSearchFailed   DirectoryTestResultCode = "search_failed"
 )
 
 // Defines values for HealthStatus.
@@ -599,6 +646,71 @@ type AdminPluginUpgradeResult struct {
 	PreservedGrants []string `json:"preservedGrants"`
 }
 
+// AdminUser defines model for AdminUser.
+type AdminUser struct {
+	CreatedAt       time.Time                 `json:"createdAt"`
+	DirectorySource *AdminUserDirectorySource `json:"directorySource,omitempty"`
+	DisplayName     *string                   `json:"displayName,omitempty"`
+	Email           string                    `json:"email"`
+	EmailVerified   bool                      `json:"emailVerified"`
+	HasPassword     *bool                     `json:"hasPassword,omitempty"`
+	Id              openapi_types.UUID        `json:"id"`
+	IsActive        bool                      `json:"isActive"`
+	Locale          string                    `json:"locale"`
+	Memberships     []AdminUserMembership     `json:"memberships"`
+}
+
+// AdminUserCreateRequest defines model for AdminUserCreateRequest.
+type AdminUserCreateRequest struct {
+	DisplayName *string                       `json:"displayName,omitempty"`
+	Email       string                        `json:"email"`
+	IsActive    *bool                         `json:"isActive,omitempty"`
+	Locale      *AdminUserCreateRequestLocale `json:"locale,omitempty"`
+	Password    *string                       `json:"password,omitempty"`
+}
+
+// AdminUserCreateRequestLocale defines model for AdminUserCreateRequest.Locale.
+type AdminUserCreateRequestLocale string
+
+// AdminUserDirectorySource defines model for AdminUserDirectorySource.
+type AdminUserDirectorySource struct {
+	ConnectionId openapi_types.UUID           `json:"connectionId"`
+	Kind         AdminUserDirectorySourceKind `json:"kind"`
+	Name         string                       `json:"name"`
+}
+
+// AdminUserDirectorySourceKind defines model for AdminUserDirectorySource.Kind.
+type AdminUserDirectorySourceKind string
+
+// AdminUserMembership defines model for AdminUserMembership.
+type AdminUserMembership struct {
+	// Role Role slug
+	Role       string             `json:"role"`
+	TenantId   openapi_types.UUID `json:"tenantId"`
+	TenantName string             `json:"tenantName"`
+	TenantSlug string             `json:"tenantSlug"`
+}
+
+// AdminUserPage defines model for AdminUserPage.
+type AdminUserPage struct {
+	Items  []AdminUser `json:"items"`
+	Limit  int         `json:"limit"`
+	Offset int         `json:"offset"`
+	Total  int64       `json:"total"`
+}
+
+// AdminUserRoleRequest defines model for AdminUserRoleRequest.
+type AdminUserRoleRequest struct {
+	// Role Role slug to assign (see GET roles).
+	Role string `json:"role"`
+}
+
+// AdminUserUpdateRequest defines model for AdminUserUpdateRequest.
+type AdminUserUpdateRequest struct {
+	DisplayName *string `json:"displayName,omitempty"`
+	IsActive    *bool   `json:"isActive,omitempty"`
+}
+
 // AgentConversation defines model for AgentConversation.
 type AgentConversation struct {
 	CreatedAt time.Time               `json:"createdAt"`
@@ -681,6 +793,30 @@ type AgentProviderConfigRequest struct {
 	Model    *string `json:"model,omitempty"`
 	Provider string  `json:"provider"`
 }
+
+// AgentProviderTestRequest defines model for AgentProviderTestRequest.
+type AgentProviderTestRequest struct {
+	// ApiKey Omit to use the stored key of `providerId`.
+	ApiKey   *string `json:"apiKey,omitempty"`
+	BaseUrl  *string `json:"baseUrl,omitempty"`
+	Model    *string `json:"model,omitempty"`
+	Provider string  `json:"provider"`
+
+	// ProviderId A saved config whose key and settings fill in omitted fields.
+	ProviderId *openapi_types.UUID `json:"providerId,omitempty"`
+}
+
+// AgentProviderTestResult defines model for AgentProviderTestResult.
+type AgentProviderTestResult struct {
+	// HttpStatus HTTP status the provider answered with; absent when it did not answer.
+	HttpStatus *int                          `json:"httpStatus,omitempty"`
+	LatencyMs  int64                         `json:"latencyMs"`
+	Ok         bool                          `json:"ok"`
+	Status     AgentProviderTestResultStatus `json:"status"`
+}
+
+// AgentProviderTestResultStatus defines model for AgentProviderTestResult.Status.
+type AgentProviderTestResultStatus string
 
 // AgentToolCall defines model for AgentToolCall.
 type AgentToolCall struct {
@@ -2119,6 +2255,124 @@ type DNSZoneUpdateRequest struct {
 // DNSZoneUpdateRequestKind defines model for DNSZoneUpdateRequest.Kind.
 type DNSZoneUpdateRequestKind string
 
+// DirectoryConnection defines model for DirectoryConnection.
+type DirectoryConnection struct {
+	// ActivationError Why a SAML connection could not be activated by the create / update that just ran.
+	ActivationError *string `json:"activationError,omitempty"`
+
+	// Active True when the connection is live. An enabled LDAP connection is
+	// always active; an enabled SAML connection is active once it is
+	// registered for sign-in (it can fail to, e.g. unreachable IdP
+	// metadata or no service-provider signing key).
+	Active bool `json:"active"`
+
+	// Config Kind-specific settings (see the dashboard form). Never contains secrets.
+	Config    map[string]interface{} `json:"config"`
+	CreatedAt time.Time              `json:"createdAt"`
+	Enabled   bool                   `json:"enabled"`
+
+	// HasSecret True when a bind password is stored.
+	HasSecret       bool                               `json:"hasSecret"`
+	Id              openapi_types.UUID                 `json:"id"`
+	Kind            DirectoryConnectionKind            `json:"kind"`
+	LastSyncAt      *time.Time                         `json:"lastSyncAt,omitempty"`
+	LastSyncGroups  *int                               `json:"lastSyncGroups,omitempty"`
+	LastSyncMessage *string                            `json:"lastSyncMessage,omitempty"`
+	LastSyncStatus  *DirectoryConnectionLastSyncStatus `json:"lastSyncStatus,omitempty"`
+	LastSyncUsers   *int                               `json:"lastSyncUsers,omitempty"`
+	Name            string                             `json:"name"`
+	UpdatedAt       time.Time                          `json:"updatedAt"`
+}
+
+// DirectoryConnectionKind defines model for DirectoryConnection.Kind.
+type DirectoryConnectionKind string
+
+// DirectoryConnectionLastSyncStatus defines model for DirectoryConnection.LastSyncStatus.
+type DirectoryConnectionLastSyncStatus string
+
+// DirectoryConnectionList defines model for DirectoryConnectionList.
+type DirectoryConnectionList struct {
+	Items []DirectoryConnection `json:"items"`
+}
+
+// DirectoryConnectionRequest defines model for DirectoryConnectionRequest.
+type DirectoryConnectionRequest struct {
+	// BindPassword LDAP bind password. Encrypted at rest; omit on update to keep it.
+	BindPassword *string                        `json:"bindPassword,omitempty"`
+	Config       map[string]interface{}         `json:"config"`
+	Enabled      *bool                          `json:"enabled,omitempty"`
+	Kind         DirectoryConnectionRequestKind `json:"kind"`
+
+	// Name Unique name. For SAML it is also the provider key in the sign-in URL.
+	Name string `json:"name"`
+}
+
+// DirectoryConnectionRequestKind defines model for DirectoryConnectionRequest.Kind.
+type DirectoryConnectionRequestKind string
+
+// DirectoryGroup defines model for DirectoryGroup.
+type DirectoryGroup struct {
+	Description *string            `json:"description,omitempty"`
+	ExternalId  string             `json:"externalId"`
+	Id          openapi_types.UUID `json:"id"`
+	MemberCount int                `json:"memberCount"`
+	Name        string             `json:"name"`
+}
+
+// DirectoryGroupPage defines model for DirectoryGroupPage.
+type DirectoryGroupPage struct {
+	Items  []DirectoryGroup `json:"items"`
+	Limit  int              `json:"limit"`
+	Offset int              `json:"offset"`
+	Total  int64            `json:"total"`
+}
+
+// DirectorySyncResult defines model for DirectorySyncResult.
+type DirectorySyncResult struct {
+	// Created New Lahijan users created.
+	Created int `json:"created"`
+	Groups  int `json:"groups"`
+
+	// Linked Existing users matched and linked.
+	Linked int `json:"linked"`
+
+	// Skipped Entries without an email address.
+	Skipped int `json:"skipped"`
+
+	// Users Directory entries processed.
+	Users int `json:"users"`
+}
+
+// DirectoryTestRequest defines model for DirectoryTestRequest.
+type DirectoryTestRequest struct {
+	Connection   *DirectoryConnectionRequest `json:"connection,omitempty"`
+	ConnectionId *openapi_types.UUID         `json:"connectionId,omitempty"`
+}
+
+// DirectoryTestResult defines model for DirectoryTestResult.
+type DirectoryTestResult struct {
+	Code DirectoryTestResultCode `json:"code"`
+
+	// Detail Underlying error text when ok is false.
+	Detail *string `json:"detail,omitempty"`
+
+	// EntityId SAML: the IdP entity id from its metadata.
+	EntityId *string `json:"entityId,omitempty"`
+
+	// Groups LDAP: groups matched by the filter (sampled).
+	Groups *int `json:"groups,omitempty"`
+	Ok     bool `json:"ok"`
+
+	// SsoUrl SAML: the IdP single sign-on URL.
+	SsoUrl *string `json:"ssoUrl,omitempty"`
+
+	// Users LDAP: users matched by the filter (sampled).
+	Users *int `json:"users,omitempty"`
+}
+
+// DirectoryTestResultCode defines model for DirectoryTestResult.Code.
+type DirectoryTestResultCode string
+
 // EmailRequest defines model for EmailRequest.
 type EmailRequest struct {
 	Email openapi_types.Email `json:"email"`
@@ -2262,6 +2516,17 @@ type MessageResponse struct {
 type PasswordResetConfirmRequest struct {
 	NewPassword string `json:"newPassword"`
 	Token       string `json:"token"`
+}
+
+// PermissionInfo defines model for PermissionInfo.
+type PermissionInfo struct {
+	Description string `json:"description"`
+	Slug        string `json:"slug"`
+}
+
+// PermissionList defines model for PermissionList.
+type PermissionList struct {
+	Items []PermissionInfo `json:"items"`
 }
 
 // PersonalAccessToken defines model for PersonalAccessToken.
@@ -2865,6 +3130,15 @@ type ListComputeIPPoolsParams struct {
 	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
 }
 
+// ListDirectoryGroupsParams defines parameters for ListDirectoryGroups.
+type ListDirectoryGroupsParams struct {
+	// Limit Maximum number of items to return (1..200).
+	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of items to skip for pagination.
+	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
 // ListAdminJobsParams defines parameters for ListAdminJobs.
 type ListAdminJobsParams struct {
 	// Limit Maximum number of items to return (1..200).
@@ -2904,6 +3178,18 @@ type UploadAdminPluginMultipartBody struct {
 
 // SetAdminPluginPermissionParamsAction defines parameters for SetAdminPluginPermission.
 type SetAdminPluginPermissionParamsAction string
+
+// ListAdminUsersParams defines parameters for ListAdminUsers.
+type ListAdminUsersParams struct {
+	// Limit Maximum number of items to return (1..200).
+	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of items to skip for pagination.
+	Offset *PageOffset `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// Q Case-insensitive substring match on email or display name.
+	Q *string `form:"q,omitempty" json:"q,omitempty"`
+}
 
 // ListAdminUserLedgerParams defines parameters for ListAdminUserLedger.
 type ListAdminUserLedgerParams struct {
@@ -3258,8 +3544,26 @@ type UpdateComputeIPPoolJSONRequestBody = ComputeIPPoolUpdateRequest
 // AddComputeIPPoolRangeJSONRequestBody defines body for AddComputeIPPoolRange for application/json ContentType.
 type AddComputeIPPoolRangeJSONRequestBody = ComputeIPPoolRangeAddRequest
 
+// CreateDirectoryConnectionJSONRequestBody defines body for CreateDirectoryConnection for application/json ContentType.
+type CreateDirectoryConnectionJSONRequestBody = DirectoryConnectionRequest
+
+// UpdateDirectoryConnectionJSONRequestBody defines body for UpdateDirectoryConnection for application/json ContentType.
+type UpdateDirectoryConnectionJSONRequestBody = DirectoryConnectionRequest
+
+// TestDirectoryConnectionJSONRequestBody defines body for TestDirectoryConnection for application/json ContentType.
+type TestDirectoryConnectionJSONRequestBody = DirectoryTestRequest
+
 // UploadAdminPluginMultipartRequestBody defines body for UploadAdminPlugin for multipart/form-data ContentType.
 type UploadAdminPluginMultipartRequestBody UploadAdminPluginMultipartBody
+
+// CreateAdminUserJSONRequestBody defines body for CreateAdminUser for application/json ContentType.
+type CreateAdminUserJSONRequestBody = AdminUserCreateRequest
+
+// UpdateAdminUserJSONRequestBody defines body for UpdateAdminUser for application/json ContentType.
+type UpdateAdminUserJSONRequestBody = AdminUserUpdateRequest
+
+// SetAdminUserRoleJSONRequestBody defines body for SetAdminUserRole for application/json ContentType.
+type SetAdminUserRoleJSONRequestBody = AdminUserRoleRequest
 
 // RefundAdminUserJSONRequestBody defines body for RefundAdminUser for application/json ContentType.
 type RefundAdminUserJSONRequestBody = BillingRefundRequest
@@ -3278,6 +3582,9 @@ type UpdateAgentPolicyJSONRequestBody = AgentPolicy
 
 // CreateAgentProviderJSONRequestBody defines body for CreateAgentProvider for application/json ContentType.
 type CreateAgentProviderJSONRequestBody = AgentProviderConfigRequest
+
+// TestAgentProviderJSONRequestBody defines body for TestAgentProvider for application/json ContentType.
+type TestAgentProviderJSONRequestBody = AgentProviderTestRequest
 
 // ConfirmAgentToolCallJSONRequestBody defines body for ConfirmAgentToolCall for application/json ContentType.
 type ConfirmAgentToolCallJSONRequestBody = ConfirmAgentToolCallRequest
@@ -3612,6 +3919,36 @@ type ClientInterface interface {
 	// DeleteComputeIPPoolRange request
 	DeleteComputeIPPoolRange(ctx context.Context, poolId openapi_types.UUID, rangeId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListDirectoryConnections request
+	ListDirectoryConnections(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateDirectoryConnectionWithBody request with any body
+	CreateDirectoryConnectionWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateDirectoryConnection(ctx context.Context, body CreateDirectoryConnectionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteDirectoryConnection request
+	DeleteDirectoryConnection(ctx context.Context, connectionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetDirectoryConnection request
+	GetDirectoryConnection(ctx context.Context, connectionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateDirectoryConnectionWithBody request with any body
+	UpdateDirectoryConnectionWithBody(ctx context.Context, connectionId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateDirectoryConnection(ctx context.Context, connectionId openapi_types.UUID, body UpdateDirectoryConnectionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListDirectoryGroups request
+	ListDirectoryGroups(ctx context.Context, connectionId openapi_types.UUID, params *ListDirectoryGroupsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SyncDirectoryConnection request
+	SyncDirectoryConnection(ctx context.Context, connectionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// TestDirectoryConnectionWithBody request with any body
+	TestDirectoryConnectionWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	TestDirectoryConnection(ctx context.Context, body TestDirectoryConnectionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListAdminJobs request
 	ListAdminJobs(ctx context.Context, params *ListAdminJobsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -3657,6 +3994,25 @@ type ClientInterface interface {
 	// SetAdminPluginPermission request
 	SetAdminPluginPermission(ctx context.Context, pluginId openapi_types.UUID, permission string, action SetAdminPluginPermissionParamsAction, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListAdminUsers request
+	ListAdminUsers(ctx context.Context, params *ListAdminUsersParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateAdminUserWithBody request with any body
+	CreateAdminUserWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateAdminUser(ctx context.Context, body CreateAdminUserJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteAdminUser request
+	DeleteAdminUser(ctx context.Context, userId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAdminUser request
+	GetAdminUser(ctx context.Context, userId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateAdminUserWithBody request with any body
+	UpdateAdminUserWithBody(ctx context.Context, userId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateAdminUser(ctx context.Context, userId openapi_types.UUID, body UpdateAdminUserJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetAdminUserBalance request
 	GetAdminUserBalance(ctx context.Context, userId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -3665,6 +4021,11 @@ type ClientInterface interface {
 
 	// ListAdminUserLedger request
 	ListAdminUserLedger(ctx context.Context, userId openapi_types.UUID, params *ListAdminUserLedgerParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetAdminUserRoleWithBody request with any body
+	SetAdminUserRoleWithBody(ctx context.Context, userId openapi_types.UUID, tenantId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	SetAdminUserRole(ctx context.Context, userId openapi_types.UUID, tenantId openapi_types.UUID, body SetAdminUserRoleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RefundAdminUserWithBody request with any body
 	RefundAdminUserWithBody(ctx context.Context, userId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -3710,6 +4071,11 @@ type ClientInterface interface {
 	CreateAgentProviderWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	CreateAgentProvider(ctx context.Context, body CreateAgentProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// TestAgentProviderWithBody request with any body
+	TestAgentProviderWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	TestAgentProvider(ctx context.Context, body TestAgentProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteAgentProvider request
 	DeleteAgentProvider(ctx context.Context, providerId ProviderId, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -4208,6 +4574,9 @@ type ClientInterface interface {
 	// ListMyUsage request
 	ListMyUsage(ctx context.Context, params *ListMyUsageParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListPermissions request
+	ListPermissions(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// Ping request
 	Ping(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -4637,6 +5006,138 @@ func (c *Client) DeleteComputeIPPoolRange(ctx context.Context, poolId openapi_ty
 	return c.Client.Do(req)
 }
 
+func (c *Client) ListDirectoryConnections(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListDirectoryConnectionsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateDirectoryConnectionWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateDirectoryConnectionRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateDirectoryConnection(ctx context.Context, body CreateDirectoryConnectionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateDirectoryConnectionRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteDirectoryConnection(ctx context.Context, connectionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteDirectoryConnectionRequest(c.Server, connectionId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetDirectoryConnection(ctx context.Context, connectionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetDirectoryConnectionRequest(c.Server, connectionId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateDirectoryConnectionWithBody(ctx context.Context, connectionId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateDirectoryConnectionRequestWithBody(c.Server, connectionId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateDirectoryConnection(ctx context.Context, connectionId openapi_types.UUID, body UpdateDirectoryConnectionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateDirectoryConnectionRequest(c.Server, connectionId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListDirectoryGroups(ctx context.Context, connectionId openapi_types.UUID, params *ListDirectoryGroupsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListDirectoryGroupsRequest(c.Server, connectionId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) SyncDirectoryConnection(ctx context.Context, connectionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSyncDirectoryConnectionRequest(c.Server, connectionId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) TestDirectoryConnectionWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewTestDirectoryConnectionRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) TestDirectoryConnection(ctx context.Context, body TestDirectoryConnectionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewTestDirectoryConnectionRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) ListAdminJobs(ctx context.Context, params *ListAdminJobsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListAdminJobsRequest(c.Server, params)
 	if err != nil {
@@ -4817,6 +5318,90 @@ func (c *Client) SetAdminPluginPermission(ctx context.Context, pluginId openapi_
 	return c.Client.Do(req)
 }
 
+func (c *Client) ListAdminUsers(ctx context.Context, params *ListAdminUsersParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAdminUsersRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateAdminUserWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateAdminUserRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateAdminUser(ctx context.Context, body CreateAdminUserJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateAdminUserRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteAdminUser(ctx context.Context, userId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteAdminUserRequest(c.Server, userId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetAdminUser(ctx context.Context, userId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAdminUserRequest(c.Server, userId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateAdminUserWithBody(ctx context.Context, userId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateAdminUserRequestWithBody(c.Server, userId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateAdminUser(ctx context.Context, userId openapi_types.UUID, body UpdateAdminUserJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateAdminUserRequest(c.Server, userId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) GetAdminUserBalance(ctx context.Context, userId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetAdminUserBalanceRequest(c.Server, userId)
 	if err != nil {
@@ -4843,6 +5428,30 @@ func (c *Client) RebuildAdminUserBalance(ctx context.Context, userId openapi_typ
 
 func (c *Client) ListAdminUserLedger(ctx context.Context, userId openapi_types.UUID, params *ListAdminUserLedgerParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListAdminUserLedgerRequest(c.Server, userId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) SetAdminUserRoleWithBody(ctx context.Context, userId openapi_types.UUID, tenantId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetAdminUserRoleRequestWithBody(c.Server, userId, tenantId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) SetAdminUserRole(ctx context.Context, userId openapi_types.UUID, tenantId openapi_types.UUID, body SetAdminUserRoleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetAdminUserRoleRequest(c.Server, userId, tenantId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -5047,6 +5656,30 @@ func (c *Client) CreateAgentProviderWithBody(ctx context.Context, contentType st
 
 func (c *Client) CreateAgentProvider(ctx context.Context, body CreateAgentProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCreateAgentProviderRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) TestAgentProviderWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewTestAgentProviderRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) TestAgentProvider(ctx context.Context, body TestAgentProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewTestAgentProviderRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -7241,6 +7874,18 @@ func (c *Client) ListMyUsage(ctx context.Context, params *ListMyUsageParams, req
 	return c.Client.Do(req)
 }
 
+func (c *Client) ListPermissions(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListPermissionsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) Ping(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPingRequest(c.Server)
 	if err != nil {
@@ -8614,6 +9259,334 @@ func NewDeleteComputeIPPoolRangeRequest(server string, poolId openapi_types.UUID
 	return req, nil
 }
 
+// NewListDirectoryConnectionsRequest generates requests for ListDirectoryConnections
+func NewListDirectoryConnectionsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/directory/connections")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateDirectoryConnectionRequest calls the generic CreateDirectoryConnection builder with application/json body
+func NewCreateDirectoryConnectionRequest(server string, body CreateDirectoryConnectionJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateDirectoryConnectionRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateDirectoryConnectionRequestWithBody generates requests for CreateDirectoryConnection with any type of body
+func NewCreateDirectoryConnectionRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/directory/connections")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteDirectoryConnectionRequest generates requests for DeleteDirectoryConnection
+func NewDeleteDirectoryConnectionRequest(server string, connectionId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "connectionId", runtime.ParamLocationPath, connectionId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/directory/connections/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetDirectoryConnectionRequest generates requests for GetDirectoryConnection
+func NewGetDirectoryConnectionRequest(server string, connectionId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "connectionId", runtime.ParamLocationPath, connectionId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/directory/connections/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateDirectoryConnectionRequest calls the generic UpdateDirectoryConnection builder with application/json body
+func NewUpdateDirectoryConnectionRequest(server string, connectionId openapi_types.UUID, body UpdateDirectoryConnectionJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateDirectoryConnectionRequestWithBody(server, connectionId, "application/json", bodyReader)
+}
+
+// NewUpdateDirectoryConnectionRequestWithBody generates requests for UpdateDirectoryConnection with any type of body
+func NewUpdateDirectoryConnectionRequestWithBody(server string, connectionId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "connectionId", runtime.ParamLocationPath, connectionId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/directory/connections/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListDirectoryGroupsRequest generates requests for ListDirectoryGroups
+func NewListDirectoryGroupsRequest(server string, connectionId openapi_types.UUID, params *ListDirectoryGroupsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "connectionId", runtime.ParamLocationPath, connectionId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/directory/connections/%s/groups", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSyncDirectoryConnectionRequest generates requests for SyncDirectoryConnection
+func NewSyncDirectoryConnectionRequest(server string, connectionId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "connectionId", runtime.ParamLocationPath, connectionId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/directory/connections/%s/sync", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewTestDirectoryConnectionRequest calls the generic TestDirectoryConnection builder with application/json body
+func NewTestDirectoryConnectionRequest(server string, body TestDirectoryConnectionJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewTestDirectoryConnectionRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewTestDirectoryConnectionRequestWithBody generates requests for TestDirectoryConnection with any type of body
+func NewTestDirectoryConnectionRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/directory/test")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListAdminJobsRequest generates requests for ListAdminJobs
 func NewListAdminJobsRequest(server string, params *ListAdminJobsParams) (*http.Request, error) {
 	var err error
@@ -9236,6 +10209,242 @@ func NewSetAdminPluginPermissionRequest(server string, pluginId openapi_types.UU
 	return req, nil
 }
 
+// NewListAdminUsersRequest generates requests for ListAdminUsers
+func NewListAdminUsersRequest(server string, params *ListAdminUsersParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/users")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "q", runtime.ParamLocationQuery, *params.Q); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateAdminUserRequest calls the generic CreateAdminUser builder with application/json body
+func NewCreateAdminUserRequest(server string, body CreateAdminUserJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateAdminUserRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateAdminUserRequestWithBody generates requests for CreateAdminUser with any type of body
+func NewCreateAdminUserRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/users")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteAdminUserRequest generates requests for DeleteAdminUser
+func NewDeleteAdminUserRequest(server string, userId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "userId", runtime.ParamLocationPath, userId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/users/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetAdminUserRequest generates requests for GetAdminUser
+func NewGetAdminUserRequest(server string, userId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "userId", runtime.ParamLocationPath, userId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/users/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateAdminUserRequest calls the generic UpdateAdminUser builder with application/json body
+func NewUpdateAdminUserRequest(server string, userId openapi_types.UUID, body UpdateAdminUserJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateAdminUserRequestWithBody(server, userId, "application/json", bodyReader)
+}
+
+// NewUpdateAdminUserRequestWithBody generates requests for UpdateAdminUser with any type of body
+func NewUpdateAdminUserRequestWithBody(server string, userId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "userId", runtime.ParamLocationPath, userId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/users/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewGetAdminUserBalanceRequest generates requests for GetAdminUserBalance
 func NewGetAdminUserBalanceRequest(server string, userId openapi_types.UUID) (*http.Request, error) {
 	var err error
@@ -9372,6 +10581,60 @@ func NewListAdminUserLedgerRequest(server string, userId openapi_types.UUID, par
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewSetAdminUserRoleRequest calls the generic SetAdminUserRole builder with application/json body
+func NewSetAdminUserRoleRequest(server string, userId openapi_types.UUID, tenantId openapi_types.UUID, body SetAdminUserRoleJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetAdminUserRoleRequestWithBody(server, userId, tenantId, "application/json", bodyReader)
+}
+
+// NewSetAdminUserRoleRequestWithBody generates requests for SetAdminUserRole with any type of body
+func NewSetAdminUserRoleRequestWithBody(server string, userId openapi_types.UUID, tenantId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "userId", runtime.ParamLocationPath, userId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "tenantId", runtime.ParamLocationPath, tenantId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/users/%s/memberships/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -9805,6 +11068,46 @@ func NewCreateAgentProviderRequestWithBody(server string, contentType string, bo
 	}
 
 	operationPath := fmt.Sprintf("/api/v1/agent/providers")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewTestAgentProviderRequest calls the generic TestAgentProvider builder with application/json body
+func NewTestAgentProviderRequest(server string, body TestAgentProviderJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewTestAgentProviderRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewTestAgentProviderRequestWithBody generates requests for TestAgentProvider with any type of body
+func NewTestAgentProviderRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/agent/providers/test")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -15915,6 +17218,33 @@ func NewListMyUsageRequest(server string, params *ListMyUsageParams) (*http.Requ
 	return req, nil
 }
 
+// NewListPermissionsRequest generates requests for ListPermissions
+func NewListPermissionsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/permissions")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewPingRequest generates requests for Ping
 func NewPingRequest(server string) (*http.Request, error) {
 	var err error
@@ -17262,6 +18592,36 @@ type ClientWithResponsesInterface interface {
 	// DeleteComputeIPPoolRangeWithResponse request
 	DeleteComputeIPPoolRangeWithResponse(ctx context.Context, poolId openapi_types.UUID, rangeId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteComputeIPPoolRangeResponse, error)
 
+	// ListDirectoryConnectionsWithResponse request
+	ListDirectoryConnectionsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListDirectoryConnectionsResponse, error)
+
+	// CreateDirectoryConnectionWithBodyWithResponse request with any body
+	CreateDirectoryConnectionWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDirectoryConnectionResponse, error)
+
+	CreateDirectoryConnectionWithResponse(ctx context.Context, body CreateDirectoryConnectionJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDirectoryConnectionResponse, error)
+
+	// DeleteDirectoryConnectionWithResponse request
+	DeleteDirectoryConnectionWithResponse(ctx context.Context, connectionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteDirectoryConnectionResponse, error)
+
+	// GetDirectoryConnectionWithResponse request
+	GetDirectoryConnectionWithResponse(ctx context.Context, connectionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetDirectoryConnectionResponse, error)
+
+	// UpdateDirectoryConnectionWithBodyWithResponse request with any body
+	UpdateDirectoryConnectionWithBodyWithResponse(ctx context.Context, connectionId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateDirectoryConnectionResponse, error)
+
+	UpdateDirectoryConnectionWithResponse(ctx context.Context, connectionId openapi_types.UUID, body UpdateDirectoryConnectionJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateDirectoryConnectionResponse, error)
+
+	// ListDirectoryGroupsWithResponse request
+	ListDirectoryGroupsWithResponse(ctx context.Context, connectionId openapi_types.UUID, params *ListDirectoryGroupsParams, reqEditors ...RequestEditorFn) (*ListDirectoryGroupsResponse, error)
+
+	// SyncDirectoryConnectionWithResponse request
+	SyncDirectoryConnectionWithResponse(ctx context.Context, connectionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*SyncDirectoryConnectionResponse, error)
+
+	// TestDirectoryConnectionWithBodyWithResponse request with any body
+	TestDirectoryConnectionWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*TestDirectoryConnectionResponse, error)
+
+	TestDirectoryConnectionWithResponse(ctx context.Context, body TestDirectoryConnectionJSONRequestBody, reqEditors ...RequestEditorFn) (*TestDirectoryConnectionResponse, error)
+
 	// ListAdminJobsWithResponse request
 	ListAdminJobsWithResponse(ctx context.Context, params *ListAdminJobsParams, reqEditors ...RequestEditorFn) (*ListAdminJobsResponse, error)
 
@@ -17307,6 +18667,25 @@ type ClientWithResponsesInterface interface {
 	// SetAdminPluginPermissionWithResponse request
 	SetAdminPluginPermissionWithResponse(ctx context.Context, pluginId openapi_types.UUID, permission string, action SetAdminPluginPermissionParamsAction, reqEditors ...RequestEditorFn) (*SetAdminPluginPermissionResponse, error)
 
+	// ListAdminUsersWithResponse request
+	ListAdminUsersWithResponse(ctx context.Context, params *ListAdminUsersParams, reqEditors ...RequestEditorFn) (*ListAdminUsersResponse, error)
+
+	// CreateAdminUserWithBodyWithResponse request with any body
+	CreateAdminUserWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateAdminUserResponse, error)
+
+	CreateAdminUserWithResponse(ctx context.Context, body CreateAdminUserJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateAdminUserResponse, error)
+
+	// DeleteAdminUserWithResponse request
+	DeleteAdminUserWithResponse(ctx context.Context, userId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteAdminUserResponse, error)
+
+	// GetAdminUserWithResponse request
+	GetAdminUserWithResponse(ctx context.Context, userId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetAdminUserResponse, error)
+
+	// UpdateAdminUserWithBodyWithResponse request with any body
+	UpdateAdminUserWithBodyWithResponse(ctx context.Context, userId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateAdminUserResponse, error)
+
+	UpdateAdminUserWithResponse(ctx context.Context, userId openapi_types.UUID, body UpdateAdminUserJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateAdminUserResponse, error)
+
 	// GetAdminUserBalanceWithResponse request
 	GetAdminUserBalanceWithResponse(ctx context.Context, userId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetAdminUserBalanceResponse, error)
 
@@ -17315,6 +18694,11 @@ type ClientWithResponsesInterface interface {
 
 	// ListAdminUserLedgerWithResponse request
 	ListAdminUserLedgerWithResponse(ctx context.Context, userId openapi_types.UUID, params *ListAdminUserLedgerParams, reqEditors ...RequestEditorFn) (*ListAdminUserLedgerResponse, error)
+
+	// SetAdminUserRoleWithBodyWithResponse request with any body
+	SetAdminUserRoleWithBodyWithResponse(ctx context.Context, userId openapi_types.UUID, tenantId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetAdminUserRoleResponse, error)
+
+	SetAdminUserRoleWithResponse(ctx context.Context, userId openapi_types.UUID, tenantId openapi_types.UUID, body SetAdminUserRoleJSONRequestBody, reqEditors ...RequestEditorFn) (*SetAdminUserRoleResponse, error)
 
 	// RefundAdminUserWithBodyWithResponse request with any body
 	RefundAdminUserWithBodyWithResponse(ctx context.Context, userId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RefundAdminUserResponse, error)
@@ -17360,6 +18744,11 @@ type ClientWithResponsesInterface interface {
 	CreateAgentProviderWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateAgentProviderResponse, error)
 
 	CreateAgentProviderWithResponse(ctx context.Context, body CreateAgentProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateAgentProviderResponse, error)
+
+	// TestAgentProviderWithBodyWithResponse request with any body
+	TestAgentProviderWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*TestAgentProviderResponse, error)
+
+	TestAgentProviderWithResponse(ctx context.Context, body TestAgentProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*TestAgentProviderResponse, error)
 
 	// DeleteAgentProviderWithResponse request
 	DeleteAgentProviderWithResponse(ctx context.Context, providerId ProviderId, reqEditors ...RequestEditorFn) (*DeleteAgentProviderResponse, error)
@@ -17857,6 +19246,9 @@ type ClientWithResponsesInterface interface {
 
 	// ListMyUsageWithResponse request
 	ListMyUsageWithResponse(ctx context.Context, params *ListMyUsageParams, reqEditors ...RequestEditorFn) (*ListMyUsageResponse, error)
+
+	// ListPermissionsWithResponse request
+	ListPermissionsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListPermissionsResponse, error)
 
 	// PingWithResponse request
 	PingWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PingResponse, error)
@@ -18472,6 +19864,210 @@ func (r DeleteComputeIPPoolRangeResponse) StatusCode() int {
 	return 0
 }
 
+type ListDirectoryConnectionsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *DirectoryConnectionList
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+}
+
+// Status returns HTTPResponse.Status
+func (r ListDirectoryConnectionsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListDirectoryConnectionsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateDirectoryConnectionResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *DirectoryConnection
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON409      *Conflict
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateDirectoryConnectionResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateDirectoryConnectionResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteDirectoryConnectionResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteDirectoryConnectionResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteDirectoryConnectionResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetDirectoryConnectionResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *DirectoryConnection
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r GetDirectoryConnectionResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetDirectoryConnectionResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpdateDirectoryConnectionResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *DirectoryConnection
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON409      *Conflict
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateDirectoryConnectionResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateDirectoryConnectionResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListDirectoryGroupsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *DirectoryGroupPage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r ListDirectoryGroupsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListDirectoryGroupsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type SyncDirectoryConnectionResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *DirectorySyncResult
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON409      *Conflict
+	JSON502      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r SyncDirectoryConnectionResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SyncDirectoryConnectionResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type TestDirectoryConnectionResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *DirectoryTestResult
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r TestDirectoryConnectionResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r TestDirectoryConnectionResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type ListAdminJobsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -18859,6 +20455,132 @@ func (r SetAdminPluginPermissionResponse) StatusCode() int {
 	return 0
 }
 
+type ListAdminUsersResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AdminUserPage
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+}
+
+// Status returns HTTPResponse.Status
+func (r ListAdminUsersResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListAdminUsersResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateAdminUserResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *AdminUser
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON409      *Conflict
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateAdminUserResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateAdminUserResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteAdminUserResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+	JSON409      *Conflict
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteAdminUserResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteAdminUserResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetAdminUserResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AdminUser
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAdminUserResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAdminUserResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpdateAdminUserResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AdminUser
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateAdminUserResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateAdminUserResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetAdminUserBalanceResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -18931,6 +20653,32 @@ func (r ListAdminUserLedgerResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r ListAdminUserLedgerResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type SetAdminUserRoleResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AdminUser
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r SetAdminUserRoleResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetAdminUserRoleResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -19202,6 +20950,31 @@ func (r CreateAgentProviderResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r CreateAgentProviderResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type TestAgentProviderResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *AgentProviderTestResult
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r TestAgentProviderResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r TestAgentProviderResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -22523,6 +24296,29 @@ func (r ListMyUsageResponse) StatusCode() int {
 	return 0
 }
 
+type ListPermissionsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *PermissionList
+	JSON401      *Unauthorized
+}
+
+// Status returns HTTPResponse.Status
+func (r ListPermissionsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListPermissionsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type PingResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -23425,6 +25221,102 @@ func (c *ClientWithResponses) DeleteComputeIPPoolRangeWithResponse(ctx context.C
 	return ParseDeleteComputeIPPoolRangeResponse(rsp)
 }
 
+// ListDirectoryConnectionsWithResponse request returning *ListDirectoryConnectionsResponse
+func (c *ClientWithResponses) ListDirectoryConnectionsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListDirectoryConnectionsResponse, error) {
+	rsp, err := c.ListDirectoryConnections(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListDirectoryConnectionsResponse(rsp)
+}
+
+// CreateDirectoryConnectionWithBodyWithResponse request with arbitrary body returning *CreateDirectoryConnectionResponse
+func (c *ClientWithResponses) CreateDirectoryConnectionWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDirectoryConnectionResponse, error) {
+	rsp, err := c.CreateDirectoryConnectionWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateDirectoryConnectionResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateDirectoryConnectionWithResponse(ctx context.Context, body CreateDirectoryConnectionJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDirectoryConnectionResponse, error) {
+	rsp, err := c.CreateDirectoryConnection(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateDirectoryConnectionResponse(rsp)
+}
+
+// DeleteDirectoryConnectionWithResponse request returning *DeleteDirectoryConnectionResponse
+func (c *ClientWithResponses) DeleteDirectoryConnectionWithResponse(ctx context.Context, connectionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteDirectoryConnectionResponse, error) {
+	rsp, err := c.DeleteDirectoryConnection(ctx, connectionId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteDirectoryConnectionResponse(rsp)
+}
+
+// GetDirectoryConnectionWithResponse request returning *GetDirectoryConnectionResponse
+func (c *ClientWithResponses) GetDirectoryConnectionWithResponse(ctx context.Context, connectionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetDirectoryConnectionResponse, error) {
+	rsp, err := c.GetDirectoryConnection(ctx, connectionId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetDirectoryConnectionResponse(rsp)
+}
+
+// UpdateDirectoryConnectionWithBodyWithResponse request with arbitrary body returning *UpdateDirectoryConnectionResponse
+func (c *ClientWithResponses) UpdateDirectoryConnectionWithBodyWithResponse(ctx context.Context, connectionId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateDirectoryConnectionResponse, error) {
+	rsp, err := c.UpdateDirectoryConnectionWithBody(ctx, connectionId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateDirectoryConnectionResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpdateDirectoryConnectionWithResponse(ctx context.Context, connectionId openapi_types.UUID, body UpdateDirectoryConnectionJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateDirectoryConnectionResponse, error) {
+	rsp, err := c.UpdateDirectoryConnection(ctx, connectionId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateDirectoryConnectionResponse(rsp)
+}
+
+// ListDirectoryGroupsWithResponse request returning *ListDirectoryGroupsResponse
+func (c *ClientWithResponses) ListDirectoryGroupsWithResponse(ctx context.Context, connectionId openapi_types.UUID, params *ListDirectoryGroupsParams, reqEditors ...RequestEditorFn) (*ListDirectoryGroupsResponse, error) {
+	rsp, err := c.ListDirectoryGroups(ctx, connectionId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListDirectoryGroupsResponse(rsp)
+}
+
+// SyncDirectoryConnectionWithResponse request returning *SyncDirectoryConnectionResponse
+func (c *ClientWithResponses) SyncDirectoryConnectionWithResponse(ctx context.Context, connectionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*SyncDirectoryConnectionResponse, error) {
+	rsp, err := c.SyncDirectoryConnection(ctx, connectionId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSyncDirectoryConnectionResponse(rsp)
+}
+
+// TestDirectoryConnectionWithBodyWithResponse request with arbitrary body returning *TestDirectoryConnectionResponse
+func (c *ClientWithResponses) TestDirectoryConnectionWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*TestDirectoryConnectionResponse, error) {
+	rsp, err := c.TestDirectoryConnectionWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseTestDirectoryConnectionResponse(rsp)
+}
+
+func (c *ClientWithResponses) TestDirectoryConnectionWithResponse(ctx context.Context, body TestDirectoryConnectionJSONRequestBody, reqEditors ...RequestEditorFn) (*TestDirectoryConnectionResponse, error) {
+	rsp, err := c.TestDirectoryConnection(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseTestDirectoryConnectionResponse(rsp)
+}
+
 // ListAdminJobsWithResponse request returning *ListAdminJobsResponse
 func (c *ClientWithResponses) ListAdminJobsWithResponse(ctx context.Context, params *ListAdminJobsParams, reqEditors ...RequestEditorFn) (*ListAdminJobsResponse, error) {
 	rsp, err := c.ListAdminJobs(ctx, params, reqEditors...)
@@ -23560,6 +25452,67 @@ func (c *ClientWithResponses) SetAdminPluginPermissionWithResponse(ctx context.C
 	return ParseSetAdminPluginPermissionResponse(rsp)
 }
 
+// ListAdminUsersWithResponse request returning *ListAdminUsersResponse
+func (c *ClientWithResponses) ListAdminUsersWithResponse(ctx context.Context, params *ListAdminUsersParams, reqEditors ...RequestEditorFn) (*ListAdminUsersResponse, error) {
+	rsp, err := c.ListAdminUsers(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListAdminUsersResponse(rsp)
+}
+
+// CreateAdminUserWithBodyWithResponse request with arbitrary body returning *CreateAdminUserResponse
+func (c *ClientWithResponses) CreateAdminUserWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateAdminUserResponse, error) {
+	rsp, err := c.CreateAdminUserWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateAdminUserResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateAdminUserWithResponse(ctx context.Context, body CreateAdminUserJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateAdminUserResponse, error) {
+	rsp, err := c.CreateAdminUser(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateAdminUserResponse(rsp)
+}
+
+// DeleteAdminUserWithResponse request returning *DeleteAdminUserResponse
+func (c *ClientWithResponses) DeleteAdminUserWithResponse(ctx context.Context, userId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteAdminUserResponse, error) {
+	rsp, err := c.DeleteAdminUser(ctx, userId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteAdminUserResponse(rsp)
+}
+
+// GetAdminUserWithResponse request returning *GetAdminUserResponse
+func (c *ClientWithResponses) GetAdminUserWithResponse(ctx context.Context, userId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetAdminUserResponse, error) {
+	rsp, err := c.GetAdminUser(ctx, userId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAdminUserResponse(rsp)
+}
+
+// UpdateAdminUserWithBodyWithResponse request with arbitrary body returning *UpdateAdminUserResponse
+func (c *ClientWithResponses) UpdateAdminUserWithBodyWithResponse(ctx context.Context, userId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateAdminUserResponse, error) {
+	rsp, err := c.UpdateAdminUserWithBody(ctx, userId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateAdminUserResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpdateAdminUserWithResponse(ctx context.Context, userId openapi_types.UUID, body UpdateAdminUserJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateAdminUserResponse, error) {
+	rsp, err := c.UpdateAdminUser(ctx, userId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateAdminUserResponse(rsp)
+}
+
 // GetAdminUserBalanceWithResponse request returning *GetAdminUserBalanceResponse
 func (c *ClientWithResponses) GetAdminUserBalanceWithResponse(ctx context.Context, userId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetAdminUserBalanceResponse, error) {
 	rsp, err := c.GetAdminUserBalance(ctx, userId, reqEditors...)
@@ -23585,6 +25538,23 @@ func (c *ClientWithResponses) ListAdminUserLedgerWithResponse(ctx context.Contex
 		return nil, err
 	}
 	return ParseListAdminUserLedgerResponse(rsp)
+}
+
+// SetAdminUserRoleWithBodyWithResponse request with arbitrary body returning *SetAdminUserRoleResponse
+func (c *ClientWithResponses) SetAdminUserRoleWithBodyWithResponse(ctx context.Context, userId openapi_types.UUID, tenantId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetAdminUserRoleResponse, error) {
+	rsp, err := c.SetAdminUserRoleWithBody(ctx, userId, tenantId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetAdminUserRoleResponse(rsp)
+}
+
+func (c *ClientWithResponses) SetAdminUserRoleWithResponse(ctx context.Context, userId openapi_types.UUID, tenantId openapi_types.UUID, body SetAdminUserRoleJSONRequestBody, reqEditors ...RequestEditorFn) (*SetAdminUserRoleResponse, error) {
+	rsp, err := c.SetAdminUserRole(ctx, userId, tenantId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetAdminUserRoleResponse(rsp)
 }
 
 // RefundAdminUserWithBodyWithResponse request with arbitrary body returning *RefundAdminUserResponse
@@ -23732,6 +25702,23 @@ func (c *ClientWithResponses) CreateAgentProviderWithResponse(ctx context.Contex
 		return nil, err
 	}
 	return ParseCreateAgentProviderResponse(rsp)
+}
+
+// TestAgentProviderWithBodyWithResponse request with arbitrary body returning *TestAgentProviderResponse
+func (c *ClientWithResponses) TestAgentProviderWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*TestAgentProviderResponse, error) {
+	rsp, err := c.TestAgentProviderWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseTestAgentProviderResponse(rsp)
+}
+
+func (c *ClientWithResponses) TestAgentProviderWithResponse(ctx context.Context, body TestAgentProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*TestAgentProviderResponse, error) {
+	rsp, err := c.TestAgentProvider(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseTestAgentProviderResponse(rsp)
 }
 
 // DeleteAgentProviderWithResponse request returning *DeleteAgentProviderResponse
@@ -25323,6 +27310,15 @@ func (c *ClientWithResponses) ListMyUsageWithResponse(ctx context.Context, param
 	return ParseListMyUsageResponse(rsp)
 }
 
+// ListPermissionsWithResponse request returning *ListPermissionsResponse
+func (c *ClientWithResponses) ListPermissionsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListPermissionsResponse, error) {
+	rsp, err := c.ListPermissions(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListPermissionsResponse(rsp)
+}
+
 // PingWithResponse request returning *PingResponse
 func (c *ClientWithResponses) PingWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PingResponse, error) {
 	rsp, err := c.Ping(ctx, reqEditors...)
@@ -26664,6 +28660,410 @@ func ParseDeleteComputeIPPoolRangeResponse(rsp *http.Response) (*DeleteComputeIP
 	return response, nil
 }
 
+// ParseListDirectoryConnectionsResponse parses an HTTP response from a ListDirectoryConnectionsWithResponse call
+func ParseListDirectoryConnectionsResponse(rsp *http.Response) (*ListDirectoryConnectionsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListDirectoryConnectionsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DirectoryConnectionList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateDirectoryConnectionResponse parses an HTTP response from a CreateDirectoryConnectionWithResponse call
+func ParseCreateDirectoryConnectionResponse(rsp *http.Response) (*CreateDirectoryConnectionResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateDirectoryConnectionResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest DirectoryConnection
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Conflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteDirectoryConnectionResponse parses an HTTP response from a DeleteDirectoryConnectionWithResponse call
+func ParseDeleteDirectoryConnectionResponse(rsp *http.Response) (*DeleteDirectoryConnectionResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteDirectoryConnectionResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetDirectoryConnectionResponse parses an HTTP response from a GetDirectoryConnectionWithResponse call
+func ParseGetDirectoryConnectionResponse(rsp *http.Response) (*GetDirectoryConnectionResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetDirectoryConnectionResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DirectoryConnection
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateDirectoryConnectionResponse parses an HTTP response from a UpdateDirectoryConnectionWithResponse call
+func ParseUpdateDirectoryConnectionResponse(rsp *http.Response) (*UpdateDirectoryConnectionResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateDirectoryConnectionResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DirectoryConnection
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Conflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListDirectoryGroupsResponse parses an HTTP response from a ListDirectoryGroupsWithResponse call
+func ParseListDirectoryGroupsResponse(rsp *http.Response) (*ListDirectoryGroupsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListDirectoryGroupsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DirectoryGroupPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSyncDirectoryConnectionResponse parses an HTTP response from a SyncDirectoryConnectionWithResponse call
+func ParseSyncDirectoryConnectionResponse(rsp *http.Response) (*SyncDirectoryConnectionResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SyncDirectoryConnectionResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DirectorySyncResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Conflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 502:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON502 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseTestDirectoryConnectionResponse parses an HTTP response from a TestDirectoryConnectionWithResponse call
+func ParseTestDirectoryConnectionResponse(rsp *http.Response) (*TestDirectoryConnectionResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &TestDirectoryConnectionResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DirectoryTestResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListAdminJobsResponse parses an HTTP response from a ListAdminJobsWithResponse call
 func ParseListAdminJobsResponse(rsp *http.Response) (*ListAdminJobsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -27453,6 +29853,248 @@ func ParseSetAdminPluginPermissionResponse(rsp *http.Response) (*SetAdminPluginP
 	return response, nil
 }
 
+// ParseListAdminUsersResponse parses an HTTP response from a ListAdminUsersWithResponse call
+func ParseListAdminUsersResponse(rsp *http.Response) (*ListAdminUsersResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListAdminUsersResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AdminUserPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateAdminUserResponse parses an HTTP response from a CreateAdminUserWithResponse call
+func ParseCreateAdminUserResponse(rsp *http.Response) (*CreateAdminUserResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateAdminUserResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest AdminUser
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Conflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteAdminUserResponse parses an HTTP response from a DeleteAdminUserWithResponse call
+func ParseDeleteAdminUserResponse(rsp *http.Response) (*DeleteAdminUserResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteAdminUserResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Conflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetAdminUserResponse parses an HTTP response from a GetAdminUserWithResponse call
+func ParseGetAdminUserResponse(rsp *http.Response) (*GetAdminUserResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAdminUserResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AdminUser
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateAdminUserResponse parses an HTTP response from a UpdateAdminUserWithResponse call
+func ParseUpdateAdminUserResponse(rsp *http.Response) (*UpdateAdminUserResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateAdminUserResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AdminUser
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetAdminUserBalanceResponse parses an HTTP response from a GetAdminUserBalanceWithResponse call
 func ParseGetAdminUserBalanceResponse(rsp *http.Response) (*GetAdminUserBalanceResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -27609,6 +30251,60 @@ func ParseListAdminUserLedgerResponse(rsp *http.Response) (*ListAdminUserLedgerR
 			return nil, err
 		}
 		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetAdminUserRoleResponse parses an HTTP response from a SetAdminUserRoleWithResponse call
+func ParseSetAdminUserRoleResponse(rsp *http.Response) (*SetAdminUserRoleResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetAdminUserRoleResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AdminUser
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	}
 
@@ -28098,6 +30794,53 @@ func ParseCreateAgentProviderResponse(rsp *http.Response) (*CreateAgentProviderR
 			return nil, err
 		}
 		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseTestAgentProviderResponse parses an HTTP response from a TestAgentProviderWithResponse call
+func ParseTestAgentProviderResponse(rsp *http.Response) (*TestAgentProviderResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &TestAgentProviderResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AgentProviderTestResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	}
 
@@ -34270,6 +37013,39 @@ func ParseListMyUsageResponse(rsp *http.Response) (*ListMyUsageResponse, error) 
 			return nil, err
 		}
 		response.JSON501 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListPermissionsResponse parses an HTTP response from a ListPermissionsWithResponse call
+func ParseListPermissionsResponse(rsp *http.Response) (*ListPermissionsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListPermissionsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PermissionList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
 
 	}
 

@@ -27,6 +27,7 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/billing"
 	"github.com/avestura/lahijan/internal/app/lahijan/compute"
 	"github.com/avestura/lahijan/internal/app/lahijan/database"
+	"github.com/avestura/lahijan/internal/app/lahijan/directory"
 	"github.com/avestura/lahijan/internal/app/lahijan/dns"
 	"github.com/avestura/lahijan/internal/app/lahijan/i18n"
 	"github.com/avestura/lahijan/internal/app/lahijan/registrar"
@@ -171,6 +172,11 @@ type Server struct {
 	// subsystem is disabled (conf.agent.enabled=false); the handlers degrade
 	// to a 501 "feature disabled" envelope.
 	agentSvc *agent.Service
+
+	// Platform user management + external directories (LDAP / SAML).
+	// directorySvc is nil-appropriate in router smoke tests; the directory
+	// handlers then answer 501.
+	directorySvc *directory.Service
 }
 
 // ServerDeps carries the dependencies NewServer requires. Wire it once from
@@ -266,6 +272,9 @@ type ServerDeps struct {
 	// /api/v1/agent/* handler talks to. Nil-appropriate when the agent
 	// subsystem is disabled; the handlers degrade to 501.
 	AgentSvc *agent.Service
+
+	// DirectorySvc backs /api/v1/admin/directory/*. Nil-appropriate in tests.
+	DirectorySvc *directory.Service
 }
 
 // NewServer builds the API server with the given dependencies.
@@ -302,6 +311,7 @@ func NewServer(deps ServerDeps) *Server {
 		paymentsSvc:     deps.PaymentsSvc,
 		registrarSvc:    deps.RegistrarSvc,
 		agentSvc:        deps.AgentSvc,
+		directorySvc:    deps.DirectorySvc,
 	}
 	if s.tracer == nil {
 		s.tracer = Tracer()

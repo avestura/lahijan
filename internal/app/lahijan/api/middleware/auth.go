@@ -70,6 +70,7 @@ func AuthWithResolver(r AuthResolver) fiber.Handler {
 			if token != "" && r.PATService != nil {
 				if principal, err := r.PATService.Authenticate(c.UserContext(), token); err == nil {
 					SetUserID(c, principal.UserID)
+					c.Locals(LocalsPATScopes, principal.Scopes)
 					return c.Next()
 				}
 			}

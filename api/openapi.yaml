@@ -5524,6 +5524,343 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
+  /api/v1/permissions:
+    get:
+      tags: [auth]
+      operationId: listPermissions
+      summary: List the permission catalogue
+      description: |
+        Returns every permission slug Lahijan knows, with a short description.
+        Used by the dashboard to offer a checklist where a permission set is
+        chosen (personal access token scopes, role editors). Any authenticated
+        user may read it.
+      responses:
+        "200":
+          description: The permission catalogue, sorted by slug.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PermissionList" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/v1/agent/providers/test:
+    post:
+      tags: [agent]
+      operationId: testAgentProvider
+      summary: Test a model-provider connection
+      description: |
+        Probes the provider endpoint with the supplied (or stored) API key
+        without saving anything and without starting an agent turn. Lists the
+        provider's models first and falls back to a one-token completion when
+        the endpoint has no model list. The upstream response body is never
+        returned. Pass `providerId` and omit `apiKey` to test a saved config.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AgentProviderTestRequest" }
+      responses:
+        "200":
+          description: The probe outcome (a failed probe is still a 200 with ok=false).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentProviderTestResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/admin/users:
+    get:
+      tags: [admin]
+      operationId: listAdminUsers
+      summary: List users (platform admin)
+      description: Paginated list of every user on the platform. Requires platform.user.list.
+      parameters:
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+        - name: q
+          in: query
+          description: Case-insensitive substring match on email or display name.
+          schema: { type: string, maxLength: 200 }
+      responses:
+        "200":
+          description: A page of users.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminUserPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [admin]
+      operationId: createAdminUser
+      summary: Create a user (platform admin)
+      description: |
+        Creates a user. Without a password the user cannot sign in with a
+        password (use password reset, SSO or a directory). Requires
+        platform.user.manage.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminUserCreateRequest" }
+      responses:
+        "201":
+          description: The created user.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminUser" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/admin/users/{userId}:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [admin]
+      operationId: getAdminUser
+      summary: Get a user (platform admin)
+      responses:
+        "200":
+          description: The user.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminUser" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [admin]
+      operationId: updateAdminUser
+      summary: Update a user (platform admin)
+      description: Edit the display name or enable / disable sign-in. Requires platform.user.manage.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminUserUpdateRequest" }
+      responses:
+        "200":
+          description: The updated user.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminUser" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [admin]
+      operationId: deleteAdminUser
+      summary: Delete a user (platform admin)
+      description: |
+        Soft-deletes the user and ends their sign-in. An administrator cannot
+        delete their own account. Requires platform.user.manage.
+      responses:
+        "204": { description: User deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/admin/users/{userId}/memberships/{tenantId}:
+    put:
+      tags: [admin]
+      operationId: setAdminUserRole
+      summary: Change a user's role in a tenant (platform admin)
+      description: Requires platform.user.manage. The user must already be a member of the tenant.
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: tenantId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminUserRoleRequest" }
+      responses:
+        "200":
+          description: The updated user.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminUser" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/admin/directory/connections:
+    get:
+      tags: [admin]
+      operationId: listDirectoryConnections
+      summary: List directory connections (platform admin)
+      description: LDAP and SAML connections. Requires platform.directory.manage. Secrets are never returned.
+      responses:
+        "200":
+          description: All connections.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DirectoryConnectionList" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [admin]
+      operationId: createDirectoryConnection
+      summary: Create a directory connection (platform admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DirectoryConnectionRequest" }
+      responses:
+        "201":
+          description: The created connection.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DirectoryConnection" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/admin/directory/test:
+    post:
+      tags: [admin]
+      operationId: testDirectoryConnection
+      summary: Test a directory connection (platform admin)
+      description: |
+        Checks a saved connection (`connectionId`) or an unsaved draft
+        (`connection`) without changing anything. LDAP: connects, binds and
+        runs the user / group searches. SAML: fetches and parses the IdP
+        metadata. A failed check is a 200 with ok=false.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DirectoryTestRequest" }
+      responses:
+        "200":
+          description: The check outcome.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DirectoryTestResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/admin/directory/connections/{connectionId}:
+    parameters:
+      - name: connectionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [admin]
+      operationId: getDirectoryConnection
+      summary: Get a directory connection (platform admin)
+      responses:
+        "200":
+          description: The connection.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DirectoryConnection" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [admin]
+      operationId: updateDirectoryConnection
+      summary: Update a directory connection (platform admin)
+      description: Omit `bindPassword` to keep the stored one. The kind cannot change.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DirectoryConnectionRequest" }
+      responses:
+        "200":
+          description: The updated connection.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DirectoryConnection" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    delete:
+      tags: [admin]
+      operationId: deleteDirectoryConnection
+      summary: Delete a directory connection (platform admin)
+      description: Removes the connection and its imported groups. Imported users are kept.
+      responses:
+        "204": { description: Connection deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/admin/directory/connections/{connectionId}/sync:
+    post:
+      tags: [admin]
+      operationId: syncDirectoryConnection
+      summary: Sync users and groups from an LDAP connection (platform admin)
+      description: |
+        Imports users and groups. Existing users are matched by email and
+        linked, never overwritten; new users are created without a password.
+        Users that disappeared from the directory are left as they are.
+        SAML connections do not support sync (409).
+      parameters:
+        - name: connectionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Sync summary.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DirectorySyncResult" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "502":
+          description: The directory server could not be reached or searched.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/admin/directory/connections/{connectionId}/groups:
+    get:
+      tags: [admin]
+      operationId: listDirectoryGroups
+      summary: List groups imported from a connection (platform admin)
+      parameters:
+        - name: connectionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+      responses:
+        "200":
+          description: A page of groups with member counts.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DirectoryGroupPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   # -------------------------------------------------------------------------
   # Components
   # -------------------------------------------------------------------------
@@ -9050,3 +9387,217 @@ components:
           type: array
           items: { type: string }
           description: Tool names the agent may not call in this tenant.
+
+    PermissionInfo:
+      type: object
+      required: [slug, description]
+      properties:
+        slug: { type: string, examples: ["compute.instance.start"] }
+        description: { type: string }
+
+    PermissionList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/PermissionInfo" }
+
+    AgentProviderTestRequest:
+      type: object
+      required: [provider]
+      properties:
+        provider: { type: string }
+        model: { type: string }
+        baseUrl: { type: string }
+        apiKey: { type: string, format: password, description: Omit to use the stored key of `providerId`. }
+        providerId: { type: string, format: uuid, description: A saved config whose key and settings fill in omitted fields. }
+
+    AgentProviderTestResult:
+      type: object
+      required: [ok, status, latencyMs]
+      properties:
+        ok: { type: boolean }
+        status:
+          type: string
+          enum: [ok, auth_failed, model_not_found, unreachable, bad_response]
+        httpStatus:
+          type: integer
+          description: HTTP status the provider answered with; absent when it did not answer.
+        latencyMs: { type: integer, format: int64 }
+
+    AdminUserMembership:
+      type: object
+      required: [tenantId, tenantSlug, tenantName, role]
+      properties:
+        tenantId: { type: string, format: uuid }
+        tenantSlug: { type: string }
+        tenantName: { type: string }
+        role: { type: string, description: Role slug, e.g. tenant.admin. }
+
+    AdminUserDirectorySource:
+      type: object
+      required: [connectionId, name, kind]
+      properties:
+        connectionId: { type: string, format: uuid }
+        name: { type: string }
+        kind: { type: string, enum: [ldap, saml] }
+
+    AdminUser:
+      type: object
+      required: [id, email, locale, isActive, emailVerified, createdAt, memberships]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string }
+        displayName: { type: string }
+        locale: { type: string }
+        isActive: { type: boolean }
+        emailVerified: { type: boolean }
+        hasPassword: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        memberships:
+          type: array
+          items: { $ref: "#/components/schemas/AdminUserMembership" }
+        directorySource:
+          $ref: "#/components/schemas/AdminUserDirectorySource"
+
+    AdminUserPage:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/AdminUser" }
+        total: { type: integer, format: int64 }
+        limit: { type: integer }
+        offset: { type: integer }
+
+    AdminUserCreateRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string }
+        displayName: { type: string }
+        password: { type: string, format: password, minLength: 8 }
+        locale: { type: string, enum: [en, fa] }
+        isActive: { type: boolean, default: true }
+
+    AdminUserUpdateRequest:
+      type: object
+      properties:
+        displayName: { type: string }
+        isActive: { type: boolean }
+
+    AdminUserRoleRequest:
+      type: object
+      required: [role]
+      properties:
+        role: { type: string, description: Role slug to assign (see GET roles). }
+
+    DirectoryConnection:
+      type: object
+      required: [id, kind, name, enabled, active, config, hasSecret, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [ldap, saml] }
+        name: { type: string }
+        enabled: { type: boolean }
+        active:
+          type: boolean
+          description: |
+            True when the connection is live. An enabled LDAP connection is
+            always active; an enabled SAML connection is active once it is
+            registered for sign-in (it can fail to, e.g. unreachable IdP
+            metadata or no service-provider signing key).
+        activationError:
+          type: string
+          description: Why a SAML connection could not be activated by the create / update that just ran.
+        config:
+          type: object
+          additionalProperties: true
+          description: Kind-specific settings (see the dashboard form). Never contains secrets.
+        hasSecret: { type: boolean, description: True when a bind password is stored. }
+        lastSyncAt: { type: string, format: date-time }
+        lastSyncStatus: { type: string, enum: [ok, error] }
+        lastSyncMessage: { type: string }
+        lastSyncUsers: { type: integer }
+        lastSyncGroups: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    DirectoryConnectionList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/DirectoryConnection" }
+
+    DirectoryConnectionRequest:
+      type: object
+      required: [kind, name, config]
+      properties:
+        kind: { type: string, enum: [ldap, saml] }
+        name:
+          type: string
+          pattern: "^[a-z0-9][a-z0-9_-]{0,62}$"
+          description: Unique name. For SAML it is also the provider key in the sign-in URL.
+        enabled: { type: boolean, default: true }
+        config:
+          type: object
+          additionalProperties: true
+        bindPassword:
+          type: string
+          format: password
+          description: LDAP bind password. Encrypted at rest; omit on update to keep it.
+
+    DirectoryTestRequest:
+      type: object
+      properties:
+        connectionId: { type: string, format: uuid }
+        connection: { $ref: "#/components/schemas/DirectoryConnectionRequest" }
+
+    DirectoryTestResult:
+      type: object
+      required: [ok, code]
+      properties:
+        ok: { type: boolean }
+        code:
+          type: string
+          enum: [ok, connect_failed, search_failed, metadata_failed]
+        detail: { type: string, description: Underlying error text when ok is false. }
+        users: { type: integer, description: "LDAP: users matched by the filter (sampled)." }
+        groups: { type: integer, description: "LDAP: groups matched by the filter (sampled)." }
+        entityId: { type: string, description: "SAML: the IdP entity id from its metadata." }
+        ssoUrl: { type: string, description: "SAML: the IdP single sign-on URL." }
+
+    DirectorySyncResult:
+      type: object
+      required: [users, created, linked, skipped, groups]
+      properties:
+        users: { type: integer, description: Directory entries processed. }
+        created: { type: integer, description: New Lahijan users created. }
+        linked: { type: integer, description: Existing users matched and linked. }
+        skipped: { type: integer, description: Entries without an email address. }
+        groups: { type: integer }
+
+    DirectoryGroup:
+      type: object
+      required: [id, externalId, name, memberCount]
+      properties:
+        id: { type: string, format: uuid }
+        externalId: { type: string }
+        name: { type: string }
+        description: { type: string }
+        memberCount: { type: integer }
+
+    DirectoryGroupPage:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/DirectoryGroup" }
+        total: { type: integer, format: int64 }
+        limit: { type: integer }
+        offset: { type: integer }

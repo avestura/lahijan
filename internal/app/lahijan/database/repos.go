@@ -93,6 +93,10 @@ type Repos struct {
 	// policy); they share the (tenant_id, user_id) scoping seam. See
 	// agent_repo.go.
 	Agent *AgentRepository
+
+	// Directory connections (LDAP / SAML) and the users + groups imported
+	// from them. Global tables; see directory_repo.go.
+	Directory *DirectoryRepository
 }
 
 // NewRepos builds the aggregate repository from a pool or transaction. The
@@ -148,5 +152,6 @@ func NewRepos(db DBTX) *Repos {
 		BillingPromoCodes:       NewBillingPromoCodesRepository(q),
 		BillingWebhookEvents:    NewBillingWebhookEventsRepository(q),
 		Agent:                   NewAgentRepository(q),
+		Directory:               NewDirectoryRepository(q),
 	}
 }
