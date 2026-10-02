@@ -141,9 +141,9 @@
     }
   },
   "pricing": {
-    "sectionTitle": "Simple, metered pricing",
-    "sectionSubtitle": "Lahijan itself is free and open source. These sample unit prices reflect what operators typically charge users.",
-    "disclaimer": "Prices shown are illustrative. Each operator sets their own catalog.",
+    "sectionTitle": "You set the prices",
+    "sectionSubtitle": "Lahijan is free and open source, and there is no hosted version. Operators name their own prices; Lahijan meters usage and keeps the ledger.",
+    "disclaimer": "Lahijan has no price list of its own. Each operator sets the catalog for their deployment under Administration > Billing.",
     "unit": {
       "cpu": "per vCPU-hour",
       "ram": "per GB-hour",
@@ -155,20 +155,16 @@
     "items": {
       "compute": {
         "name": "Compute",
-        "body": "Billed per minute while an instance is running."
+        "body": "Metered per minute while an instance is running, priced per vCPU-hour in your catalog."
       },
       "dns": {
         "name": "DNS zones",
-        "body": "Billed per hosted zone per month."
+        "body": "Metered per hosted zone per month."
       },
       "storage": {
         "name": "Object storage",
-        "body": "Billed per GB stored per month; egress billed per GB."
+        "body": "Metered per GB stored per month; egress metered per GB."
       }
-    },
-    "example": {
-      "title": "Worked example",
-      "body": "A small instance (1 vCPU, 2 GB RAM, 20 GB disk) left running for a month costs about {{amount}} at the sample rates above."
     },
     "eyebrow": "Pricing"
   },
@@ -275,7 +271,7 @@
     "pricing": {
       "title": "Pricing",
       "subtitle": "Lahijan is free to self-host. Operators set their own prices.",
-      "lead": "The unit prices below are illustrative defaults. Each deployment reflects the operator's own catalog."
+      "lead": "Lahijan has no price list. Each operator sets the unit prices for their own deployment."
     },
     "about": {
       "title": "About Lahijan",
