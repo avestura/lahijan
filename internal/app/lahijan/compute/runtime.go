@@ -42,7 +42,7 @@ type InstanceRuntime struct {
 
 // GetInstanceRuntime returns the daemon's view of the instance: config,
 // effective (profile-expanded) config and devices, and runtime state.
-func (s *Service) GetInstanceRuntime(ctx context.Context, _ uuid.UUID, instanceID uuid.UUID) (InstanceRuntime, error) {
+func (s *Service) GetInstanceRuntime(ctx context.Context, _, instanceID uuid.UUID) (InstanceRuntime, error) {
 	row, err := s.instanceRow(ctx, instanceID)
 	if err != nil {
 		return InstanceRuntime{}, err
@@ -63,7 +63,7 @@ func (s *Service) GetInstanceRuntime(ctx context.Context, _ uuid.UUID, instanceI
 
 // ListInstanceLogs returns the log names offered for the instance; the
 // console buffer is always included.
-func (s *Service) ListInstanceLogs(ctx context.Context, _ uuid.UUID, instanceID uuid.UUID) ([]string, error) {
+func (s *Service) ListInstanceLogs(ctx context.Context, _, instanceID uuid.UUID) ([]string, error) {
 	row, err := s.instanceRow(ctx, instanceID)
 	if err != nil {
 		return nil, err
@@ -97,7 +97,7 @@ func (s *Service) GetInstanceLog(ctx context.Context, tenantID, instanceID uuid.
 			// nothing new to add; show what was captured so far.
 			chunk = nil
 		}
-		body, truncated := s.consoles.append(instanceID, chunk)
+		body, truncated := s.consoles.record(instanceID, chunk)
 		return body, truncated, nil
 	}
 	names, err := s.ListInstanceLogs(ctx, tenantID, instanceID)
@@ -140,11 +140,11 @@ func newConsoleBuffers() *consoleBuffers {
 	return &consoleBuffers{byID: map[uuid.UUID]*consoleBuffer{}}
 }
 
-// append records one console read and returns the accumulated output. A
+// record records one console read and returns the accumulated output. A
 // read that starts with the previous read is a non-destructive snapshot
 // (it replaces that read instead of duplicating it); anything else is new
 // output from a destructive ring-buffer read and is appended.
-func (c *consoleBuffers) append(id uuid.UUID, chunk []byte) ([]byte, bool) {
+func (c *consoleBuffers) record(id uuid.UUID, chunk []byte) ([]byte, bool) {
 	if c == nil {
 		return chunk, false
 	}

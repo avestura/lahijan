@@ -186,10 +186,7 @@ func grantedForPreopen(grants []string, guestPath, mode string) bool {
 		return true
 	}
 	allWildcard := permission.CapWasifSPreopen + ":*"
-	if permissionAllowed(grants, allWildcard) {
-		return true
-	}
-	return false
+	return permissionAllowed(grants, allWildcard)
 }
 
 // permissionAllowed is a thin wrapper around permission.Allowed for

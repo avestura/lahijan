@@ -361,7 +361,7 @@ func (e *DBEnforcer) ListGrants(ctx context.Context, pluginID uuid.UUID) ([]stri
 	return strs, nil
 }
 
-// The map is keyed by plugin id; the value is the set of granted slugs.
+// MapEnforcer is an in-memory Enforcer. The map is keyed by plugin id; the value is the set of granted slugs.
 // Safe for concurrent use.
 type MapEnforcer struct {
 	mu  sync.RWMutex

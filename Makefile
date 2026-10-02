@@ -148,6 +148,10 @@ fmt: ## Format Go code with gofumpt (also golines if installed)
 lint: ## Run golangci-lint (use LINT_FLAGS=--fast for fast mode)
 	golangci-lint run $(LINT_FLAGS) ./...
 
+.PHONY: precheck
+precheck: ## Run the CI Go checks (gofumpt, vet, golangci-lint) on an LF copy of the tree; also runs on git push
+	@./scripts/precheck.sh
+
 .PHONY: tidy
 tidy: ## Run go mod tidy
 	$(GO) mod tidy

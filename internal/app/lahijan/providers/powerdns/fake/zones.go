@@ -16,7 +16,7 @@ func (s *Server) handleZoneSub(w http.ResponseWriter, r *http.Request, rest stri
 	// rest = "<id>" or "<id>/<sub>" or "<id>/<sub>/<subid>"
 	parts := strings.SplitN(rest, "/", 3)
 	if len(parts) == 0 || parts[0] == "" {
-		writePDNSError(w, http.StatusBadRequest, "missing zone id")
+		writePDNSErrorf(w, http.StatusBadRequest, "missing zone id")
 		return
 	}
 	zoneID := parts[0]
@@ -31,7 +31,7 @@ func (s *Server) handleZoneSub(w http.ResponseWriter, r *http.Request, rest stri
 	case "metadata":
 		s.handleMetadata(w, r, zoneID, parts[2:])
 	default:
-		writePDNSError(w, http.StatusNotFound, "unknown sub-resource %q", sub)
+		writePDNSErrorf(w, http.StatusNotFound, "unknown sub-resource %q", sub)
 	}
 }
 
@@ -46,7 +46,7 @@ func (s *Server) handleZone(w http.ResponseWriter, r *http.Request, zoneID strin
 	case http.MethodDelete:
 		s.handleZoneDelete(w, r, zoneID)
 	default:
-		writePDNSError(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
+		writePDNSErrorf(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
 	}
 }
 
@@ -63,15 +63,15 @@ func (s *Server) handleZonesList(w http.ResponseWriter, _ *http.Request) {
 func (s *Server) handleZoneCreate(w http.ResponseWriter, r *http.Request) {
 	var body powerdns.ZoneCreate
 	if err := decodeBody(r, &body); err != nil {
-		writePDNSError(w, http.StatusBadRequest, "decode: %v", err)
+		writePDNSErrorf(w, http.StatusBadRequest, "decode: %v", err)
 		return
 	}
 	if body.Name == "" {
-		writePDNSError(w, http.StatusBadRequest, "name is required")
+		writePDNSErrorf(w, http.StatusBadRequest, "name is required")
 		return
 	}
 	if !strings.HasSuffix(body.Name, ".") {
-		writePDNSError(w, http.StatusBadRequest, "name must end with a dot")
+		writePDNSErrorf(w, http.StatusBadRequest, "name must end with a dot")
 		return
 	}
 	kind := body.Kind
@@ -89,7 +89,7 @@ func (s *Server) handleZoneCreate(w http.ResponseWriter, r *http.Request) {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		if _, exists := s.zones[id]; exists {
-			writePDNSError(w, http.StatusConflict, "zone %q already exists", id)
+			writePDNSErrorf(w, http.StatusConflict, "zone %q already exists", id)
 			return
 		}
 		rrsets := make(map[string]*powerdns.RRset, len(body.RRsets))
@@ -161,7 +161,7 @@ func (s *Server) handleZoneGet(w http.ResponseWriter, r *http.Request, zoneID st
 	defer s.mu.Unlock()
 	fz, ok := s.zones[zoneID]
 	if !ok {
-		writePDNSError(w, http.StatusNotFound, "zone %q not found", zoneID)
+		writePDNSErrorf(w, http.StatusNotFound, "zone %q not found", zoneID)
 		return
 	}
 	z := fz.Zone
@@ -178,7 +178,7 @@ func (s *Server) handleZoneGet(w http.ResponseWriter, r *http.Request, zoneID st
 func (s *Server) handleZonePatch(w http.ResponseWriter, r *http.Request, zoneID string) {
 	var body powerdns.ZoneUpdate
 	if err := decodeBody(r, &body); err != nil {
-		writePDNSError(w, http.StatusBadRequest, "decode: %v", err)
+		writePDNSErrorf(w, http.StatusBadRequest, "decode: %v", err)
 		return
 	}
 	badType := ""
@@ -187,7 +187,7 @@ func (s *Server) handleZonePatch(w http.ResponseWriter, r *http.Request, zoneID 
 		defer s.mu.Unlock()
 		fz, ok := s.zones[zoneID]
 		if !ok {
-			writePDNSError(w, http.StatusNotFound, "zone %q not found", zoneID)
+			writePDNSErrorf(w, http.StatusNotFound, "zone %q not found", zoneID)
 			return
 		}
 		if body.Account != "" {
@@ -222,7 +222,7 @@ func (s *Server) handleZonePatch(w http.ResponseWriter, r *http.Request, zoneID 
 		fz.Zone.Serial++
 	}()
 	if badType != "" {
-		writePDNSError(w, http.StatusBadRequest, "unknown changetype %q", badType)
+		writePDNSErrorf(w, http.StatusBadRequest, "unknown changetype %q", badType)
 		return
 	}
 	writeJSON(w, http.StatusNoContent, nil)
@@ -240,7 +240,7 @@ func (s *Server) handleZoneDelete(w http.ResponseWriter, _ *http.Request, zoneID
 		return true
 	}()
 	if !found {
-		writePDNSError(w, http.StatusNotFound, "zone %q not found", zoneID)
+		writePDNSErrorf(w, http.StatusNotFound, "zone %q not found", zoneID)
 		return
 	}
 	writeJSON(w, http.StatusNoContent, nil)

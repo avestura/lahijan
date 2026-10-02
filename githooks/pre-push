@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Blocks a push when the Go checks CI runs would fail. Bypass (rarely!) with
+# `git push --no-verify`.
+exec "$(git rev-parse --show-toplevel)/scripts/precheck.sh"

@@ -87,7 +87,7 @@ func (s *Server) handleCluster(w http.ResponseWriter, r *http.Request, rest stri
 	case strings.HasPrefix(rest, "members/"):
 		s.handleClusterMember(w, r, strings.TrimPrefix(rest, "members/"))
 	default:
-		writeIncusError(w, http.StatusNotFound, "not implemented in fake: %s %s", r.Method, rest)
+		writeIncusErrorf(w, http.StatusNotFound, "not implemented in fake: %s %s", r.Method, rest)
 	}
 }
 
@@ -100,18 +100,18 @@ func (s *Server) handleClusterMembersList(w http.ResponseWriter, _ *http.Request
 func (s *Server) handleClusterMemberJoin(w http.ResponseWriter, r *http.Request) {
 	var body incus.ClusterMembersPost
 	if err := decodeBody(r, &body); err != nil {
-		writeIncusError(w, http.StatusBadRequest, "decode: %v", err)
+		writeIncusErrorf(w, http.StatusBadRequest, "decode: %v", err)
 		return
 	}
 	if body.ServerName == "" {
-		writeIncusError(w, http.StatusBadRequest, "server_name is required")
+		writeIncusErrorf(w, http.StatusBadRequest, "server_name is required")
 		return
 	}
 	s.mu.Lock()
 	for _, m := range s.cluster.members {
 		if m.ServerName == body.ServerName {
 			s.mu.Unlock()
-			writeIncusError(w, http.StatusConflict, "member %q already exists", body.ServerName)
+			writeIncusErrorf(w, http.StatusConflict, "member %q already exists", body.ServerName)
 			return
 		}
 	}
@@ -139,14 +139,14 @@ func (s *Server) handleClusterMember(w http.ResponseWriter, r *http.Request, nam
 				return
 			}
 		}
-		writeIncusError(w, http.StatusNotFound, "member %q not found", name)
+		writeIncusErrorf(w, http.StatusNotFound, "member %q not found", name)
 	case http.MethodPost:
 		// Evacuate / restore. The fake records the action in the
 		// member's status; the migration work itself is a no-op
 		// (the instances stay where they are).
 		var body incus.ClusterMemberPost
 		if err := decodeBody(r, &body); err != nil {
-			writeIncusError(w, http.StatusBadRequest, "decode: %v", err)
+			writeIncusErrorf(w, http.StatusBadRequest, "decode: %v", err)
 			return
 		}
 		s.mu.Lock()
@@ -164,13 +164,13 @@ func (s *Server) handleClusterMember(w http.ResponseWriter, r *http.Request, nam
 		}
 		s.mu.Unlock()
 		if !found {
-			writeIncusError(w, http.StatusNotFound, "member %q not found", name)
+			writeIncusErrorf(w, http.StatusNotFound, "member %q not found", name)
 			return
 		}
 		opID := newOpID()
 		s.registerOp(opID, nil)
 		writeIncusAsync(w, opID)
 	default:
-		writeIncusError(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
+		writeIncusErrorf(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
 	}
 }

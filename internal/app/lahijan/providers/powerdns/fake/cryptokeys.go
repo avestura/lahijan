@@ -20,13 +20,13 @@ func (s *Server) handleCryptoKeys(w http.ResponseWriter, r *http.Request, zoneID
 		case http.MethodPost:
 			s.handleCryptoKeyCreate(w, r, zoneID)
 		default:
-			writePDNSError(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
+			writePDNSErrorf(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
 		}
 		return
 	}
 	keyID, err := strconv.ParseInt(rest[0], 10, 64)
 	if err != nil {
-		writePDNSError(w, http.StatusBadRequest, "invalid key id %q", rest[0])
+		writePDNSErrorf(w, http.StatusBadRequest, "invalid key id %q", rest[0])
 		return
 	}
 	switch r.Method {
@@ -37,7 +37,7 @@ func (s *Server) handleCryptoKeys(w http.ResponseWriter, r *http.Request, zoneID
 	case http.MethodDelete:
 		s.handleCryptoKeyDelete(w, r, zoneID, keyID)
 	default:
-		writePDNSError(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
+		writePDNSErrorf(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
 	}
 }
 
@@ -46,7 +46,7 @@ func (s *Server) handleCryptoKeysList(w http.ResponseWriter, _ *http.Request, zo
 	defer s.mu.Unlock()
 	fz, ok := s.zones[zoneID]
 	if !ok {
-		writePDNSError(w, http.StatusNotFound, "zone %q not found", zoneID)
+		writePDNSErrorf(w, http.StatusNotFound, "zone %q not found", zoneID)
 		return
 	}
 	out := make([]powerdns.CryptoKey, 0, len(fz.CryptoKeys))
@@ -59,7 +59,7 @@ func (s *Server) handleCryptoKeysList(w http.ResponseWriter, _ *http.Request, zo
 func (s *Server) handleCryptoKeyCreate(w http.ResponseWriter, r *http.Request, zoneID string) {
 	var body powerdns.CryptoKeyCreate
 	if err := decodeBody(r, &body); err != nil {
-		writePDNSError(w, http.StatusBadRequest, "decode: %v", err)
+		writePDNSErrorf(w, http.StatusBadRequest, "decode: %v", err)
 		return
 	}
 	if body.KeyType == "" {
@@ -97,7 +97,7 @@ func (s *Server) handleCryptoKeyCreate(w http.ResponseWriter, r *http.Request, z
 		ok = true
 	}()
 	if !ok {
-		writePDNSError(w, http.StatusNotFound, "zone %q not found", zoneID)
+		writePDNSErrorf(w, http.StatusNotFound, "zone %q not found", zoneID)
 		return
 	}
 	writeJSON(w, http.StatusCreated, key)
@@ -109,12 +109,12 @@ func (s *Server) handleCryptoKeyGet(w http.ResponseWriter, _ *http.Request, zone
 	defer s.mu.Unlock()
 	fz, ok := s.zones[zoneID]
 	if !ok {
-		writePDNSError(w, http.StatusNotFound, "zone %q not found", zoneID)
+		writePDNSErrorf(w, http.StatusNotFound, "zone %q not found", zoneID)
 		return
 	}
 	key, ok := fz.CryptoKeys[keyID]
 	if !ok {
-		writePDNSError(w, http.StatusNotFound, "cryptokey %d not found", keyID)
+		writePDNSErrorf(w, http.StatusNotFound, "cryptokey %d not found", keyID)
 		return
 	}
 	writeJSON(w, http.StatusOK, *key)
@@ -123,7 +123,7 @@ func (s *Server) handleCryptoKeyGet(w http.ResponseWriter, _ *http.Request, zone
 func (s *Server) handleCryptoKeyPut(w http.ResponseWriter, r *http.Request, zoneID string, keyID int64) {
 	var body powerdns.CryptoKey
 	if err := decodeBody(r, &body); err != nil {
-		writePDNSError(w, http.StatusBadRequest, "decode: %v", err)
+		writePDNSErrorf(w, http.StatusBadRequest, "decode: %v", err)
 		return
 	}
 	state := putCryptoResult{status: http.StatusNoContent}
@@ -132,19 +132,19 @@ func (s *Server) handleCryptoKeyPut(w http.ResponseWriter, r *http.Request, zone
 		defer s.mu.Unlock()
 		fz, ok := s.zones[zoneID]
 		if !ok {
-			state.fail(http.StatusNotFound, "zone %s not found", strconv.Quote(zoneID))
+			state.failf(http.StatusNotFound, "zone %s not found", strconv.Quote(zoneID))
 			return
 		}
 		key, ok := fz.CryptoKeys[keyID]
 		if !ok {
-			state.fail(http.StatusNotFound, "cryptokey %d not found", keyID)
+			state.failf(http.StatusNotFound, "cryptokey %d not found", keyID)
 			return
 		}
 		key.Active = body.Active
 		fz.Zone.DNSsec = zoneHasActiveKey(fz)
 	}()
 	if state.status != http.StatusNoContent {
-		writePDNSError(w, state.status, "%s", state.msg)
+		writePDNSErrorf(w, state.status, "%s", state.msg)
 		return
 	}
 	writeJSON(w, http.StatusNoContent, nil)
@@ -161,7 +161,7 @@ type putCryptoResult struct {
 
 // fail records a failure status + formatted message. The caller checks
 // status != http.StatusNoContent after the locked closure returns.
-func (r *putCryptoResult) fail(status int, format string, args ...any) {
+func (r *putCryptoResult) failf(status int, format string, args ...any) {
 	r.status = status
 	r.msg = fmt.Sprintf(format, args...)
 }
@@ -173,18 +173,18 @@ func (s *Server) handleCryptoKeyDelete(w http.ResponseWriter, _ *http.Request, z
 		defer s.mu.Unlock()
 		fz, ok := s.zones[zoneID]
 		if !ok {
-			state.fail(http.StatusNotFound, "zone %s not found", strconv.Quote(zoneID))
+			state.failf(http.StatusNotFound, "zone %s not found", strconv.Quote(zoneID))
 			return
 		}
 		if _, ok := fz.CryptoKeys[keyID]; !ok {
-			state.fail(http.StatusNotFound, "cryptokey %d not found", keyID)
+			state.failf(http.StatusNotFound, "cryptokey %d not found", keyID)
 			return
 		}
 		delete(fz.CryptoKeys, keyID)
 		fz.Zone.DNSsec = zoneHasActiveKey(fz)
 	}()
 	if state.status != http.StatusNoContent {
-		writePDNSError(w, state.status, "%s", state.msg)
+		writePDNSErrorf(w, state.status, "%s", state.msg)
 		return
 	}
 	writeJSON(w, http.StatusNoContent, nil)

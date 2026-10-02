@@ -14,7 +14,7 @@ func (s *Server) handleMetadata(w http.ResponseWriter, r *http.Request, zoneID s
 		case http.MethodGet:
 			s.handleMetadataList(w, r, zoneID)
 		default:
-			writePDNSError(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
+			writePDNSErrorf(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
 		}
 		return
 	}
@@ -27,7 +27,7 @@ func (s *Server) handleMetadata(w http.ResponseWriter, r *http.Request, zoneID s
 	case http.MethodDelete:
 		s.handleMetadataDelete(w, r, zoneID, kind)
 	default:
-		writePDNSError(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
+		writePDNSErrorf(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
 	}
 }
 
@@ -36,7 +36,7 @@ func (s *Server) handleMetadataList(w http.ResponseWriter, _ *http.Request, zone
 	defer s.mu.Unlock()
 	fz, ok := s.zones[zoneID]
 	if !ok {
-		writePDNSError(w, http.StatusNotFound, "zone %q not found", zoneID)
+		writePDNSErrorf(w, http.StatusNotFound, "zone %q not found", zoneID)
 		return
 	}
 	out := make([]powerdns.Metadata, 0, len(fz.Metadata))
@@ -51,12 +51,12 @@ func (s *Server) handleMetadataGet(w http.ResponseWriter, _ *http.Request, zoneI
 	defer s.mu.Unlock()
 	fz, ok := s.zones[zoneID]
 	if !ok {
-		writePDNSError(w, http.StatusNotFound, "zone %q not found", zoneID)
+		writePDNSErrorf(w, http.StatusNotFound, "zone %q not found", zoneID)
 		return
 	}
 	m, ok := fz.Metadata[kind]
 	if !ok {
-		writePDNSError(w, http.StatusNotFound, "metadata %q not found", kind)
+		writePDNSErrorf(w, http.StatusNotFound, "metadata %q not found", kind)
 		return
 	}
 	writeJSON(w, http.StatusOK, *m)
@@ -65,7 +65,7 @@ func (s *Server) handleMetadataGet(w http.ResponseWriter, _ *http.Request, zoneI
 func (s *Server) handleMetadataPut(w http.ResponseWriter, r *http.Request, zoneID, kind string) {
 	var body powerdns.Metadata
 	if err := decodeBody(r, &body); err != nil {
-		writePDNSError(w, http.StatusBadRequest, "decode: %v", err)
+		writePDNSErrorf(w, http.StatusBadRequest, "decode: %v", err)
 		return
 	}
 	if body.Kind == "" {
@@ -93,7 +93,7 @@ func (s *Server) handleMetadataPut(w http.ResponseWriter, r *http.Request, zoneI
 		ok = true
 	}()
 	if !ok {
-		writePDNSError(w, http.StatusNotFound, "zone %q not found", zoneID)
+		writePDNSErrorf(w, http.StatusNotFound, "zone %q not found", zoneID)
 		return
 	}
 	writeJSON(w, http.StatusOK, out)
@@ -118,11 +118,11 @@ func (s *Server) handleMetadataDelete(w http.ResponseWriter, _ *http.Request, zo
 		deleted = "ok"
 	}()
 	if deleted == "no-zone" {
-		writePDNSError(w, http.StatusNotFound, "zone %q not found", zoneID)
+		writePDNSErrorf(w, http.StatusNotFound, "zone %q not found", zoneID)
 		return
 	}
 	if deleted == "no-meta" {
-		writePDNSError(w, http.StatusNotFound, "metadata %q not found", kind)
+		writePDNSErrorf(w, http.StatusNotFound, "metadata %q not found", kind)
 		return
 	}
 	writeJSON(w, http.StatusNoContent, nil)

@@ -382,7 +382,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 		s.handleCluster(w, r, strings.TrimPrefix(path, "cluster/"))
 		return
 	default:
-		writeIncusError(w, http.StatusNotFound, "not implemented in fake: %s %s", r.Method, path)
+		writeIncusErrorf(w, http.StatusNotFound, "not implemented in fake: %s %s", r.Method, path)
 	}
 }
 
@@ -453,7 +453,7 @@ func writeIncusAsyncWithMeta(w http.ResponseWriter, opID string, metadata json.R
 	})
 }
 
-func writeIncusError(w http.ResponseWriter, status int, format string, args ...any) {
+func writeIncusErrorf(w http.ResponseWriter, status int, format string, args ...any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]any{

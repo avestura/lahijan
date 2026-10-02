@@ -23,7 +23,7 @@ func (s *Server) handleImagesList(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleImageCreate(w http.ResponseWriter, r *http.Request) {
 	var body incus.ImagesPost
 	if err := decodeBody(r, &body); err != nil {
-		writeIncusError(w, http.StatusBadRequest, "decode: %v", err)
+		writeIncusErrorf(w, http.StatusBadRequest, "decode: %v", err)
 		return
 	}
 	s.mu.Lock()
@@ -34,7 +34,7 @@ func (s *Server) handleImageCreate(w http.ResponseWriter, r *http.Request) {
 		fingerprint = "fp-" + body.Source.Alias
 	}
 	if fingerprint == "" {
-		writeIncusError(w, http.StatusBadRequest, "image source requires alias or fingerprint")
+		writeIncusErrorf(w, http.StatusBadRequest, "image source requires alias or fingerprint")
 		return
 	}
 	img := &incus.Image{
@@ -61,7 +61,7 @@ func (s *Server) handleImage(w http.ResponseWriter, r *http.Request, fp string) 
 		defer s.mu.Unlock()
 		img, ok := s.images[fp]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "image %q not found", fp)
+			writeIncusErrorf(w, http.StatusNotFound, "image %q not found", fp)
 			return
 		}
 		writeIncusResult(w, http.StatusOK, img)
@@ -69,7 +69,7 @@ func (s *Server) handleImage(w http.ResponseWriter, r *http.Request, fp string) 
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		if _, ok := s.images[fp]; !ok {
-			writeIncusError(w, http.StatusNotFound, "image %q not found", fp)
+			writeIncusErrorf(w, http.StatusNotFound, "image %q not found", fp)
 			return
 		}
 		delete(s.images, fp)
@@ -83,20 +83,20 @@ func (s *Server) handleImage(w http.ResponseWriter, r *http.Request, fp string) 
 		s.registerOp(opID, nil)
 		writeIncusAsync(w, opID)
 	default:
-		writeIncusError(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
+		writeIncusErrorf(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
 	}
 }
 
 func (s *Server) handleImageAlias(w http.ResponseWriter, r *http.Request, alias string) {
 	if r.Method != http.MethodGet {
-		writeIncusError(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
+		writeIncusErrorf(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
 		return
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	fp, ok := s.aliases[alias]
 	if !ok {
-		writeIncusError(w, http.StatusNotFound, "alias %q not found", alias)
+		writeIncusErrorf(w, http.StatusNotFound, "alias %q not found", alias)
 		return
 	}
 	writeIncusResult(w, http.StatusOK, map[string]any{
@@ -114,7 +114,7 @@ func (s *Server) handleProfilesList(w http.ResponseWriter, r *http.Request) {
 	defer s.mu.Unlock()
 	fp, ok := s.projects[project]
 	if !ok {
-		writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+		writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 		return
 	}
 	out := make([]incus.Profile, 0, len(fp.Profiles))
@@ -127,7 +127,7 @@ func (s *Server) handleProfilesList(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleProfileCreate(w http.ResponseWriter, r *http.Request) {
 	var body incus.ProfilesPost
 	if err := decodeBody(r, &body); err != nil {
-		writeIncusError(w, http.StatusBadRequest, "decode: %v", err)
+		writeIncusErrorf(w, http.StatusBadRequest, "decode: %v", err)
 		return
 	}
 	if body.Project == "" {
@@ -137,11 +137,11 @@ func (s *Server) handleProfileCreate(w http.ResponseWriter, r *http.Request) {
 	defer s.mu.Unlock()
 	fp, ok := s.projects[body.Project]
 	if !ok {
-		writeIncusError(w, http.StatusNotFound, "Project %q not found", body.Project)
+		writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", body.Project)
 		return
 	}
 	if _, exists := fp.Profiles[body.Name]; exists {
-		writeIncusError(w, http.StatusConflict, "Profile %q already exists", body.Name)
+		writeIncusErrorf(w, http.StatusConflict, "Profile %q already exists", body.Name)
 		return
 	}
 	fp.Profiles[body.Name] = &incus.Profile{
@@ -162,31 +162,31 @@ func (s *Server) handleProfile(w http.ResponseWriter, r *http.Request, name stri
 		defer s.mu.Unlock()
 		fp, ok := s.projects[project]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+			writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 			return
 		}
 		prf, ok := fp.Profiles[name]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Profile %q not found", name)
+			writeIncusErrorf(w, http.StatusNotFound, "Profile %q not found", name)
 			return
 		}
 		writeIncusResult(w, http.StatusOK, prf)
 	case http.MethodPut:
 		var body incus.ProfilePut
 		if err := decodeBody(r, &body); err != nil {
-			writeIncusError(w, http.StatusBadRequest, "decode: %v", err)
+			writeIncusErrorf(w, http.StatusBadRequest, "decode: %v", err)
 			return
 		}
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		fp, ok := s.projects[project]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+			writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 			return
 		}
 		prf, ok := fp.Profiles[name]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Profile %q not found", name)
+			writeIncusErrorf(w, http.StatusNotFound, "Profile %q not found", name)
 			return
 		}
 		prf.Description = body.Description
@@ -198,17 +198,17 @@ func (s *Server) handleProfile(w http.ResponseWriter, r *http.Request, name stri
 		defer s.mu.Unlock()
 		fp, ok := s.projects[project]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+			writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 			return
 		}
 		if _, ok := fp.Profiles[name]; !ok {
-			writeIncusError(w, http.StatusNotFound, "Profile %q not found", name)
+			writeIncusErrorf(w, http.StatusNotFound, "Profile %q not found", name)
 			return
 		}
 		delete(fp.Profiles, name)
 		writeIncusResult(w, http.StatusOK, nil)
 	default:
-		writeIncusError(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
+		writeIncusErrorf(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
 	}
 }
 
@@ -234,7 +234,7 @@ func (s *Server) handleNetworksList(w http.ResponseWriter, r *http.Request) {
 	defer s.mu.Unlock()
 	fp, ok := s.projects[project]
 	if !ok {
-		writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+		writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 		return
 	}
 	out := make([]incus.Network, 0, len(fp.Networks))
@@ -247,7 +247,7 @@ func (s *Server) handleNetworksList(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleNetworkCreate(w http.ResponseWriter, r *http.Request) {
 	var body incus.NetworksPost
 	if err := decodeBody(r, &body); err != nil {
-		writeIncusError(w, http.StatusBadRequest, "decode: %v", err)
+		writeIncusErrorf(w, http.StatusBadRequest, "decode: %v", err)
 		return
 	}
 	if body.Project == "" {
@@ -257,11 +257,11 @@ func (s *Server) handleNetworkCreate(w http.ResponseWriter, r *http.Request) {
 	defer s.mu.Unlock()
 	fp, ok := s.projects[body.Project]
 	if !ok {
-		writeIncusError(w, http.StatusNotFound, "Project %q not found", body.Project)
+		writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", body.Project)
 		return
 	}
 	if _, exists := fp.Networks[body.Name]; exists {
-		writeIncusError(w, http.StatusConflict, "Network %q already exists", body.Name)
+		writeIncusErrorf(w, http.StatusConflict, "Network %q already exists", body.Name)
 		return
 	}
 	fp.Networks[body.Name] = &incus.Network{
@@ -283,31 +283,31 @@ func (s *Server) handleNetwork(w http.ResponseWriter, r *http.Request, name stri
 		defer s.mu.Unlock()
 		fp, ok := s.projects[project]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+			writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 			return
 		}
 		net, ok := fp.Networks[name]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Network %q not found", name)
+			writeIncusErrorf(w, http.StatusNotFound, "Network %q not found", name)
 			return
 		}
 		writeIncusResult(w, http.StatusOK, net)
 	case http.MethodPut:
 		var body incus.NetworkPut
 		if err := decodeBody(r, &body); err != nil {
-			writeIncusError(w, http.StatusBadRequest, "decode: %v", err)
+			writeIncusErrorf(w, http.StatusBadRequest, "decode: %v", err)
 			return
 		}
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		fp, ok := s.projects[project]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+			writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 			return
 		}
 		net, ok := fp.Networks[name]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Network %q not found", name)
+			writeIncusErrorf(w, http.StatusNotFound, "Network %q not found", name)
 			return
 		}
 		net.Description = body.Description
@@ -318,17 +318,17 @@ func (s *Server) handleNetwork(w http.ResponseWriter, r *http.Request, name stri
 		defer s.mu.Unlock()
 		fp, ok := s.projects[project]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+			writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 			return
 		}
 		if _, ok := fp.Networks[name]; !ok {
-			writeIncusError(w, http.StatusNotFound, "Network %q not found", name)
+			writeIncusErrorf(w, http.StatusNotFound, "Network %q not found", name)
 			return
 		}
 		delete(fp.Networks, name)
 		writeIncusResult(w, http.StatusOK, nil)
 	default:
-		writeIncusError(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
+		writeIncusErrorf(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
 	}
 }
 
@@ -342,7 +342,7 @@ func (s *Server) handleNetworkACL(w http.ResponseWriter, r *http.Request, rest s
 			defer s.mu.Unlock()
 			fp, ok := s.projects[project]
 			if !ok {
-				writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+				writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 				return
 			}
 			out := make([]incus.NetworkACL, 0, len(fp.NetworkACLs))
@@ -353,7 +353,7 @@ func (s *Server) handleNetworkACL(w http.ResponseWriter, r *http.Request, rest s
 		case http.MethodPost:
 			var body incus.NetworkACL
 			if err := decodeBody(r, &body); err != nil {
-				writeIncusError(w, http.StatusBadRequest, "decode: %v", err)
+				writeIncusErrorf(w, http.StatusBadRequest, "decode: %v", err)
 				return
 			}
 			// Prefer the body's project; fall back to the query param.
@@ -364,13 +364,13 @@ func (s *Server) handleNetworkACL(w http.ResponseWriter, r *http.Request, rest s
 			defer s.mu.Unlock()
 			fp, ok := s.projects[body.Project]
 			if !ok {
-				writeIncusError(w, http.StatusNotFound, "Project %q not found", body.Project)
+				writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", body.Project)
 				return
 			}
 			fp.NetworkACLs[body.Name] = &body
 			writeIncusResult(w, http.StatusCreated, body)
 		default:
-			writeIncusError(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
+			writeIncusErrorf(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
 		}
 		return
 	}
@@ -382,12 +382,12 @@ func (s *Server) handleNetworkACL(w http.ResponseWriter, r *http.Request, rest s
 		defer s.mu.Unlock()
 		fp, ok := s.projects[project]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+			writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 			return
 		}
 		acl, ok := fp.NetworkACLs[name]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "ACL %q not found", name)
+			writeIncusErrorf(w, http.StatusNotFound, "ACL %q not found", name)
 			return
 		}
 		writeIncusResult(w, http.StatusOK, acl)
@@ -396,17 +396,17 @@ func (s *Server) handleNetworkACL(w http.ResponseWriter, r *http.Request, rest s
 		defer s.mu.Unlock()
 		fp, ok := s.projects[project]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+			writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 			return
 		}
 		if _, ok := fp.NetworkACLs[name]; !ok {
-			writeIncusError(w, http.StatusNotFound, "ACL %q not found", name)
+			writeIncusErrorf(w, http.StatusNotFound, "ACL %q not found", name)
 			return
 		}
 		delete(fp.NetworkACLs, name)
 		writeIncusResult(w, http.StatusOK, nil)
 	default:
-		writeIncusError(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
+		writeIncusErrorf(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
 	}
 }
 
@@ -425,13 +425,13 @@ func (s *Server) handleStoragePoolsList(w http.ResponseWriter, _ *http.Request) 
 func (s *Server) handleStoragePoolCreate(w http.ResponseWriter, r *http.Request) {
 	var body incus.StoragePoolsPost
 	if err := decodeBody(r, &body); err != nil {
-		writeIncusError(w, http.StatusBadRequest, "decode: %v", err)
+		writeIncusErrorf(w, http.StatusBadRequest, "decode: %v", err)
 		return
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, exists := s.storagePools[body.Name]; exists {
-		writeIncusError(w, http.StatusConflict, "Storage pool %q already exists", body.Name)
+		writeIncusErrorf(w, http.StatusConflict, "Storage pool %q already exists", body.Name)
 		return
 	}
 	s.storagePools[body.Name] = &incus.StoragePool{
@@ -447,7 +447,7 @@ func (s *Server) handleStoragePool(w http.ResponseWriter, r *http.Request, rest 
 	// rest is "<pool>" or "<pool>/volumes" or "<pool>/volumes/<type>/<name>".
 	segments := splitNonEmpty(rest, "/")
 	if len(segments) == 0 {
-		writeIncusError(w, http.StatusNotFound, "missing pool name")
+		writeIncusErrorf(w, http.StatusNotFound, "missing pool name")
 		return
 	}
 	poolName := segments[0]
@@ -461,21 +461,21 @@ func (s *Server) handleStoragePool(w http.ResponseWriter, r *http.Request, rest 
 		defer s.mu.Unlock()
 		pool, ok := s.storagePools[poolName]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Pool %q not found", poolName)
+			writeIncusErrorf(w, http.StatusNotFound, "Pool %q not found", poolName)
 			return
 		}
 		writeIncusResult(w, http.StatusOK, pool)
 	case http.MethodPut:
 		var body incus.StoragePoolPut
 		if err := decodeBody(r, &body); err != nil {
-			writeIncusError(w, http.StatusBadRequest, "decode: %v", err)
+			writeIncusErrorf(w, http.StatusBadRequest, "decode: %v", err)
 			return
 		}
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		pool, ok := s.storagePools[poolName]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Pool %q not found", poolName)
+			writeIncusErrorf(w, http.StatusNotFound, "Pool %q not found", poolName)
 			return
 		}
 		pool.Description = body.Description
@@ -485,13 +485,13 @@ func (s *Server) handleStoragePool(w http.ResponseWriter, r *http.Request, rest 
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		if _, ok := s.storagePools[poolName]; !ok {
-			writeIncusError(w, http.StatusNotFound, "Pool %q not found", poolName)
+			writeIncusErrorf(w, http.StatusNotFound, "Pool %q not found", poolName)
 			return
 		}
 		delete(s.storagePools, poolName)
 		writeIncusResult(w, http.StatusOK, nil)
 	default:
-		writeIncusError(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
+		writeIncusErrorf(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
 	}
 }
 
@@ -502,11 +502,11 @@ func (s *Server) handleStorageVolume(w http.ResponseWriter, r *http.Request, poo
 	_, poolOk := s.storagePools[poolName]
 	s.mu.Unlock()
 	if !fpOk {
-		writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+		writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 		return
 	}
 	if !poolOk {
-		writeIncusError(w, http.StatusNotFound, "Pool %q not found", poolName)
+		writeIncusErrorf(w, http.StatusNotFound, "Pool %q not found", poolName)
 		return
 	}
 	// rest is [] (list/create) or [type, name] (get/delete).
@@ -528,7 +528,7 @@ func (s *Server) handleStorageVolume(w http.ResponseWriter, r *http.Request, poo
 		case http.MethodPost:
 			var body incus.StorageVolumesPost
 			if err := decodeBody(r, &body); err != nil {
-				writeIncusError(w, http.StatusBadRequest, "decode: %v", err)
+				writeIncusErrorf(w, http.StatusBadRequest, "decode: %v", err)
 				return
 			}
 			// Prefer the body's project; the Lahijan driver puts the
@@ -541,7 +541,7 @@ func (s *Server) handleStorageVolume(w http.ResponseWriter, r *http.Request, poo
 			bodyFP, fpOK := s.projects[bodyProject]
 			if !fpOK {
 				s.mu.Unlock()
-				writeIncusError(w, http.StatusNotFound, "Project %q not found", bodyProject)
+				writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", bodyProject)
 				return
 			}
 			vols, ok := bodyFP.Volumes[poolName]
@@ -551,7 +551,7 @@ func (s *Server) handleStorageVolume(w http.ResponseWriter, r *http.Request, poo
 			}
 			if _, exists := vols[body.Name]; exists {
 				s.mu.Unlock()
-				writeIncusError(w, http.StatusConflict, "Volume %q already exists", body.Name)
+				writeIncusErrorf(w, http.StatusConflict, "Volume %q already exists", body.Name)
 				return
 			}
 			vols[body.Name] = &incus.StorageVolume{
@@ -564,12 +564,12 @@ func (s *Server) handleStorageVolume(w http.ResponseWriter, r *http.Request, poo
 			s.mu.Unlock()
 			writeIncusResult(w, http.StatusCreated, vols[body.Name])
 		default:
-			writeIncusError(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
+			writeIncusErrorf(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
 		}
 		return
 	}
 	if len(rest) != 2 {
-		writeIncusError(w, http.StatusNotFound, "unsupported volume path %q", rest)
+		writeIncusErrorf(w, http.StatusNotFound, "unsupported volume path %q", rest)
 		return
 	}
 	volType := rest[0]
@@ -581,12 +581,12 @@ func (s *Server) handleStorageVolume(w http.ResponseWriter, r *http.Request, poo
 		defer s.mu.Unlock()
 		vols, ok := fp.Volumes[poolName]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Volume %q not found", volName)
+			writeIncusErrorf(w, http.StatusNotFound, "Volume %q not found", volName)
 			return
 		}
 		vol, ok := vols[volName]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Volume %q not found", volName)
+			writeIncusErrorf(w, http.StatusNotFound, "Volume %q not found", volName)
 			return
 		}
 		writeIncusResult(w, http.StatusOK, vol)
@@ -595,17 +595,17 @@ func (s *Server) handleStorageVolume(w http.ResponseWriter, r *http.Request, poo
 		defer s.mu.Unlock()
 		vols, ok := fp.Volumes[poolName]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Volume %q not found", volName)
+			writeIncusErrorf(w, http.StatusNotFound, "Volume %q not found", volName)
 			return
 		}
 		if _, ok := vols[volName]; !ok {
-			writeIncusError(w, http.StatusNotFound, "Volume %q not found", volName)
+			writeIncusErrorf(w, http.StatusNotFound, "Volume %q not found", volName)
 			return
 		}
 		delete(vols, volName)
 		writeIncusResult(w, http.StatusOK, nil)
 	default:
-		writeIncusError(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
+		writeIncusErrorf(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
 	}
 }
 
@@ -643,7 +643,7 @@ func (s *Server) handleNetworkForward(w http.ResponseWriter, r *http.Request, ne
 			defer s.mu.Unlock()
 			fp, ok := s.projects[project]
 			if !ok {
-				writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+				writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 				return
 			}
 			fws, ok := fp.Forwards[network]
@@ -662,14 +662,14 @@ func (s *Server) handleNetworkForward(w http.ResponseWriter, r *http.Request, ne
 				Ports         []map[string]any `json:"ports,omitempty"`
 			}
 			if err := decodeBody(r, &body); err != nil {
-				writeIncusError(w, http.StatusBadRequest, "decode: %v", err)
+				writeIncusErrorf(w, http.StatusBadRequest, "decode: %v", err)
 				return
 			}
 			s.mu.Lock()
 			defer s.mu.Unlock()
 			fp, ok := s.projects[project]
 			if !ok {
-				writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+				writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 				return
 			}
 			fws, ok := fp.Forwards[network]
@@ -678,7 +678,7 @@ func (s *Server) handleNetworkForward(w http.ResponseWriter, r *http.Request, ne
 				fp.Forwards[network] = fws
 			}
 			if _, exists := fws[body.ListenAddress]; exists {
-				writeIncusError(w, http.StatusConflict, "Forward %q already exists", body.ListenAddress)
+				writeIncusErrorf(w, http.StatusConflict, "Forward %q already exists", body.ListenAddress)
 				return
 			}
 			fw := &incus.NetworkForward{
@@ -690,7 +690,7 @@ func (s *Server) handleNetworkForward(w http.ResponseWriter, r *http.Request, ne
 			fws[body.ListenAddress] = fw
 			writeIncusResult(w, http.StatusCreated, fw)
 		default:
-			writeIncusError(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
+			writeIncusErrorf(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
 		}
 		return
 	case 1:
@@ -702,17 +702,17 @@ func (s *Server) handleNetworkForward(w http.ResponseWriter, r *http.Request, ne
 			defer s.mu.Unlock()
 			fp, ok := s.projects[project]
 			if !ok {
-				writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+				writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 				return
 			}
 			fws, ok := fp.Forwards[network]
 			if !ok {
-				writeIncusError(w, http.StatusNotFound, "Forward %q not found", listenAddr)
+				writeIncusErrorf(w, http.StatusNotFound, "Forward %q not found", listenAddr)
 				return
 			}
 			fw, ok := fws[listenAddr]
 			if !ok {
-				writeIncusError(w, http.StatusNotFound, "Forward %q not found", listenAddr)
+				writeIncusErrorf(w, http.StatusNotFound, "Forward %q not found", listenAddr)
 				return
 			}
 			writeIncusResult(w, http.StatusOK, fw)
@@ -721,24 +721,24 @@ func (s *Server) handleNetworkForward(w http.ResponseWriter, r *http.Request, ne
 			defer s.mu.Unlock()
 			fp, ok := s.projects[project]
 			if !ok {
-				writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+				writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 				return
 			}
 			fws, ok := fp.Forwards[network]
 			if !ok {
-				writeIncusError(w, http.StatusNotFound, "Forward %q not found", listenAddr)
+				writeIncusErrorf(w, http.StatusNotFound, "Forward %q not found", listenAddr)
 				return
 			}
 			if _, ok := fws[listenAddr]; !ok {
-				writeIncusError(w, http.StatusNotFound, "Forward %q not found", listenAddr)
+				writeIncusErrorf(w, http.StatusNotFound, "Forward %q not found", listenAddr)
 				return
 			}
 			delete(fws, listenAddr)
 			writeIncusResult(w, http.StatusOK, nil)
 		default:
-			writeIncusError(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
+			writeIncusErrorf(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
 		}
 	default:
-		writeIncusError(w, http.StatusNotFound, "unsupported forward path %v", rest)
+		writeIncusErrorf(w, http.StatusNotFound, "unsupported forward path %v", rest)
 	}
 }

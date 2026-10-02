@@ -142,7 +142,7 @@ func (s *Server) Zones() []powerdns.Zone {
 // handler is the central mux. The PDNS REST API lives under /api/v1/.
 func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	if s.apiKeyRequired && r.Header.Get(powerdnsAPIKeyHeader()) != s.APIKey {
-		writePDNSError(w, http.StatusUnauthorized, "invalid api key")
+		writePDNSErrorf(w, http.StatusUnauthorized, "invalid api key")
 		return
 	}
 	path := strings.TrimPrefix(r.URL.Path, powerdnsAPIPrefix())
@@ -158,7 +158,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	case strings.HasPrefix(path, "servers/localhost/zones/"):
 		s.handleZoneSub(w, r, strings.TrimPrefix(path, "servers/localhost/zones/"))
 	default:
-		writePDNSError(w, http.StatusNotFound, "not implemented in fake: %s %s", r.Method, path)
+		writePDNSErrorf(w, http.StatusNotFound, "not implemented in fake: %s %s", r.Method, path)
 	}
 }
 
@@ -186,7 +186,7 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
-func writePDNSError(w http.ResponseWriter, status int, format string, args ...any) {
+func writePDNSErrorf(w http.ResponseWriter, status int, format string, args ...any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]any{

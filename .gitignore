@@ -93,3 +93,6 @@ $RECYCLE.BIN/
 
 # Built Lahijan extension packages (make package / go run ./cmd/lahx pack).
 *.lahx
+
+# scripts/precheck.sh scratch copy
+.precheck-tmp/

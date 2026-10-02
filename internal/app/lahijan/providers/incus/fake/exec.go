@@ -30,12 +30,12 @@ import (
 func (s *Server) handleExec(w http.ResponseWriter, r *http.Request, instance string) {
 	project := queryProject(r)
 	if r.Method != http.MethodPost {
-		writeIncusError(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
+		writeIncusErrorf(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
 		return
 	}
 	var body incus.InstanceExecPost
 	if err := decodeBody(r, &body); err != nil {
-		writeIncusError(w, http.StatusBadRequest, "decode: %v", err)
+		writeIncusErrorf(w, http.StatusBadRequest, "decode: %v", err)
 		return
 	}
 
@@ -43,12 +43,12 @@ func (s *Server) handleExec(w http.ResponseWriter, r *http.Request, instance str
 	fp, ok := s.projects[project]
 	if !ok {
 		s.mu.Unlock()
-		writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+		writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 		return
 	}
 	if _, exists := fp.Instances[instance]; !exists {
 		s.mu.Unlock()
-		writeIncusError(w, http.StatusNotFound, "Instance %q not found", instance)
+		writeIncusErrorf(w, http.StatusNotFound, "Instance %q not found", instance)
 		return
 	}
 	handler := s.execHandler

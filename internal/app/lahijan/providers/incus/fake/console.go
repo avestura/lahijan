@@ -31,12 +31,12 @@ import (
 func (s *Server) handleConsole(w http.ResponseWriter, r *http.Request, instance string) {
 	project := queryProject(r)
 	if r.Method != http.MethodPost {
-		writeIncusError(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
+		writeIncusErrorf(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
 		return
 	}
 	var body incus.InstanceConsolePost
 	if err := decodeBody(r, &body); err != nil {
-		writeIncusError(w, http.StatusBadRequest, "decode: %v", err)
+		writeIncusErrorf(w, http.StatusBadRequest, "decode: %v", err)
 		return
 	}
 
@@ -44,13 +44,13 @@ func (s *Server) handleConsole(w http.ResponseWriter, r *http.Request, instance 
 	fp, ok := s.projects[project]
 	if !ok {
 		s.mu.Unlock()
-		writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+		writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 		return
 	}
 	inst, exists := fp.Instances[instance]
 	if !exists {
 		s.mu.Unlock()
-		writeIncusError(w, http.StatusNotFound, "Instance %q not found", instance)
+		writeIncusErrorf(w, http.StatusNotFound, "Instance %q not found", instance)
 		return
 	}
 	handler := s.consoleHandler
@@ -60,7 +60,7 @@ func (s *Server) handleConsole(w http.ResponseWriter, r *http.Request, instance 
 	// daemon's behaviour and lets tests assert the compute service rejects
 	// containers before opening a session.
 	if inst.Type != "" && inst.Type != "virtual-machine" {
-		writeIncusError(w, http.StatusBadRequest,
+		writeIncusErrorf(w, http.StatusBadRequest,
 			"Instance %q is not a virtual-machine; VGA console unavailable", instance)
 		return
 	}

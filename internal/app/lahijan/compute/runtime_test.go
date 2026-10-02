@@ -28,17 +28,17 @@ func TestConsoleBuffers(t *testing.T) {
 	t.Parallel()
 	c := newConsoleBuffers()
 	id := uuid.New()
-	if got, _ := c.append(id, []byte("boot\n")); string(got) != "boot\n" {
+	if got, _ := c.record(id, []byte("boot\n")); string(got) != "boot\n" {
 		t.Fatalf("first read: %q", got)
 	}
-	if got, _ := c.append(id, nil); string(got) != "boot\n" {
+	if got, _ := c.record(id, nil); string(got) != "boot\n" {
 		t.Fatalf("empty destructive read must keep history: %q", got)
 	}
-	if got, _ := c.append(id, []byte("login: ")); string(got) != "boot\nlogin: " {
+	if got, _ := c.record(id, []byte("login: ")); string(got) != "boot\nlogin: " {
 		t.Fatalf("destructive read appends: %q", got)
 	}
 	// Non-destructive snapshot: repeats the previous read plus more.
-	if got, _ := c.append(id, []byte("login: root\n")); string(got) != "boot\nlogin: root\n" {
+	if got, _ := c.record(id, []byte("login: root\n")); string(got) != "boot\nlogin: root\n" {
 		t.Fatalf("snapshot read must not duplicate: %q", got)
 	}
 }

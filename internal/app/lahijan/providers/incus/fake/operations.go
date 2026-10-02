@@ -45,14 +45,14 @@ func (s *Server) handleOperations(w http.ResponseWriter, r *http.Request, rest s
 	parts := strings.SplitN(rest, "/", 2)
 	opID := parts[0]
 	if opID == "" {
-		writeIncusError(w, http.StatusNotFound, "missing op id")
+		writeIncusErrorf(w, http.StatusNotFound, "missing op id")
 		return
 	}
 	s.mu.Lock()
 	fo, ok := s.operations[opID]
 	s.mu.Unlock()
 	if !ok {
-		writeIncusError(w, http.StatusNotFound, "operation %q not found", opID)
+		writeIncusErrorf(w, http.StatusNotFound, "operation %q not found", opID)
 		return
 	}
 	if len(parts) == 2 && parts[1] == "wait" {
@@ -61,7 +61,7 @@ func (s *Server) handleOperations(w http.ResponseWriter, r *http.Request, rest s
 		select {
 		case <-fo.done:
 		case <-r.Context().Done():
-			writeIncusError(w, http.StatusRequestTimeout, "wait cancelled")
+			writeIncusErrorf(w, http.StatusRequestTimeout, "wait cancelled")
 			return
 		}
 		writeIncusResult(w, http.StatusOK, fo.op)
@@ -75,6 +75,6 @@ func (s *Server) handleOperations(w http.ResponseWriter, r *http.Request, rest s
 		fo.op.StatusCode = 200
 		writeIncusResult(w, http.StatusOK, fo.op)
 	default:
-		writeIncusError(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
+		writeIncusErrorf(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
 	}
 }

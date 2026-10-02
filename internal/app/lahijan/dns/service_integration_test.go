@@ -187,7 +187,7 @@ func (f *fakePDNS) DeleteRRset(_ context.Context, params powerdns.DeleteRRsetPar
 	return nil
 }
 
-func (f *fakePDNS) SearchRRsets(_ context.Context, zoneID string, _ string, _ powerdns.RecordType) ([]powerdns.RRset, error) {
+func (f *fakePDNS) SearchRRsets(_ context.Context, zoneID, _ string, _ powerdns.RecordType) ([]powerdns.RRset, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	out := make([]powerdns.RRset, len(f.rrsets[zoneID]))

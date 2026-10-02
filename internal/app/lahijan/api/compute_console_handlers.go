@@ -272,7 +272,7 @@ func (s *Server) logConsoleDialFailure(session compute.ExecConsoleSession, fd st
 // *fiberws.Conn which satisfies the interface.
 //
 // Errors are logged at Debug (they are expected on every clean close).
-func pumpBrowserToIncusStdin(browser wsMessageConn, stdin *gorillaws.Conn, control *gorillaws.Conn) {
+func pumpBrowserToIncusStdin(browser wsMessageConn, stdin, control *gorillaws.Conn) {
 	for {
 		msgType, data, err := browser.ReadMessage()
 		if err != nil {

@@ -184,6 +184,19 @@ These are non-negotiable. Details live in
 - Tenant scoping is enforced at the repository layer; middleware sets the
   tenant context, queries filter automatically.
 
+### Before you push or deploy
+
+- Run `make hooks` once per clone. It enables `githooks/`: `commit-msg`
+  (Conventional Commits) and `pre-push`, which runs `scripts/precheck.sh`
+  (gofumpt `-extra`, `go vet`, golangci-lint at the CI-pinned version on an
+  LF copy of the tree, so Windows CRLF checkouts match Linux CI).
+- Run `make precheck` any time; Claude Code sessions also run it
+  automatically (`.claude/hooks/guard-deploy.py`) before `git push` and before
+  shipping to the test server.
+- CI's `docker` job (in `ci.yml`) builds the server image on every run and
+  pushes `ghcr.io/avestura/lahijan:{latest,sha-<short>}` on main once the
+  other CI jobs pass.
+
 ### Commits
 
 - Conventional Commits enforced by git hook: `feat(scope): desc`.

@@ -14,7 +14,7 @@ func (s *Server) handleInstancesList(w http.ResponseWriter, r *http.Request) {
 	defer s.mu.Unlock()
 	fp, ok := s.projects[project]
 	if !ok {
-		writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+		writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 		return
 	}
 	out := make([]incus.Instance, 0, len(fp.Instances))
@@ -27,7 +27,7 @@ func (s *Server) handleInstancesList(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleInstanceCreate(w http.ResponseWriter, r *http.Request) {
 	var body incus.InstancesPost
 	if err := decodeBody(r, &body); err != nil {
-		writeIncusError(w, http.StatusBadRequest, "decode: %v", err)
+		writeIncusErrorf(w, http.StatusBadRequest, "decode: %v", err)
 		return
 	}
 	if body.Project == "" {
@@ -52,7 +52,7 @@ func (s *Server) handleInstanceCreate(w http.ResponseWriter, r *http.Request) {
 		}
 		s.mu.Unlock()
 		if !found {
-			writeIncusError(w, http.StatusBadRequest, "target member %q not in cluster", target)
+			writeIncusErrorf(w, http.StatusBadRequest, "target member %q not in cluster", target)
 			return
 		}
 	}
@@ -60,12 +60,12 @@ func (s *Server) handleInstanceCreate(w http.ResponseWriter, r *http.Request) {
 	defer s.mu.Unlock()
 	fp, ok := s.projects[body.Project]
 	if !ok {
-		writeIncusError(w, http.StatusNotFound, "Project %q not found", body.Project)
+		writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", body.Project)
 		return
 	}
 	name := body.Name
 	if _, exists := fp.Instances[name]; exists {
-		writeIncusError(w, http.StatusConflict, "Instance %q already exists", name)
+		writeIncusErrorf(w, http.StatusConflict, "Instance %q already exists", name)
 		return
 	}
 	inst := &incus.Instance{
@@ -98,31 +98,31 @@ func (s *Server) handleInstance(w http.ResponseWriter, r *http.Request, name str
 		defer s.mu.Unlock()
 		fp, ok := s.projects[project]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+			writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 			return
 		}
 		inst, ok := fp.Instances[name]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Instance %q not found", name)
+			writeIncusErrorf(w, http.StatusNotFound, "Instance %q not found", name)
 			return
 		}
 		writeIncusResult(w, http.StatusOK, inst)
 	case http.MethodPut:
 		var body incus.InstancePut
 		if err := decodeBody(r, &body); err != nil {
-			writeIncusError(w, http.StatusBadRequest, "decode: %v", err)
+			writeIncusErrorf(w, http.StatusBadRequest, "decode: %v", err)
 			return
 		}
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		fp, ok := s.projects[project]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+			writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 			return
 		}
 		inst, ok := fp.Instances[name]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Instance %q not found", name)
+			writeIncusErrorf(w, http.StatusNotFound, "Instance %q not found", name)
 			return
 		}
 		inst.Description = body.Description
@@ -137,11 +137,11 @@ func (s *Server) handleInstance(w http.ResponseWriter, r *http.Request, name str
 		defer s.mu.Unlock()
 		fp, ok := s.projects[project]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+			writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 			return
 		}
 		if _, ok := fp.Instances[name]; !ok {
-			writeIncusError(w, http.StatusNotFound, "Instance %q not found", name)
+			writeIncusErrorf(w, http.StatusNotFound, "Instance %q not found", name)
 			return
 		}
 		delete(fp.Instances, name)
@@ -155,7 +155,7 @@ func (s *Server) handleInstance(w http.ResponseWriter, r *http.Request, name str
 		// async op; no actual data is moved.
 		s.handleInstanceMigrate(w, r, project, name)
 	default:
-		writeIncusError(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
+		writeIncusErrorf(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
 	}
 }
 
@@ -166,29 +166,29 @@ func (s *Server) handleInstance(w http.ResponseWriter, r *http.Request, name str
 func (s *Server) handleInstanceMigrate(w http.ResponseWriter, r *http.Request, project, name string) {
 	var body incus.InstanceMigratePost
 	if err := decodeBody(r, &body); err != nil {
-		writeIncusError(w, http.StatusBadRequest, "decode: %v", err)
+		writeIncusErrorf(w, http.StatusBadRequest, "decode: %v", err)
 		return
 	}
 	if !body.Migration {
-		writeIncusError(w, http.StatusBadRequest, "POST on instance requires migration=true (use PUT to update)")
+		writeIncusErrorf(w, http.StatusBadRequest, "POST on instance requires migration=true (use PUT to update)")
 		return
 	}
 	target := r.URL.Query().Get("target")
 	if target == "" {
-		writeIncusError(w, http.StatusBadRequest, "migration requires target=<member>")
+		writeIncusErrorf(w, http.StatusBadRequest, "migration requires target=<member>")
 		return
 	}
 	s.mu.Lock()
 	fp, ok := s.projects[project]
 	if !ok {
 		s.mu.Unlock()
-		writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+		writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 		return
 	}
 	inst, ok := fp.Instances[name]
 	if !ok {
 		s.mu.Unlock()
-		writeIncusError(w, http.StatusNotFound, "Instance %q not found", name)
+		writeIncusErrorf(w, http.StatusNotFound, "Instance %q not found", name)
 		return
 	}
 	// Validate the target exists in the fake cluster.
@@ -201,7 +201,7 @@ func (s *Server) handleInstanceMigrate(w http.ResponseWriter, r *http.Request, p
 	}
 	if !found {
 		s.mu.Unlock()
-		writeIncusError(w, http.StatusBadRequest, "target member %q not in cluster", target)
+		writeIncusErrorf(w, http.StatusBadRequest, "target member %q not in cluster", target)
 		return
 	}
 	inst.Location = target
@@ -220,12 +220,12 @@ func (s *Server) handleInstanceState(w http.ResponseWriter, r *http.Request, nam
 		defer s.mu.Unlock()
 		fp, ok := s.projects[project]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+			writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 			return
 		}
 		inst, ok := fp.Instances[name]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Instance %q not found", name)
+			writeIncusErrorf(w, http.StatusNotFound, "Instance %q not found", name)
 			return
 		}
 		writeIncusResult(w, http.StatusOK, incus.InstanceState{
@@ -235,20 +235,20 @@ func (s *Server) handleInstanceState(w http.ResponseWriter, r *http.Request, nam
 	case http.MethodPut:
 		var body incus.InstanceStatePut
 		if err := decodeBody(r, &body); err != nil {
-			writeIncusError(w, http.StatusBadRequest, "decode: %v", err)
+			writeIncusErrorf(w, http.StatusBadRequest, "decode: %v", err)
 			return
 		}
 		s.mu.Lock()
 		fp, ok := s.projects[project]
 		if !ok {
 			s.mu.Unlock()
-			writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+			writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 			return
 		}
 		inst, ok := fp.Instances[name]
 		if !ok {
 			s.mu.Unlock()
-			writeIncusError(w, http.StatusNotFound, "Instance %q not found", name)
+			writeIncusErrorf(w, http.StatusNotFound, "Instance %q not found", name)
 			return
 		}
 		applyAction(inst, body.Action)
@@ -258,7 +258,7 @@ func (s *Server) handleInstanceState(w http.ResponseWriter, r *http.Request, nam
 		s.registerOp(opID, nil)
 		writeIncusAsync(w, opID)
 	default:
-		writeIncusError(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
+		writeIncusErrorf(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
 	}
 }
 

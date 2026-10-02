@@ -21,13 +21,13 @@ func (s *Server) handleProjectsList(w http.ResponseWriter, _ *http.Request) {
 func (s *Server) handleProjectCreate(w http.ResponseWriter, r *http.Request) {
 	var body incus.ProjectsPost
 	if err := decodeBody(r, &body); err != nil {
-		writeIncusError(w, http.StatusBadRequest, "decode: %v", err)
+		writeIncusErrorf(w, http.StatusBadRequest, "decode: %v", err)
 		return
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, exists := s.projects[body.Name]; exists {
-		writeIncusError(w, http.StatusConflict, "Project %q already exists", body.Name)
+		writeIncusErrorf(w, http.StatusConflict, "Project %q already exists", body.Name)
 		return
 	}
 	s.projects[body.Name] = newFakeProject(incus.Project{
@@ -45,21 +45,21 @@ func (s *Server) handleProject(w http.ResponseWriter, r *http.Request, name stri
 		defer s.mu.Unlock()
 		fp, ok := s.projects[name]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Project %q not found", name)
+			writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", name)
 			return
 		}
 		writeIncusResult(w, http.StatusOK, fp.Project)
 	case http.MethodPut:
 		var body incus.ProjectPut
 		if err := decodeBody(r, &body); err != nil {
-			writeIncusError(w, http.StatusBadRequest, "decode: %v", err)
+			writeIncusErrorf(w, http.StatusBadRequest, "decode: %v", err)
 			return
 		}
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		fp, ok := s.projects[name]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Project %q not found", name)
+			writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", name)
 			return
 		}
 		fp.Project.Description = body.Description
@@ -69,12 +69,12 @@ func (s *Server) handleProject(w http.ResponseWriter, r *http.Request, name stri
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		if _, ok := s.projects[name]; !ok {
-			writeIncusError(w, http.StatusNotFound, "Project %q not found", name)
+			writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", name)
 			return
 		}
 		delete(s.projects, name)
 		writeIncusResult(w, http.StatusOK, json.RawMessage(`{}`))
 	default:
-		writeIncusError(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
+		writeIncusErrorf(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
 	}
 }

@@ -278,7 +278,7 @@ func (p *stubSessionProvider) GetSession(_ http.ResponseWriter, _ *http.Request,
 func ExtractSAMLResponse(htmlBody string) (samlResponse, relayState string) {
 	samlResponse = html.UnescapeString(extractHiddenInput(htmlBody, "SAMLResponse"))
 	relayState = html.UnescapeString(extractHiddenInput(htmlBody, "RelayState"))
-	return
+	return samlResponse, relayState
 }
 
 // extractHiddenInput scans the auto-submit HTML for one <input type="hidden"

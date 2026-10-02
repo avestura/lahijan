@@ -164,10 +164,11 @@ type cryptoEnvelope interface {
 // sub-interfaces so the surface stays reviewable; the concrete
 // *incus.Provider satisfies the union.
 //
-//nolint:interfacebloat // intentional: 9 sub-interfaces composed by category; each is small
+//nolint:interfacebloat // intentional: 11 sub-interfaces composed by category; each is small
 type incusProvider interface {
 	incusProjectOps
 	incusInstanceOps
+	incusInstanceLogOps
 	incusSnapshotOps
 	incusProfileOps
 	incusNetworkOps
@@ -196,6 +197,10 @@ type incusInstanceOps interface {
 	GetInstanceState(ctx context.Context, project, name string) (*incus.InstanceState, error)
 	UpdateInstance(ctx context.Context, project, name string, body incus.InstancePut) (*incus.Operation, error)
 	DeleteInstance(ctx context.Context, project, name string) (*incus.Operation, error)
+}
+
+// incusInstanceLogOps covers instance log files and the console ring buffer.
+type incusInstanceLogOps interface {
 	ListInstanceLogs(ctx context.Context, project, name string) ([]string, error)
 	GetInstanceLog(ctx context.Context, project, name, file string) ([]byte, bool, error)
 	GetInstanceConsoleLog(ctx context.Context, project, name string) ([]byte, bool, error)

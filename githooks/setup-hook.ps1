@@ -1,3 +1,2 @@
-Copy-Item -Path ./commit-msg -Destination .git/hooks/ -Force
-Write-Host "✅ Git hook installed successfully!"
-
+git config core.hooksPath githooks
+Write-Host "Git hooks installed (core.hooksPath=githooks)"

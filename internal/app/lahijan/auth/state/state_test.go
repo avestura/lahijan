@@ -93,18 +93,18 @@ func TestState_TamperedSignature_Rejected(t *testing.T) {
 	token, nonce, err := s.Issue("google", "")
 	require.NoError(t, err)
 
-	// Flip one character in the signature half. base64url uses [A-Za-z0-9_-];
-	// we swap a trailing char with a different one from that alphabet.
+	// Flip the FIRST character of the signature half: it carries a full 6 bits.
+	// The last base64url char of a 32-byte MAC carries only 4 significant bits,
+	// so changing it can leave the decoded bytes (and the signature) intact.
 	dot := strings.LastIndexByte(token, '.')
 	require.Greater(t, dot, 0)
 	sigPart := token[dot+1:]
 	require.GreaterOrEqual(t, len(sigPart), 2)
-	last := sigPart[len(sigPart)-1]
 	swap := byte('A')
-	if last == 'A' {
+	if sigPart[0] == 'A' {
 		swap = 'B'
 	}
-	tampered := token[:dot+1] + sigPart[:len(sigPart)-1] + string(swap)
+	tampered := token[:dot+1] + string(swap) + sigPart[1:]
 	err = s.Verify(tampered, nonce, "google", "")
 	assert.ErrorIs(t, err, state.ErrInvalid)
 }

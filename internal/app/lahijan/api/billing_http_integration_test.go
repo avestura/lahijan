@@ -56,7 +56,7 @@ func newBillingTestApp(t *testing.T) (*testApp, *billing.Service) {
 // billingSeedUserInTenant creates a brand-new user via /api/v1/auth/register
 // (no membership anywhere) and returns the user id. The caller grants
 // the membership in the target tenant via testutil.NewMembership.
-func billingSeedUserInTenant(t *testing.T, ta *testApp, tidStr string, roleSlug string) (uuid.UUID, string) {
+func billingSeedUserInTenant(t *testing.T, ta *testApp, tidStr, roleSlug string) (uuid.UUID, string) {
 	t.Helper()
 	ctx := context.Background()
 	role, err := ta.repos.RBAC.GetRoleBySlug(ctx, roleSlug)

@@ -24,7 +24,7 @@ func (s *Server) handleSnapshotsCollection(w http.ResponseWriter, r *http.Reques
 	case http.MethodGet:
 		s.handleSnapshotsList(w, r, instance)
 	default:
-		writeIncusError(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
+		writeIncusErrorf(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
 	}
 }
 
@@ -35,11 +35,11 @@ func (s *Server) handleSnapshotsList(w http.ResponseWriter, r *http.Request, ins
 	defer s.mu.Unlock()
 	fp, ok := s.projects[project]
 	if !ok {
-		writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+		writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 		return
 	}
 	if _, ok := fp.Instances[instance]; !ok {
-		writeIncusError(w, http.StatusNotFound, "Instance %q not found", instance)
+		writeIncusErrorf(w, http.StatusNotFound, "Instance %q not found", instance)
 		return
 	}
 	prefix := instance + "/"
@@ -58,7 +58,7 @@ func (s *Server) handleSnapshotsList(w http.ResponseWriter, r *http.Request, ins
 func (s *Server) handleSnapshotCreate(w http.ResponseWriter, r *http.Request, instance string) {
 	var body incus.InstanceSnapshotsPost
 	if err := decodeBody(r, &body); err != nil {
-		writeIncusError(w, http.StatusBadRequest, "decode: %v", err)
+		writeIncusErrorf(w, http.StatusBadRequest, "decode: %v", err)
 		return
 	}
 	project := queryProject(r)
@@ -66,21 +66,21 @@ func (s *Server) handleSnapshotCreate(w http.ResponseWriter, r *http.Request, in
 	defer s.mu.Unlock()
 	fp, ok := s.projects[project]
 	if !ok {
-		writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+		writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 		return
 	}
 	inst, ok := fp.Instances[instance]
 	if !ok {
-		writeIncusError(w, http.StatusNotFound, "Instance %q not found", instance)
+		writeIncusErrorf(w, http.StatusNotFound, "Instance %q not found", instance)
 		return
 	}
 	if body.Name == "" {
-		writeIncusError(w, http.StatusBadRequest, "snapshot name is required")
+		writeIncusErrorf(w, http.StatusBadRequest, "snapshot name is required")
 		return
 	}
 	key := instance + "/" + body.Name
 	if _, exists := fp.Snapshots[key]; exists {
-		writeIncusError(w, http.StatusConflict, "Snapshot %q already exists", body.Name)
+		writeIncusErrorf(w, http.StatusConflict, "Snapshot %q already exists", body.Name)
 		return
 	}
 	// The snapshot inherits the instance config + devices at capture time.
@@ -127,12 +127,12 @@ func (s *Server) handleSnapshot(w http.ResponseWriter, r *http.Request, instance
 		defer s.mu.Unlock()
 		fp, ok := s.projects[project]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+			writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 			return
 		}
 		snap, ok := fp.Snapshots[instance+"/"+snapshot]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Snapshot %q not found", snapshot)
+			writeIncusErrorf(w, http.StatusNotFound, "Snapshot %q not found", snapshot)
 			return
 		}
 		writeIncusResult(w, http.StatusOK, snap)
@@ -141,29 +141,29 @@ func (s *Server) handleSnapshot(w http.ResponseWriter, r *http.Request, instance
 		// POST /snapshots/<name> with a Name field).
 		var body incus.InstanceSnapshotPut
 		if err := decodeBody(r, &body); err != nil {
-			writeIncusError(w, http.StatusBadRequest, "decode: %v", err)
+			writeIncusErrorf(w, http.StatusBadRequest, "decode: %v", err)
 			return
 		}
 		if body.Name == "" {
-			writeIncusError(w, http.StatusBadRequest, "rename requires a non-empty name")
+			writeIncusErrorf(w, http.StatusBadRequest, "rename requires a non-empty name")
 			return
 		}
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		fp, ok := s.projects[project]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+			writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 			return
 		}
 		oldKey := instance + "/" + snapshot
 		snap, ok := fp.Snapshots[oldKey]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Snapshot %q not found", snapshot)
+			writeIncusErrorf(w, http.StatusNotFound, "Snapshot %q not found", snapshot)
 			return
 		}
 		newKey := instance + "/" + body.Name
 		if _, exists := fp.Snapshots[newKey]; exists {
-			writeIncusError(w, http.StatusConflict, "Snapshot %q already exists", body.Name)
+			writeIncusErrorf(w, http.StatusConflict, "Snapshot %q already exists", body.Name)
 			return
 		}
 		snap.Name = body.Name
@@ -178,12 +178,12 @@ func (s *Server) handleSnapshot(w http.ResponseWriter, r *http.Request, instance
 		defer s.mu.Unlock()
 		fp, ok := s.projects[project]
 		if !ok {
-			writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+			writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 			return
 		}
 		oldKey := instance + "/" + snapshot
 		if _, ok := fp.Snapshots[oldKey]; !ok {
-			writeIncusError(w, http.StatusNotFound, "Snapshot %q not found", snapshot)
+			writeIncusErrorf(w, http.StatusNotFound, "Snapshot %q not found", snapshot)
 			return
 		}
 		delete(fp.Snapshots, oldKey)
@@ -191,7 +191,7 @@ func (s *Server) handleSnapshot(w http.ResponseWriter, r *http.Request, instance
 		s.registerOp(opID, nil)
 		writeIncusAsync(w, opID)
 	default:
-		writeIncusError(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
+		writeIncusErrorf(w, http.StatusMethodNotAllowed, "%s not allowed", r.Method)
 	}
 }
 
@@ -204,15 +204,15 @@ func (s *Server) handleSnapshotRestore(w http.ResponseWriter, r *http.Request, i
 	defer s.mu.Unlock()
 	fp, ok := s.projects[project]
 	if !ok {
-		writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+		writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 		return
 	}
 	if _, ok := fp.Instances[instance]; !ok {
-		writeIncusError(w, http.StatusNotFound, "Instance %q not found", instance)
+		writeIncusErrorf(w, http.StatusNotFound, "Instance %q not found", instance)
 		return
 	}
 	if _, ok := fp.Snapshots[instance+"/"+snapshot]; !ok {
-		writeIncusError(w, http.StatusNotFound, "Snapshot %q not found", snapshot)
+		writeIncusErrorf(w, http.StatusNotFound, "Snapshot %q not found", snapshot)
 		return
 	}
 	opID := newOpID()
@@ -229,13 +229,13 @@ func (s *Server) handleSnapshotExport(w http.ResponseWriter, r *http.Request, in
 	fp, ok := s.projects[project]
 	if !ok {
 		s.mu.Unlock()
-		writeIncusError(w, http.StatusNotFound, "Project %q not found", project)
+		writeIncusErrorf(w, http.StatusNotFound, "Project %q not found", project)
 		return
 	}
 	snap, ok := fp.Snapshots[instance+"/"+snapshot]
 	if !ok {
 		s.mu.Unlock()
-		writeIncusError(w, http.StatusNotFound, "Snapshot %q not found", snapshot)
+		writeIncusErrorf(w, http.StatusNotFound, "Snapshot %q not found", snapshot)
 		return
 	}
 	size := snap.Size

@@ -43,7 +43,7 @@ func on_event(payloadPtr, payloadLen uint32) {
 
 // configGet reads a config key into buf. Returns the number of bytes
 // written, or a negative status code on missing/secret-locked.
-func configGet(key []byte, buf []byte) int32 {
+func configGet(key, buf []byte) int32 {
 	return config_get(ptrOf(key), uint32(len(key)), ptrOf(buf), uint32(len(buf)))
 }
 
