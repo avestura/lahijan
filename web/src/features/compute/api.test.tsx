@@ -7,6 +7,7 @@
  * e2e tests in WS-14.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/api/keys";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
@@ -212,5 +213,24 @@ describe("useDeleteInstance", () => {
         query: { force: true },
       }),
     });
+  });
+
+  it("drops the deleted instance's cached detail instead of refetching it", async () => {
+    mockDelete.mockResolvedValueOnce({ error: null, response: { status: 204 } });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const detailKey = queryKeys.compute.instance(TENANT, "i1");
+    client.setQueryData(detailKey, { id: "i1" });
+    const wrapper = ({ children }: PropsWithChildren) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    const { result } = renderHook(() => useDeleteInstance(TENANT), { wrapper });
+
+    await act(async () => {
+      await result.current.mutateAsync({ instanceId: "i1" });
+    });
+
+    expect(client.getQueryData(detailKey)).toBeUndefined();
+    // No refetch of the (now 404) detail endpoint was attempted.
+    expect(mockGet).not.toHaveBeenCalled();
   });
 });

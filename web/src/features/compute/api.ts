@@ -260,9 +260,13 @@ export function useDeleteInstance(tenantId: string | null) {
         throw new Error(`compute.instance.delete: ${response?.status ?? "network"}`);
       }
     },
-    onSuccess: () => {
+    onSuccess: (_data, { instanceId }) => {
       if (tenantId) {
-        void qc.invalidateQueries({ queryKey: queryKeys.compute.instances(tenantId) });
+        // The instance is gone: drop its cached detail instead of refetching
+        // it (a refetch would 404 and flash "Instance not found" while the
+        // caller navigates away), and refresh only the list itself.
+        qc.removeQueries({ queryKey: queryKeys.compute.instance(tenantId, instanceId) });
+        void qc.invalidateQueries({ queryKey: queryKeys.compute.instances(tenantId), exact: true });
       }
       toast({ title: t("compute.mutations.deleteSuccess"), variant: "success" });
     },

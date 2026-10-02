@@ -8,7 +8,7 @@
  * the stored row, so profile-provided devices and usage figures show. Auto-refreshes the
  * instance state every 5 seconds (faster while transitioning).
  */
-import { createFileRoute, getRouteApi } from "@tanstack/react-router";
+import { createFileRoute, getRouteApi, useNavigate } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
@@ -117,6 +117,7 @@ function InstanceDetailPage() {
   const runtime = useInstanceRuntime(tenantId, id);
   const lifecycle = useLifecycle(tenantId);
   const destroy = useDeleteInstance(tenantId);
+  const navigate = useNavigate();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [forceDelete, setForceDelete] = useState(false);
 
@@ -150,6 +151,10 @@ function InstanceDetailPage() {
     destroy.mutate(
       { instanceId: inst.id, force: forceDelete },
       {
+        onSuccess: () => {
+          // The instance no longer exists; leave its detail page.
+          void navigate({ to: "/compute" });
+        },
         onSettled: () => {
           setDeleteOpen(false);
         },

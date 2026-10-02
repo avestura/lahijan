@@ -100,3 +100,33 @@ func TestModelsURL(t *testing.T) {
 	require.Equal(t, "http://x/v1/models", modelsURL(ResolvedProvider{BaseURL: "http://x/v1/chat/completions"}))
 	require.Equal(t, "http://x/v1/models", modelsURL(ResolvedProvider{BaseURL: "http://x/v1/"}))
 }
+
+func TestProviderForCheckValidation(t *testing.T) {
+	t.Parallel()
+	svc := &Service{}
+	ctx := context.Background()
+
+	_, err := svc.providerForCheck(ctx, [16]byte{}, ProviderCheckInput{Provider: "openai"})
+	require.ErrorIs(t, err, ErrProviderCheckInvalid, "no key")
+	_, err = svc.providerForCheck(ctx, [16]byte{}, ProviderCheckInput{APIKey: "k"})
+	require.ErrorIs(t, err, ErrProviderCheckInvalid, "no provider")
+	_, err = svc.providerForCheck(ctx, [16]byte{}, ProviderCheckInput{Provider: "x", APIKey: "k", BaseURL: "ftp://h"})
+	require.ErrorIs(t, err, ErrProviderCheckInvalid, "non-http base URL")
+
+	p, err := svc.providerForCheck(ctx, [16]byte{}, ProviderCheckInput{Provider: "openai", APIKey: "k", Model: "m", BaseURL: "https://h/v1"})
+	require.NoError(t, err)
+	require.Equal(t, "m", p.Model)
+}
+
+func TestContainsFoldAndParseModelIDs(t *testing.T) {
+	t.Parallel()
+	require.True(t, containsFold([]string{"GPT-4o"}, "gpt-4o"))
+	require.False(t, containsFold(nil, "x"))
+	ids, ok := parseModelIDs([]byte(`{"data":[{"id":"a"},{"id":"b"}]}`))
+	require.True(t, ok)
+	require.Equal(t, []string{"a", "b"}, ids)
+	_, ok = parseModelIDs([]byte(`not json`))
+	require.False(t, ok)
+	_, ok = parseModelIDs([]byte(`{"data":[]}`))
+	require.False(t, ok)
+}
