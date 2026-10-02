@@ -95,8 +95,12 @@ docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" pull --quiet lahijan
 # Caddy to ensure the new Lahijan binary is wired up + the collector
 # reconnects.
 
-echo "===> restarting otel-collector..."
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --no-deps otel-collector
+case ",${COMPOSE_PROFILES:-}," in
+	*,monitoring,*)
+		echo "===> restarting otel-collector..."
+		docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --no-deps otel-collector
+		;;
+esac
 
 echo "===> restarting lahijan (runs migrations on boot)..."
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --no-deps --force-recreate lahijan

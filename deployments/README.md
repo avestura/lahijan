@@ -74,7 +74,7 @@ Install in this order:
 
 Before `install.sh` runs, point an A record at the host's public IP:
 
-- `app.example.com  A  <host-ip>` (the dashboard hostname)
+- `cloud.example.com  A  <host-ip>` (the dashboard hostname)
 
 Optional additional records:
 
@@ -310,7 +310,7 @@ docker compose ... up -d --force-recreate caddy
 |---------|-------------|-----|
 | `install.sh` hangs on "Waiting for Lahijan to become healthy" | Migrations slow on first boot OR a config error | `docker compose logs lahijan` — look for `failed to seed rbac catalog` or `failed to setup config` |
 | Caddy shows 502 / "bad gateway" | Lahijan container not healthy | `docker inspect --format='{{json .State.Health.Status}}' lahijan-prod-app` |
-| Browser shows cert warning | DNS for `LAHIJAN_PUBLIC_HOST` not pointing at host OR Let's Encrypt rate-limited | Check `dig app.example.com` + Caddy's logs (`docker compose logs caddy`); ACME errors are loud |
+| Browser shows cert warning | DNS for `LAHIJAN_PUBLIC_HOST` not pointing at host OR Let's Encrypt rate-limited | Check `dig cloud.example.com` + Caddy's logs (`docker compose logs caddy`); ACME errors are loud |
 | Users cannot log in | Auth signing key changed (cookies invalidated) OR Postgres down | Check `docker compose logs lahijan` for `auth/signing.key must be set` |
 | Compute module shows "feature disabled" | Incus container failed to start (often AF_VSOCK missing on hardened hosts) OR socket not reachable | `docker compose ps incus` (must be `healthy`); `docker compose exec incus incus list`; `docker exec lahijan-prod-app ls -la /var/lib/incus/unix.socket` |
 | PowerDNS API key invalid | Mismatch between `PDNS_API_KEY` and `LAHIJAN_PROVIDERS_POWERDNS_API_KEY` (same value in two env vars) | Diff `.env.prod`; the two keys MUST be identical |

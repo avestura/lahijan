@@ -41,7 +41,7 @@ With `http.server.healthcheck.enabled` (on by default and in production), Lahija
 Both return `200` whenever the HTTP server is running. They do not check PostgreSQL, Incus, PowerDNS or SeaweedFS. Caddy forwards `/healthcheck/*`, so you can probe from outside:
 
 ```sh
-curl -fsS https://app.example.com/healthcheck/liveness
+curl -fsS https://cloud.example.com/healthcheck/liveness
 ```
 
 An external probe of this URL checks DNS, the TLS certificate, Caddy and the Lahijan process in one request.
@@ -59,15 +59,35 @@ docker inspect --format '{{json .State.Health}}' lahijan-prod-app
 
 ## Telemetry services in the stack
 
-The compose file includes an OpenTelemetry collector and four backends:
+The compose file includes an OpenTelemetry collector and four backends. They are optional: they belong to the `monitoring` compose profile and do not start unless you enable it.
+
+### Enable the monitoring stack
+
+Set `COMPOSE_PROFILES` in `deployments/.env.prod`:
+
+```ini title="deployments/.env.prod"
+COMPOSE_PROFILES=monitoring
+```
+
+Then start the new services:
+
+```sh
+docker compose --env-file deployments/.env.prod -f deployments/docker-compose.prod.yml up -d
+```
+
+To combine profiles, separate them with commas (`COMPOSE_PROFILES=monitoring,dns-full`). To turn monitoring off again, remove `monitoring` from the variable and stop the services by name: `docker compose --env-file deployments/.env.prod -f deployments/docker-compose.prod.yml stop otel-collector jaeger loki prometheus grafana`. Their volumes (`prometheus_data`, `grafana_data`) are kept.
+
+With the profile off, Lahijan runs normally and uses less memory (the five services have limits that add up to about 2.2 GB), but there are no Grafana, Jaeger, Loki or Prometheus pages. Caddy still has the `/grafana` and `/jaeger` routes and answers them with `502 Bad Gateway`. `scripts/upgrade.sh` and `scripts/restore.sh` only touch these services when the profile is enabled.
+
+The services are:
 
 | Service          | Role                                                                                                           | How to reach it                          |
 | ---------------- | -------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
 | `otel-collector` | Receives OTLP on 4317 (gRPC) and 4318 (HTTP); sends traces to Jaeger, logs to Loki and exposes metrics on 8889 | Internal only                            |
-| `jaeger`         | Trace storage (in memory, up to 50000 traces) and UI                                                           | `https://app.example.com/jaeger/`        |
+| `jaeger`         | Trace storage (in memory, up to 50000 traces) and UI                                                           | `https://cloud.example.com/jaeger/`      |
 | `loki`           | Log storage                                                                                                    | Internal only (`http://loki:3100`)       |
 | `prometheus`     | Metrics, 15 day retention                                                                                      | Internal only (`http://prometheus:9090`) |
-| `grafana`        | Dashboards                                                                                                     | `https://app.example.com/grafana/`       |
+| `grafana`        | Dashboards                                                                                                     | `https://cloud.example.com/grafana/`     |
 
 Caddy protects `/grafana` and `/jaeger` with basic auth (`GRAFANA_BASIC_AUTH_USER`/`GRAFANA_BASIC_AUTH_HASH` and `JAEGER_BASIC_AUTH_USER`/`JAEGER_BASIC_AUTH_HASH`). The fallback is `admin` with the password `admin`, so set real hashes:
 

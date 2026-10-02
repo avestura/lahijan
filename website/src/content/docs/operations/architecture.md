@@ -26,18 +26,18 @@ Each provider is optional. When `providers.incus.enabled`, `providers.powerdns.e
 
 The production stack is `deployments/docker-compose.prod.yml` (compose project name `lahijan-prod`). See [Deployment](/docs/operations/deployment) for images and resource limits.
 
-| Service                                                           | Role                                                                                                        |
-| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `caddy`                                                           | Public entry point. TLS, dashboard files, reverse proxy to Lahijan, Grafana and Jaeger.                     |
-| `lahijan`                                                         | The Lahijan process.                                                                                        |
-| `migrate`                                                         | One-shot golang-migrate job that applies database migrations before `lahijan` starts.                       |
-| `postgres`                                                        | PostgreSQL 16 with three databases: `lahijan`, `pdns` and `seaweed` (names come from the environment file). |
-| `powerdns`                                                        | PowerDNS Authoritative with the `gpgsql` backend and its HTTP API.                                          |
-| `seaweed-master`, `seaweed-volume`, `seaweed-filer`, `seaweed-s3` | SeaweedFS split into master, volume server, filer (metadata in PostgreSQL) and S3 gateway.                  |
-| `seaweed-iam-init`                                                | One-shot job that seeds the S3 admin identity in the filer if none exists.                                  |
-| `incus`                                                           | The Incus daemon, running privileged with host networking.                                                  |
-| `otel-collector`, `jaeger`, `loki`, `prometheus`, `grafana`       | Observability services. See [Observability](/docs/operations/observability).                                |
-| `powerdns-recursor`, `dnsdist`                                    | Optional. Only start with the `dns-full` compose profile.                                                   |
+| Service                                                           | Role                                                                                                                                         |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `caddy`                                                           | Public entry point. TLS, dashboard files, reverse proxy to Lahijan, Grafana and Jaeger.                                                      |
+| `lahijan`                                                         | The Lahijan process.                                                                                                                         |
+| `migrate`                                                         | One-shot golang-migrate job that applies database migrations before `lahijan` starts.                                                        |
+| `postgres`                                                        | PostgreSQL 16 with three databases: `lahijan`, `pdns` and `seaweed` (names come from the environment file).                                  |
+| `powerdns`                                                        | PowerDNS Authoritative with the `gpgsql` backend and its HTTP API.                                                                           |
+| `seaweed-master`, `seaweed-volume`, `seaweed-filer`, `seaweed-s3` | SeaweedFS split into master, volume server, filer (metadata in PostgreSQL) and S3 gateway.                                                   |
+| `seaweed-iam-init`                                                | One-shot job that seeds the S3 admin identity in the filer if none exists.                                                                   |
+| `incus`                                                           | The Incus daemon, running privileged with host networking.                                                                                   |
+| `otel-collector`, `jaeger`, `loki`, `prometheus`, `grafana`       | Optional; start only with the `monitoring` compose profile. See [Observability](/docs/operations/observability#enable-the-monitoring-stack). |
+| `powerdns-recursor`, `dnsdist`                                    | Optional. Only start with the `dns-full` compose profile.                                                                                    |
 
 ## Networks and ports
 
@@ -62,7 +62,7 @@ Internal-only ports on the `backend` network include `lahijan:8080`, `powerdns:8
 
 ### Dashboard and API
 
-1. A browser loads `https://app.example.com/`. Caddy serves files from `web/dist`. Unknown paths fall back to `index.html`.
+1. A browser loads `https://cloud.example.com/`. Caddy serves files from `web/dist`. Unknown paths fall back to `index.html`.
 2. Requests to `/api/*`, `/healthcheck/*` and `/admin/jobs/ui` go to `lahijan:8080`. Caddy flushes responses immediately, so streams and WebSockets (the instance console) pass through.
 3. Inside Lahijan the middleware order is request id, recover, CORS, logger, tenant, auth, audit and RBAC, then the handler.
 

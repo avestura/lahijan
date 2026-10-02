@@ -3,23 +3,26 @@ title: TLS and domains
 description: Choose host names, get certificates from Caddy, publish an HTTPS S3 endpoint, delegate DNS zones to PowerDNS and allow browser uploads.
 ---
 
-A public Lahijan install uses up to three kinds of host names: the dashboard host, an optional S3 host and the nameservers that PowerDNS answers for. This page shows the DNS records to create, how Caddy gets certificates and which settings tie the names together. The examples use `example.com`; replace it with your domain.
+A public Lahijan install uses up to three kinds of host names: the dashboard host, the S3 host and the nameservers that PowerDNS answers for. This page shows the DNS records to create, how Caddy gets certificates and which settings tie the names together. The examples use `example.com`; replace it with your domain.
+
+> [!NOTE]
+> The subdomains used here (`cloud`, `s3`, `ns1`, `ns2`) are examples, not hardcoded names. Choose whatever you like in your DNS records, as long as the same names are set in the environment file and in `conf.d/s3.caddy`.
 
 ## Host names
 
-| Name               | Example                              | Used for                                       | Setting                                               |
-| ------------------ | ------------------------------------ | ---------------------------------------------- | ----------------------------------------------------- |
-| Dashboard host     | `app.example.com`                    | Dashboard, REST API, River UI, Grafana, Jaeger | `LAHIJAN_PUBLIC_HOST`, `LAHIJAN_PUBLIC_URL`           |
-| S3 host (optional) | `s3.example.com`                     | S3 data plane over HTTPS                       | `conf.d/s3.caddy`, `LAHIJAN_S3_PUBLIC_URL`            |
-| Nameservers        | `ns1.example.com`, `ns2.example.com` | Authoritative DNS for your users' zones        | `LAHIJAN_DNS_NAMESERVERS`, `PDNS_DEFAULT_SOA_CONTENT` |
+| Name           | Example                              | Used for                                       | Setting                                               |
+| -------------- | ------------------------------------ | ---------------------------------------------- | ----------------------------------------------------- |
+| Dashboard host | `cloud.example.com`                  | Dashboard, REST API, River UI, Grafana, Jaeger | `LAHIJAN_PUBLIC_HOST`, `LAHIJAN_PUBLIC_URL`           |
+| S3 host        | `s3.example.com`                     | S3 data plane over HTTPS                       | `conf.d/s3.caddy`, `LAHIJAN_S3_PUBLIC_URL`            |
+| Nameservers    | `ns1.example.com`, `ns2.example.com` | Authoritative DNS for your users' zones        | `LAHIJAN_DNS_NAMESERVERS`, `PDNS_DEFAULT_SOA_CONTENT` |
 
 ## DNS records to create
 
 Create these at your DNS provider before the first `docker compose up`, with `203.0.113.10` standing for the host's public IP:
 
 ```text
-app.example.com.   A   203.0.113.10
-s3.example.com.    A   203.0.113.10    ; only if you use an S3 host
+cloud.example.com. A   203.0.113.10
+s3.example.com.    A   203.0.113.10
 ns1.example.com.   A   203.0.113.10    ; only if the host serves DNS
 ns2.example.com.   A   203.0.113.10
 ```
@@ -28,7 +31,7 @@ Add `AAAA` records too if the host has IPv6. On a single host both nameserver na
 
 ## Automatic TLS with Caddy
 
-Caddy reads `deployments/caddy/Caddyfile`. Its main site address is `{$LAHIJAN_PUBLIC_HOST}`, so setting `LAHIJAN_PUBLIC_HOST=app.example.com` is enough for Caddy to request a Let's Encrypt certificate on first boot and redirect HTTP to HTTPS. Certificates and the ACME account are kept in the `lahijan-prod-caddy-data` volume.
+Caddy reads `deployments/caddy/Caddyfile`. Its main site address is `{$LAHIJAN_PUBLIC_HOST}`, so setting `LAHIJAN_PUBLIC_HOST=cloud.example.com` is enough for Caddy to request a Let's Encrypt certificate on first boot and redirect HTTP to HTTPS. Certificates and the ACME account are kept in the `lahijan-prod-caddy-data` volume.
 
 Certificate issuance needs:
 
@@ -63,7 +66,7 @@ docker compose --env-file deployments/.env.prod -f deployments/docker-compose.pr
 
 Users' S3 clients and browsers send object data straight to the SeaweedFS S3 gateway. You have two ways to expose it.
 
-**Published port (default).** `seaweed-s3` publishes `SEAWEEDFS_S3_HOST_PORT` (default 8333) over plain HTTP. Set `LAHIJAN_S3_PUBLIC_URL=http://203.0.113.10:8333` or a host name that resolves to the host.
+**Published port (default).** `seaweed-s3` publishes `SEAWEEDFS_S3_HOST_PORT` (default 8333) over plain HTTP. Set `LAHIJAN_S3_PUBLIC_URL=http://s3.example.com:8333`.
 
 **HTTPS host through Caddy (recommended).** Create a site snippet and point the public URL at it:
 
@@ -105,7 +108,7 @@ Because the compose file sets this variable, a value in a config file does not w
 services:
   lahijan:
     environment:
-      LAHIJAN_PROVIDERS_SEAWEEDFS_CORSALLOWEDORIGINS: "https://app.example.com https://console.example.com"
+      LAHIJAN_PROVIDERS_SEAWEEDFS_CORSALLOWEDORIGINS: "https://cloud.example.com https://console.example.com"
 ```
 
 After changing the origins, recreate the `lahijan` container so it backfills the rule onto existing buckets.

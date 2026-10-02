@@ -113,8 +113,13 @@ fi
 COMPOSE_FILE="$INSTALL_DIR/deployments/docker-compose.prod.yml"
 echo "===> stopping Lahijan stack (postgres kept up for the restore)..."
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" stop lahijan caddy powerdns \
-	seaweed-filer seaweed-s3 seaweed-volume seaweed-master incus \
-	otel-collector jaeger loki prometheus grafana 2>/dev/null || true
+	seaweed-filer seaweed-s3 seaweed-volume seaweed-master incus 2>/dev/null || true
+case ",${COMPOSE_PROFILES:-}," in
+	*,monitoring,*)
+		docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" stop \
+			otel-collector jaeger loki prometheus grafana 2>/dev/null || true
+		;;
+esac
 
 # ----------------------------------------------------------------------------
 # Drop + recreate + restore the three logical databases

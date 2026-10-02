@@ -150,8 +150,8 @@ if (-not (Test-Path $EnvFile)) {
     Write-Host "Answer the prompts; values are written to $EnvFile"
     Write-Host ""
 
-    Set-EnvVar "LAHIJAN_PUBLIC_HOST"         "Public hostname (must resolve to this host)" "app.example.com"
-    Set-EnvVar "LAHIJAN_PUBLIC_URL"          "Public URL (scheme + host)"                  "https://app.example.com"
+    Set-EnvVar "LAHIJAN_PUBLIC_HOST"         "Public hostname (must resolve to this host)" "cloud.example.com"
+    Set-EnvVar "LAHIJAN_PUBLIC_URL"          "Public URL (scheme + host)"                  "https://cloud.example.com"
     Set-EnvVar "LAHIJAN_ACME_EMAIL"          "Email for Let's Encrypt expiry notices"
     Set-EnvVar "LAHIJAN_IMAGE_TAG"           "Lahijan image tag (SemVer)"                  "v0.1.0"
     Set-EnvVar "LAHIJAN_BOOTSTRAP_ADMIN_EMAIL" "First-run platform.admin email"          "admin@example.com"
@@ -218,7 +218,7 @@ $credsLine = (docker compose --env-file $EnvFile -f $ComposeFile logs lahijan 2>
     | Select-String 'first-run admin credentials' `
     | Select-Object -Last 1).Line
 
-$publicUrl = if ($LAHIJAN_PUBLIC_URL) { $LAHIJAN_PUBLIC_URL } else { "https://app.example.com" }
+$publicUrl = if ($LAHIJAN_PUBLIC_URL) { $LAHIJAN_PUBLIC_URL } else { "https://cloud.example.com" }
 
 if ($credsLine) {
     Write-Host ""

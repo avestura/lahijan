@@ -206,8 +206,8 @@ ${C_BOLD}Lahijan first-time setup.${C_RESET}
 Answer the prompts; values are written to $ENV_FILE.
 EOF
 
-	prompt LAHIJAN_PUBLIC_HOST        "Public hostname (must resolve to this host)" "app.example.com"
-	prompt LAHIJAN_PUBLIC_URL         "Public URL (scheme + host)"                  "https://app.example.com"
+	prompt LAHIJAN_PUBLIC_HOST        "Public hostname (must resolve to this host)" "cloud.example.com"
+	prompt LAHIJAN_PUBLIC_URL         "Public URL (scheme + host)"                  "https://cloud.example.com"
 	prompt LAHIJAN_ACME_EMAIL         "Email for Let's Encrypt expiry notices"
 	prompt LAHIJAN_IMAGE_TAG          "Lahijan image tag (SemVer)"                  "v0.1.0"
 	prompt LAHIJAN_BOOTSTRAP_ADMIN_EMAIL "First-run platform.admin email"          "admin@example.com"
@@ -277,8 +277,8 @@ ${C_BOLD}${C_GREEN}Lahijan is live.${C_RESET}
 ${C_BOLD}First-run admin credentials (rotate immediately):${C_RESET}
 $creds_line
 
-Dashboard: ${LAHIJAN_PUBLIC_URL:-https://app.example.com}
-Grafana:   ${LAHIJAN_PUBLIC_URL:-https://app.example.com}/grafana
+Dashboard: ${LAHIJAN_PUBLIC_URL:-https://cloud.example.com}
+Grafana:   ${LAHIJAN_PUBLIC_URL:-https://cloud.example.com}/grafana
 
 ${C_YELLOW}WARNING:${C_RESET} the password above is shown only once. Rotate it via the
 dashboard after your first login. See deployments/SECRETS.md for the
@@ -299,7 +299,7 @@ or after a `docker compose down` + `up` cycle).
 If this is a fresh install, check the bootstrap log:
   docker compose --env-file $ENV_FILE -f $COMPOSE_FILE logs lahijan | grep bootstrap
 
-Dashboard: ${LAHIJAN_PUBLIC_URL:-https://app.example.com}
+Dashboard: ${LAHIJAN_PUBLIC_URL:-https://cloud.example.com}
 EOF
 fi
 

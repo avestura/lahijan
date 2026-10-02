@@ -58,7 +58,7 @@ Two OAuth presets exist: `google` and `github`. Any other name under `auth.oauth
 ```yaml title="/etc/lahijan/.lahijan.conf.default.yaml"
 auth:
   oauth:
-    redirectBase: "https://app.example.com"
+    redirectBase: "https://cloud.example.com"
     providers:
       github:
         enabled: true
@@ -72,7 +72,7 @@ The same settings as environment variables, set on the `lahijan` service in a co
 services:
   lahijan:
     environment:
-      LAHIJAN_AUTH_OAUTH_REDIRECTBASE: "https://app.example.com"
+      LAHIJAN_AUTH_OAUTH_REDIRECTBASE: "https://cloud.example.com"
       LAHIJAN_AUTH_OAUTH_PROVIDERS_GITHUB_ENABLED: "true"
       LAHIJAN_AUTH_OAUTH_PROVIDERS_GITHUB_CLIENTID: "Iv1.0123456789abcdef"
       LAHIJAN_AUTH_OAUTH_PROVIDERS_GITHUB_CLIENTSECRET: "change-me"
@@ -81,7 +81,7 @@ services:
 Register this callback URL with the provider:
 
 ```text
-https://app.example.com/api/v1/auth/oauth/<provider>/callback
+https://cloud.example.com/api/v1/auth/oauth/<provider>/callback
 ```
 
 Set `redirectBase` to your public origin in production. When it is empty the callback URL is derived from the request. Default scopes are `openid email profile` for Google and `read:user user:email` for GitHub.
@@ -95,7 +95,7 @@ Any OIDC provider (Keycloak, Authentik, Okta, Auth0 and others) is configured un
 ```yaml title="/etc/lahijan/.lahijan.conf.default.yaml"
 auth:
   oidc:
-    redirectBase: "https://app.example.com"
+    redirectBase: "https://cloud.example.com"
     providers:
       keycloak:
         enabled: true
@@ -107,7 +107,7 @@ auth:
 
 The equivalent variables are `LAHIJAN_AUTH_OIDC_REDIRECTBASE`, `LAHIJAN_AUTH_OIDC_PROVIDERS_KEYCLOAK_ENABLED`, `LAHIJAN_AUTH_OIDC_PROVIDERS_KEYCLOAK_ISSUER`, `LAHIJAN_AUTH_OIDC_PROVIDERS_KEYCLOAK_CLIENTID` and `LAHIJAN_AUTH_OIDC_PROVIDERS_KEYCLOAK_CLIENTSECRET`.
 
-The callback URL is `https://app.example.com/api/v1/auth/oidc/<provider>/callback`. Lahijan runs OIDC discovery against the issuer at startup. If the issuer cannot be reached or is wrong, Lahijan exits with `oidc discovery for <provider>` in the log.
+The callback URL is `https://cloud.example.com/api/v1/auth/oidc/<provider>/callback`. Lahijan runs OIDC discovery against the issuer at startup. If the issuer cannot be reached or is wrong, Lahijan exits with `oidc discovery for <provider>` in the log.
 
 Tokens returned by OAuth and OIDC providers are encrypted at rest with `auth.secrets.encryptionKey`.
 
@@ -121,7 +121,7 @@ Outside a dev environment an enabled SAML provider requires a signing key and ce
 
 ```sh
 openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
-  -keyout sp.key -out sp.crt -subj "/CN=app.example.com"
+  -keyout sp.key -out sp.crt -subj "/CN=cloud.example.com"
 ```
 
 PKCS#1 and PKCS#8 keys are accepted. Because the values span many lines, a config file with block scalars is easier than environment variables (`LAHIJAN_AUTH_SAML_SPSIGNINGKEY`, `LAHIJAN_AUTH_SAML_SPSIGNINGCERT`). The `*_FILE` variants mentioned in comments in the default config are not implemented.
@@ -131,7 +131,7 @@ PKCS#1 and PKCS#8 keys are accepted. Because the values span many lines, a confi
 ```yaml title="/etc/lahijan/.lahijan.conf.default.yaml"
 auth:
   saml:
-    redirectBase: "https://app.example.com"
+    redirectBase: "https://cloud.example.com"
     spSigningKey: |
       -----BEGIN PRIVATE KEY-----
       ...
@@ -163,10 +163,10 @@ auth:
 
 Give your IdP these values:
 
-| Value                      | URL                                                       |
-| -------------------------- | --------------------------------------------------------- |
-| SP metadata                | `https://app.example.com/api/v1/auth/saml/metadata`       |
-| Assertion consumer service | `https://app.example.com/api/v1/auth/saml/<provider>/acs` |
+| Value                      | URL                                                         |
+| -------------------------- | ----------------------------------------------------------- |
+| SP metadata                | `https://cloud.example.com/api/v1/auth/saml/metadata`       |
+| Assertion consumer service | `https://cloud.example.com/api/v1/auth/saml/<provider>/acs` |
 
 ## Two-factor authentication
 
@@ -184,8 +184,8 @@ TOTP and recovery codes work without extra setup.
 WebAuthn is turned on only when both a relying party ID and at least one origin are set:
 
 ```ini title="deployments/.env.prod"
-LAHIJAN_AUTH_MFA_WEBAUTHN_RPID=app.example.com
-LAHIJAN_AUTH_MFA_WEBAUTHN_RPORIGINS=https://app.example.com
+LAHIJAN_AUTH_MFA_WEBAUTHN_RPID=cloud.example.com
+LAHIJAN_AUTH_MFA_WEBAUTHN_RPORIGINS=https://cloud.example.com
 ```
 
 `rpId` must be the dashboard host or a registrable parent of it. `rpOrigins` is a space-separated list of full origins. `auth.mfa.webauthn.rpDisplayName` (default `Lahijan`) is shown in the browser prompt. Without these, the passkey endpoints answer "feature disabled" and TOTP keeps working.

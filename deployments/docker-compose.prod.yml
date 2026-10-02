@@ -96,7 +96,7 @@ services:
       lahijan:
         condition: service_healthy
     environment:
-      # The public dashboard origin (e.g. https://app.example.com). Caddy
+      # The public dashboard origin (e.g. https://cloud.example.com). Caddy
       # uses this in the Caddyfile's site block; Let's Encrypt issues a
       # cert for it on first boot.
       LAHIJAN_PUBLIC_HOST: ${LAHIJAN_PUBLIC_HOST}
@@ -725,11 +725,15 @@ services:
   # Observability stack (ADR-0016). OTel collector ingests OTLP from
   # Lahijan and fans out to Jaeger (traces), Loki (logs), Prometheus
   # (metrics). Grafana is the single pane of glass.
+  #
+  # Optional: these five services only start when the `monitoring` compose
+  # profile is active. Set COMPOSE_PROFILES=monitoring in .env.prod to enable.
   # ---------------------------------------------------------------------
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.108.0
     container_name: lahijan-prod-otel-collector
     restart: unless-stopped
+    profiles: ["monitoring"]
     networks: [backend]
     logging: *default-logging
     command: ["--config=/etc/otel-collector-config.yaml"]
@@ -757,6 +761,7 @@ services:
     image: jaegertracing/all-in-one:1.60
     container_name: lahijan-prod-jaeger
     restart: unless-stopped
+    profiles: ["monitoring"]
     networks: [backend]
     logging: *default-logging
     environment:
@@ -778,6 +783,7 @@ services:
     image: grafana/loki:3.1.1
     container_name: lahijan-prod-loki
     restart: unless-stopped
+    profiles: ["monitoring"]
     networks: [backend]
     logging: *default-logging
     command: -config.file=/etc/loki/local-config.yaml
@@ -793,6 +799,7 @@ services:
     image: prom/prometheus:v2.54.1
     container_name: lahijan-prod-prometheus
     restart: unless-stopped
+    profiles: ["monitoring"]
     networks: [backend]
     logging: *default-logging
     command:
@@ -814,6 +821,7 @@ services:
     image: grafana/grafana:11.2.0
     container_name: lahijan-prod-grafana
     restart: unless-stopped
+    profiles: ["monitoring"]
     networks: [backend]
     logging: *default-logging
     environment:

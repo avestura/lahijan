@@ -36,11 +36,11 @@ docker compose --env-file deployments/.env.prod -f deployments/docker-compose.pr
 | `incus`             | `ghcr.io/cmspam/incus-docker:${INCUS_IMAGE_TAG:-lts}` | Incus daemon (6.0 LTS by default)                               |
 | `migrate`           | `migrate/migrate:v4.19.1`                             | One-shot: applies database migrations                           |
 | `lahijan`           | `ghcr.io/avestura/lahijan:${LAHIJAN_IMAGE_TAG}`       | The Lahijan API and job workers                                 |
-| `otel-collector`    | `otel/opentelemetry-collector-contrib:0.108.0`        | OpenTelemetry collector                                         |
-| `jaeger`            | `jaegertracing/all-in-one:1.60`                       | Trace storage and UI (in memory)                                |
-| `loki`              | `grafana/loki:3.1.1`                                  | Log storage                                                     |
-| `prometheus`        | `prom/prometheus:v2.54.1`                             | Metrics, 15 day retention                                       |
-| `grafana`           | `grafana/grafana:11.2.0`                              | Dashboards, served at `/grafana`                                |
+| `otel-collector`    | `otel/opentelemetry-collector-contrib:0.108.0`        | OpenTelemetry collector (`monitoring` profile)                  |
+| `jaeger`            | `jaegertracing/all-in-one:1.60`                       | Trace storage and UI (in memory; `monitoring` profile)          |
+| `loki`              | `grafana/loki:3.1.1`                                  | Log storage (`monitoring` profile)                              |
+| `prometheus`        | `prom/prometheus:v2.54.1`                             | Metrics, 15 day retention (`monitoring` profile)                |
+| `grafana`           | `grafana/grafana:11.2.0`                              | Dashboards at `/grafana` (`monitoring` profile)                 |
 
 Start order is enforced with health checks: `lahijan` waits for `postgres`, `powerdns`, `seaweed-s3` and `incus` to be healthy and for `migrate` to exit successfully. Caddy waits for `lahijan`.
 
@@ -132,7 +132,7 @@ This stack is single-node. There is one PostgreSQL container, one PowerDNS serve
 
 The stack expects Caddy to own ports 80 and 443 and to get its own certificate. If another proxy already holds those ports, keep Caddy (it serves the dashboard files and routes the backend paths) and put your proxy in front of it:
 
-1. Set `LAHIJAN_PUBLIC_HOST=http://app.example.com` in `.env.prod`. The `http://` scheme makes Caddy serve that site on plain HTTP without requesting a certificate.
+1. Set `LAHIJAN_PUBLIC_HOST=http://cloud.example.com` in `.env.prod`. The `http://` scheme makes Caddy serve that site on plain HTTP without requesting a certificate.
 2. In a compose override file, replace Caddy's published ports with a local one, for example `127.0.0.1:8088:80`. Docker Compose merges `ports` lists, so use the `!override` tag (Compose 2.24.4 or newer) to drop the defaults.
 3. Point your proxy at `http://127.0.0.1:8088`, keep TLS on your proxy, pass the original `Host` header and allow WebSocket upgrades (the instance console needs them).
 4. Keep `LAHIJAN_PUBLIC_URL` set to the public `https://` origin. Email links, the Grafana root URL and the S3 CORS origin use it.

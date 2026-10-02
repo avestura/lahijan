@@ -57,13 +57,15 @@ Everything else stays on the internal Docker network.
 Create these records before the first start, replacing `203.0.113.10` with your server's address:
 
 ```text
-app.example.com.   A   203.0.113.10    ; the dashboard and API
+cloud.example.com. A   203.0.113.10    ; the dashboard and API
+s3.example.com.    A   203.0.113.10    ; the S3 endpoint (HTTPS)
 ns1.example.com.   A   203.0.113.10    ; your nameservers
 ns2.example.com.   A   203.0.113.10
-s3.example.com.    A   203.0.113.10    ; optional: S3 endpoint with TLS
 ```
 
-The dashboard record must resolve before Caddy starts, or Let's Encrypt cannot issue the certificate. The nameserver names are what your users will delegate their domains to; see [TLS and domains](/docs/operations/tls-and-domains).
+The dashboard and S3 records must resolve before Caddy starts, or Let's Encrypt cannot issue their certificates. The nameserver names are what your users will delegate their domains to; see [TLS and domains](/docs/operations/tls-and-domains).
+
+> [!NOTE] > `cloud`, `s3`, `ns1` and `ns2` are only examples. None of these subdomains is hardcoded in Lahijan: pick any names you like in your DNS records, as long as you use the same names in the environment file ([step 2](#2-create-the-environment-file)) and in the S3 Caddy snippet.
 
 ## 1. Get the code
 
@@ -95,14 +97,14 @@ openssl rand -hex 16      # SEAWEEDFS_S3_ACCESS_KEY
 The settings you must look at on every installation:
 
 ```ini title="deployments/.env.prod"
-LAHIJAN_PUBLIC_HOST=app.example.com
-LAHIJAN_PUBLIC_URL=https://app.example.com
+LAHIJAN_PUBLIC_HOST=cloud.example.com
+LAHIJAN_PUBLIC_URL=https://cloud.example.com
 LAHIJAN_IMAGE_TAG=v0.1.0
 
 LAHIJAN_DNS_NAMESERVERS="ns1.example.com. ns2.example.com."
 PDNS_DEFAULT_SOA_CONTENT="ns1.example.com. hostmaster.@ 0 10800 3600 604800 3600"
 
-LAHIJAN_S3_PUBLIC_URL=http://203.0.113.10:8333
+LAHIJAN_S3_PUBLIC_URL=https://s3.example.com
 
 LAHIJAN_BOOTSTRAP_ADMIN_EMAIL=admin@example.com
 LAHIJAN_BOOTSTRAP_ADMIN_PASSWORD=
@@ -110,8 +112,16 @@ LAHIJAN_BOOTSTRAP_ADMIN_PASSWORD=
 
 - `LAHIJAN_PUBLIC_HOST` is the host name Caddy gets a certificate for. `LAHIJAN_PUBLIC_URL` is used in email links and in the CORS settings written to every bucket.
 - `LAHIJAN_DNS_NAMESERVERS` are written as `NS` records into every new zone, and `PDNS_DEFAULT_SOA_CONTENT` sets the `SOA` record. Keep the first nameserver and the SOA primary the same. If you skip these, new zones point at placeholder names.
-- `LAHIJAN_S3_PUBLIC_URL` is the S3 address users reach, and the address pre-signed URLs are signed for. Use the published port as above, or `https://s3.example.com` if you set up the TLS site described in [TLS and domains](/docs/operations/tls-and-domains).
+- `LAHIJAN_S3_PUBLIC_URL` is the S3 address users reach, and the address pre-signed URLs are signed for. It must match the S3 host in your DNS records. Caddy serves it over TLS through the snippet below; see [TLS and domains](/docs/operations/tls-and-domains) for details.
 - `LAHIJAN_BOOTSTRAP_ADMIN_EMAIL` and `LAHIJAN_BOOTSTRAP_ADMIN_PASSWORD` create the first administrator. See [step 6](#6-sign-in-as-the-bootstrap-admin).
+
+Create the Caddy site for the S3 host (use the same name you put in `LAHIJAN_S3_PUBLIC_URL`):
+
+```text title="deployments/caddy/conf.d/s3.caddy"
+s3.example.com {
+	reverse_proxy seaweed-s3:8333
+}
+```
 
 Set up outgoing email (`LAHIJAN_SMTP_*`) too: verification and password-reset emails depend on it. Change the Grafana and Jaeger basic-auth hashes from the default `admin` password.
 
@@ -212,7 +222,7 @@ lahijan-compose logs lahijan | grep "first-run admin credentials"
 
 The bootstrap runs only while the `users` table is empty. Once any account exists it is skipped on every start, so changing these variables later has no effect.
 
-Open `https://app.example.com`, sign in with the admin email and password, and change the password right away under **Settings > Profile > Change password**. Then continue with [First steps](/docs/getting-started/first-steps).
+Open `https://cloud.example.com`, sign in with the admin email and password, and change the password right away under **Settings > Profile > Change password**. Then continue with [First steps](/docs/getting-started/first-steps).
 
 > [!TIP] > `scripts/install.sh` automates steps 1, 2 and 5: it checks the prerequisites, clones the repository to `/opt/lahijan`, asks for the main values and writes `.env.prod`, pulls the images, starts the stack and prints the bootstrap credentials. It does not build the dashboard or the Lahijan image, and it does not initialize Incus, so do steps 3, 4 and the Incus initialization yourself.
 
@@ -229,15 +239,15 @@ Every long-running service should show `(healthy)`. The one-shot `migrate` and `
 Check the server through Caddy:
 
 ```console
-$ curl https://app.example.com/healthcheck/liveness
+$ curl https://cloud.example.com/healthcheck/liveness
 OK
 ```
 
 Then check each service from the outside:
 
 - **DNS:** after you create a zone in the dashboard, `dig @203.0.113.10 example.org SOA` should return the SOA record.
-- **Object storage:** `curl -I http://203.0.113.10:8333/status` should answer.
-- **Operator dashboards:** Grafana is at `https://app.example.com/grafana/` and Jaeger at `https://app.example.com/jaeger/`, both behind basic auth.
+- **Object storage:** `curl -I https://s3.example.com/status` should answer.
+- **Operator dashboards:** Grafana is at `https://cloud.example.com/grafana/` and Jaeger at `https://cloud.example.com/jaeger/`, both behind basic auth.
 
 If a service does not become healthy, look at its log with `lahijan-compose logs <service>` and see [Troubleshooting](/docs/operations/troubleshooting). Common first-install problems:
 

@@ -20,13 +20,13 @@ In the tables, **Default** is the value the compose file falls back to when the 
 
 ## Public origin
 
-| Variable                 | Default  | Required            | What it does                                                                                                                                                                                                                                                           |
-| ------------------------ | -------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `LAHIJAN_PUBLIC_HOST`    | None     | Yes                 | Host name of the dashboard, for example `app.example.com`. Used as Caddy's site address; Caddy requests a certificate for it.                                                                                                                                          |
-| `LAHIJAN_PUBLIC_URL`     | None     | Yes                 | Full public origin, for example `https://app.example.com`. Sets the base URL of email links (`smtp.appBaseURL`), the S3 CORS origin (`providers.seaweedfs.corsAllowedOrigins`) and Grafana's root URL. The compose file does not derive it from `LAHIJAN_PUBLIC_HOST`. |
-| `LAHIJAN_ACME_EMAIL`     | Empty    | No                  | Passed to Caddy as `ACME_EMAIL`. The shipped Caddyfile does not read it; use `caddy/conf.d/acme.global` instead (see [TLS and domains](/docs/operations/tls-and-domains#acme-contact-email)).                                                                          |
-| `LAHIJAN_S3_PUBLIC_HOST` | Not used | No                  | Listed in the example, but not read by the compose file or the Caddyfile.                                                                                                                                                                                              |
-| `LAHIJAN_S3_PUBLIC_URL`  | Empty    | For browser uploads | Public S3 origin that pre-signed URLs are signed for. Sets `providers.seaweedfs.publicEndpoint`. Empty means URLs point at the internal `http://seaweed-s3:8333`.                                                                                                      |
+| Variable                 | Default  | Required            | What it does                                                                                                                                                                                                                                                             |
+| ------------------------ | -------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `LAHIJAN_PUBLIC_HOST`    | None     | Yes                 | Host name of the dashboard, for example `cloud.example.com`. Used as Caddy's site address; Caddy requests a certificate for it.                                                                                                                                          |
+| `LAHIJAN_PUBLIC_URL`     | None     | Yes                 | Full public origin, for example `https://cloud.example.com`. Sets the base URL of email links (`smtp.appBaseURL`), the S3 CORS origin (`providers.seaweedfs.corsAllowedOrigins`) and Grafana's root URL. The compose file does not derive it from `LAHIJAN_PUBLIC_HOST`. |
+| `LAHIJAN_ACME_EMAIL`     | Empty    | No                  | Passed to Caddy as `ACME_EMAIL`. The shipped Caddyfile does not read it; use `caddy/conf.d/acme.global` instead (see [TLS and domains](/docs/operations/tls-and-domains#acme-contact-email)).                                                                            |
+| `LAHIJAN_S3_PUBLIC_HOST` | Not used | No                  | Listed in the example, but not read by the compose file or the Caddyfile.                                                                                                                                                                                                |
+| `LAHIJAN_S3_PUBLIC_URL`  | Empty    | For browser uploads | Public S3 origin that pre-signed URLs are signed for. Sets `providers.seaweedfs.publicEndpoint`. Empty means URLs point at the internal `http://seaweed-s3:8333`.                                                                                                        |
 
 ## Image versions
 
@@ -114,10 +114,10 @@ See [Sign-in providers and email](/docs/operations/authentication#email-and-smtp
 
 ## Passkeys (WebAuthn)
 
-| Variable                              | Default | Required | What it does                                                                                                                               |
-| ------------------------------------- | ------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `LAHIJAN_AUTH_MFA_WEBAUTHN_RPID`      | Empty   | No       | `auth.mfa.webauthn.rpId`, for example `app.example.com`.                                                                                   |
-| `LAHIJAN_AUTH_MFA_WEBAUTHN_RPORIGINS` | Empty   | No       | `auth.mfa.webauthn.rpOrigins`, space-separated full origins, for example `https://app.example.com`. WebAuthn is on only when both are set. |
+| Variable                              | Default | Required | What it does                                                                                                                                 |
+| ------------------------------------- | ------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `LAHIJAN_AUTH_MFA_WEBAUTHN_RPID`      | Empty   | No       | `auth.mfa.webauthn.rpId`, for example `cloud.example.com`.                                                                                   |
+| `LAHIJAN_AUTH_MFA_WEBAUTHN_RPORIGINS` | Empty   | No       | `auth.mfa.webauthn.rpOrigins`, space-separated full origins, for example `https://cloud.example.com`. WebAuthn is on only when both are set. |
 
 ## First-run admin
 
@@ -127,6 +127,14 @@ See [Sign-in providers and email](/docs/operations/authentication#email-and-smtp
 | `LAHIJAN_BOOTSTRAP_ADMIN_PASSWORD` | Empty   | No          | Preset password (`bootstrap.adminPassword`). When empty, Lahijan generates a 24-character password and logs it once at WARN level. |
 
 ## Observability
+
+The monitoring stack is optional and off by default. It is controlled by a compose profile; see [Observability](/docs/operations/observability#enable-the-monitoring-stack).
+
+| Variable           | Default | Required | What it does                                                                                                                                                                                                       |
+| ------------------ | ------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `COMPOSE_PROFILES` | Empty   | No       | Comma-separated compose profiles to start. Add `monitoring` to run `otel-collector`, `jaeger`, `loki`, `prometheus` and `grafana`. Without it none of those start. `dns-full` is the other profile (see PowerDNS). |
+
+The Grafana and Jaeger variables below only matter when `monitoring` is enabled.
 
 | Variable                  | Default                | Required | What it does                                                                                                                                                      |
 | ------------------------- | ---------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
