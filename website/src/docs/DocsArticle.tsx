@@ -188,14 +188,14 @@ export function DocsArticle({ slug, doc, children }: DocsArticleProps) {
             <p className="bx-label mb-3">{t("docs.onThisPage")}</p>
             <nav className="bx-toc" aria-label={t("docs.onThisPage")}>
               {doc.headings.map((h) => (
-                <a
+                <Link
                   key={h.id}
-                  href={`#${h.id}`}
+                  to={{ hash: `#${h.id}` }}
                   className={h.depth === 3 ? "sub" : undefined}
                   aria-current={active === h.id ? "true" : undefined}
                 >
                   {h.text}
-                </a>
+                </Link>
               ))}
             </nav>
           </div>

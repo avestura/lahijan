@@ -212,14 +212,14 @@ details[open] > summary.bx-tree__item {
   font-size: var(--bx-text-2xl);
   line-height: var(--bx-lh-2xl);
   color: var(--bx-ink);
-  scroll-margin-block-start: var(--bx-space-10);
+  scroll-margin-block-start: 80px; /* clears the 56px sticky header */
 }
 .bx-prose h3 {
   margin-block-start: var(--bx-space-6);
   font-size: var(--bx-text-lg);
   line-height: var(--bx-lh-lg);
   color: var(--bx-ink);
-  scroll-margin-block-start: var(--bx-space-10);
+  scroll-margin-block-start: 80px; /* clears the 56px sticky header */
 }
 .bx-prose h4 {
   margin-block-start: var(--bx-space-5);
