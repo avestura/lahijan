@@ -405,7 +405,7 @@
     "subtitle": "Guides for the people using a Lahijan deployment, and references for the operators who run one. Every setting, endpoint and permission is listed.",
     "quickstart": {
       "title": "Quickstart",
-      "body": "Run the whole stack on your machine and try it out."
+      "body": "Run the whole stack with one docker compose command and try it out."
     },
     "install": {
       "title": "Install on a server",

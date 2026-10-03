@@ -33,6 +33,7 @@ export const DOCS_NAV: DocsSection[] = [
       { slug: "", title: "Overview" },
       { slug: "getting-started/introduction", title: "Introduction" },
       { slug: "getting-started/quickstart", title: "Quickstart" },
+      { slug: "getting-started/run-from-source", title: "Run from source" },
       { slug: "getting-started/installation", title: "Install on a server" },
       { slug: "getting-started/first-steps", title: "First steps" },
       { slug: "getting-started/concepts", title: "Core concepts" },

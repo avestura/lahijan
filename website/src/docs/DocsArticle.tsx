@@ -75,10 +75,26 @@ export function DocsArticle({ slug, doc, children }: DocsArticleProps) {
     if (!root) return;
     const onClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
+      const tab = target.closest<HTMLButtonElement>("[data-tab]");
+      if (tab) {
+        const block = tab.closest("[data-tabs]");
+        const index = tab.dataset.tab;
+        block?.querySelectorAll<HTMLButtonElement>("[data-tab]").forEach((b) => {
+          const on = b.dataset.tab === index;
+          b.setAttribute("aria-selected", String(on));
+          b.tabIndex = on ? 0 : -1;
+        });
+        block?.querySelectorAll<HTMLElement>("[data-panel]").forEach((p) => {
+          p.hidden = p.dataset.panel !== index;
+        });
+        return;
+      }
       const copy = target.closest<HTMLButtonElement>("[data-copy]");
       if (copy) {
-        const block = copy.closest(".bx-codeblock");
-        const terminal = block?.classList.contains("bx-codeblock--term");
+        const fullBlock = copy.closest(".bx-codeblock");
+        // A tabbed block copies only the tab you are looking at.
+        const block = fullBlock?.querySelector("[data-panel]:not([hidden])") ?? fullBlock;
+        const terminal = fullBlock?.classList.contains("bx-codeblock--term");
         const lines = Array.from(
           block?.querySelectorAll<HTMLElement>(terminal ? ".ln--cmd" : ".ln") ?? [],
         );

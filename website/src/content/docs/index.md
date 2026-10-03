@@ -19,7 +19,7 @@ These docs are written for four groups of readers:
 
 - [Introduction](/docs/getting-started/introduction): what Lahijan offers and how it is used.
 - [Core concepts](/docs/getting-started/concepts): tenants, roles, the audit log, billing and plugins.
-- [Quickstart](/docs/getting-started/quickstart): run Lahijan on your own machine to try it or work on it.
+- [Quickstart](/docs/getting-started/quickstart): run Lahijan with one `docker compose up -d`.
 - [Install on a server](/docs/getting-started/installation): set up the production stack on a Linux host.
 - [First steps](/docs/getting-started/first-steps): sign in for the first time and create your first resources.
 - [REST API](/docs/reference/api): call Lahijan from scripts and other programs.

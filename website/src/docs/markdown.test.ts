@@ -2,6 +2,9 @@
  * Docs compiler tests (scripts/docs/markdown.ts): the Boxy markup each
  * Markdown construct turns into.
  */
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { compileDoc, slugify } from "../../scripts/docs/markdown";
@@ -85,6 +88,58 @@ describe("compileDoc", () => {
 
   it("does not render raw HTML", () => {
     expect(compileDoc(page("<b>bold</b>"), "/").html).toContain("&lt;b&gt;");
+  });
+});
+
+describe("tabbed code blocks", () => {
+  const FENCE = "```";
+  const tabs = [
+    `${FENCE}yaml tab="compose.yaml"`,
+    "services: {}",
+    FENCE,
+    `${FENCE}ini tab=".env"`,
+    "KEY=value",
+    FENCE,
+  ].join("\n");
+
+  it("merges consecutive tab fences into one block with a tab per fence", () => {
+    const { html } = compileDoc(page(tabs), "/");
+    expect(html.match(/class="bx-codeblock bx-codeblock--tabs"/g)).toHaveLength(1);
+    expect(html).toContain('role="tablist"');
+    expect(html).toContain(">compose.yaml</button>");
+    expect(html).toContain(">.env</button>");
+    // Only the first panel is visible.
+    expect(html).toContain('data-panel="0"><code>');
+    expect(html).toMatch(/data-panel="1" hidden/);
+    expect(html).toContain('aria-selected="true"');
+    expect(html).toContain('aria-selected="false"');
+    expect(html).toContain("data-copy");
+  });
+
+  it("keeps ordinary fences and separate groups apart", () => {
+    const body = `${tabs}\n\nText between.\n\n${tabs}\n\n${FENCE}sh\nls\n${FENCE}`;
+    const { html } = compileDoc(page(body), "/");
+    expect(html.match(/bx-codeblock--tabs/g)).toHaveLength(2);
+    expect(html).toContain('<div class="bx-codeblock"><div class="bx-codeblock__head">');
+  });
+
+  it("fills an include= fence from the repository and reports the file", () => {
+    const root = mkdtempSync(path.join(tmpdir(), "docs-include-"));
+    mkdirSync(path.join(root, "deploy"));
+    writeFileSync(path.join(root, "deploy", "compose.yaml"), "name: lahijan\r\nservices: {}\r\n");
+    const body = `${FENCE}yaml tab="compose.yaml" include="deploy/compose.yaml"\n${FENCE}\n`;
+    const doc = compileDoc(page(body), "/", "doc", { repoRoot: root });
+    // Syntax highlighting wraps tokens in spans; compare the visible text.
+    expect(doc.html.replace(/<[^>]+>/g, "")).toContain("name: lahijan");
+    expect(doc.includes).toEqual([path.join(root, "deploy", "compose.yaml")]);
+  });
+
+  it("refuses includes that escape the repository", () => {
+    const root = mkdtempSync(path.join(tmpdir(), "docs-include-"));
+    const escape = `${FENCE}yaml tab="x" include="../outside.yaml"\n${FENCE}\n`;
+    expect(() => compileDoc(page(escape), "/", "doc", { repoRoot: root })).toThrow(
+      /outside the repository/,
+    );
   });
 });
 

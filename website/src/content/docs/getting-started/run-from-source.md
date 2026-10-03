@@ -1,9 +1,9 @@
 ---
-title: Quickstart
-description: Run Lahijan on your own machine from a source checkout to evaluate it or work on it.
+title: Run from source
+description: Build and run Lahijan from a source checkout, with the supporting services in Docker, to work on it or contribute.
 ---
 
-This page gets a development copy of Lahijan running on your computer: the supporting services in Docker, the Lahijan server built from source, and the dashboard in a Vite dev server. It is meant for trying Lahijan out and for contributing. To run Lahijan for real users, follow [Install on a server](/docs/getting-started/installation) instead.
+This page is for people who want to change Lahijan. It gets a development copy running on your computer: the supporting services in Docker, the Lahijan server built from source, and the dashboard in a Vite dev server. If you only want to use Lahijan, the [Quickstart](/docs/getting-started/quickstart) is much shorter: one `docker compose up -d` and no source code. To run it for real users, see [Install on a server](/docs/getting-started/installation).
 
 > [!NOTE]
 > The development setup runs DNS and object storage for real, but compute needs an Incus daemon the server can reach. Without one, the **Instances** page loads but you cannot create instances. See [Add compute (Linux only)](#add-compute-linux-only).
@@ -153,4 +153,5 @@ docker compose -f deployments/docker-compose.dev.yml down -v
 
 - [First steps](/docs/getting-started/first-steps): a tour of the dashboard and your first instance, zone and bucket.
 - [Core concepts](/docs/getting-started/concepts): tenants, roles and billing.
+- [Quickstart](/docs/getting-started/quickstart): the no-build way to run Lahijan.
 - [Install on a server](/docs/getting-started/installation): the production stack.

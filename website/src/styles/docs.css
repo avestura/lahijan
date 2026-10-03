@@ -433,6 +433,46 @@ ol.bx-list > li::before {
 .bx-codeblock__spacer {
   flex: 1;
 }
+/* Tabbed block: the tab strip replaces the file name in the header. */
+.bx-codeblock__tabs {
+  display: flex;
+  align-self: stretch;
+  margin-inline-start: calc(var(--bx-space-3) * -1);
+}
+.bx-codeblock__tab {
+  appearance: none;
+  border: 0;
+  border-inline-end: var(--bx-border) solid var(--bx-line);
+  background: transparent;
+  height: 100%;
+  padding-inline: var(--bx-space-4);
+  font-family: var(--bx-font-mono);
+  font-size: var(--bx-text-xs);
+  color: var(--bx-ink-subtle);
+  cursor: pointer;
+  transition:
+    background-color var(--bx-dur-1) var(--bx-ease),
+    color var(--bx-dur-1) var(--bx-ease);
+}
+.bx-codeblock__tab:hover {
+  background: var(--bx-surface-hover);
+  color: var(--bx-ink);
+}
+.bx-codeblock__tab[aria-selected="true"] {
+  background: var(--bx-surface-sunken);
+  color: var(--bx-ink);
+  box-shadow: inset 0 -2px 0 var(--bx-ink);
+}
+.bx-codeblock__tab:focus-visible {
+  outline-offset: calc(var(--bx-focus-width) * -1);
+}
+.bx-codeblock--tabs pre[hidden] {
+  display: none;
+}
+.bx-codeblock--tabs pre {
+  max-block-size: 28rem;
+  overflow-y: auto;
+}
 .bx-codeblock__btn {
   appearance: none;
   border: 0;

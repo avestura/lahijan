@@ -3,6 +3,9 @@ title: Install on a server
 description: Install the Lahijan production stack on a Linux server with Docker Compose, create the first administrator and check that everything is healthy.
 ---
 
+> [!TIP]
+> Just want Lahijan running? The [Quickstart](/docs/getting-started/quickstart) needs two files and one `docker compose up -d`, also on a server with your own domain and HTTPS. This page is the detailed guide for operators who want to manage the whole production stack themselves, with monitoring and every file in the open.
+
 This page walks you through a single-server installation of Lahijan with the production compose file, `deployments/docker-compose.prod.yml`. One `docker compose up` starts everything the platform needs on the host:
 
 | Service                                                                               | What it runs                                                                                                          |

@@ -63,4 +63,4 @@ What you can do inside a tenant depends on your role. The built-in roles are own
 
 - New to the platform: read [Core concepts](/docs/getting-started/concepts).
 - Just got an account: follow [First steps](/docs/getting-started/first-steps).
-- Want to try Lahijan on your own machine: see the [Quickstart](/docs/getting-started/quickstart).
+- Want to try Lahijan: the [Quickstart](/docs/getting-started/quickstart) runs it with one `docker compose up -d`.

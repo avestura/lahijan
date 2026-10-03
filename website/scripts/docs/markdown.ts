@@ -11,10 +11,18 @@
  *     language, COPY) and one `<span class="ln">` per line;
  *   - `console` fences render as terminal blocks: `$ ` lines are commands,
  *     the rest is output;
+ *   - consecutive fences that carry `tab="Label"` become ONE tabbed code
+ *     block (`yaml tab="compose.yaml"`, `ini tab=".env"`); a tab fence with an
+ *     empty body and `include="path"` is filled from that file (relative to
+ *     the repository root) at build time, so the docs show the real file;
  *   - GitHub-style alerts (`> [!NOTE]`) become `.bx-callout` blocks;
  *   - tables are wrapped for horizontal scroll; lists get `.bx-list`;
  *   - h2/h3 get stable ids and are collected for the on-this-page list.
  */
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 import MarkdownIt from "markdown-it";
 import type Token from "markdown-it/lib/token.mjs";
 import { parse as parseYaml } from "yaml";
@@ -34,6 +42,18 @@ export interface CompiledDoc {
   headings: DocHeading[];
   /** Plain text of the body, trimmed, for the search index. */
   text: string;
+  /** Absolute paths of the files pulled in with `include=`, for watch mode. */
+  includes: string[];
+}
+
+/** The repository root: this file is <repo>/website/scripts/docs/markdown.ts. */
+const DEFAULT_REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+
+/** Per-compile state shared with the markdown-it rules. */
+interface DocEnv {
+  repoRoot: string;
+  includes: string[];
+  file: string;
 }
 
 const CALLOUTS: Record<string, { kind: string; label: string }> = {
@@ -91,20 +111,27 @@ export function splitFrontMatter(src: string): { data: Record<string, unknown>; 
   return { data, body: normalized.slice(m[0].length) };
 }
 
-/** Parses a fence info string: `yaml title="docker-compose.yml"`. */
-function parseFenceInfo(info: string): { lang: string; title: string } {
+/** Parses a fence info string: `yaml title="docker-compose.yml" tab="Compose"`. */
+function parseFenceInfo(info: string): {
+  lang: string;
+  title: string;
+  tab: string;
+  include: string;
+} {
   const lang = (info.trim().split(/\s+/)[0] ?? "").toLowerCase();
   const title = /title="([^"]*)"/.exec(info)?.[1] ?? "";
-  return { lang, title };
+  const tab = /tab="([^"]*)"/.exec(info)?.[1] ?? "";
+  const include = /include="([^"]*)"/.exec(info)?.[1] ?? "";
+  return { lang, title, tab, include };
 }
 
 const TERMINAL_LANGS = new Set(["console", "shell-session", "terminal"]);
 
-function renderCodeBlock(content: string, info: string): string {
-  const { lang, title } = parseFenceInfo(info);
+/** The `<span class="ln">` lines of one code body. */
+function renderLines(content: string, lang: string): string {
   const lines = content.replace(/\n$/, "").split("\n");
   const terminal = TERMINAL_LANGS.has(lang);
-  const body = lines
+  return lines
     .map((line) => {
       if (terminal) {
         if (line.startsWith("$ ")) {
@@ -115,6 +142,12 @@ function renderCodeBlock(content: string, info: string): string {
       return `<span class="ln">${highlight(line, lang) || " "}</span>`;
     })
     .join("");
+}
+
+function renderCodeBlock(content: string, info: string): string {
+  const { lang, title } = parseFenceInfo(info);
+  const terminal = TERMINAL_LANGS.has(lang);
+  const body = renderLines(content, lang);
   const label = terminal ? "terminal" : lang || "text";
   const head = [
     title ? `<span class="bx-label bx-codeblock__file">${escapeHtml(title)}</span>` : "",
@@ -124,6 +157,74 @@ function renderCodeBlock(content: string, info: string): string {
   ].join("");
   const cls = `bx-codeblock${terminal ? " bx-codeblock--term" : ""}`;
   return `<div class="${cls}"><div class="bx-codeblock__head">${head}</div><pre><code>${body}</code></pre></div>\n`;
+}
+
+interface TabPanel {
+  label: string;
+  lang: string;
+  content: string;
+}
+
+/** One code block with a tab per panel; only the first panel is visible. */
+function renderTabbedBlock(panels: TabPanel[], id: number): string {
+  const tabs = panels
+    .map(
+      (p, i) =>
+        `<button type="button" role="tab" class="bx-codeblock__tab" id="tab-${id}-${i}" aria-controls="panel-${id}-${i}" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}" data-tab="${i}">${escapeHtml(p.label)}</button>`,
+    )
+    .join("");
+  const head =
+    `<div class="bx-codeblock__tabs" role="tablist">${tabs}</div>` +
+    `<span class="bx-codeblock__spacer"></span>` +
+    `<button type="button" class="bx-codeblock__btn" data-copy>copy</button>`;
+  const bodies = panels
+    .map(
+      (p, i) =>
+        `<pre role="tabpanel" id="panel-${id}-${i}" aria-labelledby="tab-${id}-${i}" data-panel="${i}"${i === 0 ? "" : " hidden"}><code>${renderLines(p.content, p.lang)}</code></pre>`,
+    )
+    .join("");
+  return `<div class="bx-codeblock bx-codeblock--tabs" data-tabs><div class="bx-codeblock__head">${head}</div>${bodies}</div>\n`;
+}
+
+/**
+ * Groups consecutive `tab="..."` fences into one `bx_tabs` token and fills
+ * `include="..."` fences from the repository.
+ */
+function tabsRule(md: MarkdownIt): void {
+  md.core.ruler.after("block", "bx-tabs", (state) => {
+    const env = state.env as DocEnv;
+    const out: Token[] = [];
+    let group: Token | null = null;
+    for (const t of state.tokens) {
+      const info = t.type === "fence" ? parseFenceInfo(t.info) : null;
+      if (!info || !info.tab) {
+        group = null;
+        out.push(t);
+        continue;
+      }
+      let content = t.content;
+      if (info.include) {
+        const full = path.resolve(env.repoRoot, info.include);
+        if (!full.startsWith(path.resolve(env.repoRoot) + path.sep)) {
+          throw new Error(`${env.file}: include="${info.include}" is outside the repository`);
+        }
+        content = readFileSync(full, "utf8").replace(/\r\n/g, "\n");
+        env.includes.push(full);
+      }
+      if (!group) {
+        group = new state.Token("bx_tabs", "", 0);
+        group.block = true;
+        group.meta = { panels: [] as TabPanel[] };
+        out.push(group);
+      }
+      (group.meta as { panels: TabPanel[] }).panels.push({
+        label: info.tab,
+        lang: info.lang,
+        content,
+      });
+    }
+    state.tokens = out;
+  });
 }
 
 /** Turns `> [!NOTE]` blockquotes into callouts (GitHub alert syntax). */
@@ -165,6 +266,11 @@ function calloutRule(md: MarkdownIt): void {
 export function createMarkdown(base: string): MarkdownIt {
   const md = new MarkdownIt({ html: false, linkify: false, typographer: false });
   calloutRule(md);
+  tabsRule(md);
+
+  let tabGroups = 0;
+  md.renderer.rules.bx_tabs = (tokens, idx) =>
+    renderTabbedBlock((tokens[idx] as Token).meta.panels as TabPanel[], tabGroups++);
 
   md.renderer.rules.fence = (tokens, idx) => {
     const t = tokens[idx] as Token;
@@ -213,14 +319,19 @@ export function createMarkdown(base: string): MarkdownIt {
 }
 
 /** Compiles one docs page. `base` is the Vite base (e.g. "/" or "/lahijan/"). */
-export function compileDoc(src: string, base: string, file = "doc"): CompiledDoc {
+export function compileDoc(
+  src: string,
+  base: string,
+  file = "doc",
+  opts: { repoRoot?: string } = {},
+): CompiledDoc {
   const { data, body } = splitFrontMatter(src);
   const title = typeof data.title === "string" ? data.title : "";
   const description = typeof data.description === "string" ? data.description : "";
   if (!title) throw new Error(`${file}: front matter needs a "title"`);
 
   const md = createMarkdown(base);
-  const env = {};
+  const env: DocEnv = { repoRoot: opts.repoRoot ?? DEFAULT_REPO_ROOT, includes: [], file };
   const tokens = md.parse(body, env);
 
   // Heading ids + outline.
@@ -248,5 +359,5 @@ export function compileDoc(src: string, base: string, file = "doc"): CompiledDoc
     .replace(/[#>*_`|[\]()-]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-  return { title, description, html, headings, text };
+  return { title, description, html, headings, text, includes: env.includes };
 }

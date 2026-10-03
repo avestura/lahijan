@@ -30,6 +30,9 @@ function walk(dir: string): string[] {
 export function docsPlugin(contentDir: string): Plugin {
   let base = "/";
   const root = path.resolve(contentDir);
+  // contentDir is <repo>/website/src/content/docs; `include=` paths in the
+  // docs are relative to the repository root.
+  const repoRoot = path.resolve(root, "../../../..");
   const isDoc = (id: string) => {
     const file = path.resolve(id.split("?")[0] ?? id);
     return (
@@ -54,7 +57,8 @@ export function docsPlugin(contentDir: string): Plugin {
         .sort()
         .map((file) => {
           this.addWatchFile(file);
-          const doc = compileDoc(readFileSync(file, "utf8"), base, file);
+          const doc = compileDoc(readFileSync(file, "utf8"), base, file, { repoRoot });
+          for (const inc of doc.includes) this.addWatchFile(inc);
           const slug = path.relative(root, file).replace(/\\/g, "/").replace(/\.md$/, "");
           return {
             slug: slug === "index" ? "" : slug,
@@ -68,7 +72,8 @@ export function docsPlugin(contentDir: string): Plugin {
     },
     transform(code, id) {
       if (!isDoc(id)) return null;
-      const doc = compileDoc(code, base, id);
+      const doc = compileDoc(code, base, id, { repoRoot });
+      for (const inc of doc.includes) this.addWatchFile(inc);
       const { title, description, html, headings } = doc;
       return {
         code: `export default ${JSON.stringify({ title, description, html, headings })};`,
