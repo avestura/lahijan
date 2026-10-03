@@ -1,0 +1,12 @@
+# Keep the Docker build context small: the images only need source files.
+.git
+.claude
+.opencode
+.precheck-tmp
+logs
+dist
+**/node_modules
+web/dist
+website
+docs-site
+test/e2e

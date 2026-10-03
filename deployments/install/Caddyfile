@@ -1,0 +1,44 @@
+# Caddyfile baked into the lahijan-web image (the self-contained install).
+#
+# One variable controls the address Lahijan answers on:
+#
+#   LAHIJAN_SITE_ADDRESS=:80                 plain HTTP on any host name (the trial)
+#   LAHIJAN_SITE_ADDRESS=cloud.example.com   HTTPS with an automatic Let's Encrypt
+#                                            certificate (production)
+#
+# The compose file derives both values from LAHIJAN_DOMAIN, so you normally set
+# nothing here. The full production stack (deployments/docker-compose.prod.yml)
+# uses its own Caddyfile in deployments/caddy/.
+
+{$LAHIJAN_SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	# Backend routes: the REST API (including the console WebSocket), the
+	# orchestrator probes and the job queue's web UI. Everything else is the
+	# dashboard, which the Go binary does not serve itself.
+	@backend path /api/* /healthcheck/* /admin/jobs/ui /admin/jobs/ui/*
+	handle @backend {
+		reverse_proxy lahijan:8080 {
+			# Flush immediately so streamed responses and WebSockets work.
+			flush_interval -1
+			header_up Host {host}
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
+	# The dashboard. Unknown paths fall back to index.html so links into the
+	# app survive a reload.
+	handle {
+		root * /srv/web
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+# The S3 endpoint on its own host name, so object storage gets TLS too. With a
+# domain it is s3.<domain>; in the trial this block is an unused local listener.
+{$LAHIJAN_S3_SITE_ADDRESS:http://s3.localhost:8081} {
+	reverse_proxy seaweed-s3:8333 {
+		flush_interval -1
+	}
+}

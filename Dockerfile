@@ -22,6 +22,10 @@ RUN --mount=type=cache,target=/go/pkg/mod/ \
 FROM alpine:3.22
 
 COPY --from=builder /tmp/app/dist/build /etc/lahijan/server
+# Loads the generated secrets of the self-contained install (a no-op elsewhere).
+COPY deployments/install/images/lahijan-env.sh /usr/local/bin/lahijan-env
+RUN chmod 755 /usr/local/bin/lahijan-env
 
 WORKDIR /etc/lahijan/
+ENTRYPOINT ["/usr/local/bin/lahijan-env"]
 CMD ["./server"]

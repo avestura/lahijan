@@ -1,0 +1,309 @@
+# Lahijan: the whole platform in one file.
+#
+#   docker compose up -d
+#
+# Settings live in the .env file next to this one. With no domain set, Lahijan
+# runs on http://localhost:8080 for a trial; set LAHIJAN_DOMAIN to serve it on
+# your own domain with automatic HTTPS. Passwords and keys are generated on the
+# first start and kept in the `secrets` volume.
+
+name: lahijan
+
+services:
+  # Generates the passwords and keys once. Everything else waits for it.
+  secrets:
+    image: ghcr.io/avestura/lahijan-init:${LAHIJAN_VERSION:-latest}
+    restart: "no"
+    volumes:
+      - secrets:/secrets
+
+  postgres:
+    image: ghcr.io/avestura/lahijan-postgres:${LAHIJAN_VERSION:-latest}
+    restart: unless-stopped
+    depends_on:
+      secrets:
+        condition: service_completed_successfully
+    env_file: .env
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      LAHIJAN_DB_NAME: lahijan
+      LAHIJAN_DB_USER: lahijan
+      PDNS_DB_NAME: pdns
+      PDNS_DB_USER: pdns
+      SEAWEED_DB_NAME: seaweed
+      SEAWEED_DB_USER: seaweed
+    volumes:
+      - secrets:/secrets:ro
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    shm_size: 256m
+
+  # Creates the database tables. Runs on every start and does nothing when they
+  # are already up to date.
+  migrate:
+    image: ghcr.io/avestura/lahijan-migrate:${LAHIJAN_VERSION:-latest}
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - secrets:/secrets:ro
+
+  # DNS: hosts the zones your users create.
+  powerdns:
+    image: ghcr.io/avestura/lahijan-powerdns:${LAHIJAN_VERSION:-latest}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      TEMPLATE_FILES: lahijan
+      PDNS_DB_HOST: postgres
+      PDNS_DB_PORT: "5432"
+      PDNS_DB_NAME: pdns
+      PDNS_DB_USER: pdns
+      PDNS_WEBSERVER_ALLOW_FROM: 10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+      PDNS_DEFAULT_SOA_CONTENT: ${LAHIJAN_DOMAIN:+ns1.}${LAHIJAN_DOMAIN:-ns1.example.com}. hostmaster.@ 0 10800 3600 604800 3600
+    ports:
+      - "${LAHIJAN_DNS_PORT:-5353}:53/udp"
+      - "${LAHIJAN_DNS_PORT:-5353}:53/tcp"
+    volumes:
+      - secrets:/secrets:ro
+    healthcheck:
+      test: ["CMD", "pdns_control", "rping"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # Object storage (S3): master, volume, filer and the S3 gateway.
+  seaweed-master:
+    image: ghcr.io/avestura/lahijan-seaweedfs:${LAHIJAN_VERSION:-latest}
+    restart: unless-stopped
+    command:
+      - master
+      - -ip=seaweed-master
+      - -ip.bind=0.0.0.0
+      - -port=9333
+      - -defaultReplication=000
+      - -volumeSizeLimitMB=${SEAWEEDFS_VOLUME_SIZE_LIMIT_MB:-5000}
+      - -volumePreallocate=false
+    volumes:
+      - seaweedfs_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://127.0.0.1:9333/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  seaweed-volume:
+    image: ghcr.io/avestura/lahijan-seaweedfs:${LAHIJAN_VERSION:-latest}
+    restart: unless-stopped
+    depends_on:
+      seaweed-master:
+        condition: service_healthy
+    command:
+      - volume
+      - -ip=seaweed-volume
+      - -ip.bind=0.0.0.0
+      - -port=8080
+      - -mserver=seaweed-master:9333
+      - -publicUrl=http://seaweed-volume:8080
+    volumes:
+      - seaweedfs_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://127.0.0.1:8080/status || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  seaweed-filer:
+    image: ghcr.io/avestura/lahijan-seaweedfs:${LAHIJAN_VERSION:-latest}
+    restart: unless-stopped
+    depends_on:
+      seaweed-master:
+        condition: service_healthy
+      seaweed-volume:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    command:
+      - filer
+      - -ip=seaweed-filer
+      - -ip.bind=0.0.0.0
+      - -port=8888
+      - -master=seaweed-master:9333
+      - -saveToFilerLimit=65536
+    env_file: .env
+    environment:
+      WEED_POSTGRES2_HOSTNAME: postgres
+      WEED_POSTGRES2_DATABASE: seaweed
+      WEED_POSTGRES2_USERNAME: seaweed
+    volumes:
+      - secrets:/secrets:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://127.0.0.1:8888/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # Writes the storage admin identity before the S3 gateway starts, so S3 is
+  # never open.
+  seaweed-iam-init:
+    image: ghcr.io/avestura/lahijan-init:${LAHIJAN_VERSION:-latest}
+    restart: "no"
+    depends_on:
+      seaweed-filer:
+        condition: service_healthy
+    env_file: .env
+    command: ["seed-iam"]
+    volumes:
+      - secrets:/secrets:ro
+
+  seaweed-s3:
+    image: ghcr.io/avestura/lahijan-seaweedfs:${LAHIJAN_VERSION:-latest}
+    restart: unless-stopped
+    depends_on:
+      seaweed-filer:
+        condition: service_healthy
+      seaweed-iam-init:
+        condition: service_completed_successfully
+    command:
+      - s3
+      - -ip.bind=0.0.0.0
+      - -port=8333
+      - -filer=seaweed-filer:8888
+    ports:
+      - "${LAHIJAN_S3_PORT:-8333}:8333"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://127.0.0.1:8333/status || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # Compute (containers and virtual machines). Off by default: it needs a Linux
+  # host with Incus support. Turn it on with COMPOSE_PROFILES=compute and
+  # LAHIJAN_COMPUTE=true in .env.
+  incus:
+    image: ghcr.io/cmspam/incus-docker:${INCUS_IMAGE_TAG:-lts}
+    profiles: [compute]
+    restart: unless-stopped
+    privileged: true
+    network_mode: host
+    pid: host
+    cgroup: host
+    environment:
+      SETIPTABLES: "true"
+    volumes:
+      - /dev:/dev
+      - /var/lib/incus:/var/lib/incus
+      - /lib/modules:/lib/modules:ro
+    healthcheck:
+      test: ["CMD-SHELL", "incus list >/dev/null 2>&1 || test -S /var/lib/incus/unix.socket"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+  lahijan:
+    image: ghcr.io/avestura/lahijan:${LAHIJAN_VERSION:-latest}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      powerdns:
+        condition: service_healthy
+      seaweed-s3:
+        condition: service_healthy
+      incus:
+        condition: service_healthy
+        required: false
+    # Any Lahijan setting can be added to .env (LAHIJAN_SMTP_HOST=..., and so on).
+    env_file: .env
+    environment:
+      LAHIJAN_ENVIRONMENT: prd
+      LAHIJAN_HTTP_SERVER_HOST: 0.0.0.0
+      LAHIJAN_HTTP_SERVER_PORT: "8080"
+      LAHIJAN_HTTP_SERVER_HEALTHCHECK_ENABLED: "true"
+      LAHIJAN_AUTH_SESSION_SECURE: ${LAHIJAN_DOMAIN:+true}
+      LAHIJAN_DATABASE_HOST: postgres
+      LAHIJAN_DATABASE_PORT: "5432"
+      LAHIJAN_DATABASE_NAME: lahijan
+      LAHIJAN_DATABASE_USER: lahijan
+      LAHIJAN_DATABASE_SSLMODE: disable
+      LAHIJAN_AUTH_PASSWORD_MINLENGTH: "12"
+      LAHIJAN_SMTP_ENABLED: ${LAHIJAN_SMTP_ENABLED:-false}
+      LAHIJAN_SMTP_APPBASEURL: ${LAHIJAN_DOMAIN:+https://}${LAHIJAN_DOMAIN:-http://localhost:${LAHIJAN_HTTP_PORT:-8080}}
+      LAHIJAN_JOBS_ENABLED: "true"
+      LAHIJAN_JOBS_ADMINUI_ENABLED: "true"
+      LAHIJAN_WASM_ENABLED: "true"
+      LAHIJAN_PROVIDERS_INCUS_ENABLED: ${LAHIJAN_COMPUTE:-false}
+      LAHIJAN_PROVIDERS_INCUS_SOCKETPATH: /var/lib/incus/unix.socket
+      LAHIJAN_PROVIDERS_POWERDNS_ENABLED: "true"
+      LAHIJAN_PROVIDERS_POWERDNS_BASEURL: http://powerdns:8081
+      LAHIJAN_PROVIDERS_POWERDNS_DEFAULTNAMESERVERS: ${LAHIJAN_DOMAIN:+ns1.}${LAHIJAN_DOMAIN:-ns1.example.com}.
+      LAHIJAN_PROVIDERS_SEAWEEDFS_ENABLED: "true"
+      LAHIJAN_PROVIDERS_SEAWEEDFS_S3ENDPOINT: http://seaweed-s3:8333
+      LAHIJAN_PROVIDERS_SEAWEEDFS_FILERURL: http://seaweed-filer:8888
+      LAHIJAN_PROVIDERS_SEAWEEDFS_PUBLICENDPOINT: ${LAHIJAN_DOMAIN:+https://s3.}${LAHIJAN_DOMAIN:-http://localhost:${LAHIJAN_S3_PORT:-8333}}
+      LAHIJAN_PROVIDERS_SEAWEEDFS_CORSALLOWEDORIGINS: ${LAHIJAN_DOMAIN:+https://}${LAHIJAN_DOMAIN:-http://localhost:${LAHIJAN_HTTP_PORT:-8080}}
+      LAHIJAN_AUTH_MFA_WEBAUTHN_RPID: ${LAHIJAN_DOMAIN:-localhost}
+      LAHIJAN_AUTH_MFA_WEBAUTHN_RPORIGINS: ${LAHIJAN_DOMAIN:+https://}${LAHIJAN_DOMAIN:-http://localhost:${LAHIJAN_HTTP_PORT:-8080}}
+      LAHIJAN_BOOTSTRAP_ENABLED: "true"
+      LAHIJAN_BOOTSTRAP_ADMINEMAIL: ${LAHIJAN_BOOTSTRAP_ADMIN_EMAIL:-admin@lahijan.local}
+      LAHIJAN_BOOTSTRAP_ADMINPASSWORD: ${LAHIJAN_BOOTSTRAP_ADMIN_PASSWORD:-}
+    volumes:
+      - secrets:/secrets:ro
+      - lahijan_plugins:/var/lib/lahijan/plugins
+      - /var/lib/incus:/var/lib/incus:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://127.0.0.1:8080/healthcheck/liveness || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  # The dashboard and the public entrance (HTTP, or HTTPS with a domain).
+  web:
+    image: ghcr.io/avestura/lahijan-web:${LAHIJAN_VERSION:-latest}
+    restart: unless-stopped
+    depends_on:
+      lahijan:
+        condition: service_healthy
+    environment:
+      LAHIJAN_SITE_ADDRESS: ${LAHIJAN_DOMAIN:-:80}
+      LAHIJAN_S3_SITE_ADDRESS: ${LAHIJAN_DOMAIN:+s3.}${LAHIJAN_DOMAIN:-http://s3.localhost:8081}
+    ports:
+      - "${LAHIJAN_HTTP_PORT:-8080}:80"
+      - "${LAHIJAN_HTTPS_PORT:-8443}:443"
+      - "${LAHIJAN_HTTPS_PORT:-8443}:443/udp"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --tries=1 --timeout=3 http://127.0.0.1:2019/config/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+
+volumes:
+  secrets:
+  postgres_data:
+  seaweedfs_data:
+  lahijan_plugins:
+  caddy_data:
+  caddy_config:
