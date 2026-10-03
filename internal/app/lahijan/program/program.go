@@ -581,6 +581,18 @@ func Start() error {
 	// Register the OpenAPI-derived routes (/health, /api/v1/ping, /api/v1/auth/*,
 	// /api/v1/audit/*, ...). The audit gate runs RequirePerm for the audit
 	// endpoints; everything else passes through to the handler.
+	// WS-09: mount River's built-in web UI (admin-only). This MUST happen before
+	// api.RegisterRoutes: that call ends with a catch-all 404 handler, and a
+	// route registered after it is never reached. The UI ships its
+	// own REST API under the same prefix; the same platform.jobs.read
+	// RequirePerm wraps both. Skipped when jobs are disabled or when the
+	// admin UI flag is off.
+	if jobDeps.client != nil && conf.GetJobsAdminUIEnabled() {
+		if err := mountJobsAdminUI(app, jobDeps.client, policy, membershipTenants(authDeps.repos.Memberships)); err != nil {
+			log.Fatalf("failed to mount jobs admin ui: %s", err.Error())
+		}
+	}
+
 	api.RegisterRoutes(app, api.NewServer(api.ServerDeps{
 		Users:          authDeps.repos.Users,
 		Sessions:       authDeps.repos.Sessions,
@@ -614,16 +626,6 @@ func Start() error {
 		DirectorySvc:   directorySvc,
 		SettingsSvc:    settingsSvc,
 	}), policy)
-
-	// WS-09: mount River's built-in web UI (admin-only). The UI ships its
-	// own REST API under the same prefix; the same platform.jobs.read
-	// RequirePerm wraps both. Skipped when jobs are disabled or when the
-	// admin UI flag is off.
-	if jobDeps.client != nil && conf.GetJobsAdminUIEnabled() {
-		if err := mountJobsAdminUI(app, jobDeps.client, policy); err != nil {
-			log.Fatalf("failed to mount jobs admin ui: %s", err.Error())
-		}
-	}
 
 	if err := app.Listen(conf.GetHTTPServerAddress()); err != nil {
 		return errors.Join(errors.New("fiber server stopped"), err)
@@ -1337,7 +1339,7 @@ func buildJobDeps(_ context.Context, _ *database.Repos) (jobDeps, error) {
 // The UI is wrapped in a RequirePerm(platform.jobs.read) gate so only
 // platform admins can reach it; the same gate covers the UI's own REST API
 // (River ships /api/* routes alongside the SPA assets).
-func mountJobsAdminUI(app *fiber.App, client *jobs.Client, policy middleware.PolicyResolver) error {
+func mountJobsAdminUI(app *fiber.App, client *jobs.Client, policy middleware.PolicyResolver, tenants tenantLister) error {
 	if client == nil {
 		return nil
 	}
@@ -1371,7 +1373,10 @@ func mountJobsAdminUI(app *fiber.App, client *jobs.Client, policy middleware.Pol
 	// The RequirePerm gate runs first; only platform.admin (the only role
 	// that holds platform.jobs.read) reaches the UI.
 	httpHandler := adaptor.HTTPHandler(uiHandler)
-	gate := middleware.RequirePerm(policy, rbac.PermPlatformJobsRead)
+	// A browser opens this page by plain navigation and cannot send the
+	// X-Tenant-Id header RequirePerm needs, so the gate accepts the permission
+	// held in any of the user's tenants.
+	gate := anyTenantGate(policy, tenants, rbac.PermPlatformJobsRead)
 	app.Use(prefix, gate, httpHandler)
 	fiberlog.Info("jobs admin ui mounted", "path", prefix)
 	return nil

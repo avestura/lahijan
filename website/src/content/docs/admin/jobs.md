@@ -112,4 +112,4 @@ Both actions are recorded in the [audit log](/docs/audit/overview) as `platform.
 When `jobs.adminUI.enabled` is `true`, River's own web UI and its API are mounted at `jobs.adminUI.path` (`/admin/jobs/ui` by default), behind the `platform.jobs.read` permission. The dashboard does not link to it.
 
 > [!NOTE]
-> That permission check needs a tenant scope, taken from the `X-Tenant-Id` header or a `tenant_id` query parameter. A plain browser visit sends neither and is refused with `400 tenant_scope_required`. Use the REST API above if you cannot add the header, for example with a browser extension or a reverse proxy rule.
+> Open it in a browser while signed in to the dashboard: the page works without choosing a tenant, and is allowed when you hold `platform.jobs.read` in any tenant you belong to (in practice, as `platform.admin`). Anyone else gets `403`, and a request with no session gets `401`.

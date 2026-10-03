@@ -224,3 +224,19 @@ func TestRegistrationDisabledErrorsAreForbidden(t *testing.T) {
 		assert.Contains(t, body, CodeRegistrationDisabled)
 	}
 }
+
+// RegisterRoutes ends with a catch-all 404, so anything mounted on the app
+// afterwards is unreachable. The River job UI was mounted afterwards and
+// answered 404 for exactly this reason; mount such routes BEFORE RegisterRoutes.
+func TestRegisterRoutesCatchAllSwallowsLaterRoutes(t *testing.T) {
+	t.Parallel()
+	app := fiber.New()
+	app.Get("/before", func(c *fiber.Ctx) error { return c.SendString("ok") })
+	RegisterRoutes(app, &Server{}, nil)
+	app.Get("/after", func(c *fiber.Ctx) error { return c.SendString("ok") })
+
+	status, _ := doReq(t, app, "GET", "/before", "")
+	assert.Equal(t, fiber.StatusOK, status)
+	status, _ = doReq(t, app, "GET", "/after", "")
+	assert.Equal(t, fiber.StatusNotFound, status, "a route registered after RegisterRoutes is never reached")
+}
