@@ -41,7 +41,7 @@ A redact handler strips secrets, tokens, and PII before export.
 - **Positive:** logs correlate to traces via trace_id.
 - **Negative:** small CPU + memory cost per request; acceptable for the value.
 - **Negative:** operator gets three more containers (collector + Jaeger + Loki
-  + Prometheus); mitigated by shipping them pre-configured.
+  - Prometheus); mitigated by shipping them pre-configured.
 
 ## Compliance
 

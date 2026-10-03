@@ -33,7 +33,7 @@ Change that password right after your first sign-in. The bootstrap runs only whe
 
 ## Self-registration
 
-Anyone who can reach the server can create an account with `POST /api/v1/auth/register`:
+By default anyone who can reach the server can create an account with `POST /api/v1/auth/register`. You can turn this off; see [Turn registration off](#turn-registration-off).
 
 ```sh
 curl -X POST https://cloud.example.com/api/v1/auth/register \
@@ -44,12 +44,27 @@ curl -X POST https://cloud.example.com/api/v1/auth/register \
 With `auth.signup.personalTenant: true` (the default), each new account also gets its own tenant, with the slug `personal-<user id>` and the user's email as its name, and the user becomes its `tenant.owner`. With the setting off, a new account has no membership and cannot create anything until you add it to a tenant.
 
 > [!WARNING]
-> There is no setting to turn registration off, and the dashboard has no sign-up page, but the API endpoint is always open. If your server is reachable from the internet, anyone can register. Restrict access at your reverse proxy if you run a private installation.
+> Registration is open by default and the API endpoint answers anyone who can reach the server. On a private installation, turn it off before you expose the server.
 
 > [!CAUTION]
 > The owner of a personal tenant holds every tenant permission, including `billing.balance.adjust` (credit any balance in that tenant) and `compute.ip_pool.manage` (edit the operator IP pools, which are shared across tenants). Read [Roles and permissions](/docs/admin/roles-and-permissions#tenant-owner) before you open registration.
 
 Accounts created by signing in with an external identity provider (OAuth or OIDC, or SAML with just-in-time creation turned on) get no tenant at all.
+
+### Turn registration off
+
+Registration has a configured default and a switch in the dashboard:
+
+- **The environment variable.** Set `LAHIJAN_AUTH_SIGNUP_ENABLED=false` in your [environment file](/docs/operations/environment) (the config key is `auth.signup.enabled`) and recreate the `lahijan` service. This is the starting value.
+- **The dashboard switch.** A platform administrator opens **Administration > Settings** and clears **Allow people to register**. It takes effect at once, without a restart, and it **wins over the environment variable** until you select **Use the configured default**. The page shows both values and which one is in force.
+
+While registration is off:
+
+- `POST /api/v1/auth/register` answers `403` with the error code `registration_disabled`.
+- Signing in with an OAuth, OIDC or SAML identity that has no account yet no longer creates one; it is refused with the same `403`. People who already have an account, or who linked the identity to it, still sign in.
+- Accounts an administrator creates under **Administration > Users**, and accounts imported from [LDAP](/docs/admin/directories), are not affected.
+
+Changing the switch needs the `platform.settings.manage` permission, which only `platform.admin` holds, and is written to the [audit log](/docs/audit/overview). The same setting is available at `GET` and `PUT /api/v1/admin/settings`.
 
 ## Platform administrator
 
@@ -57,7 +72,7 @@ Accounts created by signing in with an external identity provider (OAuth or OIDC
 
 Within that tenant, `platform.admin` passes every permission check. It is also the only role that holds the `platform.*` permissions, which gate the background job pages, user management and directory connections.
 
-The dashboard shows the **Administration** section of the sidebar (**Users**, **Directories**, **Billing**, **Plugins**, **Marketplace**, **Agent Policy**) only while the current tenant's role is `platform.admin`. The job queue's own web page is at `/admin/jobs/ui` when jobs are enabled; see [Background jobs](/docs/admin/jobs).
+The dashboard shows the **Administration** section of the sidebar (**Users**, **Directories**, **Settings**, **Billing**, **Plugins**, **Marketplace**, **Agent Policy**) only while the current tenant's role is `platform.admin`. The job queue's own web page is at `/admin/jobs/ui` when jobs are enabled; see [Background jobs](/docs/admin/jobs).
 
 ## Manage users in the dashboard
 

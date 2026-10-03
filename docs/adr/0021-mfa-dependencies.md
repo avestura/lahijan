@@ -17,7 +17,7 @@ security-critical concerns:
 2. **WebAuthn / passkeys (W3C WebAuthn Level 3):** the registration
    (attestation) and authentication (assertion) ceremonies for platform
    authenticators (Touch ID, Windows Hello) and roaming authenticators
-   (YubiKey). The surface is *huge*: CBOR decoding, attestation format
+   (YubiKey). The surface is _huge_: CBOR decoding, attestation format
    verification ("packed", "tpm", "android-key", "android-safetynet",
    "fido-u2f", "apple", "none"), signature verification across multiple
    COSE algorithms (ES256, RS256, EdDSA), challenge generation + replay

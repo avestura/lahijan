@@ -90,6 +90,7 @@ What happens when a user registers on their own.
 
 | Setting | Environment variable | Type | Default | Description |
 | --- | --- | --- | --- | --- |
+| `auth.signup.enabled` | `LAHIJAN_AUTH_SIGNUP_ENABLED` | boolean | `true` | Lets anyone create an account on their own: `POST /api/v1/auth/register`, and automatic account creation the first time someone signs in with an OAuth, OIDC or SAML identity. Turn it off on a private installation. This is the default only: an administrator can switch registration at runtime in **Administration > Settings**, and that choice wins over this value. Accounts that an administrator creates, or that are imported from LDAP, are not affected. See [Users and tenants](/docs/admin/users-and-tenants#self-registration). |
 | `auth.signup.personalTenant` | `LAHIJAN_AUTH_SIGNUP_PERSONALTENANT` | boolean | `true` | Gives every user who signs up a personal tenant that they own. Without a tenant, a new account can open the dashboard but cannot create anything. Turn it off if you add users to tenants yourself. See [Users and tenants](/docs/admin/users-and-tenants). |
 
 ### `auth.password`

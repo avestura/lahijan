@@ -20,6 +20,8 @@ export type DirectoryConnectionRequest = components["schemas"]["DirectoryConnect
 export type DirectoryTestResult = components["schemas"]["DirectoryTestResult"];
 export type DirectorySyncResult = components["schemas"]["DirectorySyncResult"];
 export type DirectoryGroupPage = components["schemas"]["DirectoryGroupPage"];
+export type PlatformSettings = components["schemas"]["PlatformSettings"];
+export type PlatformSettingsUpdate = components["schemas"]["PlatformSettingsUpdate"];
 
 function fail(op: string, response: Response | undefined): Error {
   return new Error(`${op}: ${response?.status ?? "network"}`);
@@ -258,5 +260,35 @@ export function useDirectoryGroups(id: string | undefined, offset: number, limit
       if (error || !data) throw fail("admin.directory.groups", response);
       return data;
     },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Platform settings
+// ---------------------------------------------------------------------------
+
+/** usePlatformSettings — GET /admin/settings. */
+export function usePlatformSettings() {
+  return useQuery({
+    queryKey: queryKeys.admin.settings(),
+    staleTime: 15_000,
+    queryFn: async (): Promise<PlatformSettings> => {
+      const { data, error, response } = await apiClient.GET("/api/v1/admin/settings", {});
+      if (error || !data) throw fail("admin.settings.get", response);
+      return data;
+    },
+  });
+}
+
+/** useUpdatePlatformSettings — PUT /admin/settings. */
+export function useUpdatePlatformSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: PlatformSettingsUpdate): Promise<PlatformSettings> => {
+      const { data, error, response } = await apiClient.PUT("/api/v1/admin/settings", { body });
+      if (error || !data) throw fail("admin.settings.update", response);
+      return data;
+    },
+    onSuccess: (data) => qc.setQueryData(queryKeys.admin.settings(), data),
   });
 }

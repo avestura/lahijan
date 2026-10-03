@@ -170,6 +170,12 @@ func (s *Service) resolveNewSAMLIdentity(ctx context.Context, in SAMLLinkInput) 
 			})
 			return SAMLLinkResult{}, ErrJITDisabled
 		}
+		if !s.signupOpen(ctx) {
+			s.auditFail(ctx, audit.ActionIdpLink, nil, map[string]any{
+				"provider": in.Provider, "name_id": in.NameID, "reason": "signup_disabled",
+			})
+			return SAMLLinkResult{}, ErrSignupDisabled
+		}
 		params := database.CreateUserParams{
 			Email:       in.Email,
 			IsActive:    boolPtr(true),

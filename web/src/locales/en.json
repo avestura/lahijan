@@ -30,7 +30,8 @@
       "marketplace": "Marketplace",
       "agent": "Agent Policy",
       "users": "Users",
-      "directory": "Directories"
+      "directory": "Directories",
+      "settings": "Settings"
     }
   },
   "theme": {
@@ -1592,7 +1593,8 @@
         "server": "Server",
         "users": "Users",
         "groups": "Groups",
-        "idp": "Identity provider"
+        "idp": "Identity provider",
+        "signIn": "Sign-in"
       },
       "fields": {
         "kind": "Type",
@@ -1624,7 +1626,9 @@
         "emailAttribute": "Email attribute",
         "nameAttribute": "Display name attribute",
         "groupsAttribute": "Groups attribute",
-        "allowIdpInitiated": "Accept IdP-initiated sign-in (less secure)"
+        "allowIdpInitiated": "Accept IdP-initiated sign-in (less secure)",
+        "createUsersOnLogin": "Create an account on first sign-in",
+        "createUsersOnLoginHint": "While this connection is enabled, people can sign in with their directory email and password. Turn this off to let only users who already exist (imported by a sync, or created by an administrator) sign in."
       },
       "spInfo": {
         "title": "Register Lahijan in your identity provider",
@@ -1671,6 +1675,24 @@
       },
       "inactive": "Not active",
       "savedInactive": "Saved, but the connection is not active"
+    },
+    "settings": {
+      "title": "Platform settings",
+      "subtitle": "Settings that apply to the whole platform. Changes take effect immediately.",
+      "saved": "Setting saved",
+      "saveFailed": "Could not save the setting.",
+      "registration": {
+        "title": "Registration",
+        "open": "Open",
+        "closed": "Closed",
+        "description": "Whether anyone who can reach this server may create an account on their own.",
+        "toggle": "Allow people to register",
+        "toggleHint": "When off, the register endpoint answers 403 and signing in with Google, GitHub, OpenID Connect or SAML cannot create a new account. Accounts that an administrator creates, or that are imported from LDAP, are not affected.",
+        "defaultIs": "The server's configured default (LAHIJAN_AUTH_SIGNUP_ENABLED) is: {{value}}.",
+        "usingDefault": "No choice has been saved here, so the configured default applies.",
+        "overridden": "Your saved choice overrides the configured default.",
+        "reset": "Use the configured default"
+      }
     }
   }
 }

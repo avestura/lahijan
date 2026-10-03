@@ -447,6 +447,7 @@ type Querier interface {
 	// auth method remaining" check happens in the service layer (it counts
 	// password_hash + other identities + SAML links before calling this).
 	DeleteOAuthIdentity(ctx context.Context, arg DeleteOAuthIdentityParams) error
+	DeletePlatformSetting(ctx context.Context, key string) error
 	// Hard delete. Used by the admin uninstall endpoint. CASCADE removes the
 	// associated plugin_permissions rows (FK ON DELETE CASCADE).
 	DeletePlugin(ctx context.Context, id uuid.UUID) error
@@ -642,6 +643,8 @@ type Querier interface {
 	GetPermissionBySlug(ctx context.Context, slug string) (Permission, error)
 	GetPersonalAccessTokenByHash(ctx context.Context, tokenHash string) (PersonalAccessToken, error)
 	GetPersonalAccessTokenByID(ctx context.Context, id uuid.UUID) (PersonalAccessToken, error)
+	// Runtime platform settings (global table; see migration 0051).
+	GetPlatformSetting(ctx context.Context, key string) (PlatformSetting, error)
 	// Lookup by id; works for both tenant-scoped and platform-wide plugins.
 	// The repository wrapper enforces tenant scoping for non-platform callers.
 	GetPlugin(ctx context.Context, id uuid.UUID) (Plugin, error)
@@ -1257,6 +1260,7 @@ type Querier interface {
 	UpsertComputeImageFingerprint(ctx context.Context, arg UpsertComputeImageFingerprintParams) error
 	UpsertDirectoryGroup(ctx context.Context, arg UpsertDirectoryGroupParams) (DirectoryGroup, error)
 	UpsertDirectoryUserLink(ctx context.Context, arg UpsertDirectoryUserLinkParams) error
+	UpsertPlatformSetting(ctx context.Context, arg UpsertPlatformSettingParams) (PlatformSetting, error)
 	// plugin_config (WS-10b). One row per (plugin_id, key); the admin sets
 	// these via the admin plugin API and the plugin reads them through the
 	// config_get host function. Rows flagged is_secret = true are NEVER

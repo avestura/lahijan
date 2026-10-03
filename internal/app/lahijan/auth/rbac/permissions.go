@@ -221,8 +221,11 @@ const (
 	// PermPlatformDirectoryManage covers LDAP / SAML directory connections:
 	// create, edit, delete, test and sync (platform admin).
 	PermPlatformDirectoryManage = "platform.directory.manage"
-	PermPlatformTenantCreate    = "platform.tenant.create"
-	PermPlatformTenantDelete    = "platform.tenant.delete"
+	// PermPlatformSettingsManage reads and changes the runtime platform
+	// settings, such as turning self-registration on or off (platform admin).
+	PermPlatformSettingsManage = "platform.settings.manage"
+	PermPlatformTenantCreate   = "platform.tenant.create"
+	PermPlatformTenantDelete   = "platform.tenant.delete"
 
 	// --- platform jobs (WS-09) — admin-only River queue inspection/control.
 	// Granted to platform.admin via allPermissionSlugs(); every other role
@@ -367,6 +370,7 @@ var allPermissions = []Permission{
 	{Slug: PermPlatformJobsCancel, Description: "Cancel any queued or running job (platform admin)."},
 	{Slug: PermPlatformJobsRead, Description: "Inspect every queued/running/failed job across tenants (platform admin)."},
 	{Slug: PermPlatformJobsRetry, Description: "Manually retry a discarded/DLQ'd job (platform admin)."},
+	{Slug: PermPlatformSettingsManage, Description: "Change platform settings such as self-registration (platform admin)."},
 	{Slug: PermPlatformTenantCreate, Description: "Create a tenant (platform admin)."},
 	{Slug: PermPlatformTenantDelete, Description: "Delete any tenant (platform admin)."},
 	{Slug: PermPlatformUserList, Description: "List all users (platform admin)."},

@@ -5,7 +5,7 @@ description: Connect an LDAP server to import users and groups, or a SAML identi
 
 A directory connection ties Lahijan to the place where your organisation already keeps its people. There are two kinds:
 
-- **LDAP** (including Active Directory): Lahijan reads users and groups from the server and creates matching accounts. You run the import with **Sync now**.
+- **LDAP** (including Active Directory): people sign in to Lahijan with their directory email and password, and Lahijan can import users and groups from the server with **Sync now**.
 - **SAML**: an identity provider (IdP) such as Microsoft Entra ID, Okta or Keycloak signs your users in. Lahijan records which connection each user came from and which groups the IdP says they belong to.
 
 Connections are managed by platform administrators at **Administration > Directories** (`/admin/directory`). They belong to the whole platform, not to one tenant, because users are global. The page needs the `platform.directory.manage` permission, which only `platform.admin` holds. Every create, change, test and sync is written to the [audit log](/docs/audit/overview).
@@ -24,8 +24,9 @@ Connections are managed by platform administrators at **Administration > Directo
 
 4. Fill in **Users**: the **User base DN** to search, a **User filter** (default `(objectClass=person)`), and the attributes that hold the **Email** (default `mail`) and **Display name** (default `displayName`, falling back to `cn`).
 5. Optionally fill in **Groups**: a **Group base DN**, a **Group filter** (default `(objectClass=groupOfNames)`), the **Group name attribute** (default `cn`) and the **Group member attribute** (default `member`). Leave the group base DN empty to skip groups.
-6. Select **Test connection**. Lahijan connects, signs in and runs both searches, then reports how many users and groups it found (counting up to 50) or why it failed. Fix any problem before you save.
-7. Select **Save**.
+6. Under **Sign-in**, choose whether to **Create an account on first sign-in** (on by default); see [Sign in with LDAP](#sign-in-with-ldap).
+7. Select **Test connection**. Lahijan connects, signs in and runs both searches, then reports how many users and groups it found (counting up to 50) or why it failed. Fix any problem before you save.
+8. Select **Save**.
 
 The bind password is encrypted with `auth.secrets.encryptionKey` before it is stored and is never shown again. When you edit a connection, leave the password empty to keep the stored one. Outside the `dev` environment, saving a password fails if that key is not configured. See [Configuration](/docs/reference/configuration).
 
@@ -33,7 +34,7 @@ The bind password is encrypted with `auth.secrets.encryptionKey` before it is st
 
 Select **Sync now** on a connection (it must be enabled). Lahijan then:
 
-- **Creates** a Lahijan user for every entry that has an email address. New users have a verified email, no password, and, when `auth.signup.personalTenant` is on, a personal tenant.
+- **Creates** a Lahijan user for every entry that has an email address. New users have a verified email and no password, and, when `auth.signup.personalTenant` is on, a personal tenant, exactly like a self-registered account.
 - **Links** an entry to an existing user when the email matches. The existing account's password and settings are not changed.
 - **Skips** entries without an email address and counts them in the summary.
 - **Imports groups** with their members. A group member is matched to a user by its distinguished name, ignoring case and spaces; members that are not among the imported users are ignored. Groups that disappeared from the directory are removed.
@@ -42,8 +43,26 @@ A sync never disables or deletes users. If someone leaves your organisation, dis
 
 The connection row shows the time and outcome of the last sync, how many users and groups it covered and, after a failure, the error. Select **Groups** to see the imported groups and their member counts. Imported users appear in **Administration > Users** with the connection's name in the **Source** column.
 
+## Sign in with LDAP
+
+While an LDAP connection is **enabled**, people sign in on the normal sign-in page with their directory **email address** and **password**. Nothing else needs to be set up, and you do not have to run a sync first.
+
+When someone signs in, Lahijan:
+
+1. Checks the **local password** first, if the account has one. A correct local password signs the user in without contacting the directory.
+2. Otherwise tries each enabled LDAP connection, oldest first. It searches the **User base DN** (with the **User filter**) for the one entry whose email attribute equals the address, then proves the password by binding to the directory as that entry. The bind password of the connection's service account is used only for the search. If zero or more than one entry matches, the sign-in is refused.
+3. Finds the Lahijan account. An existing account with that email is **linked** to the directory entry and its local password is left untouched. If there is none, an account is **created** (verified email, no password, personal tenant when `auth.signup.personalTenant` is on), unless you turned off **Create an account on first sign-in** on the connection, in which case only existing accounts can sign in.
+4. Applies the usual account checks: a disabled account is refused, and a second factor is still asked for when the account or tenant requires one.
+
+A wrong password, an unknown user and an unreachable directory all produce the same "invalid credentials" answer, so the sign-in page reveals nothing about the directory. Empty passwords are never sent to the directory (an empty password would be an unauthenticated bind that succeeds).
+
+Disable the connection to switch directory sign-in off. A person who changes their password in the directory uses the new one immediately; Lahijan never stores it.
+
 > [!NOTE]
-> A synced user has no password. They sign in through single sign-on or a password reset, or you set a password when you edit the user. Signing in with the LDAP password is not part of this release.
+> Directory sign-in trusts the directory: anyone who can authenticate there with an email address can sign in to the Lahijan account with that email address. Connect only directories whose email attribute you control. Creating accounts on sign-in does not need [registration](/docs/admin/users-and-tenants#turn-registration-off) to be on, because an administrator enabled the connection.
+
+> [!NOTE]
+> Users who only sign in through the directory have no local password. They can still use a password reset to set one, or you can set one when you edit the user.
 
 > [!NOTE]
 > Groups are shown for information; they are not mapped to tenant roles yet. Set roles in [user management](/docs/admin/users-and-tenants#manage-users-in-the-dashboard).
@@ -101,13 +120,15 @@ curl -X POST https://cloud.example.com/api/v1/admin/directory/connections \
           "url": "ldaps://ldap.example.com:636",
           "bindDn": "cn=svc-lahijan,dc=example,dc=com",
           "userBaseDn": "ou=people,dc=example,dc=com",
-          "groupBaseDn": "ou=groups,dc=example,dc=com"
+          "groupBaseDn": "ou=groups,dc=example,dc=com",
+          "createUsersOnLogin": true
         }
       }'
 ```
 
 ## Limits
 
-- LDAP is import-only. Signing in with an LDAP password, mapping groups to roles and removing users that left the directory are not part of this release.
+- Directory sign-in matches users by email address. Signing in with another attribute, such as a user name, is not supported.
+- Mapping groups to roles, and disabling users that left the directory, are not part of this release.
 - Sync reads the whole directory under the base DNs on every run; narrow the base DNs and filters on large directories.
 - A SAML connection fetches the IdP metadata when it is saved or activated, and once at startup in the background. If the IdP was down at startup, save the connection again (or restart) once it is back.

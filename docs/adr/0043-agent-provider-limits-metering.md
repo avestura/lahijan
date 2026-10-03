@@ -26,11 +26,11 @@ Forces:
 Options considered for **metering**:
 
 - **Option A — roll up via the WS-17 metering job** — write `usage_events`,
-  let the periodic collector post the charge. — *pro:* consistent with other
-  resources; *con:* async, so the spend cap can't be enforced pre-send.
+  let the periodic collector post the charge. — _pro:_ consistent with other
+  resources; _con:_ async, so the spend cap can't be enforced pre-send.
 - **Option B — synchronous charge on turn end** — record the `usage_event`
-  AND call `PostCharge` immediately. — *pro:* spend cap is enforceable
-  pre-send + the ledger is current; *con:* a synchronous DB write per turn.
+  AND call `PostCharge` immediately. — _pro:_ spend cap is enforceable
+  pre-send + the ledger is current; _con:_ a synchronous DB write per turn.
 
 ## Decision
 
@@ -56,19 +56,19 @@ Options considered for **metering**:
    reads the cached balance; a tenant with `SpendCapCredits > 0` and a
    balance `<= 0` is refused (`ErrSpendCap`). BYOK turns bypass the check.
 5. **The other three controls** (allowlist, rate limit, force-admin-models)
-   ship as today; admin-shared providers + the force-admin-models *real*
+   ship as today; admin-shared providers + the force-admin-models _real_
    fallback are deferred (see Consequences).
 
 ## Consequences
 
 - **Positive:** admin turns are metered + charged through the canonical path;
-   spend cap is real; BYOK stays free; idempotency prevents double-counting.
+  spend cap is real; BYOK stays free; idempotency prevents double-counting.
 - **Negative:** the placeholder rate is not the price catalog; admin-shared
-   providers + the `force_admin_models` real path are NOT in this slice —
-   until a `0050_agent_admin_providers` migration lands, `force_admin_models`
-   disables BYOK and the agent has nothing to run on (`ErrForceAdminModels`).
+  providers + the `force_admin_models` real path are NOT in this slice —
+  until a `0050_agent_admin_providers` migration lands, `force_admin_models`
+  disables BYOK and the agent has nothing to run on (`ErrForceAdminModels`).
 - **Neutral:** metering is best-effort on turn success (a charge failure does
-   not roll back the answer); the WS-17 rollup reconciles the balance cache.
+  not roll back the answer); the WS-17 rollup reconciles the balance cache.
 
 ## Compliance
 

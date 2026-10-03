@@ -688,6 +688,13 @@ type PersonalAccessToken struct {
 	Scopes []string `json:"scopes"`
 }
 
+type PlatformSetting struct {
+	Key       string          `json:"key"`
+	Value     json.RawMessage `json:"value"`
+	UpdatedBy *uuid.UUID      `json:"updated_by"`
+	UpdatedAt time.Time       `json:"updated_at"`
+}
+
 // Installed WASM plugins; wazero-sandboxed, admin-approved permissions.
 type Plugin struct {
 	ID uuid.UUID `json:"id"`

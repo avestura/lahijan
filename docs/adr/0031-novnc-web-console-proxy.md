@@ -22,7 +22,7 @@ Three sub-decisions had to be made before implementation could begin:
 
 2. **How does the browser reach Incus' VNC port?** Incus listens on a Unix
    socket and exposes the VM VGA console via the `/1.0/operations/<op>/websocket?
-   secret=<secret>` route (the same operation-secret pattern WS-11 already
+secret=<secret>` route (the same operation-secret pattern WS-11 already
    uses for `exec`). A browser cannot speak the Incus wire protocol directly
    and cannot reach the Unix socket. Something has to bridge the browser's
    WebSocket to Incus' WebSocket.
@@ -103,8 +103,8 @@ WS-24 implements the noVNC web console as follows:
    console from WS-14).
 
 This ADR narrows ADR-0025's note that the WS-11 exec websocket pattern is
-"incompatible with WS-24's noVNC": the *protocol* is incompatible (exec is
-3-fd; VNC is a single binary stream), but the *operation-secret bootstrap*
+"incompatible with WS-24's noVNC": the _protocol_ is incompatible (exec is
+3-fd; VNC is a single binary stream), but the _operation-secret bootstrap_
 is reused. `Provider.OpenVNCConsole` and `Provider.DialVNCConsole` share
 the `execOpen` + `execDial` plumbing already present in `exec.go`.
 

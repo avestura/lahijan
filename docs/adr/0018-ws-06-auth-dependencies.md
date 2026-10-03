@@ -54,7 +54,7 @@ is imported by test helpers that ship in the same module.
 - **Negative:** three more modules to keep current; security advisories on
   `x/crypto` must be watched (already covered by WS-01 dependency hygiene).
 - **Neutral:** `go-smtp` is test-scope today; if WS-23 ever ships an SMTP
-  *server* feature, the same dep is reused.
+  _server_ feature, the same dep is reused.
 
 ## Compliance
 

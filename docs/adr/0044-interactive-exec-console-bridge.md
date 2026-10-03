@@ -58,7 +58,7 @@ have to make.
    - `Interactive=false` -> the daemon returns three per-fd secrets
      (`0`/`1`/`2`) and the caller dials + pumps each.
    - `Interactive=true` -> the daemon allocates a single PTY and
-     combines stderr into stdout — *and* merges the result back onto
+     combines stderr into stdout — _and_ merges the result back onto
      the input fd. The metadata carries only `0` and `control`; both
      `1` and `2` are absent. Fd `0` is the PTY master: the client
      writes keystrokes to it and reads the shell's output from it on
@@ -75,7 +75,7 @@ have to make.
    - **Option A — mirror WS-24 verbatim.** Audit row (status=success)
      lands before the Incus call; a daemon failure surfaces as
      `ErrExecUnavailable` (503) but the audit row stays at success.
-     The user *did* initiate the connect; the daemon being
+     The user _did_ initiate the connect; the daemon being
      unreachable is operational, not a denied privileged action.
    - **Option B — emit + MarkOutcome to failure on daemon failure.**
      More precise but doubles the write rate (one row + one outcome
@@ -135,7 +135,7 @@ both containers and VMs).
   the browser's ResizeObserver fires.
 - **Positive:** the audit trail captures every interactive shell
   session-open as a distinct, queryable event (`action =
-  compute.instance.console.exec.connect`), even when the daemon is
+compute.instance.console.exec.connect`), even when the daemon is
   down. Operators can answer "who opened a shell on this instance
   and when" without correlating Incus logs.
 - **Positive:** the bridge is pure Go in-process — no new process to
@@ -229,7 +229,7 @@ no failing test, so each now has a named regression test.
    per-fd, VNC, and events dial failed in both supported topologies: a
    `wss://` dial against a daemon using the Incus auto-generated
    self-signed cert failed with `x509: certificate signed by unknown
-   authority`, and a `ws://` dial against a Unix-socket daemon tried TCP
+authority`, and a `ws://` dial against a Unix-socket daemon tried TCP
    and timed out. `Provider` now carries a `wsDialer` built alongside
    the HTTP transport (`NetDialContext` to the socket in
    `NewUnixClient`, the same `TLSClientConfig` in `NewRemoteClient`), and

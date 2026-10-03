@@ -11,11 +11,20 @@ import (
 )
 
 type fakeConn struct {
+	passwords     map[string]string // DN -> password accepted by Bind
 	users, groups []ldapEntry
 	searchErr     error
 }
 
 func (f *fakeConn) Close() {}
+
+// Bind succeeds only for a DN listed in passwords with the matching password.
+func (f *fakeConn) Bind(dn, password string) error {
+	if password != "" && f.passwords[dn] == password {
+		return nil
+	}
+	return errors.New("invalid credentials")
+}
 
 func (f *fakeConn) Search(base, _ string, _ []string, limit int) ([]ldapEntry, error) {
 	if f.searchErr != nil {
@@ -29,6 +38,13 @@ func (f *fakeConn) Search(base, _ string, _ []string, limit int) ([]ldapEntry, e
 		list = list[:limit]
 	}
 	return list, nil
+}
+
+func ldapCfgNoDefaults(t *testing.T) LDAPConfig {
+	t.Helper()
+	var c LDAPConfig
+	require.NoError(t, json.Unmarshal(ldapCfg(t, nil), &c))
+	return c.withDefaults()
 }
 
 func ldapCfg(t *testing.T, mutate func(*LDAPConfig)) json.RawMessage {

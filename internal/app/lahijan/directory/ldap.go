@@ -4,7 +4,9 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"net"
 	"strings"
+	"time"
 
 	"github.com/go-ldap/ldap/v3"
 )
@@ -16,6 +18,9 @@ type ldapConn interface {
 	// entry; a positive sizeLimit returns at most that many (not an error when
 	// the server holds more).
 	Search(baseDN, filter string, attrs []string, sizeLimit int) ([]ldapEntry, error)
+	// Bind authenticates the connection as dn. An empty password is rejected
+	// (LDAP would treat it as an unauthenticated bind and report success).
+	Bind(dn, password string) error
 	Close()
 }
 
@@ -40,16 +45,25 @@ func (e ldapEntry) all(attr string) []string { return e.Attrs[strings.ToLower(at
 // inject a fake.
 type ldapDialer func(cfg LDAPConfig, bindPassword string) (ldapConn, error)
 
+// Timeouts so a slow or unreachable directory cannot hang a sign-in.
+const (
+	ldapDialTimeout = 10 * time.Second
+	ldapOpTimeout   = 15 * time.Second
+)
+
 // ErrLDAPConnect wraps a failure to reach or bind to the server.
 var ErrLDAPConnect = errors.New("directory: ldap connect failed")
 
 // dialLDAP connects, optionally upgrades with STARTTLS, and binds.
 func dialLDAP(cfg LDAPConfig, bindPassword string) (ldapConn, error) {
 	tlsCfg := &tls.Config{InsecureSkipVerify: cfg.InsecureSkipVerify} //nolint:gosec // opt-in per connection, for lab servers
-	conn, err := ldap.DialURL(cfg.URL, ldap.DialWithTLSConfig(tlsCfg))
+	conn, err := ldap.DialURL(cfg.URL,
+		ldap.DialWithDialer(&net.Dialer{Timeout: ldapDialTimeout}),
+		ldap.DialWithTLSConfig(tlsCfg))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrLDAPConnect, err)
 	}
+	conn.SetTimeout(ldapOpTimeout)
 	if cfg.StartTLS {
 		if err := conn.StartTLS(tlsCfg); err != nil {
 			conn.Close()
@@ -71,6 +85,19 @@ func dialLDAP(cfg LDAPConfig, bindPassword string) (ldapConn, error) {
 type realConn struct{ c *ldap.Conn }
 
 func (r *realConn) Close() { r.c.Close() }
+
+func (r *realConn) Bind(dn, password string) error {
+	if password == "" {
+		return errors.New("ldap: empty password")
+	}
+	if err := r.c.Bind(dn, password); err != nil {
+		return fmt.Errorf("ldap bind: %w", err)
+	}
+	return nil
+}
+
+// escapeFilter escapes a value for safe use inside an LDAP search filter.
+func escapeFilter(v string) string { return ldap.EscapeFilter(v) }
 
 func (r *realConn) Search(baseDN, filter string, attrs []string, sizeLimit int) ([]ldapEntry, error) {
 	req := ldap.NewSearchRequest(baseDN, ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, sizeLimit, 0, false, filter, attrs, nil)

@@ -78,10 +78,10 @@ test path entirely decoupled from any daemon placement.
 
 - **Pros:** true one-command deploy; Incus state in a managed volume
   (backup story simplifies); identical dev + prod topology; the
-  upstream-endorsed path; Windows dev *may* work too (depends on
+  upstream-endorsed path; Windows dev _may_ work too (depends on
   Docker Desktop's `AF_VSOCK` exposure — see Risks).
 - **Cons:** the `incus` container must run `--privileged --network host
-  --pid host --cgroup host`; some hosts (RHEL/CoreOS with AppArmor or
+--pid host --cgroup host`; some hosts (RHEL/CoreOS with AppArmor or
   SELinux) need extra module-load + policy tweaking; AF_VSOCK is not
   guaranteed on Docker Desktop for Windows/Mac.
 
@@ -113,12 +113,13 @@ both `docker-compose.dev.yml` and `docker-compose.prod.yml`:
    parity.
 
 2. **Container flags (both stacks):**
+
    - `privileged: true`
    - `network_mode: host` — Incus creates `incusbr0` and bridges
      instance traffic; it cannot do this from inside a bridge-network
      container without nested networking.
    - `pid: host` — required to fix cgroup cpuset errors (per the cmspam
-     README: *"balance: Unable to set cpuset" without it*).
+     README: _"balance: Unable to set cpuset" without it_).
    - `cgroup: host` (Compose v2 spelling of `--cgroupns=host`) — cgroup
      v2 unified hierarchy.
    - `environment.SETIPTABLES: "true"` — inserts
@@ -128,6 +129,7 @@ both `docker-compose.dev.yml` and `docker-compose.prod.yml`:
      the Incus state directory.
 
 3. **State storage:**
+
    - **Dev:** a named compose volume (`incus_data`) mounted at
      `/var/lib/incus`. Works on any Docker host (including Docker
      Desktop on Windows/Mac, modulo AF_VSOCK availability).
@@ -158,7 +160,7 @@ both `docker-compose.dev.yml` and `docker-compose.prod.yml`:
    - Windows/Mac hosts where the containerized Incus fails on Docker
      Desktop (AF_VSOCK issue — see Risks).
    - Operators who cannot accept `--privileged --network host --pid
-     host` for policy reasons.
+host` for policy reasons.
 
 ## Consequences
 
@@ -221,7 +223,7 @@ both `docker-compose.dev.yml` and `docker-compose.prod.yml`:
    listener at startup. The current `incus-on-windows` skill asserts
    this fails for every Docker-based image on Docker Desktop; the
    Docker security FAQ's mention of AF_VSOCK for host↔VM
-   communication is about Docker Desktop's *own* IPC, not about
+   communication is about Docker Desktop's _own_ IPC, not about
    exposure to containers. The implementation phase verifies
    empirically. If it fails, the WSL2 path
    (`scripts/Setup-Incus.ps1`) remains supported.

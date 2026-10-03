@@ -97,6 +97,9 @@ type Repos struct {
 	// Directory connections (LDAP / SAML) and the users + groups imported
 	// from them. Global tables; see directory_repo.go.
 	Directory *DirectoryRepository
+
+	// Runtime platform settings changed from the dashboard (global table).
+	PlatformSettings *PlatformSettingsRepository
 }
 
 // NewRepos builds the aggregate repository from a pool or transaction. The
@@ -153,5 +156,6 @@ func NewRepos(db DBTX) *Repos {
 		BillingWebhookEvents:    NewBillingWebhookEventsRepository(q),
 		Agent:                   NewAgentRepository(q),
 		Directory:               NewDirectoryRepository(q),
+		PlatformSettings:        NewPlatformSettingsRepository(q),
 	}
 }

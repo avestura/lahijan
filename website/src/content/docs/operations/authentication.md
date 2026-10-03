@@ -86,7 +86,7 @@ https://cloud.example.com/api/v1/auth/oauth/<provider>/callback
 
 Set `redirectBase` to your public origin in production. When it is empty the callback URL is derived from the request. Default scopes are `openid email profile` for Google and `read:user user:email` for GitHub.
 
-A sign-in with an external identity Lahijan has not seen before creates a new account. Signed-in users can also link an identity to their existing account.
+A sign-in with an external identity Lahijan has not seen before creates a new account, unless [registration is turned off](/docs/admin/users-and-tenants#turn-registration-off), in which case it is refused with `403`. Signed-in users can also link an identity to their existing account.
 
 ## OpenID Connect
 

@@ -364,6 +364,9 @@ func (s *Server) mapIDPError(c *fiber.Ctx, err error) error {
 	case errors.Is(err, idp.ErrLastAuthMethod):
 		return SendError(c, fiber.StatusConflict, CodeConflict,
 			i18n.T(ctx, "auth.err_idp_last_auth_method", nil), nil)
+	case errors.Is(err, idp.ErrSignupDisabled):
+		return SendError(c, fiber.StatusForbidden, CodeRegistrationDisabled,
+			i18n.T(ctx, "auth.err_registration_disabled", nil), nil)
 	case errors.Is(err, idp.ErrTokenEncryption):
 		return SendInternal(c, i18n.T(ctx, "auth.err_internal", nil))
 	}

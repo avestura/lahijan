@@ -26,9 +26,10 @@ The architectural forces at play:
    That does not match Lahijan's "providers/ → pure driver" layering,
    it makes httptest-backed tests painful (the SDK bootstraps its own
    `http.Client` and base URL via package-level state), and it adds a
-   >10 MB dependency tree to the binary. The three Phase-3 providers
-   (Incus / PowerDNS / SeaweedFS) already chose thin internal HTTP
-   clients for the same reasons (ADR-0025, ADR-0026, ADR-0027).
+
+   > 10 MB dependency tree to the binary. The three Phase-3 providers
+   > (Incus / PowerDNS / SeaweedFS) already chose thin internal HTTP
+   > clients for the same reasons (ADR-0025, ADR-0026, ADR-0027).
 
 3. **Webhooks are the source of truth for "did the money land".**
    Stripe's own docs mandate listening to webhooks rather than
@@ -49,7 +50,7 @@ Options considered:
 
 - **Option A — Stripe Go SDK + Stripe-hosted Checkout.** Pros:
   typed end-to-end, official surface. Cons: huge dependency, doesn't
-  fit the providers/* pattern, package-level state fights httptest
+  fit the providers/\* pattern, package-level state fights httptest
   fakes, opinionated retry behaviour we don't control. PCI posture
   is the same with the thin client because card input is hosted
   either way.
@@ -78,6 +79,7 @@ their config is absent.
 Concretely:
 
 - **Provider driver** (`internal/app/lahijan/providers/stripe/`):
+
   - Talks HTTPS to `https://api.stripe.com/v1/*` using a standard
     `net/http.Client` configured for the Stripe account's region
     (configurable base URL so tests point at `httptest`). The
@@ -98,6 +100,7 @@ Concretely:
     tracing (already required by ADR-0016).
 
 - **Persistence** (`internal/app/lahijan/database/`):
+
   - Five new tenant-scoped tables (migrations `0041_billing_plans`,
     `0042_billing_payment_methods`, `0043_billing_subscriptions`,
     `0044_billing_promo_codes`, `0045_billing_webhook_events`).
@@ -116,6 +119,7 @@ Concretely:
     admin can issue single-use codes.
 
 - **Service layer** (`internal/app/lahijan/billing/`):
+
   - `payments.go` — the entrypoint for `POST /api/v1/billing/topup`
     (synchronous: create PaymentIntent, return the client secret
     so the SPA can confirm via Stripe.js). On `payment_intent.succeeded`
@@ -127,7 +131,7 @@ Concretely:
     flips the row to `canceled` and lets the Stripe-driven expiry
     take effect.
   - `promo_codes.go` — admin CRUD + user `POST
-    /api/v1/billing/redeem`. Redeem credits the user's balance
+/api/v1/billing/redeem`. Redeem credits the user's balance
     (a normal `source=topup` ledger row with reference
     `promo_code:<code>`); a UNIQUE on `(tenant_id, code)` + an
     atomic `times_used = times_used + 1` guard the single-use case.
@@ -145,6 +149,7 @@ Concretely:
   it specially (no rbac check; signature is the auth).
 
 - **Operator config** (`internal/app/lahijan/conf/`):
+
   - `billing.stripe.enabled` (bool, default false).
   - `billing.stripe.secret_key` (string, AES-GCM-encrypted at
     rest in env). Required when `enabled=true`.
@@ -155,8 +160,8 @@ Concretely:
   - `billing.stripe.api_base_url` (string, default
     `https://api.stripe.com`; overridable for tests).
   - When `enabled=false` (the default), the gateway stays nil,
-  the routes return 501, and the rest of the billing subsystem
-  keeps operating in ADR-0013's ledger-only mode.
+    the routes return 501, and the rest of the billing subsystem
+    keeps operating in ADR-0013's ledger-only mode.
 
 - **Audit + i18n**: every privileged action
   (`billing.plan.create`, `billing.plan.update`,

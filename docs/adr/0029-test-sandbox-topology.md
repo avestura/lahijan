@@ -97,6 +97,7 @@ This ADR settles all three.
    real container.
 
 2. **Coverage gate thresholds:**
+
    - Go: `LAHIJAN_COVERAGE_MIN_PCT=20` (default in
      `scripts/cover-check/main.go`, overridable via env).
    - Web: vitest `coverage.thresholds` pinned at 10% across the board.

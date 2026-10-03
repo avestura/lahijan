@@ -46,6 +46,7 @@ into the caller's linear memory**.
 ### Conventions
 
 1. **One host module per family.** Imports are names-spaced:
+
    - `lahijan_network::http_request`
    - `lahijan_kv::{get, set, delete}`
    - `lahijan_events::emit`
@@ -60,6 +61,7 @@ into the caller's linear memory**.
    `memory.grow`).
 
 3. **Return values** are a single `i32` status code:
+
    - `0` — success.
    - positive — host-specific success-with-length (e.g. bytes written
      into the plugin's buffer for `kv_get`).

@@ -27,8 +27,9 @@ the in-memory fake:
 
 Separately, SeaweedFS 3.61 stores the `aws-chunked` framing and checksum
 trailer that current AWS SDKs send by default (boto3 >= 1.36, aws-cli
->= 2.23) inside the object: uploads from any modern S3 client were
-silently corrupted.
+
+> = 2.23) inside the object: uploads from any modern S3 client were
+> silently corrupted.
 
 ## Decision
 

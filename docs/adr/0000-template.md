@@ -10,7 +10,7 @@
 
 What is the issue we're facing? What forces are at play? Include the options
 you considered, with brief pros/cons. The reader should be able to understand
-*why* this decision is on the table.
+_why_ this decision is on the table.
 
 Options considered:
 

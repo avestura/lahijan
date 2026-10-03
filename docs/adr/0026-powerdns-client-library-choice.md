@@ -55,7 +55,7 @@ WS-12 implements the PowerDNS driver as a thin internal REST client under
 `internal/app/lahijan/providers/powerdns/`. The package:
 
 - Talks HTTP to the PowerDNS REST API (`GET/POST/PATCH/PUT/DELETE
-  /api/v1/servers/localhost/...`) using a standard `net/http.Client`
+/api/v1/servers/localhost/...`) using a standard `net/http.Client`
   configured for the daemon's HTTP origin. The API key is sent in the
   `X-API-Key` header on every request.
 - Owns its own JSON request/response types in `types.go`, kept narrow to
@@ -65,7 +65,7 @@ WS-12 implements the PowerDNS driver as a thin internal REST client under
   per-call tracing (already required by ADR-0016 and pulled in by WS-11).
 - Synthesizes change events on every mutating call (`events.go`) and
   routes them into the same in-process `eventbus` (`internal/app/lahijan/
-  wasm/eventbus`) the Incus driver uses. PDNS does not push events itself;
+wasm/eventbus`) the Incus driver uses. PDNS does not push events itself;
   this keeps the WASM bus uniform across providers.
 - Re-uses the Provider interface (`Name / Ping / Capabilities`) introduced
   in `internal/app/lahijan/providers/provider.go` (WS-11). The three

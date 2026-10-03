@@ -39,6 +39,9 @@ var (
 	ErrInvalidToken       = errors.New("auth/session: invalid refresh token")
 	ErrRefreshReuse       = errors.New("auth/session: refresh token reuse detected")
 	ErrEmailInvalid       = errors.New("auth/session: invalid email")
+	// ErrRegistrationDisabled is returned by Register when an administrator
+	// (or the configuration) has turned self-registration off.
+	ErrRegistrationDisabled = errors.New("auth/session: registration is disabled")
 )
 
 // Service orchestrates register/login/logout/refresh/me.
@@ -55,7 +58,35 @@ type Service struct {
 	// provisioner, when set, runs right after a self-service account is
 	// created (e.g. to give it a personal tenant). Optional.
 	provisioner SignupProvisioner
+
+	// signupAllowed, when set, decides whether self-registration is open.
+	// Nil means always open.
+	signupAllowed SignupPolicy
+
+	// external, when set, can authenticate a user against an external
+	// directory (LDAP) when the local password check does not apply.
+	external ExternalAuthenticator
 }
+
+// SignupPolicy reports whether self-registration is currently allowed.
+type SignupPolicy func(ctx context.Context) bool
+
+// SetSignupPolicy installs the self-registration policy. Call once at
+// bootstrap, before serving traffic.
+func (s *Service) SetSignupPolicy(p SignupPolicy) { s.signupAllowed = p }
+
+// ExternalAuthenticator verifies an email + password against an external
+// directory. It returns the Lahijan user the credentials belong to (the
+// implementation links or creates the account as configured) and ok=false
+// for unknown users, wrong passwords and directory errors alike, so a
+// caller cannot tell them apart.
+type ExternalAuthenticator interface {
+	AuthenticateExternal(ctx context.Context, email, password string) (uuid.UUID, bool)
+}
+
+// SetExternalAuthenticator installs the directory sign-in hook. Call once
+// at bootstrap, before serving traffic.
+func (s *Service) SetExternalAuthenticator(a ExternalAuthenticator) { s.external = a }
 
 // SignupProvisioner sets up what a brand-new self-registered account needs
 // beyond its user row. program.Start wires the personal-tenant provisioner.
@@ -124,6 +155,9 @@ type RefreshIssue struct {
 // verification link. It returns the new session (with cookie values). Email is
 // case-normalized to lower-case before storage and lookup.
 func (s *Service) Register(ctx context.Context, in RegisterInput) (Session, error) {
+	if s.signupAllowed != nil && !s.signupAllowed(ctx) {
+		return Session{}, ErrRegistrationDisabled
+	}
 	emailNorm := normalizeEmail(in.Email)
 	if !isValidEmail(emailNorm) {
 		return Session{}, ErrEmailInvalid
@@ -189,12 +223,14 @@ type RegisterInput struct {
 // Login verifies credentials and opens a session. A disabled account returns
 // ErrUserInactive; depending on config, an unverified email blocks login.
 func (s *Service) Login(ctx context.Context, in LoginInput) (Session, error) {
-	user, err := s.VerifyCredentials(ctx, in.Email, in.Password)
+	user, viaLocal, err := s.verifyCredentials(ctx, in.Email, in.Password)
 	if err != nil {
 		return Session{}, err
 	}
-	// Lazily rehash on login if parameters were bumped.
-	if s.hasher.NeedsRehash(*user.PasswordHash) {
+	// Lazily rehash on login if parameters were bumped. Only when the local
+	// password was what authenticated: a directory password must never be
+	// written over the local one.
+	if viaLocal && user.PasswordHash != nil && s.hasher.NeedsRehash(*user.PasswordHash) {
 		if newHash, e := s.hasher.Hash(in.Password); e == nil {
 			_ = s.users.UpdatePassword(ctx, user.ID, newHash)
 		}
@@ -234,29 +270,52 @@ func (s *Service) Login(ctx context.Context, in LoginInput) (Session, error) {
 // On success, the caller is responsible for opening the session via
 // OpenForExistingUser (which is the path WS-07a's IdP login also takes).
 func (s *Service) VerifyCredentials(ctx context.Context, email, password string) (database.User, error) {
-	user, err := s.users.GetByEmail(ctx, normalizeEmail(email))
-	if err != nil {
-		s.auditFail(ctx, audit.ActionLogin, nil)
-		return database.User{}, ErrInvalidCredentials
+	user, _, err := s.verifyCredentials(ctx, email, password)
+	return user, err
+}
+
+// verifyCredentials is VerifyCredentials plus whether the local password was
+// what authenticated the user (false when an external directory did).
+//
+// A user with a local password who gives the right one signs in without any
+// network call. Otherwise, when an external directory is configured, the
+// credentials are tried against it; success there yields the linked (or
+// newly created) user. The same account checks apply to both paths.
+func (s *Service) verifyCredentials(ctx context.Context, email, password string) (database.User, bool, error) {
+	norm := normalizeEmail(email)
+	user, err := s.users.GetByEmail(ctx, norm)
+	known := err == nil
+	viaLocal := false
+	if known && user.PasswordHash != nil {
+		if ok, verr := s.hasher.Verify(password, *user.PasswordHash); verr == nil && ok {
+			viaLocal = true
+		}
 	}
-	if user.PasswordHash == nil {
-		s.auditFail(ctx, audit.ActionLogin, &user.ID)
-		return database.User{}, ErrInvalidCredentials
+	authenticated := viaLocal
+	if !authenticated && s.external != nil && password != "" {
+		if uid, ok := s.external.AuthenticateExternal(ctx, norm, password); ok {
+			if u, gerr := s.users.GetByID(ctx, uid); gerr == nil && u.DeletedAt == nil {
+				user, known, authenticated = u, true, true
+			}
+		}
 	}
-	ok, err := s.hasher.Verify(password, *user.PasswordHash)
-	if err != nil || !ok {
-		s.auditFail(ctx, audit.ActionLogin, &user.ID)
-		return database.User{}, ErrInvalidCredentials
+	if !authenticated {
+		if known {
+			s.auditFail(ctx, audit.ActionLogin, &user.ID)
+		} else {
+			s.auditFail(ctx, audit.ActionLogin, nil)
+		}
+		return database.User{}, false, ErrInvalidCredentials
 	}
 	if !user.IsActive {
 		s.auditFail(ctx, audit.ActionLogin, &user.ID)
-		return database.User{}, ErrUserInactive
+		return database.User{}, false, ErrUserInactive
 	}
 	if s.cfg.RequireVerified && user.EmailVerifiedAt == nil {
 		s.auditFail(ctx, audit.ActionLogin, &user.ID)
-		return database.User{}, ErrEmailUnverified
+		return database.User{}, false, ErrEmailUnverified
 	}
-	return user, nil
+	return user, viaLocal, nil
 }
 
 // LoginInput carries the credentials for a login attempt.

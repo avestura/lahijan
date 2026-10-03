@@ -14,7 +14,7 @@ The Lahijan codebase has two non-negotiables that bear on this choice
 (`/AGENTS.md`, "Non-negotiables"):
 
 1. **No new dependencies without checking license + pattern fit. When in doubt,
-   write an ADR.** The official Incus Go SDK is a *large* transitive tree
+   write an ADR.** The official Incus Go SDK is a _large_ transitive tree
    (`github.com/lxc/incus` pulls in `gorilla/websocket`, `google.golang.org/grpc`,
    `gopkg.in/yaml.v3`, the entire `incus/shared/api` surface, plus Incus' own
    internal subpackages). Adopting it would more than double the dep graph of a
@@ -22,7 +22,7 @@ The Lahijan codebase has two non-negotiables that bear on this choice
 2. **Tests stub the backends via httptest.** WS-11's own DoD requires the events
    listener and the `exec` websocket to round-trip via httptest fakes. The
    official SDK does its own connection bootstrap (TLS handshakes, `/1.0`
-   capability probe, cluster detection) *before* the first user request, which
+   capability probe, cluster detection) _before_ the first user request, which
    makes httptest fakes painful — every test would need to script the bootstrap
    sequence. A plain HTTP client just speaks HTTP to the fake server.
 

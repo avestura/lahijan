@@ -81,6 +81,7 @@ interface FormState {
   groupFilter: string;
   groupNameAttr: string;
   groupMemberAttr: string;
+  createUsersOnLogin: boolean;
   // SAML
   idpMetadataUrl: string;
   idpMetadataXml: string;
@@ -108,6 +109,7 @@ const EMPTY: FormState = {
   groupFilter: "",
   groupNameAttr: "",
   groupMemberAttr: "",
+  createUsersOnLogin: true,
   idpMetadataUrl: "",
   idpMetadataXml: "",
   entityId: "",
@@ -141,6 +143,8 @@ function fromConnection(c: DirectoryConnection): FormState {
     groupFilter: str("groupFilter"),
     groupNameAttr: str("groupNameAttr"),
     groupMemberAttr: str("groupMemberAttr"),
+    // Absent means on (the server default).
+    createUsersOnLogin: cfg.createUsersOnLogin !== false,
     idpMetadataUrl: str("idpMetadataUrl"),
     idpMetadataXml: str("idpMetadataXml"),
     entityId: str("entityId"),
@@ -167,6 +171,7 @@ function toRequest(f: FormState): DirectoryConnectionRequest {
           groupFilter: f.groupFilter.trim(),
           groupNameAttr: f.groupNameAttr.trim(),
           groupMemberAttr: f.groupMemberAttr.trim(),
+          createUsersOnLogin: f.createUsersOnLogin,
         }
       : {
           idpMetadataUrl: f.idpMetadataUrl.trim(),
@@ -441,6 +446,17 @@ export function ConnectionDialog({ open, onOpenChange, connection }: Props) {
                   />
                 </Field>
               </div>
+
+              <h3 className="pt-2 text-sm font-medium">{t("admin.directory.sections.signIn")}</h3>
+              <Check
+                id="dc-createonlogin"
+                label={t("admin.directory.fields.createUsersOnLogin")}
+                checked={form.createUsersOnLogin}
+                onChange={(v) => set("createUsersOnLogin", v)}
+              />
+              <p className="text-xs text-muted-foreground">
+                {t("admin.directory.fields.createUsersOnLoginHint")}
+              </p>
             </fieldset>
           ) : (
             <fieldset className="space-y-3">

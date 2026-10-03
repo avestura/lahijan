@@ -23,7 +23,7 @@ Three design questions needed answers:
 1. **Module location.** Where does the SDK live so external authors `go get`
    it without pulling the backend?
 2. **Response-buffer ABI.** How does `http_request` return the response body
-   + headers? Inline params or a prior `set_response_buffers` call?
+   - headers? Inline params or a prior `set_response_buffers` call?
 3. **Allocator + error model.** How does the SDK manage linear memory for
    host-call round-trips, and how does it surface status codes as Go errors?
 

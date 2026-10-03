@@ -182,6 +182,13 @@ func GetAuthPasswordArgon2() Argon2Params {
 	}
 }
 
+// GetAuthSignupEnabled reports the configured default for self-registration
+// (auth.signup.enabled). A runtime setting changed by an administrator
+// overrides it; see the settings package.
+func GetAuthSignupEnabled() bool {
+	return viper.GetBool("auth.signup.enabled")
+}
+
 // GetAuthSignupPersonalTenant reports whether self-registration creates a
 // personal tenant owned by the new user.
 func GetAuthSignupPersonalTenant() bool {

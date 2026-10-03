@@ -30,6 +30,9 @@ const (
 	CodeInternal           = "internal"
 	CodeNotImplemented     = "not_implemented"
 	CodeServiceUnavailable = "service_unavailable"
+	// CodeRegistrationDisabled marks a request to create an account while
+	// self-registration is turned off.
+	CodeRegistrationDisabled = "registration_disabled"
 )
 
 // ErrorEnvelope is the standard error response body. Every error response in

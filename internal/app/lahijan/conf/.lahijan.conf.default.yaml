@@ -73,6 +73,15 @@ database:
 # conf/computeddefault) and is rejected when environment != dev.
 auth:
   signup:
+    # let anyone create an account on their own: the public registration
+    # endpoint, and automatic account creation the first time someone signs in
+    # with an OAuth / OIDC / SAML identity. Set to false on a private
+    # installation. This is only the default: a platform administrator can
+    # switch it at runtime from the dashboard (Administration > Settings), and
+    # that choice wins over this value until it is removed. Accounts created by
+    # an administrator, or imported from an LDAP directory, are never blocked.
+    # Env: LAHIJAN_AUTH_SIGNUP_ENABLED
+    enabled: true
     # give every self-registered user a personal tenant they own
     # (tenant.owner). Without a membership a new account can see the
     # dashboard but cannot create anything. Turn off to onboard users into

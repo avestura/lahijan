@@ -71,6 +71,12 @@ type LDAPConfig struct {
 	GroupNameAttr string `json:"groupNameAttr"`
 	// GroupMemberAttr lists member DNs. Default member.
 	GroupMemberAttr string `json:"groupMemberAttr"`
+
+	// CreateUsersOnLogin makes the first successful sign-in create the Lahijan
+	// account for a directory user who has not been synced yet. Default true.
+	// With false, only users that already exist (imported by a sync, or
+	// created by an administrator) can sign in with the directory password.
+	CreateUsersOnLogin *bool `json:"createUsersOnLogin,omitempty"`
 }
 
 // withDefaults fills empty optional fields.
@@ -86,8 +92,15 @@ func (c LDAPConfig) withDefaults() LDAPConfig {
 	set(&c.GroupFilter, "(objectClass=groupOfNames)")
 	set(&c.GroupNameAttr, "cn")
 	set(&c.GroupMemberAttr, "member")
+	if c.CreateUsersOnLogin == nil {
+		on := true
+		c.CreateUsersOnLogin = &on
+	}
 	return c
 }
+
+// createOnLogin reports whether sign-in may create a missing account.
+func (c LDAPConfig) createOnLogin() bool { return c.CreateUsersOnLogin == nil || *c.CreateUsersOnLogin }
 
 // Validate checks the definition and returns it with defaults applied.
 func (c LDAPConfig) Validate() (LDAPConfig, error) {

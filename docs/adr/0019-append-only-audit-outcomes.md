@@ -7,7 +7,7 @@
 ## Context
 
 WS-08 needs both an immutable audit log (pillar 7) AND a `MarkOutcome` seam
-that records the result of a privileged action *after* the action completes.
+that records the result of a privileged action _after_ the action completes.
 A typical flow is:
 
 ```
@@ -24,7 +24,7 @@ Options considered for the MarkOutcome seam:
 
 - **Option A — Allow narrow UPDATEs on audit_log.** Replace the
   unconditional trigger with one that permits UPDATE only on `(status,
-  metadata, updated_at)`. Simple; keeps everything in one table. **Con:**
+metadata, updated_at)`. Simple; keeps everything in one table. **Con:**
   violates the WS-08 DoD item "audit table rejects UPDATE and DELETE".
   Also weakens the tamper-evidence story (a future migration that loosens
   the trigger further could go unnoticed).
@@ -40,8 +40,7 @@ Options considered for the MarkOutcome seam:
 
 ## Decision
 
-Lahijan uses **Option B**: a sibling `audit_log_outcomes` table (migration
-0010) with the same append-only trigger contract as `audit_log`. The
+Lahijan uses **Option B**: a sibling `audit_log_outcomes` table (migration 0010) with the same append-only trigger contract as `audit_log`. The
 MarkOutcome seam (`audit.Emitter.MarkOutcome`) writes a row there; nothing
 ever updates or deletes from either table.
 

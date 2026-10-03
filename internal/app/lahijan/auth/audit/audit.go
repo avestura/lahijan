@@ -122,6 +122,7 @@ const (
 	ActionDirectoryConnectionDelete = "directory.connection.delete"
 	ActionDirectoryConnectionTest   = "directory.connection.test"
 	ActionDirectoryConnectionSync   = "directory.connection.sync"
+	ActionAdminSettingsUpdate       = "admin.settings.update"
 
 	// Object storage module actions (WS-16). Emitted by the storage service
 	// on every state-changing privileged action across buckets +
@@ -234,6 +235,7 @@ const (
 const (
 	ResourceUser                = "user"
 	ResourceDirectoryConnection = "directory_connection"
+	ResourceSettings            = "platform_settings"
 	ResourceSession             = "session"
 	ResourcePAT                 = "personal_access_token"
 	ResourceEmail               = "email"

@@ -247,3 +247,101 @@ func (c *capturingSender) lastToken(t *testing.T) string {
 	require.NotNilf(t, m, "email body must contain a token= parameter; body was: %s", body)
 	return m[1]
 }
+
+// fakeExternal is an ExternalAuthenticator stub.
+type fakeExternal struct {
+	uid   uuid.UUID
+	ok    bool
+	calls int
+}
+
+func (f *fakeExternal) AuthenticateExternal(_ context.Context, _, _ string) (uuid.UUID, bool) {
+	f.calls++
+	return f.uid, f.ok
+}
+
+func newUserWithPassword(t *testing.T, svc *session.Service, pw string) (string, uuid.UUID) {
+	t.Helper()
+	addr := "ext+" + uuid8() + "@example.test"
+	sess, err := svc.Register(context.Background(), session.RegisterInput{Email: addr, Password: pw, Locale: "en"})
+	require.NoError(t, err)
+	return addr, sess.UserID
+}
+
+func TestExternalAuthenticator(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	svc, _ := newAuthStack(t)
+	repos := testutil.Repos()
+
+	// A directory-only user (no local password) signs in through the hook.
+	dirUser := testutil.NewUser(ctx, t, testutil.Pool(), false)
+	ext := &fakeExternal{uid: dirUser.ID, ok: true}
+	svc.SetExternalAuthenticator(ext)
+	got, err := svc.VerifyCredentials(ctx, dirUser.Email, "directory-password")
+	require.NoError(t, err)
+	assert.Equal(t, dirUser.ID, got.ID)
+	sess, err := svc.Login(ctx, session.LoginInput{Email: dirUser.Email, Password: "directory-password"})
+	require.NoError(t, err, "Login must cope with a user that has no local password hash")
+	assert.NotEmpty(t, sess.CookieValue)
+
+	// A correct local password never calls the directory.
+	addr, uid := newUserWithPassword(t, svc, "VeryStrong123!xyz")
+	ext.calls = 0
+	_, err = svc.VerifyCredentials(ctx, addr, "VeryStrong123!xyz")
+	require.NoError(t, err)
+	assert.Zero(t, ext.calls)
+
+	// A wrong local password falls through to the directory; if it also says no,
+	// the sign-in fails.
+	deny := &fakeExternal{ok: false}
+	svc.SetExternalAuthenticator(deny)
+	_, err = svc.VerifyCredentials(ctx, addr, "not-the-password")
+	require.ErrorIs(t, err, session.ErrInvalidCredentials)
+	assert.Equal(t, 1, deny.calls)
+
+	// If the directory accepts it, the user signs in, and the directory password
+	// must NOT overwrite the local one.
+	before, err := repos.Users.GetByID(ctx, uid)
+	require.NoError(t, err)
+	svc.SetExternalAuthenticator(&fakeExternal{uid: uid, ok: true})
+	_, err = svc.Login(ctx, session.LoginInput{Email: addr, Password: "directory-password"})
+	require.NoError(t, err)
+	after, err := repos.Users.GetByID(ctx, uid)
+	require.NoError(t, err)
+	assert.Equal(t, *before.PasswordHash, *after.PasswordHash)
+
+	// A disabled account is refused even when the directory vouches for it.
+	require.NoError(t, repos.Users.SetActive(ctx, uid, false))
+	_, err = svc.VerifyCredentials(ctx, addr, "directory-password")
+	require.ErrorIs(t, err, session.ErrUserInactive)
+
+	// A directory that claims a user id that does not exist cannot sign anyone in.
+	svc.SetExternalAuthenticator(&fakeExternal{uid: uuid.New(), ok: true})
+	_, err = svc.VerifyCredentials(ctx, "ghost+"+uuid8()+"@example.test", "x")
+	require.ErrorIs(t, err, session.ErrInvalidCredentials)
+}
+
+func TestSignupPolicy(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	svc, _ := newAuthStack(t)
+
+	open := true
+	svc.SetSignupPolicy(func(context.Context) bool { return open })
+
+	_, err := svc.Register(ctx, session.RegisterInput{
+		Email: "open+" + uuid8() + "@example.test", Password: "VeryStrong123!xyz", Locale: "en",
+	})
+	require.NoError(t, err)
+
+	open = false
+	_, err = svc.Register(ctx, session.RegisterInput{
+		Email: "closed+" + uuid8() + "@example.test", Password: "VeryStrong123!xyz", Locale: "en",
+	})
+	require.ErrorIs(t, err, session.ErrRegistrationDisabled)
+
+	// An administrator can still create accounts while registration is closed.
+	_, err = svc.AdminCreateUser(ctx, session.AdminCreateUserInput{Email: "admin-made+" + uuid8() + "@example.test"})
+	require.NoError(t, err)
+}

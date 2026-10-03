@@ -2542,6 +2542,27 @@ type PersonalAccessToken struct {
 	Token *string `json:"token,omitempty"`
 }
 
+// PlatformSettings defines model for PlatformSettings.
+type PlatformSettings struct {
+	// RegistrationDefault The value from the configuration (auth.signup.enabled / LAHIJAN_AUTH_SIGNUP_ENABLED).
+	RegistrationDefault bool `json:"registrationDefault"`
+
+	// RegistrationEnabled Whether anyone may create an account on their own right now.
+	RegistrationEnabled bool `json:"registrationEnabled"`
+
+	// RegistrationOverridden True when an administrator's choice is stored and overrides the configured default.
+	RegistrationOverridden bool `json:"registrationOverridden"`
+}
+
+// PlatformSettingsUpdate defines model for PlatformSettingsUpdate.
+type PlatformSettingsUpdate struct {
+	// RegistrationEnabled Turn self-registration on or off. Stored, and overrides the configured default.
+	RegistrationEnabled *bool `json:"registrationEnabled,omitempty"`
+
+	// ResetRegistration Remove the stored choice so the configured default applies again. Wins over registrationEnabled.
+	ResetRegistration *bool `json:"resetRegistration,omitempty"`
+}
+
 // Pong defines model for Pong.
 type Pong struct {
 	// Pong RFC 3339 timestamp at which the server handled the request.
@@ -3556,6 +3577,9 @@ type TestDirectoryConnectionJSONRequestBody = DirectoryTestRequest
 // UploadAdminPluginMultipartRequestBody defines body for UploadAdminPlugin for multipart/form-data ContentType.
 type UploadAdminPluginMultipartRequestBody UploadAdminPluginMultipartBody
 
+// UpdatePlatformSettingsJSONRequestBody defines body for UpdatePlatformSettings for application/json ContentType.
+type UpdatePlatformSettingsJSONRequestBody = PlatformSettingsUpdate
+
 // CreateAdminUserJSONRequestBody defines body for CreateAdminUser for application/json ContentType.
 type CreateAdminUserJSONRequestBody = AdminUserCreateRequest
 
@@ -3993,6 +4017,14 @@ type ClientInterface interface {
 
 	// SetAdminPluginPermission request
 	SetAdminPluginPermission(ctx context.Context, pluginId openapi_types.UUID, permission string, action SetAdminPluginPermissionParamsAction, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetPlatformSettings request
+	GetPlatformSettings(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdatePlatformSettingsWithBody request with any body
+	UpdatePlatformSettingsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdatePlatformSettings(ctx context.Context, body UpdatePlatformSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListAdminUsers request
 	ListAdminUsers(ctx context.Context, params *ListAdminUsersParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -5308,6 +5340,42 @@ func (c *Client) EnableAdminPlugin(ctx context.Context, pluginId openapi_types.U
 
 func (c *Client) SetAdminPluginPermission(ctx context.Context, pluginId openapi_types.UUID, permission string, action SetAdminPluginPermissionParamsAction, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetAdminPluginPermissionRequest(c.Server, pluginId, permission, action)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetPlatformSettings(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetPlatformSettingsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdatePlatformSettingsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdatePlatformSettingsRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdatePlatformSettings(ctx context.Context, body UpdatePlatformSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdatePlatformSettingsRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -10205,6 +10273,73 @@ func NewSetAdminPluginPermissionRequest(server string, pluginId openapi_types.UU
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewGetPlatformSettingsRequest generates requests for GetPlatformSettings
+func NewGetPlatformSettingsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/settings")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdatePlatformSettingsRequest calls the generic UpdatePlatformSettings builder with application/json body
+func NewUpdatePlatformSettingsRequest(server string, body UpdatePlatformSettingsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdatePlatformSettingsRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewUpdatePlatformSettingsRequestWithBody generates requests for UpdatePlatformSettings with any type of body
+func NewUpdatePlatformSettingsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/admin/settings")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -18667,6 +18802,14 @@ type ClientWithResponsesInterface interface {
 	// SetAdminPluginPermissionWithResponse request
 	SetAdminPluginPermissionWithResponse(ctx context.Context, pluginId openapi_types.UUID, permission string, action SetAdminPluginPermissionParamsAction, reqEditors ...RequestEditorFn) (*SetAdminPluginPermissionResponse, error)
 
+	// GetPlatformSettingsWithResponse request
+	GetPlatformSettingsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetPlatformSettingsResponse, error)
+
+	// UpdatePlatformSettingsWithBodyWithResponse request with any body
+	UpdatePlatformSettingsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdatePlatformSettingsResponse, error)
+
+	UpdatePlatformSettingsWithResponse(ctx context.Context, body UpdatePlatformSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdatePlatformSettingsResponse, error)
+
 	// ListAdminUsersWithResponse request
 	ListAdminUsersWithResponse(ctx context.Context, params *ListAdminUsersParams, reqEditors ...RequestEditorFn) (*ListAdminUsersResponse, error)
 
@@ -20449,6 +20592,55 @@ func (r SetAdminPluginPermissionResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r SetAdminPluginPermissionResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetPlatformSettingsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *PlatformSettings
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+}
+
+// Status returns HTTPResponse.Status
+func (r GetPlatformSettingsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetPlatformSettingsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpdatePlatformSettingsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *PlatformSettings
+	JSON400      *BadRequest
+	JSON401      *Unauthorized
+	JSON403      *Forbidden
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdatePlatformSettingsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdatePlatformSettingsResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -25452,6 +25644,32 @@ func (c *ClientWithResponses) SetAdminPluginPermissionWithResponse(ctx context.C
 	return ParseSetAdminPluginPermissionResponse(rsp)
 }
 
+// GetPlatformSettingsWithResponse request returning *GetPlatformSettingsResponse
+func (c *ClientWithResponses) GetPlatformSettingsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetPlatformSettingsResponse, error) {
+	rsp, err := c.GetPlatformSettings(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetPlatformSettingsResponse(rsp)
+}
+
+// UpdatePlatformSettingsWithBodyWithResponse request with arbitrary body returning *UpdatePlatformSettingsResponse
+func (c *ClientWithResponses) UpdatePlatformSettingsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdatePlatformSettingsResponse, error) {
+	rsp, err := c.UpdatePlatformSettingsWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdatePlatformSettingsResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpdatePlatformSettingsWithResponse(ctx context.Context, body UpdatePlatformSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdatePlatformSettingsResponse, error) {
+	rsp, err := c.UpdatePlatformSettings(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdatePlatformSettingsResponse(rsp)
+}
+
 // ListAdminUsersWithResponse request returning *ListAdminUsersResponse
 func (c *ClientWithResponses) ListAdminUsersWithResponse(ctx context.Context, params *ListAdminUsersParams, reqEditors ...RequestEditorFn) (*ListAdminUsersResponse, error) {
 	rsp, err := c.ListAdminUsers(ctx, params, reqEditors...)
@@ -29847,6 +30065,93 @@ func ParseSetAdminPluginPermissionResponse(rsp *http.Response) (*SetAdminPluginP
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetPlatformSettingsResponse parses an HTTP response from a GetPlatformSettingsWithResponse call
+func ParseGetPlatformSettingsResponse(rsp *http.Response) (*GetPlatformSettingsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetPlatformSettingsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PlatformSettings
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdatePlatformSettingsResponse parses an HTTP response from a UpdatePlatformSettingsWithResponse call
+func ParseUpdatePlatformSettingsResponse(rsp *http.Response) (*UpdatePlatformSettingsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdatePlatformSettingsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PlatformSettings
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	}
 

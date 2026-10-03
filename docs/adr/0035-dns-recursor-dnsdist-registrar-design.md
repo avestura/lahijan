@@ -12,8 +12,8 @@ surface from authoritative-only (WS-12) to a full DNS stack:
 1. **PowerDNS Recursor** — resolving service for users who want Lahijan to
    resolve on their behalf (caching, RPZ, forwarding).
 2. **dnsdist** — protocol-aware DNS load-balancer in front of the recursor
-   + the authoritative server (WS-12). Provides rate-limiting, source-ACL
-   routing, and a single public 53/udp+tcp port of entry.
+   - the authoritative server (WS-12). Provides rate-limiting, source-ACL
+     routing, and a single public 53/udp+tcp port of entry.
 3. **Registrar resale** — end users register / renew / transfer domains
    through Lahijan; the platform resells a real registrar's API
    (ResellerClub, OpenSRS, ...) under the hood.
@@ -89,7 +89,7 @@ WS-28 ships:
 2. **Registrar driver** — `internal/app/lahijan/providers/registrar/`:
    - `Provider` interface (`Name / Ping / Capabilities` + registrar
      methods `CheckDomain / RegisterDomain / RenewDomain /
-     TransferDomain / SetDSRecords / GetDomain`).
+TransferDomain / SetDSRecords / GetDomain`).
    - One in-tree implementation: `OpenSRSProvider` (the OpenSRS / Tucows
      Reseller API is the WS-28 doc's named default). Sourced from
      `providers.registrar.openSRS.*` config.
@@ -102,8 +102,7 @@ WS-28 ships:
    `SetDSRecords` so a single `RegisterDomain{autoDNSSEC:true}` request
    signs the zone and submits the DS at the parent. The composition is
    best-effort: a DS submit failure does not roll back the signing.
-5. **DB schema** — one tenant-scoped table `dns_domains` (migration
-   0046) tracking the per-tenant domain lifecycle (registered, renewed,
+5. **DB schema** — one tenant-scoped table `dns_domains` (migration 0046) tracking the per-tenant domain lifecycle (registered, renewed,
    transferred, etc.). The PowerDNS authoritative `dns_zones` table
    (WS-12) continues to back zone + RRset storage; `dns_domains` is the
    ownership + lifecycle record.
@@ -147,7 +146,7 @@ WS-28 ships:
   privileged method calls audit pre + post and emits into the WASM
   event bus.
 - `internal/app/lahijan/database/migrations/0046_dns_domains.up.sql`
-  + `0046_dns_domains.down.sql` declare the tenant-scoped table.
+  - `0046_dns_domains.down.sql` declare the tenant-scoped table.
 - `api/openapi.yaml` declares every `/api/v1/dns/domains/*` route; CI
   verifies the generated Go + TS clients match (per ADR-0015).
 - No third-party Go module is added for the registrar path. `go.mod`

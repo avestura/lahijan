@@ -15,7 +15,10 @@ import (
 
 	"github.com/avestura/lahijan/api/gen/go"
 	"github.com/avestura/lahijan/internal/app/lahijan/api/middleware"
+	"github.com/avestura/lahijan/internal/app/lahijan/auth/idp"
+	"github.com/avestura/lahijan/internal/app/lahijan/auth/session"
 	"github.com/avestura/lahijan/internal/app/lahijan/directory"
+	"github.com/avestura/lahijan/internal/app/lahijan/settings"
 )
 
 // adminUnitApp mounts the generated routes over a Server with no services, so
@@ -186,5 +189,38 @@ func TestMapDirectoryError(t *testing.T) {
 		app.Get("/", func(c *fiber.Ctx) error { return (&Server{}).mapDirectoryError(c, tc.err) })
 		status, _ := doReq(t, app, "GET", "/", "")
 		assert.Equalf(t, tc.want, status, "%v", tc.err)
+	}
+}
+
+func TestSettingsEndpointsAnswer501WhenDisabled(t *testing.T) {
+	t.Parallel()
+	app := adminUnitApp(true)
+	status, _ := doReq(t, app, "GET", "/api/v1/admin/settings", "")
+	assert.Equal(t, fiber.StatusNotImplemented, status)
+	status, _ = doReq(t, app, "PUT", "/api/v1/admin/settings", `{"registrationEnabled":false}`)
+	assert.Equal(t, fiber.StatusNotImplemented, status)
+}
+
+func TestToPlatformSettingsDTO(t *testing.T) {
+	t.Parallel()
+	dto := toPlatformSettingsDTO(settings.State{RegistrationEnabled: false, RegistrationDefault: true, RegistrationOverridden: true})
+	assert.False(t, dto.RegistrationEnabled)
+	assert.True(t, dto.RegistrationDefault)
+	assert.True(t, dto.RegistrationOverridden)
+}
+
+func TestRegistrationDisabledErrorsAreForbidden(t *testing.T) {
+	t.Parallel()
+	for _, err := range []error{session.ErrRegistrationDisabled, idp.ErrSignupDisabled} {
+		app := fiber.New()
+		app.Get("/", func(c *fiber.Ctx) error {
+			if errors.Is(err, session.ErrRegistrationDisabled) {
+				return (&Server{}).mapAuthError(c, err)
+			}
+			return (&Server{}).mapIDPError(c, err)
+		})
+		status, body := doReq(t, app, "GET", "/", "")
+		assert.Equal(t, fiber.StatusForbidden, status)
+		assert.Contains(t, body, CodeRegistrationDisabled)
 	}
 }

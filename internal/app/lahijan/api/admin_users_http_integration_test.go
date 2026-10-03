@@ -35,6 +35,7 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/database/testutil"
 	"github.com/avestura/lahijan/internal/app/lahijan/directory"
 	notifyemail "github.com/avestura/lahijan/internal/app/lahijan/notify/email"
+	"github.com/avestura/lahijan/internal/app/lahijan/settings"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -73,6 +74,8 @@ func newAdminTestApp(t *testing.T) *testApp {
 	crypto, err := secrets.NewCrypto([]byte(strings.Repeat("k", 32)))
 	require.NoError(t, err)
 	emitter := audit.NewDBEmitter(repos.AuditLog)
+	settingsSvc := settings.New(repos.PlatformSettings, emitter, true)
+	sessionSvc.SetSignupPolicy(settingsSvc.RegistrationEnabled)
 
 	server := api.NewServer(api.ServerDeps{
 		Users:        repos.Users,
@@ -87,6 +90,7 @@ func newAdminTestApp(t *testing.T) *testApp {
 		Audit:        repos.AuditLog,
 		AuditEmitter: emitter,
 		DirectorySvc: directory.New(repos, crypto, emitter, nil),
+		SettingsSvc:  settingsSvc,
 	})
 	policy := middleware.NewPolicyResolver(rbac.NewEvaluator(repos.Memberships))
 	app := fiber.New()
@@ -376,4 +380,61 @@ func TestDisablingAUserStopsTheirTokensAndSessions(t *testing.T) {
 	assert.Equal(t, 401, status, "a disabled user's token must stop working")
 	status, _ = adminCall(t, ta, "GET", "/api/v1/auth/me", victimSess, victimTid, nil)
 	assert.Equal(t, 401, status, "a disabled user's session must stop working")
+}
+
+func TestRegistrationToggle(t *testing.T) {
+	// Not parallel: the setting is global, and other tests register users.
+	ta := newAdminTestApp(t)
+	_, sess, tid := registerAndLogin(t, ta, rbac.RolePlatformAdmin)
+	_, tenantAdminSess, tenantAdminTid := registerAndLogin(t, ta, rbac.RoleTenantAdmin)
+	t.Cleanup(func() {
+		_, _ = adminCall(t, ta, "PUT", "/api/v1/admin/settings", sess, tid, map[string]any{"resetRegistration": true})
+	})
+
+	register := func() (int, map[string]any) {
+		return adminCallAuth(t, ta, "POST", "/api/v1/auth/register", "", "", "",
+			map[string]any{"email": "reg+" + uuid.NewString()[:10] + "@example.test", "password": strongPw, "locale": "en"})
+	}
+
+	// Default: open, not overridden.
+	status, st := adminCall(t, ta, "GET", "/api/v1/admin/settings", sess, tid, nil)
+	require.Equal(t, 200, status, "body=%v", st)
+	assert.Equal(t, true, st["registrationEnabled"])
+	assert.Equal(t, false, st["registrationOverridden"])
+	status, _ = register()
+	assert.Equal(t, 201, status)
+
+	// Only a platform admin may read or change it.
+	status, _ = adminCall(t, ta, "GET", "/api/v1/admin/settings", tenantAdminSess, tenantAdminTid, nil)
+	assert.Equal(t, 403, status)
+	status, _ = adminCall(t, ta, "PUT", "/api/v1/admin/settings", tenantAdminSess, tenantAdminTid, map[string]any{"registrationEnabled": false})
+	assert.Equal(t, 403, status)
+
+	// An empty body is rejected.
+	status, _ = adminCall(t, ta, "PUT", "/api/v1/admin/settings", sess, tid, map[string]any{})
+	assert.Equal(t, 400, status)
+
+	// Turn it off: registration answers 403 with a stable code.
+	status, st = adminCall(t, ta, "PUT", "/api/v1/admin/settings", sess, tid, map[string]any{"registrationEnabled": false})
+	require.Equal(t, 200, status, "body=%v", st)
+	assert.Equal(t, false, st["registrationEnabled"])
+	assert.Equal(t, true, st["registrationOverridden"])
+	assert.Equal(t, true, st["registrationDefault"])
+	status, body := register()
+	assert.Equal(t, 403, status)
+	errObj, _ := body["error"].(map[string]any)
+	assert.Equal(t, "registration_disabled", errObj["code"])
+
+	// Administrators can still create accounts.
+	status, _ = adminCall(t, ta, "POST", "/api/v1/admin/users", sess, tid,
+		map[string]any{"email": "made+" + uuid.NewString()[:8] + "@example.test"})
+	assert.Equal(t, 201, status)
+
+	// Resetting removes the override and the default (open) applies again.
+	status, st = adminCall(t, ta, "PUT", "/api/v1/admin/settings", sess, tid, map[string]any{"resetRegistration": true})
+	require.Equal(t, 200, status)
+	assert.Equal(t, true, st["registrationEnabled"])
+	assert.Equal(t, false, st["registrationOverridden"])
+	status, _ = register()
+	assert.Equal(t, 201, status)
 }

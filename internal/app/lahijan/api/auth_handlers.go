@@ -401,6 +401,9 @@ func (s *Server) mapAuthError(c *fiber.Ctx, err error) error {
 	case errors.Is(err, session.ErrInvalidToken), errors.Is(err, email.ErrInvalidToken):
 		return SendError(c, fiber.StatusUnauthorized, CodeUnauthorized,
 			i18n.T(ctx, "auth.err_invalid_token", nil), nil)
+	case errors.Is(err, session.ErrRegistrationDisabled):
+		return SendError(c, fiber.StatusForbidden, CodeRegistrationDisabled,
+			i18n.T(ctx, "auth.err_registration_disabled", nil), nil)
 	case errors.Is(err, session.ErrEmailInvalid):
 		return SendBadRequest(c, i18n.T(ctx, "auth.err_email_invalid", nil), nil)
 	case errors.Is(err, password.ErrPasswordTooWeak):

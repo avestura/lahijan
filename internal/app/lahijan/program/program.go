@@ -57,6 +57,7 @@ import (
 	notifyemail "github.com/avestura/lahijan/internal/app/lahijan/notify/email"
 	"github.com/avestura/lahijan/internal/app/lahijan/providers/incus"
 	registrarsvc "github.com/avestura/lahijan/internal/app/lahijan/registrar"
+	"github.com/avestura/lahijan/internal/app/lahijan/settings"
 	"github.com/avestura/lahijan/internal/app/lahijan/storage"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/eventbus"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/eventservice"
@@ -505,7 +506,24 @@ func Start() error {
 	// slow or unreachable IdP cannot delay startup.
 	directorySvc := directory.New(authDeps.repos, agentCrypto, authDeps.audit, slog.Default())
 	directorySvc.SetSAMLActivator(samlDeps.activator)
+	if authDeps.signup != nil {
+		// Accounts created from a directory get the same personal tenant as
+		// self-registered ones (auth.signup.personalTenant).
+		directorySvc.SetProvisioner(authDeps.signup)
+	}
+	// Directory sign-in: when the local password check does not apply, an
+	// enabled LDAP connection can authenticate the user.
+	authDeps.sessionSvc.SetExternalAuthenticator(directorySvc)
 	go directorySvc.ActivateSAML(context.Background())
+
+	// Runtime platform settings, and the self-registration policy they drive:
+	// the public register endpoint and account creation from an external
+	// identity both consult it. auth.signup.enabled is only the default.
+	settingsSvc := settings.New(authDeps.repos.PlatformSettings, authDeps.audit, conf.GetAuthSignupEnabled())
+	authDeps.sessionSvc.SetSignupPolicy(settingsSvc.RegistrationEnabled)
+	if idpDeps.svc != nil {
+		idpDeps.svc.SetSignupPolicy(settingsSvc.RegistrationEnabled)
+	}
 
 	// Seed the RBAC catalog (permissions + default roles + grants). Idempotent
 	// so it is safe to run on every bootstrap. Fail-fast on error: without the
@@ -594,6 +612,7 @@ func Start() error {
 		RegistrarSvc:   registrarSvc,
 		AgentSvc:       agentSvc,
 		DirectorySvc:   directorySvc,
+		SettingsSvc:    settingsSvc,
 	}), policy)
 
 	// WS-09: mount River's built-in web UI (admin-only). The UI ships its

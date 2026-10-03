@@ -91,6 +91,7 @@ documented for advanced users.**
    knob (`LAHIJAN_BACKUP_RETENTION_DAYS`) prunes both stores.
 
 4. **Four-script ops surface** (the recommended way to operate Lahijan):
+
    - `scripts/install.sh` / `scripts/install.ps1` — first install.
    - `scripts/upgrade.sh` — pull latest + restart in dependency order.
    - `scripts/backup.sh` — pg_dump + SeaweedFS volume snapshot.
@@ -107,8 +108,8 @@ documented for advanced users.**
 ## Consequences
 
 - **Positive:** the operator experience is one command (`install.sh`)
-  + one script per daily op (upgrade / backup / restore). The Caddy
-  choice removes an entire class of "how do I get a cert" questions.
+  - one script per daily op (upgrade / backup / restore). The Caddy
+    choice removes an entire class of "how do I get a cert" questions.
 - **Positive:** the first-run admin bootstrap removes the "you forgot
   to seed an admin" failure mode that catches every fresh self-hosted
   SaaS deploy.

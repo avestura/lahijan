@@ -20,6 +20,7 @@ import {
   NetworkIcon,
   PlugIcon,
   ScrollTextIcon,
+  SettingsIcon,
   ShieldIcon,
   SparklesIcon,
   UserIcon,
@@ -73,6 +74,7 @@ const SETTINGS_NAV: NavItem[] = [
 const ADMIN_NAV: NavItem[] = [
   { to: "/admin/users", labelKey: "nav.admin.users", icon: UsersIcon },
   { to: "/admin/directory", labelKey: "nav.admin.directory", icon: NetworkIcon },
+  { to: "/admin/settings", labelKey: "nav.admin.settings", icon: SettingsIcon },
   { to: "/admin/billing", labelKey: "nav.admin.billing", icon: WalletIcon },
   // `/admin/jobs` has no SPA route; River's built-in UI is mounted at
   // `/admin/jobs/ui` when jobs are enabled (conf.jobs.enabled=true).

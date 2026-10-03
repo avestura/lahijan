@@ -831,5 +831,8 @@
   "directory.err_name_taken": { "other": "اتصالی با این نام از قبل وجود دارد." },
   "directory.err_sync_unsupported": { "other": "این نوع اتصال از همگام‌سازی پشتیبانی نمی‌کند." },
   "directory.err_crypto_required": { "other": "کلید رمزنگاری تنظیم نشده است، بنابراین گذرواژهٔ اتصال ذخیره نمی‌شود." },
-  "directory.err_sync_failed": { "other": "دسترسی به سرور دایرکتوری یا جست‌وجو در آن ممکن نشد." }
+  "directory.err_sync_failed": { "other": "دسترسی به سرور دایرکتوری یا جست‌وجو در آن ممکن نشد." },
+  "auth.err_registration_disabled": { "other": "ثبت‌نام در این سرور غیرفعال است. برای دریافت حساب با یک مدیر تماس بگیرید." },
+  "audit.action_admin_settings_update": { "other": "تنظیمات پلتفرم تغییر کرد" },
+  "admin.err_settings_bad_request": { "other": "درخواست تنظیمات خالی یا نامعتبر است." }
 }

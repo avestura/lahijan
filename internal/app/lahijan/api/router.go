@@ -541,6 +541,8 @@ func AuditGate(policy middleware.PolicyResolver) apigen.MiddlewareFunc {
 			return middleware.RequirePerm(policy, rbac.PermPlatformUserManage)(c)
 		case isAdminUserMembershipPath(path) && method == "PUT":
 			return middleware.RequirePerm(policy, rbac.PermPlatformUserManage)(c)
+		case path == "/api/v1/admin/settings":
+			return middleware.RequirePerm(policy, rbac.PermPlatformSettingsManage)(c)
 		case path == "/api/v1/admin/directory" || strings.HasPrefix(path, "/api/v1/admin/directory/"):
 			return middleware.RequirePerm(policy, rbac.PermPlatformDirectoryManage)(c)
 		case isAgentProviderPath(path) && (method == "POST" || method == "GET" || method == "DELETE"):

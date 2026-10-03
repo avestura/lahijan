@@ -27,9 +27,9 @@ which is enough for self-hosters. WS-30 is the SaaS-style surface:
    `compute.ip.released`) is audited and fanned into the WASM event bus so
    plugins can react.
 
-The WS-30 doc itself carries a heavy operational caveat: *"This WS is
+The WS-30 doc itself carries a heavy operational caveat: _"This WS is
 operationally heavy (BGP, RIR allocation, abuse handling). Most self-hosters
-won't need it; it's primarily for SaaS-style deployments."* This ADR's central
+won't need it; it's primarily for SaaS-style deployments."_ This ADR's central
 decision is the line between what Lahijan owns (the control plane) and what
 the operator owns (the data plane).
 

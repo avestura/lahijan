@@ -31,6 +31,7 @@ import (
 	"github.com/avestura/lahijan/internal/app/lahijan/dns"
 	"github.com/avestura/lahijan/internal/app/lahijan/i18n"
 	"github.com/avestura/lahijan/internal/app/lahijan/registrar"
+	"github.com/avestura/lahijan/internal/app/lahijan/settings"
 	"github.com/avestura/lahijan/internal/app/lahijan/storage"
 	"github.com/avestura/lahijan/internal/app/lahijan/version"
 	"github.com/avestura/lahijan/internal/app/lahijan/wasm/installer"
@@ -177,6 +178,10 @@ type Server struct {
 	// directorySvc is nil-appropriate in router smoke tests; the directory
 	// handlers then answer 501.
 	directorySvc *directory.Service
+
+	// settingsSvc backs /api/v1/admin/settings (runtime platform settings).
+	// Nil-appropriate in router smoke tests; the handlers then answer 501.
+	settingsSvc *settings.Service
 }
 
 // ServerDeps carries the dependencies NewServer requires. Wire it once from
@@ -275,6 +280,9 @@ type ServerDeps struct {
 
 	// DirectorySvc backs /api/v1/admin/directory/*. Nil-appropriate in tests.
 	DirectorySvc *directory.Service
+
+	// SettingsSvc backs /api/v1/admin/settings. Nil-appropriate in tests.
+	SettingsSvc *settings.Service
 }
 
 // NewServer builds the API server with the given dependencies.
@@ -312,6 +320,7 @@ func NewServer(deps ServerDeps) *Server {
 		registrarSvc:    deps.RegistrarSvc,
 		agentSvc:        deps.AgentSvc,
 		directorySvc:    deps.DirectorySvc,
+		settingsSvc:     deps.SettingsSvc,
 	}
 	if s.tracer == nil {
 		s.tracer = Tracer()

@@ -382,5 +382,8 @@
   "directory.err_name_taken": { "other": "A connection with that name already exists." },
   "directory.err_sync_unsupported": { "other": "This connection type does not support syncing." },
   "directory.err_crypto_required": { "other": "No encryption key is configured, so the bind password cannot be stored." },
-  "directory.err_sync_failed": { "other": "The directory server could not be reached or queried." }
+  "directory.err_sync_failed": { "other": "The directory server could not be reached or queried." },
+  "auth.err_registration_disabled": { "other": "Registration is turned off on this server. Ask an administrator for an account." },
+  "audit.action_admin_settings_update": { "other": "Platform settings changed" },
+  "admin.err_settings_bad_request": { "other": "The settings request is empty or invalid." }
 }

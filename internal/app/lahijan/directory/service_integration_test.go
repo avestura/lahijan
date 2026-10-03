@@ -12,6 +12,7 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/google/uuid"
@@ -260,4 +261,142 @@ func TestRecordSAMLLoginTracksGroups(t *testing.T) {
 	// A provider that is not a directory connection is ignored.
 	svc.RecordSAMLLogin(ctx, "defined-in-config-file", user.ID, "x", map[string]any{"groups": []string{"zzz"}})
 	assert.Equal(t, map[string]int64{"eng": 1, "ops": 0}, counts())
+}
+
+func TestAuthenticateExternal(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	repos := integrationRepos()
+
+	suffix := uuid.NewString()[:8]
+	annMail := "ann-" + suffix + "@example.test"
+	carolMail := "carol-" + suffix + "@example.test"
+	ann := person("ann"+suffix, annMail, "Ann A")
+	carol := person("carol"+suffix, carolMail, "Carol C")
+
+	// carol already has a local account with her own password.
+	local, err := repos.Users.Create(ctx, localUser(carolMail))
+	require.NoError(t, err)
+
+	fc := &fakeConn{
+		users:     []ldapEntry{ann, carol},
+		passwords: map[string]string{ann.DN: "ann-pw", carol.DN: "carol-pw"},
+	}
+	// The fake ignores the search filter, so serve only the entry being signed in.
+	svc := newService(t, &filteringConn{inner: fc})
+	_, err = svc.Create(ctx, uuid.Nil, ldapInput(uniqueName()))
+	require.NoError(t, err)
+
+	// First sign-in creates the account: verified, no local password.
+	uid, ok := svc.AuthenticateExternal(ctx, annMail, "ann-pw")
+	require.True(t, ok)
+	created, err := repos.Users.GetByID(ctx, uid)
+	require.NoError(t, err)
+	assert.Equal(t, annMail, created.Email)
+	assert.NotNil(t, created.EmailVerifiedAt)
+	assert.Nil(t, created.PasswordHash)
+
+	// Signing in again returns the same account.
+	again, ok := svc.AuthenticateExternal(ctx, annMail, "ann-pw")
+	require.True(t, ok)
+	assert.Equal(t, uid, again)
+
+	// Wrong password, empty password and an unknown user are all refused.
+	_, ok = svc.AuthenticateExternal(ctx, annMail, "wrong")
+	assert.False(t, ok)
+	_, ok = svc.AuthenticateExternal(ctx, annMail, "")
+	assert.False(t, ok)
+	_, ok = svc.AuthenticateExternal(ctx, "nobody-"+suffix+"@example.test", "x")
+	assert.False(t, ok)
+
+	// An existing local account with the same email is linked, not duplicated,
+	// and its local password is left alone.
+	linked, ok := svc.AuthenticateExternal(ctx, carolMail, "carol-pw")
+	require.True(t, ok)
+	assert.Equal(t, local.ID, linked)
+	after, err := repos.Users.GetByID(ctx, local.ID)
+	require.NoError(t, err)
+	require.NotNil(t, after.PasswordHash)
+	assert.Equal(t, *local.PasswordHash, *after.PasswordHash)
+}
+
+func TestUpsertUserWithoutCreationOnlyLinks(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	repos := integrationRepos()
+	svc := newService(t, &fakeConn{})
+	conn, err := svc.Create(ctx, uuid.Nil, ldapInput(uniqueName()))
+	require.NoError(t, err)
+
+	suffix := uuid.NewString()[:8]
+	// Unknown email and creation off -> not provisioned, nothing created.
+	_, _, err = svc.upsertUser(ctx, conn.ID, "uid=new,dc=x", "new-"+suffix+"@example.test", "New", false)
+	require.ErrorIs(t, err, errNotProvisioned)
+	_, err = repos.Users.GetByEmail(ctx, "new-"+suffix+"@example.test")
+	require.Error(t, err)
+
+	// An existing user is linked even with creation off.
+	existing, err := repos.Users.Create(ctx, localUser("old-"+suffix+"@example.test"))
+	require.NoError(t, err)
+	uid, created, err := svc.upsertUser(ctx, conn.ID, "uid=old,dc=x", existing.Email, "Old", false)
+	require.NoError(t, err)
+	assert.False(t, created)
+	assert.Equal(t, existing.ID, uid)
+}
+
+// filteringConn answers a user search with only the entry whose email appears in
+// the filter (the real server does this filtering; the fake ignores filters).
+type filteringConn struct{ inner *fakeConn }
+
+func (f *filteringConn) Close() { f.inner.Close() }
+
+func (f *filteringConn) Bind(dn, pw string) error { return f.inner.Bind(dn, pw) }
+
+func (f *filteringConn) Search(base, filter string, attrs []string, limit int) ([]ldapEntry, error) {
+	all, err := f.inner.Search(base, filter, attrs, limit)
+	if err != nil {
+		return nil, err
+	}
+	var out []ldapEntry
+	for _, e := range all {
+		if strings.Contains(filter, "(mail="+e.first("mail")+")") {
+			out = append(out, e)
+		}
+	}
+	return out, nil
+}
+
+type recordingProvisioner struct {
+	mu    sync.Mutex
+	users []uuid.UUID
+}
+
+func (r *recordingProvisioner) ProvisionSignup(_ context.Context, id uuid.UUID, _ string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.users = append(r.users, id)
+	return nil
+}
+
+func TestNewDirectoryAccountsAreProvisioned(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	suffix := uuid.NewString()[:8]
+	fc := &fakeConn{users: []ldapEntry{person("p"+suffix, "p-"+suffix+"@example.test", "P")}}
+	svc := newService(t, fc)
+	prov := &recordingProvisioner{}
+	svc.SetProvisioner(prov)
+	conn, err := svc.Create(ctx, uuid.Nil, ldapInput(uniqueName()))
+	require.NoError(t, err)
+
+	uid, created, err := svc.upsertUser(ctx, conn.ID, "uid=p"+suffix+",dc=x", "p-"+suffix+"@example.test", "P", true)
+	require.NoError(t, err)
+	require.True(t, created)
+	assert.Equal(t, []uuid.UUID{uid}, prov.users, "a new account is provisioned exactly once")
+
+	// Linking an existing account provisions nothing.
+	_, created, err = svc.upsertUser(ctx, conn.ID, "uid=p"+suffix+",dc=x", "p-"+suffix+"@example.test", "P", true)
+	require.NoError(t, err)
+	assert.False(t, created)
+	assert.Len(t, prov.users, 1)
 }

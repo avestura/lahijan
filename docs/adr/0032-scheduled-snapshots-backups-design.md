@@ -92,7 +92,7 @@ Adopt **Option C**. Concretely:
   Lahijan process (not directly Incus -> S3). For very large instances
   this is a memory + bandwidth cost; a future optimisation is to
   pre-sign S3 URLs + hand them to Incus' `POST
-  /instances/<id>/backups` API (the upstream surface already supports
+/instances/<id>/backups` API (the upstream surface already supports
   it).
 - **Neutral:** the SSH driver's host-key validation defaults to
   `InsecureIgnoreHostKey` when no fingerprint is configured. The
@@ -109,7 +109,7 @@ Adopt **Option C**. Concretely:
   create the four tenant-scoped tables.
 - `internal/app/lahijan/api/router.go` `AuditGate` dispatches every
   new path under `/api/v1/compute/{snapshots,backups,backup-targets,
-  snapshot-policies}/*` to the right `rbac.Perm*` slug.
+snapshot-policies}/*` to the right `rbac.Perm*` slug.
 - `internal/app/lahijan/program/program.go`'s
   `registerComputeSnapshotWorkers` wires the three workers on the
   shared registry.

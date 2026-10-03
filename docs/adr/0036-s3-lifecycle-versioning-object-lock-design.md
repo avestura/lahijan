@@ -28,9 +28,9 @@ set object-lock policy) goes through Lahijan. Per ADR-0027 the driver
 speaks to SeaweedFS through the AWS SDK v2 S3 client + a thin Filer HTTP
 wrapper; that hybrid stays.
 
-The WS-29 doc itself notes: *"Check current SeaweedFS support for each
+The WS-29 doc itself notes: _"Check current SeaweedFS support for each
 feature at the time work begins — some features may require a specific
-version or still be in flux."* This ADR's central decision is how to
+version or still be in flux."_ This ADR's central decision is how to
 remain correct and useful across that flux.
 
 Three sub-decisions land here.
@@ -190,7 +190,7 @@ WS-29 implements all three sub-decisions as follows.
   are added to `wasm/eventbus/events.go`.
 - OpenAPI schemas (`StorageVersioning`, `StorageLifecycleRule`,
   `StorageObjectLock`) and endpoints (`GET/PUT
-  /api/v1/storage/buckets/{id}/versioning`, `/lifecycle`,
+/api/v1/storage/buckets/{id}/versioning`, `/lifecycle`,
   `/object-lock`) are added; clients regenerated.
 - Per pillar 1: the user-facing terms are "versioning", "lifecycle
   rule", "object lock". SeaweedFS is never named in the API or UI.

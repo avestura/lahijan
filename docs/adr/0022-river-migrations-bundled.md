@@ -58,7 +58,7 @@ migrations, split at the enum boundary.
 
 - `0018_river_schema_base.{up,down}.sql` — upstream 001, 002, 003, the
   non-enum parts of 004, and `ALTER TYPE river_job_state ADD VALUE
-  IF NOT EXISTS 'pending'` as the LAST statement.
+IF NOT EXISTS 'pending'` as the LAST statement.
 - `0019_river_schema_rest.{up,down}.sql` — the constraint change from
   004, upstream 005 (rebuilt `river_migration` + `unique_key`), 006
   (bulk unique), 007 (notification outbox + cleanup), and the marker
@@ -91,11 +91,11 @@ Postgres) along with every table that references it.
 
 - `internal/app/lahijan/database/migrations/0018_river_schema_base.up.sql`
   exists and ends with `ALTER TYPE river_job_state ADD VALUE IF NOT
-  EXISTS 'pending' AFTER 'discarded';`.
+EXISTS 'pending' AFTER 'discarded';`.
 - `internal/app/lahijan/database/migrations/0019_river_schema_rest.up.sql`
   exists and includes the
   `INSERT INTO river_migration (line, version) VALUES ('main', 1..7)
-  ON CONFLICT DO NOTHING;` block.
+ON CONFLICT DO NOTHING;` block.
 - `internal/app/lahijan/database/migrations_integration_test.go` asserts
   the migration version is at least 19 (so future River upgrades must
   bump this floor).

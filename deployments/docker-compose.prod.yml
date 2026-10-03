@@ -688,6 +688,9 @@ services:
       # WebAuthn (TOTP still works).
       LAHIJAN_AUTH_MFA_WEBAUTHN_RPID: ${LAHIJAN_AUTH_MFA_WEBAUTHN_RPID:-}
       LAHIJAN_AUTH_MFA_WEBAUTHN_RPORIGINS: ${LAHIJAN_AUTH_MFA_WEBAUTHN_RPORIGINS:-}
+      # Default for self-registration (true = anyone may create an account).
+      # An administrator can override it at runtime in Administration > Settings.
+      LAHIJAN_AUTH_SIGNUP_ENABLED: ${LAHIJAN_AUTH_SIGNUP_ENABLED:-true}
       # First-run admin bootstrap (WS-23). When LAHIJAN_BOOTSTRAP_ADMIN_PASSWORD
       # is empty Lahijan generates one and logs it ONCE via `docker compose
       # logs lahijan`. Set both to skip the random-generation path.

@@ -5861,6 +5861,45 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /api/v1/admin/settings:
+    get:
+      tags: [admin]
+      operationId: getPlatformSettings
+      summary: Get the platform settings (platform admin)
+      description: |
+        Returns the settings an administrator can change at runtime, with where
+        each value comes from. Requires platform.settings.manage.
+      responses:
+        "200":
+          description: The effective settings.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformSettings" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    put:
+      tags: [admin]
+      operationId: updatePlatformSettings
+      summary: Change the platform settings (platform admin)
+      description: |
+        Changes one or more settings. A stored choice overrides the value from
+        the configuration (environment variable) until it is reset. Requires
+        platform.settings.manage.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlatformSettingsUpdate" }
+      responses:
+        "200":
+          description: The effective settings after the change.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformSettings" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
   # -------------------------------------------------------------------------
   # Components
   # -------------------------------------------------------------------------
@@ -9601,3 +9640,27 @@ components:
         total: { type: integer, format: int64 }
         limit: { type: integer }
         offset: { type: integer }
+
+    PlatformSettings:
+      type: object
+      required: [registrationEnabled, registrationDefault, registrationOverridden]
+      properties:
+        registrationEnabled:
+          type: boolean
+          description: Whether anyone may create an account on their own right now.
+        registrationDefault:
+          type: boolean
+          description: The value from the configuration (auth.signup.enabled / LAHIJAN_AUTH_SIGNUP_ENABLED).
+        registrationOverridden:
+          type: boolean
+          description: True when an administrator's choice is stored and overrides the configured default.
+
+    PlatformSettingsUpdate:
+      type: object
+      properties:
+        registrationEnabled:
+          type: boolean
+          description: Turn self-registration on or off. Stored, and overrides the configured default.
+        resetRegistration:
+          type: boolean
+          description: Remove the stored choice so the configured default applies again. Wins over registrationEnabled.

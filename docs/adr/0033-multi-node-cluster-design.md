@@ -48,11 +48,11 @@ Options considered:
 
 - **Option B — PlacementDriver interface with two implementations
   (Local + Cluster).** Define `PlacementDriver` in `internal/app/
-  lahijan/compute`. The service calls `placement.SelectTarget(params)`
+lahijan/compute`. The service calls `placement.SelectTarget(params)`
   before every create; the result is the `target` string forwarded
   to `provider.CreateInstance`. `Local` returns "" (Incus treats
   empty target as "any member"); `Cluster` calls `provider.
-  ListClusterMembers` + picks the least-loaded. Live-migrate is
+ListClusterMembers` + picks the least-loaded. Live-migrate is
   surfaced as a separate service method that the cluster driver
   implements. **Pros:** matches ADR-0009's commitment; the service
   stays scheduler-agnostic; the Local implementation is the zero-cost
@@ -176,7 +176,7 @@ Adopt **Option B**. Concretely:
   three new `compute.cluster.*` permissions.
 - `internal/app/lahijan/program/program.go` wires the
   `ClusterPlacementDriver` when `providers.incus.placement.mode ==
-  "cluster"`; otherwise it wires the `LocalPlacementDriver`.
+"cluster"`; otherwise it wires the `LocalPlacementDriver`.
 - `deployments/README.md` documents the LB topology (Caddy in front
   of N replicas, all pointing at one Postgres) and the Incus
   cluster bootstrap prerequisite.

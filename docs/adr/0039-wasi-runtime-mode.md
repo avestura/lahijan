@@ -55,20 +55,20 @@ explicit escape hatch for fully-trusted plugins.
 
 ### WASI permission slug catalog
 
-| Slug | Gates |
-|------|-------|
+| Slug                              | Gates                                                                         |
+| --------------------------------- | ----------------------------------------------------------------------------- |
 | `wasi.fs.preopen:<guest-path>:ro` | Read-only mount of `<fs_root>/<plugin-slug>/<host_subdir>` at `<guest-path>`. |
-| `wasi.fs.preopen:<guest-path>:rw` | Read-write mount of the same. |
-| `wasi.env:<VAR_NAME>` | Surface the named env var (value injected by admin via config). |
-| `wasi.clock` | `clock_time_get` / `clock_res_get`. |
-| `wasi.random` | `random_get` (default-grant; low risk). |
-| `wasi.exit` | `proc_exit`. |
-| `*` | Full `wasi_snapshot_preview1` surface (god-mode; UI shows a loud warning). |
+| `wasi.fs.preopen:<guest-path>:rw` | Read-write mount of the same.                                                 |
+| `wasi.env:<VAR_NAME>`             | Surface the named env var (value injected by admin via config).               |
+| `wasi.clock`                      | `clock_time_get` / `clock_res_get`.                                           |
+| `wasi.random`                     | `random_get` (default-grant; low risk).                                       |
+| `wasi.exit`                       | `proc_exit`.                                                                  |
+| `*`                               | Full `wasi_snapshot_preview1` surface (god-mode; UI shows a loud warning).    |
 
 ### Manifest shape
 
 ```yaml
-runtime: wasi      # default "none" = plain wasm32-unknown-unknown
+runtime: wasi # default "none" = plain wasm32-unknown-unknown
 wasi:
   preopens:
     - guestPath: /data

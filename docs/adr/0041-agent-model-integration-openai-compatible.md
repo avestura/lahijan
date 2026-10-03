@@ -15,21 +15,21 @@ adds a hard dependency on a second long-running process and on the
 questions in the WS-31 brief).
 
 The first usable slice needed the agent to actually answer questions grounded
-in live tenant data *now*, with zero extra processes to run for a local dev or
+in live tenant data _now_, with zero extra processes to run for a local dev or
 a single-container deploy.
 
 Options considered:
 
 - **Option A — ship the OpenCode daemon now** — matches the brief; one more
   process in the compose stack; hard dep on the SDK fork + its event/SSE/MCP
-  surface; blocks the slice on that integration being stable. — *pro:* no
-  custom agent loop to maintain; *con:* dep + lifecycle risk, later unblock.
+  surface; blocks the slice on that integration being stable. — _pro:_ no
+  custom agent loop to maintain; _con:_ dep + lifecycle risk, later unblock.
 - **Option B — a thin OpenAI-compatible `/chat/completions` client inside the
   backend** — every BYOK provider the user picks (OpenAI, OpenRouter, Groq,
   Together, DeepSeek, xAI, Ollama, …) already speaks this protocol; one HTTP
   client covers them; no extra process; the WS-31 `agent.Harness` seam is
-  unchanged so the daemon can still replace it later. — *pro:* works today,
-  no new process; *con:* we own the streaming/tool-loop code; no upstream
+  unchanged so the daemon can still replace it later. — _pro:_ works today,
+  no new process; _con:_ we own the streaming/tool-loop code; no upstream
   agent features for free.
 - **Option C — wait for the daemon** — defer the feature. Rejected: the
   feature is the point of the slice.

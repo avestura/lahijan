@@ -56,6 +56,7 @@ sql:
       - "queries/compute_floating_ips.sql"
       - "queries/agent.sql"
       - "queries/directory.sql"
+      - "queries/platform_settings.sql"
     schema:
       - "migrations/*.up.sql"
     gen:

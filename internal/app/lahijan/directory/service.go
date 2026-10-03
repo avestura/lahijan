@@ -96,7 +96,19 @@ type Service struct {
 	log    *slog.Logger
 	dial   ldapDialer
 	saml   SAMLActivator
+	// provisioner, when set, runs for every account this service creates (an
+	// LDAP sync or first sign-in), e.g. to give it a personal tenant.
+	provisioner Provisioner
 }
+
+// Provisioner sets up what a brand-new account needs beyond its user row.
+// It is the same hook self-registration uses.
+type Provisioner interface {
+	ProvisionSignup(ctx context.Context, userID uuid.UUID, email string) error
+}
+
+// SetProvisioner installs the post-creation hook. Call once at bootstrap.
+func (s *Service) SetProvisioner(p Provisioner) { s.provisioner = p }
 
 // New builds the service. crypto may be nil; creating an LDAP connection with a
 // bind password then fails with ErrCryptoRequired.
@@ -359,7 +371,7 @@ func (s *Service) runLDAPSync(ctx context.Context, connID uuid.UUID, cfg LDAPCon
 		if name == "" {
 			name = strings.TrimSpace(e.first("cn"))
 		}
-		uid, created, upErr := s.upsertUser(ctx, connID, normDN(e.DN), email, name)
+		uid, created, upErr := s.upsertUser(ctx, connID, normDN(e.DN), email, name, true)
 		if upErr != nil {
 			return res, fmt.Errorf("user %s: %w", email, upErr)
 		}
@@ -409,7 +421,7 @@ func (s *Service) runLDAPSync(ctx context.Context, connID uuid.UUID, cfg LDAPCon
 
 // upsertUser finds or creates the Lahijan user for a directory entry and links
 // it. created reports whether a new user row was made.
-func (s *Service) upsertUser(ctx context.Context, connID uuid.UUID, externalID, email, name string) (uuid.UUID, bool, error) {
+func (s *Service) upsertUser(ctx context.Context, connID uuid.UUID, externalID, email, name string, createMissing bool) (uuid.UUID, bool, error) {
 	var display *string
 	if name != "" {
 		display = &name
@@ -429,6 +441,9 @@ func (s *Service) upsertUser(ctx context.Context, connID uuid.UUID, externalID, 
 	case !database.IsNoRows(err):
 		return uuid.Nil, false, err
 	}
+	if !createMissing {
+		return uuid.Nil, false, errNotProvisioned
+	}
 	u, err := s.users.Create(ctx, database.CreateUserParams{Email: email, DisplayName: display})
 	if err != nil {
 		return uuid.Nil, false, err
@@ -436,6 +451,12 @@ func (s *Service) upsertUser(ctx context.Context, connID uuid.UUID, externalID, 
 	// The directory vouches for the address, so no verification email is needed.
 	if err := s.users.VerifyEmail(ctx, u.ID); err != nil {
 		return uuid.Nil, false, err
+	}
+	if s.provisioner != nil {
+		// Best-effort, like self-registration: the account exists either way.
+		if perr := s.provisioner.ProvisionSignup(ctx, u.ID, email); perr != nil {
+			s.log.WarnContext(ctx, "directory: provisioning a new account failed", "user", u.ID, "err", perr)
+		}
 	}
 	if err := s.dir.LinkUser(ctx, connID, u.ID, externalID); err != nil {
 		return uuid.Nil, false, err

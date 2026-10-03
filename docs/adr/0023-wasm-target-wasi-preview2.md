@@ -57,7 +57,7 @@ Rationale:
 1. **Pillar 1 (transparent infrastructure) + pillar 5 (Android-style
    permissions)** — plugins should not have ambient access to a filesystem or
    environment they did not request. Plain WASM makes the import list
-   *identical* to the permission list, so the manifest is the only source of
+   _identical_ to the permission list, so the manifest is the only source of
    truth.
 2. **wazero v1.9** is stable for plain WASM; WASI P1 is also stable in
    wazero but adds an ambient surface we'd have to audit; the component model

@@ -31,13 +31,13 @@ Options considered:
 
 - **Option A — a new `actor_type = "agent"`** — clean conceptual model; every
   audit row needs an `on_behalf_of_user_id` column + migration; the audit
-  query API + redaction rules gain a branch. — *pro:* explicit; *con:* schema
-  + wider surface change for a v1 slice.
+  query API + redaction rules gain a branch. — _pro:_ explicit; _con:_ schema
+  - wider surface change for a v1 slice.
 - **Option B — `actor_type = "user"` + `metadata.via_agent = true`** — reuses
   the existing audit schema; the actor IS the user (because the agent only
   ever acts with that user's permissions); the flag lets the audit query API
-  + UI distinguish agent-driven rows. — *pro:* no migration; truthful (the
-  user authorized the action); *con:* "agent" is not a first-class actor.
+  - UI distinguish agent-driven rows. — _pro:_ no migration; truthful (the
+    user authorized the action); _con:_ "agent" is not a first-class actor.
 - **Option C — enforcement in the bridge** vs. **Option D — a decorator** —
   the bridge is the natural home for tool logic; a decorator keeps RBAC +
   audit orthogonal and composable with future bridges (e.g. an MCP-server
@@ -67,13 +67,13 @@ Options considered:
 ## Consequences
 
 - **Positive:** the agent is gated exactly like a manual UI action; audit
-   trail is uniform; a future MCP-server bridge slots in behind the same
-   decorator with no RBAC/audit rewrite.
+  trail is uniform; a future MCP-server bridge slots in behind the same
+  decorator with no RBAC/audit rewrite.
 - **Negative:** the actor is not first-class "agent"; an operator looking for
-   "everything the agent did" must filter `metadata.via_agent = true`.
+  "everything the agent did" must filter `metadata.via_agent = true`.
 - **Neutral:** the bridge is currently read-only, so `Destructive()` is always
-   false; destructive module tools (create/delete) will reuse the existing
-   HITL confirm flow and the same enforcer when they land.
+  false; destructive module tools (create/delete) will reuse the existing
+  HITL confirm flow and the same enforcer when they land.
 
 ## Compliance
 

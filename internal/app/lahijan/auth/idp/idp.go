@@ -101,6 +101,24 @@ type Service struct {
 	// toggle, captured at New() time so tests with parallel services can
 	// have independent JIT settings without racing on the package var.
 	jitEnabled bool
+
+	// signupAllowed, when set, decides whether an external login may create a
+	// brand-new account. Nil means always allowed.
+	signupAllowed func(ctx context.Context) bool
+}
+
+// ErrSignupDisabled is returned when an external identity has no account yet
+// and self-registration is turned off, so none may be created.
+var ErrSignupDisabled = errors.New("idp: self-registration is disabled")
+
+// SetSignupPolicy installs the self-registration policy that gates the
+// creation of new accounts from an external identity. Call once at
+// bootstrap, before serving traffic.
+func (s *Service) SetSignupPolicy(p func(ctx context.Context) bool) { s.signupAllowed = p }
+
+// signupOpen reports whether new accounts may be created right now.
+func (s *Service) signupOpen(ctx context.Context) bool {
+	return s.signupAllowed == nil || s.signupAllowed(ctx)
 }
 
 // SessionOpener opens a Lahijan session once an identity has been resolved.
@@ -314,6 +332,12 @@ func (s *Service) resolveNewIdentity(ctx context.Context, in LinkInput) (LinkRes
 		// email. The platform policy (require email) is enforced by the api
 		// handler, which can return a "completion required" envelope before
 		// reaching this service. Here we accept whatever the IdP returned.
+		if !s.signupOpen(ctx) {
+			s.auditFail(ctx, audit.ActionIdpLink, nil, map[string]any{
+				"provider": in.Provider, "reason": "signup_disabled",
+			})
+			return LinkResult{}, ErrSignupDisabled
+		}
 		params := database.CreateUserParams{
 			Email:       in.Email,
 			IsActive:    boolPtr(true),

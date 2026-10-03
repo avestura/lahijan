@@ -62,7 +62,7 @@ Once linked, opening the same start address while signed out logs you in as your
 
 If you sign in with an OAuth or OIDC identity that is not linked to any account, Lahijan creates a new account from the provider's profile. That new account has no tenant membership, so it cannot create resources until an administrator adds it to a tenant. If the provider's email already belongs to an existing Lahijan account, sign-in fails; sign in with your password and link the identity instead.
 
-For SAML, a sign-in with an unknown identity is refused unless your operator has turned on automatic account creation for SAML.
+For SAML, a sign-in with an unknown identity is refused unless your operator has turned on automatic account creation for SAML. If your operator has turned registration off, no sign-in with an identity that has no account yet can create one; link the identity from an account you already have instead.
 
 ## Unlink an identity
 

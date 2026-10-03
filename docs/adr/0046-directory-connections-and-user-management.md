@@ -29,12 +29,12 @@ issued with a narrow scope carried all of its owner's permissions.
   `directory_user_links` (migration 0050), guarded by
   `platform.directory.manage`:
   - **LDAP**: connection settings + a bind password sealed with the existing
-    AES-GCM envelope. *Test* binds and runs the user / group searches. *Sync*
+    AES-GCM envelope. _Test_ binds and runs the user / group searches. _Sync_
     imports users (matched by email, never overwritten; new users have no
     password and a verified email) and groups with their members. Sync is
     non-destructive: users that disappear from the directory are left as they
     are, and groups no longer present are removed.
-  - **SAML**: IdP metadata (URL or inline) and attribute names. *Test* fetches
+  - **SAML**: IdP metadata (URL or inline) and attribute names. _Test_ fetches
     and parses the metadata. An enabled connection is registered in the sign-in
     registry **at runtime** (no restart); the registry became concurrency-safe
     (`Set` / `Remove`). The connection name is the provider key in the sign-in
@@ -58,6 +58,24 @@ issued with a narrow scope carried all of its owner's permissions.
   owner (`WithUserChecker`); the bootstrap wires it so a disabled or deleted
   user's tokens stop working. Disabling or deleting a user from the admin API
   also revokes their sessions.
+- **LDAP sign-in.** While an LDAP connection is enabled, its users sign in with
+  their directory email and password. `session.Service` gained an optional
+  `ExternalAuthenticator` hook: a correct local password still wins without any
+  network call; otherwise the directory is tried (search for the one entry with
+  that email as the connection's service account, then bind as that entry on a
+  separate connection). The linked account is used, or one is created on first
+  sign-in unless the connection turns that off (`createUsersOnLogin`); empty
+  passwords are never sent (an empty bind password would succeed anonymously)
+  and a directory password never overwrites a local one. New directory accounts
+  get the same personal-tenant provisioning as self-registration.
+- **Registration can be turned off.** `auth.signup.enabled`
+  (`LAHIJAN_AUTH_SIGNUP_ENABLED`, default true) is the default; an
+  administrator's choice in **Administration > Settings** is stored in the new
+  `platform_settings` table (migration 0051) and overrides it until reset. It
+  gates the register endpoint and the creation of new accounts from OAuth, OIDC
+  and SAML sign-ins (`403 registration_disabled`); accounts created by an
+  administrator or imported from LDAP are never blocked. Guarded by
+  `platform.settings.manage`.
 - **Provider connection test** for the agent's BYOK model providers
   (`POST /api/v1/agent/providers/test`): lists models, falls back to a one-token
   completion, and never returns the upstream body.
@@ -67,9 +85,9 @@ issued with a narrow scope carried all of its owner's permissions.
 - Existing scoped tokens now actually lose access outside their scopes. This is
   the intended meaning of "scoped" but is a behaviour change worth a release
   note.
-- LDAP is import-only for now: a synced user has no password and signs in via
-  SSO, password reset, or an administrator-set password. LDAP bind
-  authentication at login is a follow-up.
+- LDAP sign-in matches by email address and trusts the directory's email
+  attribute: whoever authenticates there with an email can sign in to the
+  account with that email. Connect only directories you control.
 - Group data is informational: it is not yet mapped to roles. Mapping groups to
   tenant roles is a follow-up.
 - A SAML connection fetches IdP metadata over HTTP when it is saved or
