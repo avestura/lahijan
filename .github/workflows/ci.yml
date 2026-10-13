@@ -158,7 +158,11 @@ jobs:
       - uses: docker/setup-buildx-action@v3
       - name: Check the install compose file
         if: ${{ matrix.name == 'server' }}
-        run: docker compose -f deployments/install/compose.yaml --env-file deployments/install/.env.example config --quiet
+        # The services read `env_file: .env`, which must exist; start from the
+        # example the way an operator would.
+        run: |
+          cp deployments/install/.env.example deployments/install/.env
+          docker compose -f deployments/install/compose.yaml config --quiet
       - name: Log in to GHCR
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
